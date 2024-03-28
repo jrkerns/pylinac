@@ -19,6 +19,7 @@ Features:
 """
 from __future__ import annotations
 
+import dataclasses
 import enum
 import io
 import math
@@ -207,6 +208,30 @@ class BBArrangement:
         return f"'{a['name']}': {lr} {abs(a['offset_left_mm'])}mm, {ud} {abs(a['offset_up_mm'])}mm, {io} {abs(a['offset_in_mm'])}mm"
 
 
+@dataclasses.dataclass
+class BBFieldMatch:
+    """A match of a BB and field to an expected arrangement position. I.e. the nominal BB, measured BB, and field.
+    This can calculate distances, create backprojections, etc for a single BB/Field."""
+
+    epid: Point
+    field: Point
+    bb: Point
+    dpmm: float
+
+    @property
+    def bb_field_distance_mm(self) -> float:
+        return self.field.distance_to(self.bb) / self.dpmm
+
+    @property
+    def bb_epid_distance_mm(self) -> float:
+        return self.epid.distance_to(self.bb) / self.dpmm
+
+    @property
+    def field_epid_distance_mm(self) -> float:
+        return self.epid.distance_to(self.field) / self.dpmm
+
+
+# TODO: remove when BB is removed
 class NominalBB(TypedDict):
     """Input for BB location"""
 
@@ -216,6 +241,7 @@ class NominalBB(TypedDict):
     bb_diameter_mm: float
 
 
+# TODO: refactor using BBFieldMatch
 class BB:
     """A representation of a BB in 3D space"""
 
@@ -398,7 +424,7 @@ class WLBaseImage(image.LinacDicomImage):
     bb_positions: list[Point]
     bb_arrangement: tuple[BBConfig]
     arrangement_matches: dict[
-        str, dict[str, Point]
+        str, BBFieldMatch
     ]  # a field CAX and BB matched to their respective nominal locations
 
     def __init__(
@@ -451,14 +477,12 @@ class WLBaseImage(image.LinacDicomImage):
         # merge the field and BBs per arrangement position
         combined_matches = {}
         for bb_name, bb_match in bb_matches.items():
-            # TODO: use a typeddict or dataclass
-            combined_matches[bb_name] = {
-                "epid": self.epid,
-                "field": field_matches[bb_name],
-                "bb": bb_match,
-                "field-bb distance": field_matches[bb_name].distance_to(bb_match)
-                / self.dpmm,
-            }
+            combined_matches[bb_name] = BBFieldMatch(
+                epid=self.center,
+                field=field_matches[bb_name],
+                bb=bb_match,
+                dpmm=self.dpmm,
+            )
         self._is_analyzed = True
         self.arrangement_matches = combined_matches
 
@@ -527,18 +551,16 @@ class WLBaseImage(image.LinacDicomImage):
     def field_to_bb_distances(self) -> list[float]:
         """The distances from the field CAXs to the BBs in mm. Useful for metrics as this is only
         the resulting floats vs a dict of points."""
-        distances = []
-        for match in self.arrangement_matches.values():
-            distances.append(match["field"].distance_to(match["bb"]) / self.dpmm)
-        return distances
+        return [
+            match.bb_field_distance_mm for match in self.arrangement_matches.values()
+        ]
 
     def epid_to_bb_distances(self) -> list[float]:
         """The distances from the EPID center to the BBs in mm. Useful for metrics as this is only
         the resulting floats vs a dict of points."""
-        distances = []
-        for match in self.arrangement_matches.values():
-            distances.append(match["epid"].distance_to(match["bb"]) / self.dpmm)
-        return distances
+        return [
+            match.bb_epid_distance_mm for match in self.arrangement_matches.values()
+        ]
 
     def plot(
         self,
@@ -569,8 +591,8 @@ class WLBaseImage(image.LinacDicomImage):
         epid_handle = ax.axhline(y=self.epid.y, color="b")
         # show the field CAXs
         for match in self.arrangement_matches.values():
-            (field_handle,) = ax.plot(match["field"].x, match["field"].y, "gs", ms=8)
-            (bb_handle,) = ax.plot(match["bb"].x, match["bb"].y, "ro", ms=8)
+            (field_handle,) = ax.plot(match.field.x, match.bb.y, "gs", ms=8)
+            (bb_handle,) = ax.plot(match.bb.x, match.bb.y, "ro", ms=8)
         if legend:
             ax.legend(
                 (field_handle, bb_handle, epid_handle),
@@ -582,19 +604,19 @@ class WLBaseImage(image.LinacDicomImage):
             # find the x and y limits based on the detected BB positions
             # and add a margin of 20mm
             min_x = (
-                min([match["bb"].x for match in self.arrangement_matches.values()])
+                min([match.bb.x for match in self.arrangement_matches.values()])
                 - 20 * self.dpmm
             )
             min_y = (
-                min([match["bb"].y for match in self.arrangement_matches.values()])
+                min([match.bb.y for match in self.arrangement_matches.values()])
                 - 20 * self.dpmm
             )
             max_x = (
-                max([match["bb"].x for match in self.arrangement_matches.values()])
+                max([match.bb.x for match in self.arrangement_matches.values()])
                 + 20 * self.dpmm
             )
             max_y = (
-                max([match["bb"].y for match in self.arrangement_matches.values()])
+                max([match.bb.y for match in self.arrangement_matches.values()])
                 + 20 * self.dpmm
             )
             ax.set_ylim([min_y, max_y])
@@ -730,8 +752,8 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
         )
         self.bb_arrangement = bb_config
         # these are set for the deprecated properties of the 2D analysis specifically where 1 field and 1 bb are expected.
-        self.field_cax = self.arrangement_matches["Iso"]["field"]
-        self.bb = self.arrangement_matches["Iso"]["bb"]
+        self.field_cax = self.arrangement_matches["Iso"].field
+        self.bb = self.arrangement_matches["Iso"].bb
 
     def __repr__(self):
         return f"WLImage(gantry={self.gantry_angle:.1f}, coll={self.collimator_angle:.1f}, couch={self.couch_angle:.1f})"
