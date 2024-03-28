@@ -192,6 +192,13 @@ allows phantoms with multiple BB sizes to still be analyzed. See :ref:`custom-bb
 Custom BB Arrangements
 ----------------------
 
+
+.. note::
+
+    .. versionchanged:: 3.22
+
+    The BB arrangement was changed to a be a class instance instead of a simple dictionary. See :class:`~pylinac.winston_lutz.BBConfig`.
+
 The MTWL algorithm uses a priori BB arrangements. I.e. you need to know where the BBs **should** exist in
 space relative to isocenter. The MTWL algorithm is flexible to accommodate any reasonable arrangement of BBs.
 
@@ -200,29 +207,34 @@ BB offsets and size like so. Use negative values to move the other direction:
 
 .. code-block:: python
 
+    from pylinac.winston_lutz import BBConfig
+
     my_special_phantom_bbs = [
-        {
-            "offset_left_mm": 0,
-            "offset_up_mm": 0,
-            "offset_in_mm": 0,
-            "bb_size_mm": 5,
-            "rad_size_mm": 20,
-        },  # 5mm BB at iso
-        {
-            "offset_left_mm": 30,
-            "offset_up_mm": 0,
-            "offset_in_mm": 0,
-            "bb_size_mm": 4,
-            "rad_size_mm": 20,
-        },  # 4mm BB 30mm to left of iso
-        {
-            "offset_left_mm": 0,
-            "offset_up_mm": -20,
-            "offset_in_mm": 10,
-            "bb_size_mm": 5,
-            "rad_size_mm": 20,
-        },  # BB DOWN 20mm and in 10mm
-        ...,  # keep going as needed
+        BBConfig(
+            name="Iso",
+            offset_left_mm=0,
+            offset_up_mm=0,
+            offset_in_mm=0,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),  # 5mm BB at iso
+        BBConfig(
+            name="Left",
+            offset_left_mm=30,
+            offset_up_mm=0,
+            offset_in_mm=0,
+            bb_size_mm=4,
+            rad_size_mm=20,
+        ),  # 4mm BB 30mm to left of iso
+        BBConfig(
+            name="Down and In",
+            offset_left_mm=0,
+            offset_up_mm=-20,
+            offset_in_mm=10,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),  # BB DOWN 20mm and in 10mm
+        # keep going as needed
     ]
 
 Pass it to the algorithm like so:
@@ -302,6 +314,7 @@ as the demo, but is good for explanation).
 .. plot::
 
     import pylinac
+    from pylinac.winston_lutz import BBConfig
     from pylinac.core.image_generator import simulators, layers, generate_winstonlutz_multi_bb_multi_field
 
     wl_dir = 'wl_dir'
@@ -315,8 +328,9 @@ as the demo, but is good for explanation).
             bb_offsets=[[0, 0, 0], [20, -20, 60]],
     )
     arrange = (
-        {'name': 'Iso', 'offset_left_mm': 0, 'offset_up_mm': 0, 'offset_in_mm': 0, 'bb_size_mm': 5, 'rad_size_mm': 20},
-        {'name': 'Left,Down,In', 'offset_left_mm': 20, 'offset_up_mm': -20, 'offset_in_mm': 60, 'bb_size_mm': 5, 'rad_size_mm': 20},)
+        BBConfig(name='Iso', offset_left_mm=0, offset_up_mm=0, offset_in_mm=0, bb_size_mm=5, rad_size_mm=20),
+        BBConfig(name='Left,Down,In', offset_left_mm=20, offset_up_mm=-20, offset_in_mm=60, bb_size_mm=5, rad_size_mm=20),
+    )
 
     wl = pylinac.WinstonLutzMultiTargetMultiField(wl_dir)
     wl.analyze(bb_arrangement=arrange)
@@ -331,21 +345,21 @@ which has an output of::
 
     2D distances
     ============
-    Max 2D distance of any BB: 0.00 mm
-    Mean 2D distance of any BB: 0.00 mm
-    Median 2D distance of any BB: 0.00 mm
+    Max 2D distance of any BB->Field: 0.00 mm
+    Mean 2D distance of any BB->Field: 0.00 mm
+    Median 2D distance of any BB->Field: 0.00 mm
 
-      BB #  Description
-    ------  ---------------------------------------------
-         0  'Iso': Left 0mm, Up 0mm, In 0mm
-         1  'Left,Down,In': Left 20mm, Down 20mm, In 60mm
+    BB #          Description
+    ------------  -----------------------------
+    Iso           Left 0mm, Up 0mm, In 0mm
+    Left,Down,In  Left 20mm, Down 20mm, In 60mm
 
-    Image                   G    Co    Ch    BB #0    BB #1
-    --------------------  ---  ----  ----  -------  -------
-    =0, Gantry sag=0.dcm    0     0     0        0        0
-    =0, Gantry sag=0.dcm   90     0     0        0        0
-    =0, Gantry sag=0.dcm  180     0     0        0        0
-    =0, Gantry sag=0.dcm  270     0     0        0        0
+    Image                   G    C    P    Iso    Left,Down,In
+    --------------------  ---  ---  ---  -----  --------------
+    =0, Gantry sag=0.dcm    0    0    0      0               0
+    =0, Gantry sag=0.dcm   90    0    0      0               0
+    =0, Gantry sag=0.dcm  180    0    0      0               0
+    =0, Gantry sag=0.dcm  270    0    0      0               0
 
 As shown, we have perfect results.
 
@@ -357,6 +371,7 @@ Let's now offset both BBs by 1mm to the left:
 .. plot::
 
     import pylinac
+    from pylinac.winston_lutz import BBConfig
     from pylinac.core.image_generator import simulators, layers, generate_winstonlutz_multi_bb_multi_field
 
     wl_dir = 'wl_dir'
@@ -367,11 +382,12 @@ Let's now offset both BBs by 1mm to the left:
             dir_out=wl_dir,
             field_offsets=((0, 0, 0), (20, -20, 60)),
             field_size_mm=(20, 20),
-            bb_offsets=[[1, 0, 0], [19, -20, 60]],  # here's the offset
+            bb_offsets=[[1, 0, 0], [21, -20, 60]],  # here's the offset
     )
     arrange = (
-        {'name': 'Iso', 'offset_left_mm': 0, 'offset_up_mm': 0, 'offset_in_mm': 0, 'bb_size_mm': 5, 'rad_size_mm': 20},
-        {'name': 'Left,Down,In', 'offset_left_mm': 20, 'offset_up_mm': -20, 'offset_in_mm': 60, 'bb_size_mm': 5, 'rad_size_mm': 20},)
+        BBConfig(name='Iso', offset_left_mm=0, offset_up_mm=0, offset_in_mm=0, bb_size_mm=5, rad_size_mm=20),
+        BBConfig(name='Left,Down,In', offset_left_mm=20, offset_up_mm=-20, offset_in_mm=60, bb_size_mm=5, rad_size_mm=20),
+    )
 
     wl = pylinac.WinstonLutzMultiTargetMultiField(wl_dir)
     wl.analyze(bb_arrangement=arrange)
@@ -380,27 +396,27 @@ Let's now offset both BBs by 1mm to the left:
 
 with an output of::
 
-    Winston-Lutz Multi-Target Multi-Field Analysis
-    ==============================================
-    Number of images: 4
+  Winston-Lutz Multi-Target Multi-Field Analysis
+  ==============================================
+  Number of images: 4
 
-    2D distances
-    ============
-    Max 2D distance of any BB: 1.01 mm
-    Mean 2D distance of any BB: 1.01 mm
-    Median 2D distance of any BB: 1.01 mm
+  2D distances
+  ============
+  Max 2D distance of any BB->Field: 1.01 mm
+  Mean 2D distance of any BB->Field: 0.50 mm
+  Median 2D distance of any BB->Field: 0.50 mm
 
-      BB #  Description
-    ------  ---------------------------------------------
-         0  'Iso': Left 0mm, Up 0mm, In 0mm
-         1  'Left,Down,In': Left 20mm, Down 20mm, In 60mm
+  BB #          Description
+  ------------  -----------------------------
+  Iso           Left 0mm, Up 0mm, In 0mm
+  Left,Down,In  Left 20mm, Down 20mm, In 60mm
 
-    Image                   G    Co    Ch    BB #0    BB #1
-    --------------------  ---  ----  ----  -------  -------
-    =0, Gantry sag=0.dcm    0     0     0     1.01     1.01
-    =0, Gantry sag=0.dcm   90     0     0     0        0
-    =0, Gantry sag=0.dcm  180     0     0     1.01     1.01
-    =0, Gantry sag=0.dcm  270     0     0     0        0
+  Image                   G    C    P    Iso    Left,Down,In
+  --------------------  ---  ---  ---  -----  --------------
+  =0, Gantry sag=0.dcm    0    0    0   1.01            1.01
+  =0, Gantry sag=0.dcm   90    0    0   0               0
+  =0, Gantry sag=0.dcm  180    0    0   1.01            1.01
+  =0, Gantry sag=0.dcm  270    0    0   0               0
 
 Both BBs report a shift of 1mm. Note this is only in 0 and 180. A left shift would not be
 captured at 90/270.
@@ -418,6 +434,7 @@ Let's now add random error:
 .. plot::
 
     import pylinac
+    from pylinac.winston_lutz import BBConfig
     from pylinac.core.image_generator import simulators, layers, generate_winstonlutz_multi_bb_multi_field
 
     wl_dir = 'wl_dir'
@@ -432,8 +449,9 @@ Let's now add random error:
             jitter_mm=2  # here we add random noise
     )
     arrange = (
-        {'name': 'Iso', 'offset_left_mm': 0, 'offset_up_mm': 0, 'offset_in_mm': 0, 'bb_size_mm': 5, 'rad_size_mm': 20},
-        {'name': 'Left,Down,In', 'offset_left_mm': 20, 'offset_up_mm': -20, 'offset_in_mm': 60, 'bb_size_mm': 5, 'rad_size_mm': 20},)
+        BBConfig(name='Iso', offset_left_mm=0, offset_up_mm=0, offset_in_mm=0, bb_size_mm=5, rad_size_mm=20),
+        BBConfig(name='Left,Down,In', offset_left_mm=20, offset_up_mm=-20, offset_in_mm=60, bb_size_mm=5, rad_size_mm=20),
+    )
 
     wl = pylinac.WinstonLutzMultiTargetMultiField(wl_dir)
     wl.analyze(bb_arrangement=arrange)
@@ -442,27 +460,27 @@ Let's now add random error:
 
 with an output of::
 
-    Winston-Lutz Multi-Target Multi-Field Analysis
-    ==============================================
-    Number of images: 4
+  Winston-Lutz Multi-Target Multi-Field Analysis
+  ==============================================
+  Number of images: 4
 
-    2D distances
-    ============
-    Max 2D distance of any BB: 3.38 mm
-    Mean 2D distance of any BB: 2.82 mm
-    Median 2D distance of any BB: 2.82 mm
+  2D distances
+  ============
+  Max 2D distance of any BB->Field: 4.21 mm
+  Mean 2D distance of any BB->Field: 1.74 mm
+  Median 2D distance of any BB->Field: 1.39 mm
 
-      BB #  Description
-    ------  ---------------------------------------------
-         0  'Iso': Left 0mm, Up 0mm, In 0mm
-         1  'Left,Down,In': Left 20mm, Down 20mm, In 60mm
+  BB #          Description
+  ------------  -----------------------------
+  Iso           Left 0mm, Up 0mm, In 0mm
+  Left,Down,In  Left 20mm, Down 20mm, In 60mm
 
-    Image                   G    Co    Ch    BB #0    BB #1
-    --------------------  ---  ----  ----  -------  -------
-    =0, Gantry sag=0.dcm    0     0     0     2.25     0.34
-    =0, Gantry sag=0.dcm   90     0     0     2.15     2.77
-    =0, Gantry sag=0.dcm  180     0     0     2.13     3.38
-    =0, Gantry sag=0.dcm  270     0     0     2.25     2.42
+  Image                   G    C    P    Iso    Left,Down,In
+  --------------------  ---  ---  ---  -----  --------------
+  =0, Gantry sag=0.dcm    0    0    0   2.38            2.71
+  =0, Gantry sag=0.dcm   90    0    0   1.06            1.39
+  =0, Gantry sag=0.dcm  180    0    0   4.21            1.39
+  =0, Gantry sag=0.dcm  270    0    0   0.48            0.34
 
 
 API Documentation
@@ -472,8 +490,11 @@ API Documentation
 .. autoclass:: pylinac.winston_lutz.WinstonLutzMultiTargetMultiField
     :members:
 
-.. autoclass:: pylinac.winston_lutz.WinstonLutz2DMultiTarget
+.. autoclass:: pylinac.winston_lutz.WinstonLutzMultiTargetMultiFieldImage
     :members:
 
 .. autoclass:: pylinac.winston_lutz.WinstonLutzMultiTargetMultiFieldResult
+    :members:
+
+.. autoclass:: pylinac.winston_lutz.BBConfig
     :members:

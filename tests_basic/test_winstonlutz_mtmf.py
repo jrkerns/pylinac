@@ -11,41 +11,62 @@ TEST_DIR = "Winston-Lutz"
 
 
 class TestWLMultiImage(TestCase):
-    def test_demo_images(self):
-        wl = WinstonLutzMultiTargetMultiField.from_demo_images()
-        # shouldn't raise
-        wl.analyze(BBArrangement.DEMO)
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.wl = WinstonLutzMultiTargetMultiField.from_demo_images()
+        cls.wl.analyze(BBArrangement.DEMO)
 
     def test_demo(self):
         # shouldn't raise
         WinstonLutzMultiTargetMultiField.run_demo()
 
     def test_publish_pdf(self):
-        wl = WinstonLutzMultiTargetMultiField.from_demo_images()
-        wl.analyze(BBArrangement.DEMO)
-        wl.publish_pdf("output.pdf")
+        self.wl.publish_pdf("output.pdf")
 
     def test_save_images(self):
-        wl = WinstonLutzMultiTargetMultiField.from_demo_images()
-        wl.analyze(BBArrangement.DEMO)
-        wl.save_images()
+        self.wl.save_images()
 
     def test_save_images_to_stream(self):
-        wl = WinstonLutzMultiTargetMultiField.from_demo_images()
-        wl.analyze(BBArrangement.DEMO)
-        wl.save_images_to_stream()
+        self.wl.save_images_to_stream()
 
     def test_no_axis_plot(self):
-        wl = WinstonLutzMultiTargetMultiField.from_demo_images()
-        wl.analyze(BBArrangement.DEMO)
         with self.assertRaises(NotImplementedError):
-            wl.plot_axis_images()
+            self.wl.plot_axis_images()
 
     def test_no_summary_plot(self):
-        wl = WinstonLutzMultiTargetMultiField.from_demo_images()
-        wl.analyze(BBArrangement.DEMO)
         with self.assertRaises(NotImplementedError):
-            wl.plot_summary()
+            self.wl.plot_summary()
+
+    def test_no_plot_location(self):
+        with self.assertRaises(NotImplementedError):
+            self.wl.plot_location()
+
+    def test_results(self):
+        results = self.wl.results()
+        self.assertIn("Multi-Target Multi-Field", results)
+        self.assertIn("Max 2D distance of any BB->Field: 0.00 mm", results)
+
+    def test_results_data(self):
+        results = self.wl.results_data()
+        self.assertEqual(results.max_2d_field_to_bb_mm, 0.0)
+        self.assertEqual(results.bb_maxes["Iso"], 0.0)
+        self.assertEqual(results.num_total_images, 4)
+
+    def test_no_gantry_iso_size(self):
+        with self.assertRaises(NotImplementedError):
+            self.wl.gantry_iso_size
+
+    def test_no_collimator_iso_size(self):
+        with self.assertRaises(NotImplementedError):
+            self.wl.collimator_iso_size
+
+    def test_no_couch_iso_size(self):
+        with self.assertRaises(NotImplementedError):
+            self.wl.couch_iso_size
+
+    def test_no_gantry_coll_iso_size(self):
+        with self.assertRaises(NotImplementedError):
+            self.wl.gantry_coll_iso_size
 
 
 class WinstonLutzMultiTargetMultFieldMixin(CloudFileMixin):
@@ -56,17 +77,19 @@ class WinstonLutzMultiTargetMultFieldMixin(CloudFileMixin):
     print_results = False
     arrangement: Iterable[dict]
     wl: WinstonLutzMultiTargetMultiField
+    loader = WinstonLutzMultiTargetMultiField
     max_2d_distance: float
     mean_2d_distance: float
     median_2d_distance: float
+    bb_maxes: dict[str, float] = {}
 
     @classmethod
     def setUpClass(cls):
         filename = cls.get_filename()
         if cls.zip:
-            cls.wl = WinstonLutzMultiTargetMultiField.from_zip(filename)
+            cls.wl = cls.loader.from_zip(filename)
         else:
-            cls.wl = WinstonLutzMultiTargetMultiField(filename)
+            cls.wl = cls.loader(filename)
         cls.wl.analyze(cls.arrangement)
         if cls.print_results:
             print(cls.wl.results())
@@ -91,6 +114,11 @@ class WinstonLutzMultiTargetMultFieldMixin(CloudFileMixin):
             self.wl.mean_bb_deviation_2d, self.mean_2d_distance, delta=0.1
         )
 
+    def test_bb_maxes(self):
+        results = self.wl.results_data()
+        for key, value in self.bb_maxes.items():
+            self.assertAlmostEqual(results.bb_maxes[key], value, delta=0.05)
+
 
 class SNCMultiMet(WinstonLutzMultiTargetMultFieldMixin, TestCase):
     dir_path = ["Winston-Lutz", "multi_target_multi_field"]
@@ -98,5 +126,40 @@ class SNCMultiMet(WinstonLutzMultiTargetMultFieldMixin, TestCase):
     num_images = 13
     arrangement = BBArrangement.SNC_MULTIMET
     max_2d_distance = 0.78
-    median_2d_distance = 0.56
-    mean_2d_distance = 0.58
+    median_2d_distance = 0.25
+    mean_2d_distance = 0.27
+    bb_maxes = {"Iso": 0.42, "1": 0.63}
+
+
+# class WinstonLutzMultiTargetSingleFieldMixin(WinstonLutzMultiTargetMultFieldMixin):
+#     loader = WinstonLutzMultiTargetSingleField
+#     arrangement = BBArrangement.ISOCAL
+#     is_open_field: bool = False
+#     wl: WinstonLutzMultiTargetSingleField
+#
+#     @classmethod
+#     def setUpClass(cls):
+#         filename = cls.get_filename()
+#         if cls.zip:
+#             cls.wl = cls.loader.from_zip(filename)
+#         else:
+#             cls.wl = cls.loader(filename)
+#         cls.wl.analyze(cls.arrangement, is_open_field=cls.is_open_field)
+#         if cls.print_results:
+#             print(cls.wl.results())
+
+
+# @skip("MPC/Single-Field not yet supported")
+# class MPCSubset(WinstonLutzMultiTargetSingleFieldMixin, TestCase):
+#     dir_path = ["MPC"]
+#     file_name = "6xsubset.zip"
+#     num_images = 3
+#     arrangement = BBArrangement.ISOCAL
+#     max_2d_distance = 0.78
+#     median_2d_distance = 0.56
+#     mean_2d_distance = 0.58
+#     is_open_field = True
+
+
+# Test if no BBs found on an image
+# Test if matches cannot be made
