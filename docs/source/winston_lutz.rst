@@ -393,6 +393,34 @@ loaded as normal images and analyzed.
   * There are always 4 images generated.
   * The generated images are not true DICOMs and thus do not have all the DICOM tags.
 
+.. _wl_virtual_shift:
+
+Virtual Shifting
+----------------
+
+.. versionadded:: 3.22
+
+It is possible to virtually shift the BB for regular WL images to see what the 2D errors of the images would be
+if the BB were shifted to the optimal position. This can help avoid iterating on the nominal BB position by physically
+moving the BB.
+
+To virtually move the BB, pass ``apply_virtual_shift`` to the ``analyze`` method:
+
+.. code-block:: python
+
+    wl = WinstonLutz(...)
+    wl.analyze(..., apply_virtual_shift=True)
+    ...
+
+This will result in images where the detected BB plotted does not overlap with the apparent BB location for obvious reasons.
+
+.. image:: images/virtual_shift.png
+    :align: center
+
+The results will be the same as if the BB were physically moved to the optimal position. The results will be slightly
+different and report what the virtual shift was. This is simply the original BB shift instructions before the shift.
+
+
 .. _wl_tiff:
 
 Using TIFF images

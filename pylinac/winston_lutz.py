@@ -430,6 +430,19 @@ class WLBaseImage(image.LinacDicomImage):
         is_low_density: bool = False,
         shift_vector: Vector | None = None,
     ) -> (tuple[Point], tuple[Point]):
+        """Analyze the image for BBs and field CAXs.
+
+        Parameters
+        ----------
+        bb_arrangement : tuple[BBConfig]
+            The expected BB locations.
+        is_open_field : bool
+            Whether the field is open or not. If open, only one CAX is expected.
+        is_low_density : bool
+            Whether the BBs are low density (e.g. kV images).
+        shift_vector : Vector, optional
+            A vector to shift the detected BBs by. Useful for images that are not perfectly aligned.
+        """
         self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
         self._clean_edges()
         self.ground()
@@ -445,15 +458,16 @@ class WLBaseImage(image.LinacDicomImage):
             # apply shift to detected BB points
             sup_inf = bb_projection_long(
                 offset_in=shift_vector.y,
-                offset_left=shift_vector.x,
+                offset_left=-shift_vector.x,  # negative because left is negative x
                 offset_up=shift_vector.x,
                 sad=self.sad,
                 gantry=self.gantry_angle,
                 couch=self.couch_angle,
             )
             lat = bb_projection_gantry_plane(
-                offset_left=shift_vector.x,
+                offset_left=-shift_vector.x,  # negative because left is negative x
                 offset_up=shift_vector.z,
+                offset_in=shift_vector.y,
                 sad=self.sad,
                 gantry=self.gantry_angle,
                 couch=self.couch_angle,
@@ -877,6 +891,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
     image_type = WinstonLutz2D
     is_from_cbct: bool = False
     _bb_diameter: float
+    _virtual_shift: str | None = None
     detection_conditions: list[callable] = [
         is_right_size_bb,
         is_round,
@@ -1162,6 +1177,8 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
             If True, sets the field center to the EPID center under the assumption the field is not the focus of interest or is too wide to be calculated.
             This is often helpful for kV WL analysis where the blades are wide open and even then the blade edge is of
             less interest than simply the imaging iso vs the BB.
+        apply_virtual_shift
+            If True, applies a virtual shift to the BBs based on the shift necessary to place the BB at the radiation isocenter.
         """
         self.machine_scale = machine_scale
         if self.is_from_cbct:
@@ -1171,6 +1188,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
             img.analyze(bb_size_mm, low_density_bb, open_field)
         if apply_virtual_shift:
             shift = self.bb_shift_vector
+            self._virtual_shift = self.bb_shift_instructions()
             for img in self.images:
                 img.analyze(bb_size_mm, low_density_bb, open_field, shift_vector=shift)
         self._is_analyzed = True
@@ -1813,7 +1831,16 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
             f"Maximum 2D CAX->BB distance: {self.cax2bb_distance('max'):.2f}mm",
             f"Median 2D CAX->BB distance: {self.cax2bb_distance('median'):.2f}mm",
             f"Mean 2D CAX->BB distance: {self.cax2bb_distance('mean'):.2f}mm",
-            f"Shift to iso: facing gantry, move BB: {self.bb_shift_instructions()}",
+        ]
+        if self._virtual_shift:
+            result.append(
+                f"Virtual shift applied to BB to place at isocenter: {self._virtual_shift}"
+            )
+        else:
+            result.append(
+                f"Shift to iso: facing gantry, move BB: {self.bb_shift_instructions()}"
+            )
+        result += [
             f"Gantry 3D isocenter diameter: {self.gantry_iso_size:.2f}mm ({num_gantry_imgs}/{num_imgs} images considered)",
             f"Maximum Gantry RMS deviation (mm): {max(self.axis_rms_deviation((Axis.GANTRY, Axis.REFERENCE))):.2f}mm",
             f"Maximum EPID RMS deviation (mm): {max(self.axis_rms_deviation(Axis.EPID)):.2f}mm",
