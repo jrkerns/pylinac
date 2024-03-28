@@ -47,6 +47,9 @@ Winston Lutz
   This can be turned off by passing ``zoom=False`` to the ``plot_images`` method.
 * When using custom BB arrangements, use the new :class:`~pylinac.winston_lutz.BBConfig` class instead
   of a dictionary. See the updated :ref:``custom-bb-arrangements`` section for more.
+* A bug was fixed for the BB shift vector/instructions when analyzing images with couch kicks.
+  The Low paper which contains the mathematical transforms appears to have missing negative signs. This
+  has been fixed and validated using the new image generator ability to create images with couch kicks.
 
 Image Generator
 ^^^^^^^^^^^^^^^
