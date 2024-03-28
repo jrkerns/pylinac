@@ -496,8 +496,13 @@ of the field CAX points. They also found that the gantry isocenter could by foun
 the field CAX as a line in 3D coordinate space, with the BB being the reference point. This method is used to find the
 gantry isocenter size.
 
-Low determined the geometric transformations to apply to 2D planar images to calculate the shift to apply to the BB.
-This method is used to determine the shift instructions. Specifically, equations 6 and 9.
+Couch shift
+^^^^^^^^^^^
+
+`Low et al`_ determined the geometric transformations to apply to 2D planar images to calculate the shift to apply to the BB.
+This method is used to determine the shift instructions. Specifically, equations 6, 7, and 9.
+
+
 
 .. note::
 
@@ -508,6 +513,46 @@ This method is used to determine the shift instructions. Specifically, equations
     to be able to use Low's equations.
     To use a different scale use the ``machine_scale`` parameter, shown here :ref:`passing-a-coordinate-system`.
     Also see :ref:`scale`.
+
+Implementation for the couch shift is as follows:
+
+For each image we determine (equation 6a):
+
+.. math::
+
+    \textbf{A}(\phi, \theta) = \begin{pmatrix} -\cos(\phi) & \sin(\phi) & 0 \\ \cos(\theta)\sin(\phi) & \cos(\theta)\cos(\phi) & -\sin(\theta) \end{pmatrix}
+
+where :math:`\theta` is the gantry angle and :math:`\phi` is the couch angle.
+
+.. warning::
+
+  The Low paper appears to have incorrect signs for some of the matrix. Using synthetic images with known shifts
+  can prove the correctness of the algorithm.
+
+The :math:`\xi` matrix is then calculated (equation 7):
+
+.. math::
+
+    \xi = (x_{1},y_{1}, ..., x_{i},y_{i},..., x_{n},y_{n})^{T}
+
+where :math:`x_{i}` and :math:`y_{i}` are the x and y scalar shifts from the field CAX to the BB for :math:`n` images.
+
+From equation 9 we can calculate :math:`\textbf{B}(\phi_{1},\theta_{1},..., \phi_{n},\theta_{n})`:
+
+.. math::
+
+    \textbf{B} = \begin{pmatrix} \textbf{A}(\phi_{1},\theta_{1}) \\ \vdots \\ \textbf{A}(\phi_{i},\theta_{i}) \\ \vdots \\ \textbf{A}(\phi_{n},\theta_{n}) \end{pmatrix}
+
+using the above definitions.
+
+We can then solve for the shift vector :math:`\boldsymbol{\Delta}`:
+
+.. math::
+
+    \boldsymbol{\Delta} = \textbf{B}(\phi_{1},\theta_{1},..., \phi_{n},\theta_{n}) \cdot \xi
+
+Implementation
+^^^^^^^^^^^^^^
 
 The algorithm works like such:
 

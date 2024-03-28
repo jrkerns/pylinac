@@ -1252,7 +1252,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
                 [
                     [-cos(couch), sin(couch), 0],
                     [
-                        -cos(gantry) * -sin(couch),
+                        cos(gantry) * sin(couch),
                         cos(gantry) * cos(couch),
                         -sin(gantry),
                     ],
