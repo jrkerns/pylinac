@@ -21,6 +21,12 @@ Image
   be plotted on the resulting figure all the time. A new parameter ``show_metrics`` has been added to the ``plot`` method
   to control this behavior.
 
+Core
+^^^^
+
+* Users can now export analysis results as JSON. This is helpful for dumping results to file or for use in
+  passing data to another library or program. A new topic page is available: :ref:`exporting-results`.
+
 Winston Lutz
 ^^^^^^^^^^^^
 

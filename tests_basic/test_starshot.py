@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import os.path as osp
 import tempfile
@@ -288,6 +289,11 @@ class GeneralTests(Demo, TestCase):
 
         data_dict = self.star.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
+
+        data_json = self.star.results_data(as_json=True)
+        self.assertIsInstance(data_json, str)
+        # shouldn't raise
+        json.loads(data_json)
 
     def test_set_figure_size(self):
         self.star.plot_analyzed_image(figsize=(7, 11))

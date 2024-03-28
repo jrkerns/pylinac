@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import os.path as osp
 import tempfile
@@ -159,6 +160,14 @@ class TestGeneral(TestCase):
             self.assertEqual(
                 data.ctp528.mtf_lp_mm[p], self.cbct.ctp528.mtf.relative_resolution(p)
             )
+
+        data_dict = self.cbct.results_data(as_dict=True)
+        self.assertIsInstance(data_dict, dict)
+
+        data_json = self.cbct.results_data(as_json=True)
+        self.assertIsInstance(data_json, str)
+        # shouldn't raise
+        json.loads(data_json)
 
     def test_contrast_str(self):
         # shouldn't raise

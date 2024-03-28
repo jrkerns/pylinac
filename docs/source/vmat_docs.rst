@@ -526,11 +526,9 @@ These are the classes a typical user may interface with.
     :members:
 
 .. autoclass:: pylinac.vmat.VMATResult
-    :inherited-members:
     :members:
 
 .. autoclass:: pylinac.vmat.SegmentResult
-    :inherited-members:
     :members:
 
 

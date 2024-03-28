@@ -823,7 +823,6 @@ These are the classes a typical user may interface with.
     :members:
 
 .. autoclass:: pylinac.picketfence.PFResult
-    :inherited-members:
     :members:
 
 Supporting Classes

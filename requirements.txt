@@ -3,6 +3,7 @@ matplotlib >= 2.0
 numpy >= 1.16
 Pillow >= 4.0
 py-linq
+pydantic >= 2.0
 pydicom >= 2.0
 reportlab >= 3.3
 scikit-image >= 0.17

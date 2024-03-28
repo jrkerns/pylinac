@@ -495,7 +495,6 @@ API Documentation
 
 .. autoclass:: pylinac.winston_lutz.WinstonLutzMultiTargetMultiFieldResult
     :members:
-    :inherited-members:
 
 .. autoclass:: pylinac.winston_lutz.BBConfig
     :members:
