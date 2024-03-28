@@ -19,6 +19,7 @@ Features:
 """
 from __future__ import annotations
 
+import copy
 import dataclasses
 import enum
 import io
@@ -27,7 +28,6 @@ import os.path as osp
 import statistics
 import tempfile
 import webbrowser
-from dataclasses import dataclass
 from functools import cached_property
 from itertools import zip_longest
 from pathlib import Path
@@ -48,11 +48,21 @@ from tabulate import tabulate
 from .core import image, pdf
 from .core.array_utils import array_to_dicom
 from .core.decorators import lru_cache
+from .core.geometry import (
+    Line,
+    Point,
+    PointSerialized,
+    Vector,
+    VectorSerialized,
+    cos,
+    sin,
+)
+from .core.image import DicomImageStack, LinacDicomImage, is_image, tiff_to_dicom
 from .core.geometry import Line, Point, Vector, cos, sin
 from .core.image import XIM, DicomImageStack, _is_xim, is_image, tiff_to_dicom
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.scale import MachineScale, convert
-from .core.utilities import ResultBase, convert_to_enum, is_close
+from .core.utilities import ResultBase, ResultsDataMixin, convert_to_enum, is_close
 from .metrics.features import (
     is_right_circumference,
     is_right_size_bb,
@@ -286,18 +296,16 @@ class Axis(enum.Enum):
     REFERENCE = "Reference"  #:
 
 
-@dataclass
 class WinstonLutz2DResult(ResultBase):
     variable_axis: str  #:
-    cax2epid_vector: Vector  #:
+    bb_location: PointSerialized  #:
+    cax2epid_vector: VectorSerialized  #:
     cax2epid_distance: float  #:
     cax2bb_distance: float  #:
-    cax2bb_vector: Vector  #:
-    bb_location: Point  #:
-    field_cax: Point  #:
+    cax2bb_vector: VectorSerialized  #:
+    field_cax: PointSerialized  #:
 
 
-@dataclass
 class WinstonLutzResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -327,7 +335,6 @@ class WinstonLutzResult(ResultBase):
     keyed_image_details: dict[str, WinstonLutz2DResult]  #:
 
 
-@dataclass
 class WinstonLutzMultiTargetMultiFieldResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -795,13 +802,41 @@ class WinstonLutz2D(WLBaseImage):
         plt.tight_layout()
         plt.savefig(filename, **kwargs)
 
-    def results_data(self, as_dict: bool = False) -> WinstonLutz2DResult | dict:
+    @property
+    def variable_axis(self) -> Axis:
+        """The axis that is varying.
+
+        There are five types of images:
+
+        * Reference : All axes are at 0.
+        * Gantry: All axes but gantry at 0.
+        * Collimator : All axes but collimator at 0.
+        * Couch : All axes but couch at 0.
+        * Combo : More than one axis is not at 0.
+        """
+        G0 = is_close(self.gantry_angle, [0, 360])
+        B0 = is_close(self.collimator_angle, [0, 360])
+        P0 = is_close(self.couch_angle, [0, 360])
+        if G0 and B0 and not P0:
+            return Axis.COUCH
+        elif G0 and P0 and not B0:
+            return Axis.COLLIMATOR
+        elif P0 and B0 and not G0:
+            return Axis.GANTRY
+        elif P0 and B0 and G0:
+            return Axis.REFERENCE
+        elif P0:
+            return Axis.GB_COMBO
+        else:
+            return Axis.GBP_COMBO
+
+    def _generate_results_data(self) -> WinstonLutz2DResult:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         if not self._is_analyzed:
             raise ValueError("The image is not analyzed. Use .analyze() first.")
 
-        data = WinstonLutz2DResult(
+        return WinstonLutz2DResult(
             variable_axis=self.variable_axis.value,
             cax2bb_vector=self.cax2bb_vector,
             cax2epid_vector=self.cax2epid_vector,
@@ -810,12 +845,9 @@ class WinstonLutz2D(WLBaseImage):
             bb_location=self.bb,
             field_cax=self.field_cax,
         )
-        if as_dict:
-            return dataclasses.asdict(data)
-        return data
 
 
-class WinstonLutz:
+class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
     """Class for performing a Winston-Lutz test of the radiation isocenter."""
 
     images: list[WinstonLutz2D]  #:
@@ -1769,7 +1801,7 @@ class WinstonLutz:
             result = "\n".join(result)
         return result
 
-    def results_data(self, as_dict: bool = False) -> WinstonLutzResult | dict:
+    def _generate_results_data(self) -> WinstonLutzResult:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         if not self._is_analyzed:
@@ -1781,18 +1813,9 @@ class WinstonLutz:
         num_coll_imgs = self._get_images(axis=(Axis.COLLIMATOR, Axis.REFERENCE))[0]
         num_couch_imgs = self._get_images(axis=(Axis.COUCH, Axis.REFERENCE))[0]
 
-        individual_image_data = [i.results_data(as_dict=as_dict) for i in self.images]
-        if as_dict:
-            # convert classes to dicts; little wonky but we have to get it through
-            # to radmachine and we want to dynamically convert classes to dicts
-            for img in individual_image_data:
-                for key, value in img.items():
-                    try:
-                        img[key] = value.__dict__
-                    except AttributeError:
-                        pass
+        individual_image_data = [i.results_data() for i in self.images]
 
-        data = WinstonLutzResult(
+        return WinstonLutzResult(
             num_total_images=len(self.images),
             num_gantry_images=num_gantry_imgs,
             num_coll_images=num_coll_imgs,
@@ -1821,13 +1844,10 @@ class WinstonLutz:
             image_details=individual_image_data,
             keyed_image_details=self._generate_keyed_images(individual_image_data),
         )
-        if as_dict:
-            return dataclasses.asdict(data)
-        return data
 
     def _generate_keyed_images(
-        self, individual_image_data: list[WinstonLutz2D] | dict
-    ) -> dict:
+        self, individual_image_data: list[WinstonLutz2DResult]
+    ) -> dict[str, WinstonLutz2DResult]:
         """Generate a dict where each key is based on the axes values and the key is an image. Used in the results_data method.
         We can't do a simple dict comprehension because we may have duplicate axes sets. We pass individual data
         because we may have already converted to a dict; we don't want to do that again.
@@ -2094,9 +2114,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             fig.savefig(stream, **kwargs)
         return {name: stream for name, stream in zip(names, streams)}
 
-    def results_data(
-        self, as_dict: bool = False
-    ) -> WinstonLutzMultiTargetMultiFieldResult | dict:
+    def _generate_results_data(self) -> WinstonLutzMultiTargetMultiFieldResult:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         if not self._is_analyzed:
@@ -2114,7 +2132,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
                     )
             bb_maxes[bb.name] = max_d
 
-        data = WinstonLutzMultiTargetMultiFieldResult(
+        return WinstonLutzMultiTargetMultiFieldResult(
             num_total_images=len(self.images),
             max_2d_field_to_bb_mm=self.max_bb_deviation_2d,
             mean_2d_field_to_bb_mm=self.mean_bb_deviation_2d,
@@ -2122,9 +2140,6 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             bb_maxes=bb_maxes,
             bb_arrangement=self.bb_arrangement,
         )
-        if as_dict:
-            return dataclasses.asdict(data)
-        return data
 
     def plot_summary(self, show: bool = True, fig_size: tuple | None = None):
         raise NotImplementedError("Not yet implemented")

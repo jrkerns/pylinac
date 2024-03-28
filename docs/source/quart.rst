@@ -184,17 +184,13 @@ API Documentation
     :members:
 
 .. autoclass:: pylinac.quart.QuartDVTResult
-    :inherited-members:
     :members:
 
 .. autoclass:: pylinac.quart.QuartHUModuleOutput
-    :inherited-members:
     :members:
 
 .. autoclass:: pylinac.quart.QuartUniformityModuleOutput
-    :inherited-members:
     :members:
 
 .. autoclass:: pylinac.quart.QuartGeometryModuleOutput
-    :inherited-members:
     :members:

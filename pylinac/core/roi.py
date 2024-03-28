@@ -274,7 +274,7 @@ class LowContrastDiskROI(DiskROI):
             "contrast method": self.contrast_method,
             "visibility": self.visibility,
             "visibility threshold": self.visibility_threshold,
-            "passed visibility": self.passed_visibility,
+            "passed visibility": bool(self.passed_visibility),
             "contrast": self.contrast,
             "cnr": self.contrast_to_noise,
             "signal to noise": self.signal_to_noise,

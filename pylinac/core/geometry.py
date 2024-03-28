@@ -11,6 +11,8 @@ import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
 from matplotlib.patches import Rectangle as mpl_Rectangle
 from mpl_toolkits.mplot3d.art3d import Line3D
+from pydantic import PlainSerializer
+from typing_extensions import Annotated
 
 from .utilities import is_iterable
 
@@ -148,6 +150,14 @@ class Point:
     def as_vector(self) -> Vector:
         return Vector(x=self.x, y=self.y, z=self.z)
 
+    def dict(self) -> dict:
+        """Convert to dict. Shim until convert to dataclass"""
+        return {
+            attr: getattr(self, attr)
+            for attr in self._attr_list
+            if getattr(self, attr) is not None
+        }
+
     def __repr__(self) -> str:
         return f"Point(x={self.x:3.2f}, y={self.y:3.2f}, z={self.z:3.2f})"
 
@@ -191,6 +201,14 @@ class Point:
             if val is not None:
                 setattr(self, attr, val / other)
         return self
+
+
+def to_json(data: Point | Vector):
+    """Simple serialization call"""
+    return data.dict()
+
+
+PointSerialized = Annotated[Point, PlainSerializer(to_json)]
 
 
 class Circle:
@@ -299,6 +317,10 @@ class Vector:
         """Return the scalar equivalent of the vector."""
         return math.sqrt(self.x**2 + self.y**2 + self.z**2)
 
+    def dict(self) -> dict:
+        """Convert to a dict. Shim until converting to dataclass"""
+        return {attr: getattr(self, attr) for attr in ("x", "y", "z")}
+
     def distance_to(self, thing: Circle | Point) -> float:
         """Calculate the distance to the given point.
 
@@ -349,6 +371,9 @@ def vector_is_close(vector1: Vector, vector2: Vector, delta: float = 0.1) -> boo
         ):
             return False
     return True
+
+
+VectorSerialized = Annotated[Vector, PlainSerializer(to_json)]
 
 
 class Line:
