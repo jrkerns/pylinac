@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-import dataclasses
 import io
 import math
 import textwrap
 import warnings
 import webbrowser
-from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 
 import numpy as np
 from matplotlib import pyplot as plt
+from pydantic import BaseModel
 from scipy import ndimage
 
 from .core import pdf
@@ -20,7 +19,7 @@ from .core.geometry import Line, Point
 from .core.mtf import MTF
 from .core.profile import FWXMProfilePhysical
 from .core.roi import HighContrastDiskROI, RectangleROI
-from .core.utilities import ResultBase
+from .core.utilities import ResultBase, ResultsDataMixin
 from .ct import (
     CatPhanBase,
     CatPhanModule,
@@ -56,8 +55,7 @@ class CTModule(CatPhanModule):
     window_max = 200
 
 
-@dataclass
-class CTModuleOutput:
+class CTModuleOutput(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
 
@@ -90,7 +88,6 @@ class UniformityModule(CatPhanModule):
     window_max = 50
 
 
-@dataclass
 class UniformityModuleOutput(CTModuleOutput):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -185,7 +182,6 @@ class SpatialResolutionModule(CatPhanModule):
             roi.plot2axes(axis, edgecolor="g")
 
 
-@dataclass
 class SpatialResolutionModuleOutput(CTModuleOutput):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -222,7 +218,6 @@ class LowContrastModule(CatPhanModule):
         )
 
 
-@dataclass
 class LowContrastModuleOutput(CTModuleOutput):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -232,7 +227,6 @@ class LowContrastModuleOutput(CTModuleOutput):
     cnr: float  #:
 
 
-@dataclass
 class ACRCTResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -249,7 +243,7 @@ class ACRCTResult(ResultBase):
     spatial_resolution_module: SpatialResolutionModuleOutput  #:
 
 
-class ACRCT(CatPhanBase):
+class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
     _model = "ACR CT 464"
     catphan_radius_mm = 100
     air_bubble_radius_mm = 14
@@ -428,8 +422,8 @@ class ACRCT(CatPhanBase):
         )
         return string
 
-    def results_data(self, as_dict=False) -> ACRCTResult | dict:
-        data = ACRCTResult(
+    def _generate_results_data(self) -> ACRCTResult:
+        return ACRCTResult(
             phantom_model="ACR CT 464",
             phantom_roll_deg=self.catphan_roll,
             origin_slice=self.origin_slice,
@@ -478,9 +472,6 @@ class ACRCT(CatPhanBase):
                 cnr=self.low_contrast_module.cnr(),
             ),
         )
-        if as_dict:
-            return dataclasses.asdict(data)
-        return data
 
     def publish_pdf(
         self,
@@ -595,8 +586,7 @@ class MRSlice11PositionModule(CatPhanModule):
             roi.plot2axes(axis, edgecolor="blue")
 
 
-@dataclass
-class MRSlice11ModuleOutput:
+class MRSlice11ModuleOutput(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
 
@@ -719,8 +709,7 @@ class MRSlice1Module(CatPhanModule):
         )
 
 
-@dataclass
-class MRSlice1ModuleOutput:
+class MRSlice1ModuleOutput(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
 
@@ -816,8 +805,7 @@ class MRUniformityModule(CatPhanModule):
         return self.psg < 3.0
 
 
-@dataclass
-class MRUniformityModuleOutput:
+class MRUniformityModuleOutput(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
 
@@ -927,8 +915,7 @@ class GeometricDistortionModule(CatPhanModule):
         return {name: f"{p['width (mm)']:2.2f}mm" for name, p in self.profiles.items()}
 
 
-@dataclass
-class MRGeometricDistortionModuleOutput:
+class MRGeometricDistortionModuleOutput(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
 
@@ -939,7 +926,6 @@ class MRGeometricDistortionModuleOutput:
     distances: dict  #:
 
 
-@dataclass
 class ACRMRIResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -956,7 +942,7 @@ class ACRMRIResult(ResultBase):
     geometric_distortion_module: MRGeometricDistortionModuleOutput  #:
 
 
-class ACRMRILarge(CatPhanBase):
+class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
     _model = "ACR MRI Large"
     catphan_radius_mm = 100
     min_num_images = 4
@@ -1261,8 +1247,8 @@ class ACRMRILarge(CatPhanBase):
         else:
             return string
 
-    def results_data(self, as_dict: bool = False) -> ACRMRIResult | dict:
-        data = ACRMRIResult(
+    def _generate_results_data(self) -> ACRMRIResult:
+        return ACRMRIResult(
             phantom_model=self._model,
             phantom_roll_deg=self.catphan_roll,
             origin_slice=self.origin_slice,
@@ -1301,6 +1287,3 @@ class ACRMRILarge(CatPhanBase):
                 piu_passed=self.uniformity_module.piu_passed,
             ),
         )
-        if as_dict:
-            return dataclasses.asdict(data)
-        return data

@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import io
 import math
+import shutil
 import tempfile
 from pathlib import Path
 from unittest import TestCase
@@ -13,6 +14,12 @@ import numpy as np
 from pylinac import WinstonLutz
 from pylinac.core.array_utils import create_dicom_files_from_3d_array
 from pylinac.core.geometry import Vector, vector_is_close
+from pylinac.core.image_generator import (
+    AS1200Image,
+    GaussianFilterLayer,
+    PerfectFieldLayer,
+    generate_winstonlutz,
+)
 from pylinac.core.io import TemporaryZipDirectory
 from pylinac.core.scale import MachineScale
 from pylinac.metrics.features import is_round
@@ -331,14 +338,33 @@ class TestBBProjection(TestCase):
             bb_projection_gantry_plane(
                 offset_up=0, offset_left=0, sad=1000, gantry=0, couch=90, offset_in=10
             ),
-            10,
+            -10,
         )
+
+        # couch 315 should be 0.707 of the offset positively (right)
+        self.assertAlmostEqual(
+            bb_projection_gantry_plane(
+                offset_up=0, offset_left=0, sad=1000, gantry=0, couch=315, offset_in=10
+            ),
+            7.07,
+            places=2,
+        )
+
+        # couch 45 should be 0.707 of the offset negatively (left)
+        self.assertAlmostEqual(
+            bb_projection_gantry_plane(
+                offset_up=0, offset_left=0, sad=1000, gantry=0, couch=45, offset_in=10
+            ),
+            -7.07,
+            places=2,
+        )
+
         # couch 270 with in offset will become fully right offset
         self.assertAlmostEqual(
             bb_projection_gantry_plane(
                 offset_up=0, offset_left=0, sad=1000, gantry=0, couch=270, offset_in=10
             ),
-            -10,
+            10,
         )
 
         # couch 45 w/ left offset should be 0.707 of the offset
@@ -346,7 +372,7 @@ class TestBBProjection(TestCase):
             bb_projection_gantry_plane(
                 offset_up=0, offset_left=10, sad=1000, gantry=0, couch=45, offset_in=0
             ),
-            7.07,
+            -7.07,
             places=2,
         )
 
@@ -375,21 +401,21 @@ class TestBBProjection(TestCase):
             0,
         )
 
-        # couch 45 will be 0.707 of the offset in
+        # couch 45 will be 0.707 of the offset in (left, negative)
         self.assertAlmostEqual(
             bb_projection_gantry_plane(
                 offset_up=0, offset_left=0, sad=1000, gantry=0, couch=45, offset_in=10
             ),
-            7.07,
+            -7.07,
             places=2,
         )
 
-        # couch 45 and gantry 45 will be 0.707 * 0.707 of the offset in
+        # couch 45 and gantry 45 will be 0.707 * 0.707 of the offset in (left, negative)
         self.assertAlmostEqual(
             bb_projection_gantry_plane(
                 offset_up=0, offset_left=0, sad=1000, gantry=45, couch=45, offset_in=10
             ),
-            5,
+            -5,
             places=2,
         )
 
@@ -616,10 +642,10 @@ class GeneralTests(TestCase):
 
     def test_bb_shift_instructions(self):
         move = self.wl.bb_shift_instructions()
-        self.assertTrue("RIGHT" in move)
+        self.assertTrue("LEFT" in move)
 
         move = self.wl.bb_shift_instructions(couch_vrt=-2, couch_lat=1, couch_lng=100)
-        self.assertTrue("RIGHT" in move)
+        self.assertTrue("LEFT" in move)
         self.assertTrue("VRT" in move)
 
     def test_results_data(self):
@@ -650,6 +676,10 @@ class GeneralTests(TestCase):
             self.wl.images[0].bb.x,
             delta=0.02,
         )
+
+    def test_results_data_as_json(self):
+        data_json = self.wl.results_data(as_json=True)
+        self.assertIsInstance(data_json, str)
 
     def test_results_data_individual_keys_duplicate(self):
         # lucky for us, the demo set has duplicates already
@@ -897,6 +927,192 @@ class WinstonLutzMixin(CloudFileMixin):
             )
 
 
+class SyntheticWLMixin(WinstonLutzMixin):
+    """This mixin generates WL images on the fly for testing purposes rather than pulling from the cloud"""
+
+    tmp_path: str = ""
+    zip = False
+    field_size = 20
+    penumbra_mm = 1.5
+    offset_mm_in = 0
+    offset_mm_left = 0
+    offset_mm_up = 0
+    bb_alpha = -0.8
+    gantry_sag = 0
+    gantry_tilt = 0
+    images_axes: tuple[tuple[int, int, int]] = (
+        (0, 0, 0),
+        (90, 0, 0),
+        (180, 0, 0),
+        (270, 0, 0),
+        (0, 0, 45),
+        (0, 0, 90),
+        (0, 0, 270),
+        (0, 0, 315),
+    )
+
+    @classmethod
+    def tearDownClass(cls):
+        # clean up the folder we created;
+        # in BB space can be at a premium.
+        shutil.rmtree(cls.tmp_path, ignore_errors=False)
+
+    @classmethod
+    def get_filename(cls) -> str:
+        """We generate the files and return a local temp path.
+        This may get called multiple times so we do a poor-man's caching"""
+        if not cls.tmp_path:
+            cls.tmp_path = tempfile.mkdtemp()
+            generate_winstonlutz(
+                simulator=AS1200Image(1000),
+                field_layer=PerfectFieldLayer,
+                dir_out=cls.tmp_path,
+                field_size_mm=(cls.field_size, cls.field_size),
+                final_layers=[GaussianFilterLayer(sigma_mm=cls.penumbra_mm)],
+                bb_alpha=cls.bb_alpha,
+                offset_mm_in=cls.offset_mm_in,
+                offset_mm_up=cls.offset_mm_up,
+                offset_mm_left=cls.offset_mm_left,
+                bb_size_mm=cls.bb_size,
+                gantry_sag=cls.gantry_sag,
+                gantry_tilt=cls.gantry_tilt,
+                machine_scale=MachineScale.IEC61217,
+                image_axes=cls.images_axes,
+            )
+        return cls.tmp_path
+
+    @property
+    def num_images(self):
+        """Shortcut the num of images check since we are creating them. No need to check."""
+        return len(self.images_axes)
+
+    def test_bb_shift_vector(self):
+        """The vector should be opposite the set offsets"""
+        self.assertAlmostEqual(
+            self.wl.bb_shift_vector.x, self.offset_mm_left, delta=0.05
+        )  # no negative; left is negative
+        self.assertAlmostEqual(
+            self.wl.bb_shift_vector.y, -self.offset_mm_in, delta=0.05
+        )
+        self.assertAlmostEqual(
+            self.wl.bb_shift_vector.z, -self.offset_mm_up, delta=0.05
+        )
+
+
+class Synthetic1mmLeftNoCouch(SyntheticWLMixin, TestCase):
+    images_axes = (
+        (0, 0, 0),
+        (90, 0, 0),
+        (180, 0, 0),
+        (270, 0, 0),
+    )
+    offset_mm_left = 1
+    cax2bb_max_distance = 1
+    cax2bb_mean_distance = 0.5
+    cax2bb_median_distance = 0.5
+
+
+class Synthetic1mmLeft(SyntheticWLMixin, TestCase):
+    """This should give the same result as above but including couch images"""
+
+    offset_mm_left = 1
+    cax2bb_max_distance = 1
+    cax2bb_mean_distance = 0.67
+    cax2bb_median_distance = 1
+    couch_iso_size = 2
+
+
+class Synthetic1mmRight(SyntheticWLMixin, TestCase):
+    offset_mm_left = -1
+    cax2bb_max_distance = 1.0
+    cax2bb_mean_distance = 0.75
+    cax2bb_median_distance = 1
+    couch_iso_size = 2
+
+
+class Synthetic1mmUp(SyntheticWLMixin, TestCase):
+    offset_mm_up = 1
+    cax2bb_max_distance = 1.0
+    cax2bb_mean_distance = 0.25
+    cax2bb_median_distance = 0
+
+
+class Synthetic1mmDown(SyntheticWLMixin, TestCase):
+    offset_mm_up = -1
+    cax2bb_max_distance = 1.0
+    cax2bb_mean_distance = 0.25
+    cax2bb_median_distance = 0
+    couch_iso_size = 0
+
+
+class Synthetic1mmIn(SyntheticWLMixin, TestCase):
+    offset_mm_in = 1
+    cax2bb_max_distance = 1.0
+    cax2bb_mean_distance = 1.0
+    cax2bb_median_distance = 1
+    couch_iso_size = 2.0
+
+
+class Synthetic1mmOut(SyntheticWLMixin, TestCase):
+    offset_mm_in = -1
+    cax2bb_max_distance = 1.0
+    cax2bb_mean_distance = 1.0
+    cax2bb_median_distance = 1
+    couch_iso_size = 2.0
+
+
+class Synthetic1mmIn1mmLeft(SyntheticWLMixin, TestCase):
+    offset_mm_in = 1
+    offset_mm_left = 1
+    cax2bb_max_distance = 1.41
+    cax2bb_mean_distance = 1.3
+    cax2bb_median_distance = 1.4
+    couch_iso_size = 2.8
+
+
+class Synthetic1mmOut1mmRight(SyntheticWLMixin, TestCase):
+    offset_mm_in = -1
+    offset_mm_left = -1
+    cax2bb_max_distance = 1.41
+    cax2bb_mean_distance = 1.3
+    cax2bb_median_distance = 1.4
+    couch_iso_size = 2.8
+
+
+class Synthetic2mmUp1mmLeft(SyntheticWLMixin, TestCase):
+    offset_mm_up = 2
+    offset_mm_left = 1
+    cax2bb_max_distance = 2.0
+    cax2bb_mean_distance = 1.25
+    cax2bb_median_distance = 1.0
+    couch_iso_size = 2.0
+
+
+class Synthetic2mmRight1mmDown(SyntheticWLMixin, TestCase):
+    offset_mm_up = -1
+    offset_mm_left = -2
+    cax2bb_max_distance = 2.0
+    cax2bb_mean_distance = 1.75
+    cax2bb_median_distance = 2.0
+    couch_iso_size = 4.0
+
+
+class Synthetic1mmOut1SidedCouch(SyntheticWLMixin, TestCase):
+    offset_mm_in = -1
+    cax2bb_max_distance = 1.0
+    cax2bb_mean_distance = 1.0
+    cax2bb_median_distance = 1
+    couch_iso_size = 1.42
+    images_axes = (
+        (0, 0, 0),
+        (90, 0, 0),
+        (180, 0, 0),
+        (270, 0, 0),
+        (0, 0, 45),
+        (0, 0, 90),  # only shift couch one way; should still give same shift result
+    )
+
+
 class WLDemo(WinstonLutzMixin, TestCase):
     num_images = 17
     gantry_iso_size = 1
@@ -908,7 +1124,7 @@ class WLDemo(WinstonLutzMixin, TestCase):
     machine_scale = MachineScale.VARIAN_IEC
     epid_deviation = 1.3
     axis_of_rotation = {0: Axis.REFERENCE}
-    bb_shift_vector = Vector(x=0.4, y=-0.4, z=-0.2)
+    bb_shift_vector = Vector(x=0, y=-0.25, z=-0.2)
     delete_file = False
 
     @classmethod
@@ -921,12 +1137,12 @@ class WLDemo(WinstonLutzMixin, TestCase):
         return WinstonLutz.from_demo_images()
 
     def test_different_scale_has_different_shift(self):
-        assert "RIGHT" in self.wl.bb_shift_instructions()
-        assert self.wl.bb_shift_vector.x > 0.1
+        assert "LEFT" in self.wl.bb_shift_instructions()
+        assert self.wl.bb_shift_vector.x < 0.0
         new_wl = WinstonLutz.from_demo_images()
         new_wl.analyze(machine_scale=MachineScale.IEC61217)
-        assert new_wl.bb_shift_vector.x < 0.1
-        assert "LEFT" in new_wl.bb_shift_instructions()
+        assert new_wl.bb_shift_vector.x > 0.1
+        assert "RIGHT" in new_wl.bb_shift_instructions()
 
     def test_multiple_analyses_gives_same_result(self):
         original_vector = copy.copy(self.wl.bb_shift_vector)
@@ -1098,7 +1314,7 @@ class KatyiX0(WinstonLutzMixin, TestCase):
     cax2bb_median_distance = 0.8
     cax2bb_mean_distance = 0.7
     machine_scale = MachineScale.VARIAN_IEC
-    bb_shift_vector = Vector(x=-0.5, y=0.4, z=-0.5)
+    bb_shift_vector = Vector(x=-0.4, y=0.15, z=-0.5)
     print_results = True
 
 
@@ -1124,7 +1340,7 @@ class KatyiX2(WinstonLutzMixin, TestCase):
     cax2bb_median_distance = 0.5
     cax2bb_mean_distance = 0.6
     machine_scale = MachineScale.VARIAN_IEC
-    bb_shift_vector = Vector(x=0.4, y=-0.1, z=0.1)
+    bb_shift_vector = Vector(x=0.15, y=-0.15, z=0.1)
 
 
 class KatyiX3(WinstonLutzMixin, TestCase):
@@ -1137,7 +1353,7 @@ class KatyiX3(WinstonLutzMixin, TestCase):
     cax2bb_median_distance = 0.8
     cax2bb_mean_distance = 0.75
     machine_scale = MachineScale.VARIAN_IEC
-    bb_shift_vector = Vector(x=-0.3, y=0.4, z=-0.5)
+    bb_shift_vector = Vector(x=-0.1, y=0.2, z=-0.5)
 
 
 class KatyTB0(WinstonLutzMixin, TestCase):
@@ -1151,7 +1367,7 @@ class KatyTB0(WinstonLutzMixin, TestCase):
     cax2bb_mean_distance = 0.8
     machine_scale = MachineScale.VARIAN_IEC
     axis_of_rotation = {-1: Axis.REFERENCE}
-    bb_shift_vector = Vector(x=-0.7, y=-0.1, z=-0.2)
+    bb_shift_vector = Vector(x=-0.4, y=-0.1, z=-0.25)
 
 
 class KatyTB1(WinstonLutzMixin, TestCase):
@@ -1165,7 +1381,7 @@ class KatyTB1(WinstonLutzMixin, TestCase):
     cax2bb_mean_distance = 0.6
     axis_of_rotation = {0: Axis.GANTRY}
     machine_scale = MachineScale.VARIAN_IEC
-    bb_shift_vector = Vector(x=-0.6, y=-0.2)
+    bb_shift_vector = Vector(x=-0.3, y=-0.2)
 
 
 class KatyTB2(WinstonLutzMixin, TestCase):
@@ -1229,7 +1445,7 @@ class SugarLandiX2015(WinstonLutzMixin, TestCase):
     cax2bb_median_distance = 1.05
     cax2bb_mean_distance = 1.1
     machine_scale = MachineScale.VARIAN_IEC
-    bb_shift_vector = Vector(x=0.4, y=-0.7, z=0.1)
+    bb_shift_vector = Vector(x=0.6, y=-0.5, z=0.1)
 
 
 class BayAreaiX0(WinstonLutzMixin, TestCase):
@@ -1243,7 +1459,7 @@ class BayAreaiX0(WinstonLutzMixin, TestCase):
     cax2bb_median_distance = 0.6
     cax2bb_mean_distance = 0.6
     machine_scale = MachineScale.VARIAN_IEC
-    bb_shift_vector = Vector(x=0.3, y=-0.4, z=-0.2)
+    bb_shift_vector = Vector(x=0, y=-0.3, z=-0.2)
 
 
 class DAmoursElektaOffset(WinstonLutzMixin, TestCase):

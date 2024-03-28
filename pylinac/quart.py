@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import dataclasses
 import io
 import textwrap
 import webbrowser
@@ -10,12 +9,13 @@ from pathlib import Path
 import numpy as np
 import scipy.ndimage
 from matplotlib import pyplot as plt
+from pydantic import BaseModel
 from scipy.interpolate import interp1d
 
 from .core import pdf
 from .core.geometry import Line, Point
 from .core.profile import FWXMProfilePhysical
-from .core.utilities import ResultBase
+from .core.utilities import ResultBase, ResultsDataMixin
 from .ct import (
     AIR,
     CTP404CP504,
@@ -34,8 +34,7 @@ POLY = -35
 TEFLON = 990
 
 
-@dataclasses.dataclass
-class QuartHUModuleOutput:
+class QuartHUModuleOutput(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
 
@@ -49,8 +48,7 @@ class QuartHUModuleOutput:
     contrast_to_noise: float
 
 
-@dataclasses.dataclass
-class QuartGeometryModuleOutput:
+class QuartGeometryModuleOutput(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
 
@@ -64,8 +62,7 @@ class QuartGeometryModuleOutput:
     mean_high_contrast_distance: float
 
 
-@dataclasses.dataclass
-class QuartUniformityModuleOutput:
+class QuartUniformityModuleOutput(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
 
@@ -77,7 +74,6 @@ class QuartUniformityModuleOutput:
     passed: bool
 
 
-@dataclasses.dataclass
 class QuartDVTResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -363,7 +359,7 @@ class QuartGeometryModule(CatPhanModule):
         return float(np.mean(list(self.high_contrast_resolutions().values())))
 
 
-class QuartDVT(CatPhanBase):
+class QuartDVT(CatPhanBase, ResultsDataMixin[QuartDVTResult]):
     """A class for loading and analyzing CT DICOM files of a Quart phantom that comes with the Halcyon.
     Analyzes: HU Uniformity, Image Scaling & HU Linearity.
     """
@@ -461,9 +457,9 @@ class QuartDVT(CatPhanBase):
         else:
             return items
 
-    def results_data(self, as_dict: bool = False) -> QuartDVTResult | dict:
+    def _generate_results_data(self) -> QuartDVTResult:
         """Return results in a data structure for more programmatic use."""
-        data = QuartDVTResult(
+        return QuartDVTResult(
             phantom_model=self._model,
             phantom_roll_deg=self.catphan_roll,
             origin_slice=self.origin_slice,
@@ -491,10 +487,6 @@ class QuartDVT(CatPhanBase):
                 contrast_to_noise=self.hu_module.contrast_to_noise,
             ),
         )
-        if as_dict:
-            return dataclasses.asdict(data)
-        else:
-            return data
 
     def plot_images(self, show: bool = True, **plt_kwargs) -> dict[str, plt.Figure]:
         """Plot all the individual images separately.

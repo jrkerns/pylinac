@@ -15,14 +15,12 @@ Features:
 from __future__ import annotations
 
 import copy
-import dataclasses
 import enum
 import io
 import os.path as osp
 import statistics
 import warnings
 import webbrowser
-from dataclasses import dataclass
 from functools import cached_property
 from io import BytesIO
 from itertools import cycle
@@ -39,7 +37,7 @@ from .core import image, pdf
 from .core.geometry import Line, Point, Rectangle
 from .core.io import get_url, retrieve_demo_file
 from .core.profile import FWXMProfilePhysical, MultiProfile
-from .core.utilities import ResultBase, convert_to_enum
+from .core.utilities import ResultBase, ResultsDataMixin, convert_to_enum
 from .log_analyzer import load_log
 from .metrics.image import SizedDiskLocator
 
@@ -124,7 +122,6 @@ class MLC(enum.Enum):
     }  #:
 
 
-@dataclass
 class PFResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -132,7 +129,7 @@ class PFResult(ResultBase):
     Use the following attributes as normal class attributes."""
 
     tolerance_mm: float  #:
-    action_tolerance_mm: float  #:
+    action_tolerance_mm: float | None  #:
     percent_leaves_passing: float  #:
     number_of_pickets: int  #:
     absolute_median_error_mm: float  #:
@@ -144,7 +141,7 @@ class PFResult(ResultBase):
     passed: bool  #:
     failed_leaves: list[str] | list[int]  #:
     mlc_skew: float  #:
-    picket_widths: dict[int, dict[str, float]]  #:
+    picket_widths: dict[str, dict[str, float]]  #:
 
 
 class PFDicomImage(image.LinacDicomImage):
@@ -206,7 +203,7 @@ class PFDicomImage(image.LinacDicomImage):
             return super().center
 
 
-class PicketFence:
+class PicketFence(ResultsDataMixin[PFResult]):
     """A class used for analyzing EPID images where radiation strips have been formed by the
     MLCs. The strips are assumed to be parallel to one another and normal to the image edge;
     i.e. a "left-right" or "up-down" orientation is assumed. Further work could follow up by accounting
@@ -1022,9 +1019,7 @@ class PicketFence:
             results = "\n".join(results)
         return results
 
-    def results_data(self, as_dict=False) -> PFResult | dict:
-        """Present the results data and metadata as a dataclass, dict, or tuple.
-        The default return type is a dataclass."""
+    def _generate_results_data(self) -> PFResult:
         picket_widths = {
             f"picket_{pk}": {
                 key: self.picket_width_stat(pk, key)
@@ -1032,7 +1027,7 @@ class PicketFence:
             }
             for pk in range(len(self.pickets))
         }
-        data = PFResult(
+        return PFResult(
             tolerance_mm=self.tolerance,
             action_tolerance_mm=self.action_tolerance,
             percent_leaves_passing=self.percent_passing,
@@ -1048,9 +1043,6 @@ class PicketFence:
             mlc_skew=self.mlc_skew(),
             picket_widths=picket_widths,
         )
-        if as_dict:
-            return dataclasses.asdict(data)
-        return data
 
     def publish_pdf(
         self,
