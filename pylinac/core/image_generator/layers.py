@@ -97,14 +97,14 @@ class PerfectConeLayer(Layer):
         cone_size_pix = ((self.cone_size_mm / 2) / pixel_size) * mag_factor**2
         # we rotate the point around the center of the image
         offset_pix_y, offset_pix_x = rotate_point(
-            x=self.cax_offset_mm[0] / pixel_size,
-            y=self.cax_offset_mm[1] / pixel_size,
+            x=self.cax_offset_mm[0] * mag_factor / pixel_size,
+            y=self.cax_offset_mm[1] * mag_factor / pixel_size,
             angle=self.rotation,
         )
         # convert to pixels and shift to center
         cax_offset_pix = (
             offset_pix_y + (image.shape[0] / 2 - 0.5),
-            offset_pix_x + (image.shape[0] / 2 - 0.5),
+            offset_pix_x + (image.shape[1] / 2 - 0.5),
         )
         rr, cc = draw.disk(cax_offset_pix, cone_size_pix, shape=image.shape)
         rr = np.round(rr).astype(int)
@@ -203,7 +203,7 @@ class PerfectFieldLayer(Layer):
         cax_offset_pix_mag = [v * mag_factor / pixel_size for v in self.cax_offset_mm]
         field_center = [
             offset + (shape / 2) - 0.5
-            for offset, shape in zip(cax_offset_pix_mag, image.shape)
+            for offset, shape in zip(cax_offset_pix_mag, reversed(image.shape))
         ]
         rr, cc = draw_rotated_rectangle(
             image.shape, center=field_center, extent=field_size_pix, angle=self.rotation
@@ -232,6 +232,7 @@ class FilteredFieldLayer(PerfectFieldLayer):
         alpha: float = 1.0,
         gaussian_height: float = 0.03,
         gaussian_sigma_mm: float = 32,
+        rotation: float = 0,
     ):
         """
         Parameters
@@ -249,8 +250,15 @@ class FilteredFieldLayer(PerfectFieldLayer):
         gaussian_sigma_mm
             The width of the "horns". A.k.a. the CAX dip width. Increase to create a wider
             horn effect.
+        rotation: float
+            The amount of rotation in degrees. This acts like a collimator rotation.
         """
-        super().__init__(field_size_mm, cax_offset_mm, alpha)
+        super().__init__(
+            field_size_mm=field_size_mm,
+            cax_offset_mm=cax_offset_mm,
+            alpha=alpha,
+            rotation=rotation,
+        )
         self.gaussian_height = gaussian_height
         self.gaussian_sigma_mm = gaussian_sigma_mm
 
@@ -284,6 +292,7 @@ class FilterFreeFieldLayer(FilteredFieldLayer):
         alpha: float = 1.0,
         gaussian_height: float = 0.4,
         gaussian_sigma_mm: float = 80,
+        rotation: float = 0,
     ):
         """
         Parameters
@@ -299,9 +308,16 @@ class FilterFreeFieldLayer(FilteredFieldLayer):
             The magnitude of the CAX peak. Larger values result in "pointier" fields.
         gaussian_sigma_mm
             Proportional to the width of the CAX peak. Larger values produce wider curves.
+        rotation: float
+            The amount of rotation in degrees. This acts like a collimator rotation.
         """
         super().__init__(
-            field_size_mm, cax_offset_mm, alpha, gaussian_height, gaussian_sigma_mm
+            field_size_mm,
+            cax_offset_mm,
+            alpha,
+            gaussian_height,
+            gaussian_sigma_mm,
+            rotation=rotation,
         )
 
     def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
@@ -381,7 +397,7 @@ class ConstantLayer(Layer):
 
 def rotate_point(x: float, y: float, angle: float) -> (float, float):
     """
-    Rotate a point (px, py) around another point (cx, cy) by a given angle in degrees.
+    Rotate a point (px, py) about the origin by a given angle in degrees.
 
     Parameters
     ----------
@@ -417,7 +433,7 @@ def draw_rotated_rectangle(
     extent: list[int, int],
     angle: float,
 ):
-    """Draws a rotated rectangle on a blank image.
+    """Generates the coordinate points for a rectangle rotated about the image center.
 
     Parameters
     ----------

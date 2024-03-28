@@ -638,7 +638,7 @@ class TestGlobalFieldLocator(TestCase):
         # if a field is at the edge of the image, it should be excluded
         ds = create_multi_open_field(
             field_sizes=((30, 30), (30, 30), (30, 30), (60, 30)),
-            offsets=((0, 0), (40, 40), (-40, 0), (-150, -60)),
+            offsets=((0, 0), (40, 40), (-40, 0), (-200, -60)),
         )
         # last field is touching edge of field but has same size as other fields
         img = DicomImage.from_dataset(ds)

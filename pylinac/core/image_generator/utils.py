@@ -159,7 +159,7 @@ def generate_winstonlutz(
     field_alpha: float = 1.0,
     bb_alpha: float = -0.5,
 ) -> list[str]:
-    """Create a mock set of WL images, simulating gantry sag effects. Produces one image for each item in image_axes.
+    """Create a mock set of WL images. Used for benchmarking the WL algorithm. Produces one image for each item in ``image_axes``.
 
     Parameters
     ----------
@@ -176,15 +176,16 @@ def generate_winstonlutz(
     bb_size_mm
         The size of the BB. Must be positive.
     offset_mm_left
-        How far left (lat) to set the BB. Can be positive or negative.
+        How far left (LAT) to set the BB. Can be positive or negative.
     offset_mm_up
-        How far up (vert) to set the BB. Can be positive or negative.
+        How far up (VERT) to set the BB. Can be positive or negative.
     offset_mm_in
-        How far in (long) to set the BB. Can be positive or negative.
+        How far in (LONG) to set the BB. Can be positive or negative.
     image_axes
         List of axis values for the images. Sequence is (Gantry, Coll, Couch).
     machine_scale
-        The scale of the machine. Default is IEC61217.
+        The scale of the machine. Will convert to IEC61217. Allows users to
+        enter image_axes in their machine's scale if desired.
     gantry_tilt
         The tilt of the gantry that affects the position at 0 and 180. Simulates a simple cosine function.
     gantry_sag
@@ -220,7 +221,7 @@ def generate_winstonlutz(
         sim_single.add_layer(
             field_layer(
                 field_size_mm=field_size_mm,
-                cax_offset_mm=(gantry_tilt * cos(gantry), gantry_sag * sin(gantry)),
+                cax_offset_mm=(gantry_sag * sin(gantry), gantry_tilt * cos(gantry)),
                 alpha=field_alpha,
                 rotation=coll,
             )
@@ -236,7 +237,7 @@ def generate_winstonlutz(
             gantry=gantry,
             couch=couch,
         )
-        gplane_offset = -bb_projection_gantry_plane(
+        gplane_offset = bb_projection_gantry_plane(
             offset_left=offset_mm_left,
             offset_up=offset_mm_up,
             sad=1000,
