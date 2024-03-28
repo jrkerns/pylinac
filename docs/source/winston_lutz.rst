@@ -420,6 +420,10 @@ This will result in images where the detected BB plotted does not overlap with t
 The results will be the same as if the BB were physically moved to the optimal position. The results will be slightly
 different and report what the virtual shift was. This is simply the original BB shift instructions before the shift.
 
+.. note::
+
+   This only affects the 2D error results. One of the benefits of pylinac is that the iso size for gantry, couch, and collimator
+   are done independent of the BB position.
 
 .. _wl_tiff:
 
