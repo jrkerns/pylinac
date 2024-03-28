@@ -2346,7 +2346,7 @@ def bb_projection_gantry_plane(
     gantry_offset = (
         offset_up * -sin(gantry)
         + addtl_up_shift
-        + offset_left * -cos(gantry) * -cos(couch)
+        + offset_left * -cos(gantry) * cos(couch)
         + addtl_left_shift
     )
     return gantry_offset + couch_long_aspect

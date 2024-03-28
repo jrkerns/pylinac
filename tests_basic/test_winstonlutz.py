@@ -346,7 +346,7 @@ class TestBBProjection(TestCase):
             bb_projection_gantry_plane(
                 offset_up=0, offset_left=10, sad=1000, gantry=0, couch=45, offset_in=0
             ),
-            7.07,
+            -7.07,
             places=2,
         )
 
