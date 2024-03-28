@@ -310,7 +310,7 @@ class TestBBBasedAnalysis(TestCase):
 
         pf_file = "separated_wide_gap_up_down.dcm"
         generate_picketfence(
-            simulator=AS1200Image(sid=1500),
+            simulator=AS1200Image(sid=1000),
             field_layer=FilteredFieldLayer,
             # this applies a non-uniform intensity about the CAX, simulating the horn effect
             file_out=pf_file,

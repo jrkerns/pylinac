@@ -618,12 +618,14 @@ class WLBaseImage(image.LinacDicomImage):
             offset_left=bb_config.offset_left_mm,
             sad=self.sad,
             gantry=self.gantry_angle,
+            couch=self.couch_angle,
         )
         shift_x_mm = bb_projection_gantry_plane(
             offset_left=bb_config.offset_left_mm,
             offset_up=bb_config.offset_up_mm,
             sad=self.sad,
             gantry=self.gantry_angle,
+            couch=self.couch_angle,
         )
         # the field can be asymmetric, so use center of image
         expected_y = self.epid.y - shift_y_mm * self.dpmm
@@ -2299,7 +2301,12 @@ def max_distance_to_lines(p, lines: Iterable[Line]) -> float:
 
 
 def bb_projection_long(
-    offset_in: float, offset_up: float, offset_left: float, sad: float, gantry: float
+    offset_in: float,
+    offset_up: float,
+    offset_left: float,
+    sad: float,
+    gantry: float,
+    couch: float = 0,
 ) -> float:
     """Calculate the isoplane projection in the sup/inf/longitudinal direction in mm"""
     # the divergence of the beam causes the BB to be closer or further depending on the
@@ -2310,25 +2317,39 @@ def bb_projection_long(
     addtl_left_shift_sin = (
         offset_left * offset_in / (sad + sin(gantry) * offset_left) * -sin(gantry)
     )
-    return offset_in + addtl_long_shift_cos + addtl_left_shift_sin
+    couch_aspect_left = -sin(couch) * offset_left
+    couch_aspect_in = cos(couch) * offset_in
+    return (
+        addtl_long_shift_cos
+        + addtl_left_shift_sin
+        + couch_aspect_left
+        + couch_aspect_in
+    )
 
 
 def bb_projection_gantry_plane(
-    offset_left: float, offset_up: float, sad: float, gantry: float
+    offset_left: float,
+    offset_up: float,
+    sad: float,
+    gantry: float,
+    couch: float = 0,
+    offset_in: float = 0,
 ) -> float:
     """Calculate the isoplane projection in the plane of gantry rotation (X/Z)"""
+    couch_long_aspect = sin(couch) * offset_in * cos(gantry)
     addtl_left_shift = (
         -offset_up * offset_left / (sad + cos(gantry) * offset_up) * abs(cos(gantry))
-    )
+    ) * cos(couch)
     addtl_up_shift = (
         offset_left * offset_up / (sad + sin(gantry) * offset_left) * abs(sin(gantry))
     )
-    return (
+    gantry_offset = (
         offset_up * -sin(gantry)
         + addtl_up_shift
-        + offset_left * -cos(gantry)
+        + offset_left * -cos(gantry) * cos(couch)
         + addtl_left_shift
     )
+    return gantry_offset + couch_long_aspect
 
 
 def _bb_projection_with_rotation(
