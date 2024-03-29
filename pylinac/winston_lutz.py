@@ -1161,7 +1161,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
         machine_scale: MachineScale = MachineScale.IEC61217,
         low_density_bb: bool = False,
         open_field: bool = False,
-        apply_virtual_shift: bool = True,
+        apply_virtual_shift: bool = False,
     ) -> None:
         """Analyze the WL images.
 
