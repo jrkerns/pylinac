@@ -799,7 +799,7 @@ We can simulate gantry sag, where at 90 and 270 the gantry tilts towards the flo
         generate_winstonlutz,
     )
 
-    wl_dir = 'wl_dir'
+    wl_dir = 'wldir'
     generate_winstonlutz(
         AS1200Image(1000),
         FilteredFieldLayer,
