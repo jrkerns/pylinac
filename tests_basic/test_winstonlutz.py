@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import io
 import math
+import shutil
 import tempfile
 from pathlib import Path
 from unittest import TestCase
@@ -929,6 +930,7 @@ class WinstonLutzMixin(CloudFileMixin):
 class SyntheticWLMixin(WinstonLutzMixin):
     """This mixin generates WL images on the fly for testing purposes rather than pulling from the cloud"""
 
+    tmp_path: str = ""
     zip = False
     field_size = 20
     penumbra_mm = 1.5
@@ -950,26 +952,34 @@ class SyntheticWLMixin(WinstonLutzMixin):
     )
 
     @classmethod
+    def tearDownClass(cls):
+        # clean up the folder we created;
+        # in BB space can be at a premium.
+        shutil.rmtree(cls.tmp_path, ignore_errors=False)
+
+    @classmethod
     def get_filename(cls) -> str:
-        """We generate the files and return a local temp path"""
-        tmp_path = tempfile.mkdtemp()
-        generate_winstonlutz(
-            simulator=AS1200Image(1000),
-            field_layer=PerfectFieldLayer,
-            dir_out=tmp_path,
-            field_size_mm=(cls.field_size, cls.field_size),
-            final_layers=[GaussianFilterLayer(sigma_mm=cls.penumbra_mm)],
-            bb_alpha=cls.bb_alpha,
-            offset_mm_in=cls.offset_mm_in,
-            offset_mm_up=cls.offset_mm_up,
-            offset_mm_left=cls.offset_mm_left,
-            bb_size_mm=cls.bb_size,
-            gantry_sag=cls.gantry_sag,
-            gantry_tilt=cls.gantry_tilt,
-            machine_scale=MachineScale.IEC61217,
-            image_axes=cls.images_axes,
-        )
-        return tmp_path
+        """We generate the files and return a local temp path.
+        This may get called multiple times so we do a poor-man's caching"""
+        if not cls.tmp_path:
+            cls.tmp_path = tempfile.mkdtemp()
+            generate_winstonlutz(
+                simulator=AS1200Image(1000),
+                field_layer=PerfectFieldLayer,
+                dir_out=cls.tmp_path,
+                field_size_mm=(cls.field_size, cls.field_size),
+                final_layers=[GaussianFilterLayer(sigma_mm=cls.penumbra_mm)],
+                bb_alpha=cls.bb_alpha,
+                offset_mm_in=cls.offset_mm_in,
+                offset_mm_up=cls.offset_mm_up,
+                offset_mm_left=cls.offset_mm_left,
+                bb_size_mm=cls.bb_size,
+                gantry_sag=cls.gantry_sag,
+                gantry_tilt=cls.gantry_tilt,
+                machine_scale=MachineScale.IEC61217,
+                image_axes=cls.images_axes,
+            )
+        return cls.tmp_path
 
     @property
     def num_images(self):

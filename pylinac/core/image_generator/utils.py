@@ -226,10 +226,7 @@ def generate_winstonlutz(
                 rotation=coll,
             )
         )
-        # we return the negative because this function
-        # will return the offset in PLOTTING space, not coordinate space
-        # which is inverted in the long direction
-        long_offset = -bb_projection_long(
+        long_offset = bb_projection_long(
             offset_in=offset_mm_in,
             offset_up=offset_mm_up,
             offset_left=offset_mm_left,
@@ -247,7 +244,9 @@ def generate_winstonlutz(
         )
         sim_single.add_layer(
             PerfectBBLayer(
-                cax_offset_mm=(long_offset, gplane_offset),
+                # because of an oversight, the cax offset parameter expects (out, right) instead of (in, right)
+                # we thus pass the negative of the long offset
+                cax_offset_mm=(-long_offset, gplane_offset),
                 bb_size_mm=bb_size_mm,
                 alpha=bb_alpha,
                 # we don't pass the rotate parameter here because the offsets above already account for
@@ -391,10 +390,10 @@ def generate_winstonlutz_multi_bb_multi_field(
     simulator: Simulator,
     field_layer: type[Layer],
     dir_out: str,
-    field_offsets: list[list[float]],
-    bb_offsets: list[list[float]] | list[dict[str, float]],
+    field_offsets: Sequence[Sequence[float]],
+    bb_offsets: Sequence[Sequence[float]] | list[dict[str, float]],
     field_size_mm: tuple[float, float] = (20, 20),
-    final_layers: list[Layer] | None = None,
+    final_layers: Sequence[Layer] | None = None,
     bb_size_mm: float = 5,
     image_axes: ((int, int, int), ...) = (
         (0, 0, 0),
@@ -453,21 +452,22 @@ def generate_winstonlutz_multi_bb_multi_field(
         for field_offset in field_offsets:
             offset_mm_left = field_offset[0] + random.uniform(-jitter_mm, jitter_mm)
             offset_mm_up = field_offset[1] + random.uniform(-jitter_mm, jitter_mm)
-            offset_mm_in = -field_offset[2] + random.uniform(
-                -jitter_mm, jitter_mm
-            )  # negative because pixels increase as we go out, so to go in we subtract
+            offset_mm_in = field_offset[2] + random.uniform(-jitter_mm, jitter_mm)
             long_offset = bb_projection_long(
                 offset_in=offset_mm_in,
                 offset_up=offset_mm_up,
                 offset_left=offset_mm_left,
                 sad=1000,
                 gantry=gantry,
+                couch=couch,
             )
             gplane_offset = bb_projection_gantry_plane(
                 offset_left=offset_mm_left,
                 offset_up=offset_mm_up,
                 sad=1000,
                 gantry=gantry,
+                couch=couch,
+                offset_in=offset_mm_in,
             )
             long_offset += gantry_tilt * cos(gantry)
             gplane_offset += gantry_sag * sin(gantry)
@@ -476,8 +476,10 @@ def generate_winstonlutz_multi_bb_multi_field(
                 gplane_offset = pixel_align(sim_single.pixel_size, gplane_offset)
             sim_single.add_layer(
                 field_layer(
+                    # because of an oversight, the cax offset parameter expects (out, right) instead of (in, right)
+                    # we thus pass the negative of the long offset
                     field_size_mm=field_size_mm,
-                    cax_offset_mm=(long_offset, gplane_offset),
+                    cax_offset_mm=(-long_offset, gplane_offset),
                 )
             )
         for offset in bb_offsets:
@@ -488,36 +490,38 @@ def generate_winstonlutz_multi_bb_multi_field(
                 offset_mm_up = offset["offset_up_mm"] + random.uniform(
                     -jitter_mm, jitter_mm
                 )
-                offset_mm_in = -offset["offset_in_mm"] + random.uniform(
+                offset_mm_in = offset["offset_in_mm"] + random.uniform(
                     -jitter_mm, jitter_mm
                 )
             else:
                 offset_mm_left = offset[0] + random.uniform(-jitter_mm, jitter_mm)
                 offset_mm_up = offset[1] + random.uniform(-jitter_mm, jitter_mm)
-                offset_mm_in = -offset[2] + random.uniform(
-                    -jitter_mm, jitter_mm
-                )  # negative because pixels increase as we go out, so to go in we subtract
-
+                offset_mm_in = offset[2] + random.uniform(-jitter_mm, jitter_mm)
             long_offset = bb_projection_long(
                 offset_in=offset_mm_in,
                 offset_up=offset_mm_up,
                 offset_left=offset_mm_left,
                 sad=1000,
                 gantry=gantry,
+                couch=couch,
             )
             gplane_offset = bb_projection_gantry_plane(
                 offset_left=offset_mm_left,
                 offset_up=offset_mm_up,
                 sad=1000,
                 gantry=gantry,
+                couch=couch,
+                offset_in=offset_mm_in,
             )
             if align_to_pixels:
                 long_offset = pixel_align(sim_single.pixel_size, long_offset)
                 gplane_offset = pixel_align(sim_single.pixel_size, gplane_offset)
             sim_single.add_layer(
                 PerfectBBLayer(
+                    # because of an oversight, the cax offset is (out, right) instead of (in, right)
+                    # we thus pass the negative of the long offset
                     cax_offset_mm=(
-                        long_offset,
+                        -long_offset,
                         gplane_offset,
                     ),
                     bb_size_mm=bb_size_mm,
