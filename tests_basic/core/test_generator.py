@@ -8,7 +8,7 @@ import numpy.testing
 import pydicom
 
 from pylinac import Interpolation, Normalization
-from pylinac.core.image import load
+from pylinac.core.image import DicomImage, load
 from pylinac.core.image_generator import (
     AS500Image,
     AS1000Image,
@@ -24,8 +24,9 @@ from pylinac.core.image_generator import (
 from pylinac.core.image_generator.layers import Layer, clip_add, even_round
 from pylinac.core.image_generator.simulators import Simulator
 from pylinac.core.profile import SingleProfile
+from pylinac.metrics.image import GlobalFieldLocator
 
-np.random.seed(1234)  # reproducible noise results
+np.random.seed(1234)  # noqa
 
 
 class TestClipAdd(TestCase):
@@ -228,6 +229,17 @@ class TestPerfectConeLayer(TestCase):
         self.assertAlmostEqual(
             cross_profile.fwxm_data()["width (exact) mm"], 15, delta=0.3
         )
+
+    def test_out_20mm(self):
+        as1200 = AS1200Image(sid=1000)
+        # 10mm out, meaning down
+        as1200.add_layer(PerfectConeLayer(cone_size_mm=15, cax_offset_mm=(10, 0)))
+        ds = as1200.as_dicom()
+        img = DicomImage.from_dataset(ds)
+        centers = img.compute(GlobalFieldLocator(max_number=1))
+        # y will be 10mm down from center (positive)
+        y_position = img.center.y + 10 / as1200.pixel_size
+        self.assertAlmostEqual(centers[0].y, y_position, delta=0.1)
 
     def test_offset_1500sid(self):
         as1200 = AS1200Image(sid=1500)
