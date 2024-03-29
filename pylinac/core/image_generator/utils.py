@@ -226,10 +226,7 @@ def generate_winstonlutz(
                 rotation=coll,
             )
         )
-        # we return the negative because this function
-        # will return the offset in PLOTTING space, not coordinate space
-        # which is inverted in the long direction
-        long_offset = -bb_projection_long(
+        long_offset = bb_projection_long(
             offset_in=offset_mm_in,
             offset_up=offset_mm_up,
             offset_left=offset_mm_left,
@@ -247,7 +244,9 @@ def generate_winstonlutz(
         )
         sim_single.add_layer(
             PerfectBBLayer(
-                cax_offset_mm=(long_offset, gplane_offset),
+                # because of an oversight, the cax offset parameter expects (out, right) instead of (in, right)
+                # we thus pass the negative of the long offset
+                cax_offset_mm=(-long_offset, gplane_offset),
                 bb_size_mm=bb_size_mm,
                 alpha=bb_alpha,
                 # we don't pass the rotate parameter here because the offsets above already account for
