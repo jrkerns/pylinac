@@ -626,6 +626,7 @@ class WLBaseImage(image.LinacDicomImage):
             sad=self.sad,
             gantry=self.gantry_angle,
             couch=self.couch_angle,
+            offset_in=bb_config.offset_in_mm,
         )
         # the field can be asymmetric, so use center of image
         expected_y = self.epid.y - shift_y_mm * self.dpmm
@@ -2310,7 +2311,7 @@ def bb_projection_long(
     offset_left: float,
     sad: float,
     gantry: float,
-    couch: float = 0,
+    couch: float,
 ) -> float:
     """Calculate the isoplane projection in the sup/inf/longitudinal direction in mm"""
     # the divergence of the beam causes the BB to be closer or further depending on the
@@ -2336,8 +2337,8 @@ def bb_projection_gantry_plane(
     offset_up: float,
     sad: float,
     gantry: float,
-    couch: float = 0,
-    offset_in: float = 0,
+    couch: float,
+    offset_in: float,
 ) -> float:
     """Calculate the isoplane projection in the plane of gantry rotation (X/Z)"""
     couch_long_aspect = sin(couch) * offset_in * cos(gantry)
@@ -2361,13 +2362,13 @@ def _bb_projection_with_rotation(
     offset_up: float,
     offset_in: float,
     gantry: float,
-    couch: float = 0,
+    couch: float,
     sad: float = 1000,
 ) -> (float, float):
     """Calculate the isoplane projection onto the panel at the given SSD.
 
     This function applies a rotation around the gantry plane (X/Z) to the
-    ball bearing (BB) position and calculates its projection onto the isocentre plane in the beam's eye view.
+    ball bearing (BB) position and calculates its projection onto the isocenter plane in the beam's eye view.
 
     Could be used to calculate couch rotations, but not validated yet.
 
@@ -2382,10 +2383,11 @@ def _bb_projection_with_rotation(
 
     Returns
     -------
-    np.ndarray: The projection of the BB onto the panel at the given SSD.
-        The array has shape (2,) where the first element is the projection in the
-        left/right direction and the second element is the projection in the
-        superior/inferior direction.
+    left_right_projection (float): The projection of the BB onto the panel in the left/right direction.
+        Left is negative, right is positive. This is always in the plane normal to the CAX.
+    superior_inferior_projection (float): The projection of the BB onto the panel in the superior/inferior direction.
+        Superior is positive, inferior is negative. This is always in the plane normal to the CAX which
+        in this case is also the absolute Y coordinate system axis.
     """
     # Define the BB positions in the patient coordinate system (ap, lr, si)
     bb_positions = np.array([offset_up, offset_left, offset_in])
@@ -2393,15 +2395,17 @@ def _bb_projection_with_rotation(
     # Apply the rotation matrix to the BB positions
     collimator = 0  # Collimator doesn't change positional projection onto panel
     rotation_matrix = Rotation.from_euler(
-        "xyz", [couch, collimator, gantry], degrees=True
+        "xyz",
+        [-couch, collimator, gantry],
+        degrees=True,  # negative couch due to origin shift vs coordinate space
     )
     rotated_positions = rotation_matrix.apply(bb_positions)
 
-    # Calculate the projection onto the panel at the given SSD
+    # Calculate the projection onto the panel at the given SAD
     bb_magnification = sad / (
         sad - rotated_positions[0]
     )  # Distance from source to panel
     imager_projection = (
         np.array([rotated_positions[1], rotated_positions[2]]) * bb_magnification
     )
-    return imager_projection[0], imager_projection[1]
+    return -imager_projection[0], imager_projection[1]

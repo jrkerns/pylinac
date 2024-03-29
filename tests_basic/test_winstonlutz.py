@@ -27,6 +27,7 @@ from pylinac.winston_lutz import (
     Axis,
     WinstonLutz2D,
     WinstonLutzResult,
+    _bb_projection_with_rotation,
     bb_projection_gantry_plane,
     bb_projection_long,
 )
@@ -42,6 +43,138 @@ from tests_basic.utils import (
 TEST_DIR = "Winston-Lutz"
 
 
+class TestRotationMatrix(TestCase):
+    def test_dead_center(self):
+        # 0 == 0
+        x, y = _bb_projection_with_rotation(0, 0, 0, 0, 0, 1000)
+        assert math.isclose(x, 0)
+        assert math.isclose(y, 0)
+
+    def test_left_1mm(self):
+        x, y = _bb_projection_with_rotation(
+            offset_left=1, offset_up=0, offset_in=0, gantry=0, couch=0, sad=1000
+        )
+        assert math.isclose(x, -1)
+        assert math.isclose(y, 0)
+
+    def test_right_1mm(self):
+        x, y = _bb_projection_with_rotation(
+            offset_left=-1, offset_up=0, offset_in=0, gantry=0, couch=0, sad=1000
+        )
+        assert math.isclose(x, 1)
+        assert math.isclose(y, 0)
+
+    def test_up_1mm(self):
+        # 0 at gantry 0
+        x, y = _bb_projection_with_rotation(
+            offset_left=0, offset_up=1, offset_in=0, gantry=0, couch=0, sad=1000
+        )
+        assert math.isclose(x, 0)
+        assert math.isclose(y, 0)
+
+    def test_down_1mm(self):
+        # 0 at gantry 0
+        x, y = _bb_projection_with_rotation(
+            offset_left=0, offset_up=-1, offset_in=0, gantry=0, couch=0, sad=1000
+        )
+        assert math.isclose(x, 0)
+        assert math.isclose(y, 0)
+
+    def test_in_1mm(self):
+        x, y = _bb_projection_with_rotation(
+            offset_left=0, offset_up=0, offset_in=1, gantry=0, couch=0, sad=1000
+        )
+        assert math.isclose(x, 0)
+        assert math.isclose(y, 1)
+
+    def test_out_1mm(self):
+        x, y = _bb_projection_with_rotation(
+            offset_left=0, offset_up=0, offset_in=-1, gantry=0, couch=0, sad=1000
+        )
+        assert math.isclose(x, 0)
+        assert math.isclose(y, -1)
+
+    def test_1mm_up_gantry_90(self):
+        # at gantry 90 the bb is up 1mm
+        x, y = _bb_projection_with_rotation(
+            offset_left=0, offset_up=1, offset_in=0, gantry=90, couch=0, sad=1000
+        )
+        assert math.isclose(x, -1)
+        assert math.isclose(y, 0)
+
+    def test_1mm_up_gantry_270(self):
+        # at gantry 270 the bb is down 1mm
+        x, y = _bb_projection_with_rotation(
+            offset_left=0, offset_up=1, offset_in=0, gantry=270, couch=0, sad=1000
+        )
+        assert math.isclose(x, 1)
+        assert math.isclose(y, 0)
+
+    def test_1mm_in_couch_90(self):
+        # at couch 90 the bb is rotated to be 1mm left
+        x, y = _bb_projection_with_rotation(
+            offset_left=0, offset_up=0, offset_in=1, gantry=0, couch=90, sad=1000
+        )
+        assert math.isclose(x, -1)
+        assert math.isclose(y, 0, abs_tol=0.001)
+
+    def test_1mm_out_couch_90(self):
+        # at couch 90 the bb is rotated to be 1mm right
+        x, y = _bb_projection_with_rotation(
+            offset_left=0, offset_up=0, offset_in=-1, gantry=0, couch=90, sad=1000
+        )
+        assert math.isclose(x, 1)
+        assert math.isclose(y, 0, abs_tol=0.001)
+
+    def test_1mm_in_couch_270(self):
+        # at couch 270 the bb is rotated to be 1mm right
+        x, y = _bb_projection_with_rotation(
+            offset_left=0, offset_up=0, offset_in=1, gantry=0, couch=270, sad=1000
+        )
+        assert math.isclose(x, 1)
+        assert math.isclose(y, 0, abs_tol=0.001)
+
+    def test_in_and_up_magnification(self):
+        # when gantry=0 and offset up > 0 the bb should appear even further away than the in offset
+        x, y = _bb_projection_with_rotation(
+            offset_left=0, offset_up=20, offset_in=10, gantry=0, couch=0, sad=1000
+        )
+        assert math.isclose(x, 0)
+        assert math.isclose(y, 10.204, abs_tol=0.001)
+
+    def test_in_and_down_magnification(self):
+        # when gantry=0 and offset up < 0 the bb should appear even closer than the in offset
+        x, y = _bb_projection_with_rotation(
+            offset_left=0, offset_up=-10, offset_in=10, gantry=0, couch=0, sad=1000
+        )
+        assert math.isclose(x, 0)
+        assert math.isclose(y, 9.9, abs_tol=0.001)
+
+    def test_in_and_right_gantry_90(self):
+        # at gantry 90 the offset is to the right the bb should appear even further away than the in offset
+        x, y = _bb_projection_with_rotation(
+            offset_left=-10, offset_up=0, offset_in=10, gantry=90, couch=0, sad=1000
+        )
+        assert math.isclose(x, 0, abs_tol=0.001)
+        assert math.isclose(y, 10.101, abs_tol=0.001)
+
+    def test_1mm_left_gantry_180(self):
+        # at gantry 180 the bb is 1mm right
+        x, y = _bb_projection_with_rotation(
+            offset_left=1, offset_up=0, offset_in=0, gantry=180, couch=0, sad=1000
+        )
+        assert math.isclose(x, 1)
+        assert math.isclose(y, 0)
+
+    def test_1mm_in_couch_45(self):
+        # at couch 45 the bb is rotated to be 0.707mm in and 0.707mm left
+        x, y = _bb_projection_with_rotation(
+            offset_left=0, offset_up=0, offset_in=1, gantry=0, couch=45, sad=1000
+        )
+        assert math.isclose(x, -0.707, abs_tol=0.001)
+        assert math.isclose(y, 0.707, abs_tol=0.001)
+
+
 class TestBBProjection(TestCase):
     """Test the BB isoplane projections"""
 
@@ -51,35 +184,42 @@ class TestBBProjection(TestCase):
         # dead center
         assert (
             bb_projection_long(
-                offset_in=0, offset_up=0, offset_left=0, sad=1000, gantry=0
+                offset_in=0, offset_up=0, offset_left=0, sad=1000, gantry=0, couch=0
             )
             == 0
         )
         # up-only won't change it
         assert (
             bb_projection_long(
-                offset_in=0, offset_up=30, offset_left=0, sad=1000, gantry=0
+                offset_in=0, offset_up=30, offset_left=0, sad=1000, gantry=0, couch=0
             )
             == 0
         )
         # long-only won't change it
         assert (
             bb_projection_long(
-                offset_in=20, offset_up=0, offset_left=0, sad=1000, gantry=0
+                offset_in=20, offset_up=0, offset_left=0, sad=1000, gantry=0, couch=0
             )
             == 20
+        )
+        # out is negative (per coordinate space)
+        assert (
+            bb_projection_long(
+                offset_in=-20, offset_up=0, offset_left=0, sad=1000, gantry=0, couch=0
+            )
+            == -20
         )
         # left-only won't change it
         assert (
             bb_projection_long(
-                offset_in=0, offset_up=0, offset_left=15, sad=1000, gantry=0
+                offset_in=0, offset_up=0, offset_left=15, sad=1000, gantry=0, couch=0
             )
             == 0
         )
         # in and up will make it look further away at gantry 0
         assert math.isclose(
             bb_projection_long(
-                offset_in=10, offset_up=10, offset_left=0, sad=1000, gantry=0
+                offset_in=10, offset_up=10, offset_left=0, sad=1000, gantry=0, couch=0
             ),
             10.1,
             abs_tol=0.005,
@@ -87,7 +227,7 @@ class TestBBProjection(TestCase):
         # in and down will make it closer at gantry 0
         assert math.isclose(
             bb_projection_long(
-                offset_in=10, offset_up=-10, offset_left=0, sad=1000, gantry=0
+                offset_in=10, offset_up=-10, offset_left=0, sad=1000, gantry=0, couch=0
             ),
             9.9,
             abs_tol=0.005,
@@ -95,7 +235,7 @@ class TestBBProjection(TestCase):
         # in and up will make it look closer at gantry 180
         assert math.isclose(
             bb_projection_long(
-                offset_in=10, offset_up=10, offset_left=0, sad=1000, gantry=180
+                offset_in=10, offset_up=10, offset_left=0, sad=1000, gantry=180, couch=0
             ),
             9.9,
             abs_tol=0.005,
@@ -103,7 +243,12 @@ class TestBBProjection(TestCase):
         # in and down will make it further away at gantry 180
         assert math.isclose(
             bb_projection_long(
-                offset_in=10, offset_up=-10, offset_left=0, sad=1000, gantry=180
+                offset_in=10,
+                offset_up=-10,
+                offset_left=0,
+                sad=1000,
+                gantry=180,
+                couch=0,
             ),
             10.1,
             abs_tol=0.005,
@@ -111,7 +256,7 @@ class TestBBProjection(TestCase):
         # in and left will make it closer at gantry 90
         assert math.isclose(
             bb_projection_long(
-                offset_in=10, offset_up=0, offset_left=10, sad=1000, gantry=90
+                offset_in=10, offset_up=0, offset_left=10, sad=1000, gantry=90, couch=0
             ),
             9.9,
             abs_tol=0.005,
@@ -119,7 +264,7 @@ class TestBBProjection(TestCase):
         # in and right will make it further away at gantry 90
         assert math.isclose(
             bb_projection_long(
-                offset_in=10, offset_up=0, offset_left=-10, sad=1000, gantry=90
+                offset_in=10, offset_up=0, offset_left=-10, sad=1000, gantry=90, couch=0
             ),
             10.1,
             abs_tol=0.005,
@@ -127,7 +272,12 @@ class TestBBProjection(TestCase):
         # in and right will make it closer at gantry 270
         assert math.isclose(
             bb_projection_long(
-                offset_in=10, offset_up=0, offset_left=-10, sad=1000, gantry=270
+                offset_in=10,
+                offset_up=0,
+                offset_left=-10,
+                sad=1000,
+                gantry=270,
+                couch=0,
             ),
             9.9,
             abs_tol=0.005,
@@ -135,7 +285,7 @@ class TestBBProjection(TestCase):
         # in and left won't change at gantry 0
         assert math.isclose(
             bb_projection_long(
-                offset_in=10, offset_up=0, offset_left=10, sad=1000, gantry=0
+                offset_in=10, offset_up=0, offset_left=10, sad=1000, gantry=0, couch=0
             ),
             10,
             abs_tol=0.005,
@@ -144,7 +294,7 @@ class TestBBProjection(TestCase):
         # in and up will make it look further away at gantry 0
         assert math.isclose(
             bb_projection_long(
-                offset_in=10, offset_up=10, offset_left=0, sad=1000, gantry=0
+                offset_in=10, offset_up=10, offset_left=0, sad=1000, gantry=0, couch=0
             ),
             10.1,
             abs_tol=0.005,
@@ -152,7 +302,7 @@ class TestBBProjection(TestCase):
         # out and up will make it look further away at gantry 0
         assert math.isclose(
             bb_projection_long(
-                offset_in=-10, offset_up=10, offset_left=0, sad=1000, gantry=0
+                offset_in=-10, offset_up=10, offset_left=0, sad=1000, gantry=0, couch=0
             ),
             -10.1,
             abs_tol=0.005,
@@ -160,7 +310,12 @@ class TestBBProjection(TestCase):
         # out and up will make it look closer at gantry 180
         assert math.isclose(
             bb_projection_long(
-                offset_in=-10, offset_up=10, offset_left=0, sad=1000, gantry=180
+                offset_in=-10,
+                offset_up=10,
+                offset_left=0,
+                sad=1000,
+                gantry=180,
+                couch=0,
             ),
             -9.9,
             abs_tol=0.005,
@@ -168,7 +323,7 @@ class TestBBProjection(TestCase):
         # out and down will make it look closer at gantry 0
         assert math.isclose(
             bb_projection_long(
-                offset_in=-10, offset_up=-10, offset_left=0, sad=1000, gantry=0
+                offset_in=-10, offset_up=-10, offset_left=0, sad=1000, gantry=0, couch=0
             ),
             -9.9,
             abs_tol=0.005,
@@ -176,7 +331,12 @@ class TestBBProjection(TestCase):
         # out and down will make it look further out at gantry 180
         assert math.isclose(
             bb_projection_long(
-                offset_in=-10, offset_up=-10, offset_left=0, sad=1000, gantry=180
+                offset_in=-10,
+                offset_up=-10,
+                offset_left=0,
+                sad=1000,
+                gantry=180,
+                couch=0,
             ),
             -10.1,
             abs_tol=0.005,
@@ -955,7 +1115,7 @@ class SyntheticWLMixin(WinstonLutzMixin):
     def tearDownClass(cls):
         # clean up the folder we created;
         # in BB space can be at a premium.
-        shutil.rmtree(cls.tmp_path, ignore_errors=False)
+        shutil.rmtree(cls.tmp_path, ignore_errors=True)
 
     @classmethod
     def get_filename(cls) -> str:
