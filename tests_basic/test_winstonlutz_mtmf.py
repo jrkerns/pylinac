@@ -5,6 +5,8 @@ import tempfile
 from typing import Sequence
 from unittest import TestCase
 
+import matplotlib.pyplot as plt
+
 from pylinac import WinstonLutzMultiTargetMultiField
 from pylinac.core.image_generator import (
     AS1200Image,
@@ -46,8 +48,9 @@ class TestWLMultiImage(TestCase):
             self.wl.plot_summary()
 
     def test_no_plot_location(self):
-        with self.assertRaises(NotImplementedError):
-            self.wl.plot_location()
+        fig, ax = self.wl.plot_location()
+        self.assertIsInstance(fig, plt.Figure)
+        self.assertIsInstance(ax, plt.Axes)
 
     def test_results(self):
         results = self.wl.results()

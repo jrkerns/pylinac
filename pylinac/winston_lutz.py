@@ -19,6 +19,7 @@ Features:
 """
 from __future__ import annotations
 
+import dataclasses
 import enum
 import io
 import math
@@ -30,7 +31,7 @@ from functools import cached_property
 from itertools import zip_longest
 from pathlib import Path
 from textwrap import wrap
-from typing import BinaryIO, Iterable, Sequence, TypedDict
+from typing import BinaryIO, Iterable, Sequence
 
 import argue
 import matplotlib.pyplot as plt
@@ -207,23 +208,84 @@ class BBArrangement:
         return f"'{a['name']}': {lr} {abs(a['offset_left_mm'])}mm, {ud} {abs(a['offset_up_mm'])}mm, {io} {abs(a['offset_in_mm'])}mm"
 
 
-class NominalBB(TypedDict):
-    """Input for BB location"""
+@dataclasses.dataclass
+class BBFieldMatch:
+    """A match of a BB and field to an expected arrangement position. I.e. the nominal BB, measured BB, and field.
+    This can calculate distances, create backprojections, etc for a single BB/Field."""
 
-    offset_left_mm: float
-    offset_up_mm: float
-    offset_in_mm: float
-    bb_diameter_mm: float
+    epid: Point
+    field: Point
+    bb: Point
+    dpmm: float
+    gantry_angle: float
+    couch_angle: float
+    sad: float
+
+    @property
+    def bb_field_vector_mm(self) -> Vector:
+        """The vector from the BB to the field CAX"""
+        return (self.bb - self.field) / self.dpmm
+
+    @property
+    def bb_epid_vector_mm(self) -> Vector:
+        """The vector from the BB to the field CAX"""
+        return (self.bb - self.epid) / self.dpmm
+
+    @property
+    def bb_field_distance_mm(self) -> float:
+        """The distance from the BB to the field CAX in mm."""
+        return self.field.distance_to(self.bb) / self.dpmm
+
+    @property
+    def bb_epid_distance_mm(self) -> float:
+        """The distance from the BB to the EPID center in mm."""
+        return self.epid.distance_to(self.bb) / self.dpmm
+
+    @property
+    def field_epid_distance_mm(self) -> float:
+        """The distance from the field CAX to the EPID center in mm."""
+        return self.epid.distance_to(self.field) / self.dpmm
+
+    @property
+    def bb_to_field_projection(self):
+        """The projection from the BB to the field. Used by vanilla WL
+        to determine the gantry isocenter size because there the BB is the reference point.
+
+        Returns
+        -------
+        Line
+            The virtual line in space made by the BB.
+        """
+        return straight_ray(self.bb_field_vector_mm, self.gantry_angle)
+
+    @property
+    def bb_to_epid_projection(self):
+        """The projection from the BB to the EPID. Used by multi-target, multi-field WL
+        because the fields are all centered around the BB. We need some approximation of the isocenter
+        so we use the EPID. Currently, this is only used for visualization purposes
+        and not for gantry iso size determination like the ``bb_to_field_projection``.
+
+        Returns
+        -------
+        Line
+            The virtual line in space made by the BB.
+        """
+        return ray(
+            self.bb_epid_vector_mm,
+            gantry_angle=self.gantry_angle,
+            couch_angle=self.couch_angle,
+            sad=self.sad,
+        )
 
 
-class BB:
+class BB3D:
     """A representation of a BB in 3D space"""
 
     def __repr__(self):
         return self.nominal_position
 
-    def __init__(self, nominal_bb: NominalBB, ray_lines: list[Line]):
-        self.nominal_bb = nominal_bb
+    def __init__(self, bb_config: BBConfig, ray_lines: list[Line]):
+        self.bb_config = bb_config
         self.ray_lines = ray_lines
 
     @cached_property
@@ -238,11 +300,11 @@ class BB:
 
     @cached_property
     def nominal_position(self) -> Point:
-        """The nominal location of the BB in MM"""
+        """The nominal location of the BB in MM in coordinate space"""
         return Point(
-            x=-self.nominal_bb["offset_left_mm"],
-            y=-self.nominal_bb["offset_in_mm"],
-            z=self.nominal_bb["offset_up_mm"],
+            x=-self.bb_config.offset_left_mm,
+            y=self.bb_config.offset_in_mm,
+            z=self.bb_config.offset_up_mm,
         )
 
     @cached_property
@@ -258,14 +320,14 @@ class BB:
     def plot_nominal(self, axes: plt.Axes, color: str, **kwargs):
         """Plot the BB nominal position"""
         x, y, z = create_sphere_surface(
-            radius=self.nominal_bb["bb_diameter_mm"] / 2, center=self.nominal_position
+            radius=self.bb_config.bb_size_mm / 2, center=self.nominal_position
         )
         axes.plot_surface(x, y, z, color=color, **kwargs)
 
     def plot_measured(self, axes: plt.Axes, color: str, **kwargs):
         """Plot the BB measured position"""
         x, y, z = create_sphere_surface(
-            radius=self.nominal_bb["bb_diameter_mm"] / 2, center=self.measured_position
+            radius=self.bb_config.bb_size_mm / 2, center=self.measured_position
         )
         axes.plot_surface(x, y, z, color=color, **kwargs)
 
@@ -398,7 +460,7 @@ class WLBaseImage(image.LinacDicomImage):
     bb_positions: list[Point]
     bb_arrangement: tuple[BBConfig]
     arrangement_matches: dict[
-        str, dict[str, Point]
+        str, BBFieldMatch
     ]  # a field CAX and BB matched to their respective nominal locations
 
     def __init__(
@@ -487,14 +549,15 @@ class WLBaseImage(image.LinacDicomImage):
         # merge the field and BBs per arrangement position
         combined_matches = {}
         for bb_name, bb_match in bb_matches.items():
-            # TODO: use a typeddict or dataclass
-            combined_matches[bb_name] = {
-                "epid": self.epid,
-                "field": field_matches[bb_name],
-                "bb": bb_match,
-                "field-bb distance": field_matches[bb_name].distance_to(bb_match)
-                / self.dpmm,
-            }
+            combined_matches[bb_name] = BBFieldMatch(
+                epid=self.center,
+                field=field_matches[bb_name],
+                bb=bb_match,
+                dpmm=self.dpmm,
+                gantry_angle=self.gantry_angle,
+                couch_angle=self.couch_angle,
+                sad=self.sad,
+            )
         self._is_analyzed = True
         self.arrangement_matches = combined_matches
 
@@ -563,18 +626,16 @@ class WLBaseImage(image.LinacDicomImage):
     def field_to_bb_distances(self) -> list[float]:
         """The distances from the field CAXs to the BBs in mm. Useful for metrics as this is only
         the resulting floats vs a dict of points."""
-        distances = []
-        for match in self.arrangement_matches.values():
-            distances.append(match["field"].distance_to(match["bb"]) / self.dpmm)
-        return distances
+        return [
+            match.bb_field_distance_mm for match in self.arrangement_matches.values()
+        ]
 
     def epid_to_bb_distances(self) -> list[float]:
         """The distances from the EPID center to the BBs in mm. Useful for metrics as this is only
         the resulting floats vs a dict of points."""
-        distances = []
-        for match in self.arrangement_matches.values():
-            distances.append(match["epid"].distance_to(match["bb"]) / self.dpmm)
-        return distances
+        return [
+            match.bb_epid_distance_mm for match in self.arrangement_matches.values()
+        ]
 
     def plot(
         self,
@@ -605,8 +666,8 @@ class WLBaseImage(image.LinacDicomImage):
         epid_handle = ax.axhline(y=self.epid.y, color="b")
         # show the field CAXs
         for match in self.arrangement_matches.values():
-            (field_handle,) = ax.plot(match["field"].x, match["field"].y, "gs", ms=8)
-            (bb_handle,) = ax.plot(match["bb"].x, match["bb"].y, "co", ms=10)
+            (field_handle,) = ax.plot(match.field.x, match.bb.y, "gs", ms=8)
+            (bb_handle,) = ax.plot(match.bb.x, match.bb.y, "co", ms=10)
         if legend:
             ax.legend(
                 (field_handle, bb_handle, epid_handle),
@@ -618,19 +679,19 @@ class WLBaseImage(image.LinacDicomImage):
             # find the x and y limits based on the detected BB positions
             # and add a margin of 20mm
             min_x = (
-                min([match["bb"].x for match in self.arrangement_matches.values()])
+                min([match.bb.x for match in self.arrangement_matches.values()])
                 - 20 * self.dpmm
             )
             min_y = (
-                min([match["bb"].y for match in self.arrangement_matches.values()])
+                min([match.bb.y for match in self.arrangement_matches.values()])
                 - 20 * self.dpmm
             )
             max_x = (
-                max([match["bb"].x for match in self.arrangement_matches.values()])
+                max([match.bb.x for match in self.arrangement_matches.values()])
                 + 20 * self.dpmm
             )
             max_y = (
-                max([match["bb"].y for match in self.arrangement_matches.values()])
+                max([match.bb.y for match in self.arrangement_matches.values()])
                 + 20 * self.dpmm
             )
             ax.set_ylim([min_y, max_y])
@@ -768,8 +829,8 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
         )
         self.bb_arrangement = bb_config
         # these are set for the deprecated properties of the 2D analysis specifically where 1 field and 1 bb are expected.
-        self.field_cax = self.arrangement_matches["Iso"]["field"]
-        self.bb = self.arrangement_matches["Iso"]["bb"]
+        self.field_cax = self.arrangement_matches["Iso"].field
+        self.bb = self.arrangement_matches["Iso"].bb
 
     def __repr__(self):
         return f"WLImage(gantry={self.gantry_angle:.1f}, coll={self.collimator_angle:.1f}, couch={self.couch_angle:.1f})"
@@ -777,37 +838,6 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
     def to_axes(self) -> str:
         """Give just the axes values as a human-readable string"""
         return f"Gantry={self.gantry_angle:.1f}, Coll={self.collimator_angle:.1f}, Couch={self.couch_angle:.1f}"
-
-    @property
-    def cax_line_projection(self) -> Line:
-        """The projection of the field CAX through space around the area of the BB.
-        Used for determining gantry isocenter size.
-
-        Returns
-        -------
-        Line
-            The virtual line in space made by the beam CAX.
-        """
-        p1 = Point()
-        p2 = Point()
-        # point 1 - ray origin
-        p1.x = self.cax2bb_vector.x * cos(self.gantry_angle) + 20 * sin(
-            self.gantry_angle
-        )
-        p1.z = self.cax2bb_vector.x * -sin(self.gantry_angle) + 20 * cos(
-            self.gantry_angle
-        )
-        p1.y = self.cax2bb_vector.y
-        # point 2 - ray destination
-        p2.x = self.cax2bb_vector.x * cos(self.gantry_angle) - 20 * sin(
-            self.gantry_angle
-        )
-        p2.z = self.cax2bb_vector.x * -sin(self.gantry_angle) - 20 * cos(
-            self.gantry_angle
-        )
-        p2.y = self.cax2bb_vector.y
-        line = Line(p1, p2)
-        return line
 
     @property
     def cax2bb_vector(self) -> Vector:
@@ -889,6 +919,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
     images: list[WinstonLutz2D]  #:
     machine_scale: MachineScale  #:
     image_type = WinstonLutz2D
+    bb: BB3D  # 3D representation of the BB; there is a .bb object for 2D images but is a 2D representation
     is_from_cbct: bool = False
     _bb_diameter: float
     _virtual_shift: str | None = None
@@ -1191,6 +1222,15 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
             self._virtual_shift = self.bb_shift_instructions()
             for img in self.images:
                 img.analyze(bb_size_mm, low_density_bb, open_field, shift_vector=shift)
+        bb_config = BBArrangement.ISO[0]
+        bb_config.bb_size_mm = bb_size_mm
+        self.bb = BB3D(
+            bb_config=bb_config,
+            ray_lines=[
+                img.arrangement_matches["Iso"].bb_to_field_projection
+                for img in self.images
+            ],
+        )
         self._is_analyzed = True
         self._bb_diameter = bb_size_mm
 
@@ -1201,7 +1241,9 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
             axes = (axes,)
 
         things = [
-            image.cax_line_projection
+            # we want the bb<->field because the BB is our reference point for vanilla WL
+            # whether it's BB->field or field->BB is irrelevant for this case; we are not determining shift here.
+            image.arrangement_matches["Iso"].bb_to_field_projection
             for image in self.images
             if image.variable_axis in (axes + (Axis.REFERENCE,))
         ]
@@ -1577,15 +1619,6 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
         )
         # we can represent the iso sphere as a BB object; the nominal object isn't used, just the BB size
         # the ray lines are what we want to plot as a sphere
-        iso_sphere = BB(
-            nominal_bb={
-                "offset_left_mm": 0,
-                "offset_in_mm": 0,
-                "offset_up_mm": 0,
-                "bb_diameter_mm": self._bb_diameter,
-            },
-            ray_lines=[image.cax_line_projection for image in relevant_images],
-        )
         # plot the x,y,z origin lines
         x_line = Line(Point(-limit, 0, 0), Point(limit, 0, 0))
         x_line.plot2axes(ax, color="green", alpha=0.5)
@@ -1596,7 +1629,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
             ax, color="green", alpha=0.5, label="Determined isocenter (x,y,z)"
         )
         if plot_bb:
-            iso_sphere.plot_measured(ax, color="cyan", alpha=0.6)
+            self.bb.plot_measured(ax, color="cyan", alpha=0.6)
             # create an empty, fake line so we can add a label for the legend
             fake_line = Line(Point(0, 0, 0), Point(0, 0, 0))
             fake_line.plot2axes(ax, color="cyan", label=f"BB ({self._bb_diameter}mm)")
@@ -2049,9 +2082,11 @@ class WinstonLutzMultiTargetMultiFieldImage(WLBaseImage):
 
 
 class WinstonLutzMultiTargetMultiField(WinstonLutz):
+    machine_scale: MachineScale  #:
     images: Sequence[WinstonLutzMultiTargetMultiFieldImage]  #:
     image_type = WinstonLutzMultiTargetMultiFieldImage
     bb_arrangement: tuple[BBConfig]  #:
+    bbs: list[BB3D]  #:  3D representation of the BBs
 
     def __init__(self, *args, **kwargs):
         """We cannot yet handle non-0 couch angles so we drop them. Analysis fails otherwise"""
@@ -2085,6 +2120,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         bb_arrangement: tuple[BBConfig, ...],
         is_open_field: bool = False,
         is_low_density: bool = False,
+        machine_scale: MachineScale = MachineScale.IEC61217,
     ):
         """Analyze the WL images.
 
@@ -2094,6 +2130,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             The arrangement of the BBs in the phantom. A dict with offset and BB size keys. See the ``BBArrangement`` class for
             keys and syntax.
         """
+        self.machine_scale = machine_scale
         self.bb_arrangement = bb_arrangement
         for img in self.images:
             img.analyze(
@@ -2101,6 +2138,21 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
                 is_open_field=is_open_field,
                 is_low_density=is_low_density,
             )
+
+        self.bbs = []
+        for arrangement in self.bb_arrangement:
+            # add bbs to the matches if the match is in the given image
+            matches = []
+            for img in self.images:
+                if arrangement.name in img.arrangement_matches:
+                    match = img.arrangement_matches[arrangement.name]
+                    matches.append(match)
+            # ray lines are used for plotting
+            bb = BB3D(
+                bb_config=arrangement,
+                ray_lines=[match.bb_to_epid_projection for match in matches],
+            )
+            self.bbs.append(bb)
         self._is_analyzed = True
 
     def plot_location(
@@ -2113,6 +2165,56 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         plot_coll_iso: bool = True,
         show_legend: bool = True,
     ):
+        x_lim = max(max([np.abs(bb.measured_position.x) for bb in self.bbs]) * 1.3, 10)
+        y_lim = max(max([np.abs(bb.measured_position.y) for bb in self.bbs]) * 1.3, 10)
+        z_lim = max(max([np.abs(bb.measured_position.z) for bb in self.bbs]) * 1.3, 10)
+        limit = viewbox_mm or max(x_lim, y_lim, z_lim)
+        fig = plt.figure()
+        ax = fig.add_subplot(projection="3d")
+        _, relevant_images = self._get_images(
+            axis=(Axis.REFERENCE, Axis.GB_COMBO, Axis.COLLIMATOR, Axis.GANTRY)
+        )
+        # we can represent the iso sphere as a BB object; the nominal object isn't used, just the BB size
+        # the ray lines are what we want to plot as a sphere
+        # plot the x,y,z origin lines
+        x_line = Line(Point(-100, 0, 0), Point(100, 0, 0))
+        x_line.plot2axes(ax, color="green", alpha=0.5)
+        y_line = Line(Point(0, -100, 0), Point(0, 100, 0))
+        y_line.plot2axes(ax, color="green", alpha=0.5)
+        z_line = Line(Point(0, 0, -100), Point(0, 0, 100))
+        z_line.plot2axes(
+            ax, color="green", alpha=0.5, label="Determined isocenter (x,y,z)"
+        )
+        if plot_bb:
+            for bb in self.bbs:
+                bb.plot_measured(ax, color="cyan", alpha=0.6)
+                bb.plot_nominal(ax, color="green", alpha=0.6)
+
+            # create an empty, fake line so we can add a label for the legend
+            fake_line = Line(Point(0, 0, 0), Point(0, 0, 0))
+            fake_line.plot2axes(ax, color="cyan", label="Measured BB")
+            fake_line = Line(Point(0, 0, 0), Point(0, 0, 0))
+            fake_line.plot2axes(ax, color="green", label="Nominal BB")
+
+        if show_legend:
+            ax.legend()
+        # set the limits of the 3D plot; they must be the same in all axes for equal aspect ratio
+        ax.set(
+            xlabel="X (mm), Right (+)",
+            ylabel="Y (mm), In (+)",
+            zlabel="Z (mm), Up (+)",
+            title="Isocenter Visualization",
+            ylim=[-limit, limit],
+            xlim=[-limit, limit],
+            zlim=[-limit, limit],
+        )
+
+        if show:
+            plt.show()
+        return fig, ax
+
+    @property
+    def bb_shift_vector(self) -> Vector:
         raise NotImplementedError("Not yet implemented")
 
     @property
@@ -2182,7 +2284,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             for img in self.images:
                 if bb.name in img.arrangement_matches:
                     max_d = max(
-                        max_d, img.arrangement_matches[bb.name]["field-bb distance"]
+                        max_d, img.arrangement_matches[bb.name].bb_field_distance_mm
                     )
             bb_maxes[bb.name] = max_d
 
@@ -2263,7 +2365,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
                     lambda x: x[0] == bb.name
                 )
                 if match:
-                    deviations.append(f"{match[1]['field-bb distance']:.2f}")
+                    deviations.append(f"{match[1].bb_field_distance_mm:.2f}")
                 else:
                     deviations.append("---")
             data.append([img_name, gantry, collimator, couch, *deviations])
@@ -2463,3 +2565,57 @@ def _bb_projection_with_rotation(
         np.array([rotated_positions[1], rotated_positions[2]]) * bb_magnification
     )
     return imager_projection[0], imager_projection[1]
+
+
+def straight_ray(vector: Vector, gantry_angle: float) -> Line:
+    """A ray projecting from the gantry source point in the given direction.
+
+    Notes
+    -----
+    This does NOT account for couch rotation. It also generates a straight line
+    that goes through the vector. I.e. if the vector is 5mm left, the line will be straight
+    up and down 5mm left. It does not account for 2D projection from the gantry source.
+    The reason is that in vanilla WL, the assumption is that the field is about isocenter (i.e. not purposely offset)
+    and thus creating straight lines is a good approximation.
+    In the Multi-BB case, our fields are purposely off-center,
+    so this assumption does not hold for that case. See the ``ray`` function for that.
+
+    TL;DR: this is useful for vanilla WL but not Multi-BB.
+    """
+    p1 = Point()
+    p2 = Point()
+    # point 1 - ray origin
+    p1.x = vector.x * cos(gantry_angle) + 20 * sin(gantry_angle)
+    p1.z = vector.x * -sin(gantry_angle) + 20 * cos(gantry_angle)
+    p1.y = vector.y
+    # point 2 - ray destination
+    p2.x = vector.x * cos(gantry_angle) - 20 * sin(gantry_angle)
+    p2.z = vector.x * -sin(gantry_angle) - 20 * cos(gantry_angle)
+    p2.y = vector.y
+    line = Line(p1, p2)
+    return line
+
+
+def ray(
+    in_plane_vector: Vector, gantry_angle: float, couch_angle: float, sad: float
+) -> Line:
+    """Generate a 'ray line' from the gantry source point that passes through
+    the given in-plane vector. The x/y/z are in the system coordinates; see docs.
+    Not used currently but might be in the future. I thought this was necessary but turned
+    out to be wrong. Left here for potential future use."""
+    # Calculate the source point of the ray
+    gantry_x = sad * sin(gantry_angle)
+    gantry_z = sad * cos(gantry_angle)
+    gantry_y = 0  # always in the z/x plane
+
+    # Calculate the destination point of the ray
+    # we do 2 * sad to create a line that goes well past the plane
+    dest_x = 2 * in_plane_vector.x * cos(gantry_angle) * cos(couch_angle) - sad * sin(
+        gantry_angle
+    )
+    dest_y = 2 * in_plane_vector.y * cos(couch_angle) - 2 * in_plane_vector.x * sin(
+        couch_angle
+    )
+    dest_z = -gantry_z - 2 * in_plane_vector.x * sin(gantry_angle)
+
+    return Line(Point(gantry_x, gantry_y, gantry_z), Point(dest_x, dest_y, dest_z))
