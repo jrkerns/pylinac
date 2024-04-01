@@ -7,7 +7,7 @@ import random
 from typing import Sequence
 
 from ...picketfence import Orientation
-from ...winston_lutz import bb_projection_gantry_plane, bb_projection_long
+from ...winston_lutz import bb_projection_with_rotation
 from ..geometry import cos, sin
 from ..scale import MachineScale, convert
 from . import GaussianFilterLayer
@@ -226,21 +226,13 @@ def generate_winstonlutz(
                 rotation=coll,
             )
         )
-        long_offset = bb_projection_long(
-            offset_in=offset_mm_in,
-            offset_up=offset_mm_up,
-            offset_left=offset_mm_left,
-            sad=1000,
-            gantry=gantry,
-            couch=couch,
-        )
-        gplane_offset = bb_projection_gantry_plane(
+        gplane_offset, long_offset = bb_projection_with_rotation(
             offset_left=offset_mm_left,
             offset_up=offset_mm_up,
-            sad=1000,
+            offset_in=offset_mm_in,
             gantry=gantry,
             couch=couch,
-            offset_in=offset_mm_in,
+            sad=1000,
         )
         sim_single.add_layer(
             PerfectBBLayer(
@@ -349,19 +341,13 @@ def generate_winstonlutz_multi_bb_single_field(
                 offset_mm_in = -offset[2] + random.uniform(
                     -jitter_mm, jitter_mm
                 )  # negative because pixels increase as we go out, so to go in we subtract
-
-            long_offset = bb_projection_long(
+            gplane_offset, long_offset = bb_projection_with_rotation(
+                offset_left=offset_mm_left,
+                offset_up=offset_mm_up,
                 offset_in=offset_mm_in,
-                offset_up=offset_mm_up,
-                offset_left=offset_mm_left,
-                sad=1000,
                 gantry=gantry,
-            )
-            gplane_offset = bb_projection_gantry_plane(
-                offset_left=offset_mm_left,
-                offset_up=offset_mm_up,
+                couch=couch,
                 sad=1000,
-                gantry=gantry,
             )
             sim_single.add_layer(
                 PerfectBBLayer(
@@ -453,21 +439,13 @@ def generate_winstonlutz_multi_bb_multi_field(
             offset_mm_left = field_offset[0] + random.uniform(-jitter_mm, jitter_mm)
             offset_mm_up = field_offset[1] + random.uniform(-jitter_mm, jitter_mm)
             offset_mm_in = field_offset[2] + random.uniform(-jitter_mm, jitter_mm)
-            long_offset = bb_projection_long(
-                offset_in=offset_mm_in,
-                offset_up=offset_mm_up,
-                offset_left=offset_mm_left,
-                sad=1000,
-                gantry=gantry,
-                couch=couch,
-            )
-            gplane_offset = bb_projection_gantry_plane(
+            gplane_offset, long_offset = bb_projection_with_rotation(
                 offset_left=offset_mm_left,
                 offset_up=offset_mm_up,
-                sad=1000,
+                offset_in=offset_mm_in,
                 gantry=gantry,
                 couch=couch,
-                offset_in=offset_mm_in,
+                sad=1000,
             )
             long_offset += gantry_tilt * cos(gantry)
             gplane_offset += gantry_sag * sin(gantry)
@@ -497,21 +475,13 @@ def generate_winstonlutz_multi_bb_multi_field(
                 offset_mm_left = offset[0] + random.uniform(-jitter_mm, jitter_mm)
                 offset_mm_up = offset[1] + random.uniform(-jitter_mm, jitter_mm)
                 offset_mm_in = offset[2] + random.uniform(-jitter_mm, jitter_mm)
-            long_offset = bb_projection_long(
-                offset_in=offset_mm_in,
-                offset_up=offset_mm_up,
-                offset_left=offset_mm_left,
-                sad=1000,
-                gantry=gantry,
-                couch=couch,
-            )
-            gplane_offset = bb_projection_gantry_plane(
+            gplane_offset, long_offset = bb_projection_with_rotation(
                 offset_left=offset_mm_left,
                 offset_up=offset_mm_up,
-                sad=1000,
+                offset_in=offset_mm_in,
                 gantry=gantry,
                 couch=couch,
-                offset_in=offset_mm_in,
+                sad=1000,
             )
             if align_to_pixels:
                 long_offset = pixel_align(sim_single.pixel_size, long_offset)
