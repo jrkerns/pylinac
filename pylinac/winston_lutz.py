@@ -1249,6 +1249,8 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
                 rotation=img.couch_angle,
             )
             A[2 * idx : 2 * idx + 2, :] = np.array(
+                # note the signs are different than the paper; based on
+                # synthetic data we can prove this. See docs
                 [
                     [-cos(couch), sin(couch), 0],
                     [
