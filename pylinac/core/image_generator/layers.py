@@ -181,9 +181,9 @@ class PerfectFieldLayer(Layer):
         ----------
 
         field_size_mm
-            Field size in mm at the iso plane
+            Field size in mm at the iso plane as (width, height)
         cax_offset_mm
-            The offset in mm. (out, right)
+            The offset in mm. (down, right)
         alpha
             The intensity of the layer. 1 is full saturation/radiation. 0 is none.
         rotation: float
@@ -203,7 +203,7 @@ class PerfectFieldLayer(Layer):
         cax_offset_pix_mag = [v * mag_factor / pixel_size for v in self.cax_offset_mm]
         field_center = [
             offset + (shape / 2) - 0.5
-            for offset, shape in zip(cax_offset_pix_mag, reversed(image.shape))
+            for offset, shape in zip(cax_offset_pix_mag, image.shape)
         ]
         rr, cc = draw_rotated_rectangle(
             image.shape, center=field_center, extent=field_size_pix, angle=self.rotation
@@ -456,10 +456,11 @@ def draw_rotated_rectangle(
     ChatGPT-generated 🥰
     """
     # Calculate rectangle coordinates before rotation
-    x0 = center[0] - extent[0] / 2
-    x1 = center[0] + extent[0] / 2
-    y0 = center[1] - extent[1] / 2
-    y1 = center[1] + extent[1] / 2
+    # follows row,col convention of numpy; y = row, x = col
+    x0 = center[1] - extent[0] / 2
+    x1 = center[1] + extent[0] / 2
+    y0 = center[0] - extent[1] / 2
+    y1 = center[0] + extent[1] / 2
 
     rect_coords = np.array([[x0, y0], [x1, y0], [x1, y1], [x0, y1]])
 
