@@ -125,11 +125,11 @@ def generate_picketfence(
             pos += picket_offset_error[idx]
         if orientation == orientation.UP_DOWN:
             position = (0, pos)
-            layout = (picket_height_mm, picket_width_mm)
+            layout = (picket_width_mm, picket_height_mm)
         else:
             position = (pos, 0)
-            layout = (picket_width_mm, picket_height_mm)
-        simulator.add_layer(field_layer(layout, cax_offset_mm=position))
+            layout = (picket_height_mm, picket_width_mm)
+        simulator.add_layer(field_layer(field_size_mm=layout, cax_offset_mm=position))
     if final_layers is not None:
         for layer in final_layers:
             simulator.add_layer(layer)
