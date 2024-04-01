@@ -1249,9 +1249,15 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
                 rotation=img.couch_angle,
             )
             A[2 * idx : 2 * idx + 2, :] = np.array(
+                # note the signs are different than the paper; based on
+                # synthetic data we can prove this. See docs
                 [
-                    [-cos(couch), -sin(couch), 0],
-                    [-cos(gantry) * sin(couch), cos(gantry) * cos(couch), -sin(gantry)],
+                    [-cos(couch), sin(couch), 0],
+                    [
+                        cos(gantry) * sin(couch),
+                        cos(gantry) * cos(couch),
+                        -sin(gantry),
+                    ],
                 ]
             )  # equation 6 (minus delta)
             epsilon[2 * idx : 2 * idx + 2] = np.array(
@@ -2349,7 +2355,7 @@ def bb_projection_gantry_plane(
         + offset_left * -cos(gantry) * cos(couch)
         + addtl_left_shift
     )
-    return gantry_offset + couch_long_aspect
+    return gantry_offset - couch_long_aspect
 
 
 def _bb_projection_with_rotation(

@@ -496,8 +496,13 @@ of the field CAX points. They also found that the gantry isocenter could by foun
 the field CAX as a line in 3D coordinate space, with the BB being the reference point. This method is used to find the
 gantry isocenter size.
 
-Low determined the geometric transformations to apply to 2D planar images to calculate the shift to apply to the BB.
-This method is used to determine the shift instructions. Specifically, equations 6 and 9.
+Couch shift
+^^^^^^^^^^^
+
+`Low et al`_ determined the geometric transformations to apply to 2D planar images to calculate the shift to apply to the BB.
+This method is used to determine the shift instructions. Specifically, equations 6, 7, and 9.
+
+
 
 .. note::
 
@@ -508,6 +513,46 @@ This method is used to determine the shift instructions. Specifically, equations
     to be able to use Low's equations.
     To use a different scale use the ``machine_scale`` parameter, shown here :ref:`passing-a-coordinate-system`.
     Also see :ref:`scale`.
+
+Implementation for the couch shift is as follows:
+
+For each image we determine (equation 6a):
+
+.. math::
+
+    \textbf{A}(\phi, \theta) = \begin{pmatrix} -\cos(\phi) & \sin(\phi) & 0 \\ \cos(\theta)\sin(\phi) & \cos(\theta)\cos(\phi) & -\sin(\theta) \end{pmatrix}
+
+where :math:`\theta` is the gantry angle and :math:`\phi` is the couch angle.
+
+.. warning::
+
+  The Low paper appears to have incorrect signs for some of the matrix. Using synthetic images with known shifts
+  can prove the correctness of the algorithm.
+
+The :math:`\xi` matrix is then calculated (equation 7):
+
+.. math::
+
+    \xi = (x_{1},y_{1}, ..., x_{i},y_{i},..., x_{n},y_{n})^{T}
+
+where :math:`x_{i}` and :math:`y_{i}` are the x and y scalar shifts from the field CAX to the BB for :math:`n` images.
+
+From equation 9 we can calculate :math:`\textbf{B}(\phi_{1},\theta_{1},..., \phi_{n},\theta_{n})`:
+
+.. math::
+
+    \textbf{B} = \begin{pmatrix} \textbf{A}(\phi_{1},\theta_{1}) \\ \vdots \\ \textbf{A}(\phi_{i},\theta_{i}) \\ \vdots \\ \textbf{A}(\phi_{n},\theta_{n}) \end{pmatrix}
+
+using the above definitions.
+
+We can then solve for the shift vector :math:`\boldsymbol{\Delta}`:
+
+.. math::
+
+    \boldsymbol{\Delta} = \textbf{B}(\phi_{1},\theta_{1},..., \phi_{n},\theta_{n}) \cdot \xi
+
+Implementation
+^^^^^^^^^^^^^^
 
 The algorithm works like such:
 
@@ -567,6 +612,8 @@ if the algorithm doesn't work on a given image and when commissioning pylinac. I
 to question the accuracy of the algorithm. Since no linac is perfect and the results are sub-millimeter, discerning what
 is true error vs algorithmic error can be difficult. The image generator module is a perfect solution since it can remove or reproduce the former error.
 
+See the :ref:`image_generator_module` module for more information and specifically the :func:`~pylinac.core.image_generator.utils.generate_winstonlutz` function.
+
 Perfect Delivery
 ^^^^^^^^^^^^^^^^
 
@@ -577,6 +624,7 @@ and a field size of 4x4cm:
 .. plot::
 
     import pylinac
+    from pylinac.winston_lutz import Axis
     from pylinac.core.image_generator import (
         GaussianFilterLayer,
         FilteredFieldLayer,
@@ -587,17 +635,17 @@ and a field size of 4x4cm:
 
     wl_dir = 'wl_dir'
     generate_winstonlutz(
-        AS1200Image(),
+        AS1200Image(1000),
         FilteredFieldLayer,
         dir_out=wl_dir,
         final_layers=[GaussianFilterLayer(),],
         bb_size_mm=4,
-        field_size_mm=(40, 40),
+        field_size_mm=(25, 25),
     )
 
     wl = pylinac.WinstonLutz(wl_dir)
     wl.analyze(bb_size_mm=4)
-    wl.plot_images()
+    wl.plot_images(axis=Axis.GBP_COMBO)
 
 which has an output of::
 
@@ -606,7 +654,8 @@ which has an output of::
     Number of images: 4
     Maximum 2D CAX->BB distance: 0.00mm
     Median 2D CAX->BB distance: 0.00mm
-    Shift to iso: facing gantry, move BB: RIGHT 0.00mm; IN 0.00mm; UP 0.00mm
+    Mean 2D CAX->BB distance: 0.00mm
+    Shift to iso: facing gantry, move BB: RIGHT 0.00mm; OUT 0.00mm; DOWN 0.00mm
     Gantry 3D isocenter diameter: 0.00mm (4/4 images considered)
     Maximum Gantry RMS deviation (mm): 0.00mm
     Maximum EPID RMS deviation (mm): 0.00mm
@@ -626,6 +675,7 @@ Let's now offset the BB by 1mm to the left:
 .. plot::
 
     import pylinac
+    from pylinac.winston_lutz import Axis
     from pylinac.core.image_generator import (
         GaussianFilterLayer,
         FilteredFieldLayer,
@@ -636,18 +686,18 @@ Let's now offset the BB by 1mm to the left:
 
     wl_dir = 'wl_dir'
     generate_winstonlutz(
-        AS1200Image(),
+        AS1200Image(1000),
         FilteredFieldLayer,
         dir_out=wl_dir,
         final_layers=[GaussianFilterLayer(),],
         bb_size_mm=4,
-        field_size_mm=(40, 40),
+        field_size_mm=(25, 25),
         offset_mm_left=1,
     )
 
     wl = pylinac.WinstonLutz(wl_dir)
     wl.analyze(bb_size_mm=4)
-    wl.plot_images()
+    wl.plot_images(axis=Axis.GBP_COMBO)
 
 with an output of::
 
@@ -656,7 +706,8 @@ with an output of::
     Number of images: 4
     Maximum 2D CAX->BB distance: 1.01mm
     Median 2D CAX->BB distance: 0.50mm
-    Shift to iso: facing gantry, move BB: RIGHT 1.01mm; IN 0.00mm; UP 0.00mm
+    Mean 2D CAX->BB distance: 0.50mm
+    Shift to iso: facing gantry, move BB: RIGHT 1.01mm; OUT 0.00mm; DOWN 0.00mm
     Gantry 3D isocenter diameter: 0.00mm (4/4 images considered)
     Maximum Gantry RMS deviation (mm): 1.01mm
     Maximum EPID RMS deviation (mm): 0.00mm
@@ -671,12 +722,17 @@ We have correctly found that the max distance is 1mm and the required shift to i
 Gantry Tilt
 ^^^^^^^^^^^
 
+.. note::
+
+    The term tilt (vs sag) here represents movement in the Y-axis :ref:`coordinate space <coordinate_space>`.
+
 We can simulate gantry tilt, where at 0 and 180 the gantry tilts forward and backward respectively. We use a realistic value of
 1mm. Note that everything else is perfect:
 
 .. plot::
 
     import pylinac
+    from pylinac.winston_lutz import Axis
     from pylinac.core.image_generator import (
         GaussianFilterLayer,
         FilteredFieldLayer,
@@ -687,31 +743,32 @@ We can simulate gantry tilt, where at 0 and 180 the gantry tilts forward and bac
 
     wl_dir = 'wl_dir'
     generate_winstonlutz(
-        AS1200Image(),
+        AS1200Image(1000),
         FilteredFieldLayer,
         dir_out=wl_dir,
         final_layers=[GaussianFilterLayer(),],
         bb_size_mm=4,
-        field_size_mm=(40, 40),
+        field_size_mm=(25, 25),
         gantry_tilt=1,
     )
 
     wl = pylinac.WinstonLutz(wl_dir)
     wl.analyze(bb_size_mm=4)
-    wl.plot_images()
+    wl.plot_images(axis=Axis.GBP_COMBO)
 
 with output of::
 
     Winston-Lutz Analysis
     =================================
     Number of images: 4
-    Maximum 2D CAX->BB distance: 0.90mm
-    Median 2D CAX->BB distance: 0.45mm
-    Shift to iso: facing gantry, move BB: LEFT 0.00mm; IN 0.00mm; UP 0.00mm
-    Gantry 3D isocenter diameter: 1.79mm (4/4 images considered)
-    Maximum Gantry RMS deviation (mm): 0.90mm
-    Maximum EPID RMS deviation (mm): 0.90mm
-    Gantry+Collimator 3D isocenter diameter: 1.79mm (4/4 images considered)
+    Maximum 2D CAX->BB distance: 1.01mm
+    Median 2D CAX->BB distance: 0.50mm
+    Mean 2D CAX->BB distance: 0.50mm
+    Shift to iso: facing gantry, move BB: RIGHT 0.00mm; OUT 0.00mm; DOWN 0.00mm
+    Gantry 3D isocenter diameter: 2.02mm (4/4 images considered)
+    Maximum Gantry RMS deviation (mm): 1.01mm
+    Maximum EPID RMS deviation (mm): 1.01mm
+    Gantry+Collimator 3D isocenter diameter: 2.02mm (4/4 images considered)
     Collimator 2D isocenter diameter: 0.00mm (1/4 images considered)
     Maximum Collimator RMS deviation (mm): 0.00
     Couch 2D isocenter diameter: 0.00mm (1/4 images considered)
@@ -720,16 +777,74 @@ with output of::
 Note that since the tilt is symmetric the shift to iso is 0 despite our non-zero median distance.
 I.e. we are at iso, the iso just isn't perfect and we are thus at the best possible position.
 
+Gantry Sag
+^^^^^^^^^^
 
-Perfect Multi-Axis
-^^^^^^^^^^^^^^^^^^
+.. note::
 
-We can also vary the axis data for the images produced. Below we create a typical multi-axis WL with varying gantry, collimator, and couch
-(cardinal values for axis of interest with all other axes at 0):
+    The term sag (vs tilt) here represents movement in the Z-axis at 90/270 :ref:`coordinate space <coordinate_space>`.
+
+We can simulate gantry sag, where at 90 and 270 the gantry tilts towards the floor. We use a realistic value of
+1mm. Note that everything else is perfect:
 
 .. plot::
 
     import pylinac
+    from pylinac.winston_lutz import Axis
+    from pylinac.core.image_generator import (
+        GaussianFilterLayer,
+        FilteredFieldLayer,
+        AS1200Image,
+        RandomNoiseLayer,
+        generate_winstonlutz,
+    )
+
+    wl_dir = 'wldir'
+    generate_winstonlutz(
+        AS1200Image(1000),
+        FilteredFieldLayer,
+        dir_out=wl_dir,
+        final_layers=[GaussianFilterLayer(),],
+        bb_size_mm=4,
+        field_size_mm=(25, 25),
+        gantry_sag=1,
+    )
+
+    wl = pylinac.WinstonLutz(wl_dir)
+    wl.analyze(bb_size_mm=4)
+    wl.plot_images(axis=Axis.GBP_COMBO)
+
+with output of::
+
+    Winston-Lutz Analysis
+    =================================
+    Number of images: 4
+    Maximum 2D CAX->BB distance: 1.01mm
+    Median 2D CAX->BB distance: 0.50mm
+    Mean 2D CAX->BB distance: 0.50mm
+    Shift to iso: facing gantry, move BB: LEFT 0.00mm; IN 0.00mm; DOWN 1.01mm
+    Gantry 3D isocenter diameter: 0.00mm (4/4 images considered)
+    Maximum Gantry RMS deviation (mm): 1.01mm
+    Maximum EPID RMS deviation (mm): 1.01mm
+    Gantry+Collimator 3D isocenter diameter: 0.00mm (4/4 images considered)
+    Collimator 2D isocenter diameter: 0.00mm (1/4 images considered)
+    Maximum Collimator RMS deviation (mm): 0.00
+    Couch 2D isocenter diameter: 0.00mm (1/4 images considered)
+    Maximum Couch RMS deviation (mm): 0.00
+
+Sag will not realistically vary smoothly with gantry angle but for the purposes of the test it is a good approximation.
+This appears as an offset of the BB in the Z-axis.
+
+Offset Multi-Axis
+^^^^^^^^^^^^^^^^^^
+
+We can also vary the axis data for the images produced. Below we create a typical multi-axis WL with varying gantry, collimator, and couch
+values. We offset the BB to the left by 2mm for visualization purposes:
+
+.. plot::
+
+    import pylinac
+    from pylinac.winston_lutz import Axis
     from pylinac.core.image_generator import (
         GaussianFilterLayer,
         FilteredFieldLayer,
@@ -740,20 +855,43 @@ We can also vary the axis data for the images produced. Below we create a typica
 
     wl_dir = 'wl_dir'
     generate_winstonlutz(
-        AS1200Image(),
+        AS1200Image(1000),
         FilteredFieldLayer,
         dir_out=wl_dir,
-        final_layers=[GaussianFilterLayer(),],
+        final_layers=[GaussianFilterLayer(), ],
         bb_size_mm=4,
-        field_size_mm=(40, 40),
-        image_axes=[(0, 0, 0), (0, 90, 0), (0, 270, 0),
+        field_size_mm=(20, 20),
+        offset_mm_left=2,
+        image_axes=[(0, 0, 0), (0, 45, 0), (0, 270, 0),
                     (90, 0, 0), (180, 0, 0), (270, 0, 0),
-                    (0, 0, 90), (0, 0, 270)]
+                    (0, 0, 90), (0, 0, 315)]
     )
 
     wl = pylinac.WinstonLutz(wl_dir)
     wl.analyze(bb_size_mm=4)
-    wl.plot_images()
+    print(wl.results())
+    wl.plot_images(axis=Axis.GBP_COMBO)
+
+with output of::
+
+    Winston-Lutz Analysis
+    =================================
+    Number of images: 8
+    Maximum 2D CAX->BB distance: 2.01mm
+    Median 2D CAX->BB distance: 2.01mm
+    Mean 2D CAX->BB distance: 1.51mm
+    Shift to iso: facing gantry, move BB: RIGHT 2.01mm; OUT 0.00mm; DOWN 0.00mm
+    Gantry 3D isocenter diameter: 0.00mm (4/8 images considered)
+    Maximum Gantry RMS deviation (mm): 2.01mm
+    Maximum EPID RMS deviation (mm): 0.00mm
+    Gantry+Collimator 3D isocenter diameter: 0.00mm (6/8 images considered)
+    Collimator 2D isocenter diameter: 0.00mm (3/8 images considered)
+    Maximum Collimator RMS deviation (mm): 2.01
+    Couch 2D isocenter diameter: 3.72mm (3/8 images considered)
+    Maximum Couch RMS deviation (mm): 2.01
+
+Note the shift to iso is 2mm to the right, as we offset the BB to the left by 2mm, even with our
+couch kicks and collimator rotations.
 
 Perfect Cone
 ^^^^^^^^^^^^
@@ -763,6 +901,7 @@ We can also look at simulated cone WL images. Here we use the 17.5mm cone:
 .. plot::
 
     import pylinac
+    from pylinac.winston_lutz import Axis
     from pylinac.core.image_generator import (
         GaussianFilterLayer,
         FilteredFieldLayer,
@@ -773,17 +912,18 @@ We can also look at simulated cone WL images. Here we use the 17.5mm cone:
 
     wl_dir = 'wl_dir'
     generate_winstonlutz_cone(
-        AS1200Image(),
+        AS1200Image(1000),
         FilterFreeConeLayer,
         dir_out=wl_dir,
-        final_layers=[GaussianFilterLayer(),],
+        final_layers=[GaussianFilterLayer(), ],
         bb_size_mm=4,
         cone_size_mm=17.5,
     )
 
     wl = pylinac.WinstonLutz(wl_dir)
     wl.analyze(bb_size_mm=4)
-    wl.plot_images()
+    print(wl.results())
+    wl.plot_images(axis=Axis.GBP_COMBO)
 
 Low-density BB
 ^^^^^^^^^^^^^^
@@ -793,6 +933,7 @@ Simulate a low-density BB surrounded by higher-density material:
 .. plot::
 
     import pylinac
+    from pylinac.winston_lutz import Axis
     from pylinac.core.image_generator import (
         GaussianFilterLayer,
         FilteredFieldLayer,
@@ -803,19 +944,20 @@ Simulate a low-density BB surrounded by higher-density material:
 
     wl_dir = 'wl_dir'
     generate_winstonlutz(
-        AS1200Image(),
+        AS1200Image(1000),
         FilteredFieldLayer,
         dir_out=wl_dir,
-        final_layers=[GaussianFilterLayer(),],
+        final_layers=[GaussianFilterLayer(), ],
         bb_size_mm=4,
-        field_size_mm=(40, 40),
+        field_size_mm=(25, 25),
         field_alpha=0.6,  # set the field to not max out
         bb_alpha=0.3  # normally this is negative to attenuate the beam, but here we increase the signal
     )
 
     wl = pylinac.WinstonLutz(wl_dir)
     wl.analyze(bb_size_mm=4, low_density_bb=True)
-    wl.plot_images()
+    print(wl.results())
+    wl.plot_images(axis=Axis.GBP_COMBO)
 
 
 API Documentation

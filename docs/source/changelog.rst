@@ -10,7 +10,7 @@ Image Metrics
 
 * The ``GlobalSizedDiskLocator`` class has added an ``invert`` parameter. This parameter existed for the other locators, but was missing for the global disk locator.
   Previously, the locator was always inverting the image (assuming images like EPID). Now, the parameter can be used to control this behavior. By
-  default, the paramter is true for backwards-compatibility.
+  default, the parameter is true for backwards-compatibility.
 
 Image
 ^^^^^
@@ -35,24 +35,30 @@ Winston Lutz
   cases of N targets and M fields. For multi-target/multi-field analyses, the algorithm was very memory-intensive
   because it was creating X*Y analysis objects where X is the number of images and Y is the number of targets.
   Memory usage has been reduced from this refactor.
-* The class ``WinstonLutz2DMultTarget`` has changed to ``WinstonLutzMultiTargetMultiFieldImage``.
+* The class ``WinstonLutz2DMultiTarget`` has changed to :class:`~pylinac.winston_lutz.WinstonLutzMultiTargetMultiFieldImage`.
   Unless you are using the class directly, this change should not affect you.
 * The :meth:`~pylinac.winston_lutz.WinstonLutzMultiTargetMultiField.plot_images` method has changed.
-  Instead of returning N figures where each figure is a set of plots is for a single BB, M figures are returned where
+  Instead of returning N figures where N is the number of BBs where each figure is a set of plots for each BB, M figures are returned where
   M is the number of images. Each plot will show the image and all detected BBs and fields. This gives
-  better context about which BB was dected where as it relates to the image as a whole.
+  better context about which BB was detected where as it relates to the image as a whole.
   Images within PDFs will also be generated in the same way.
 * For MultiField analyses, the ``cax2bb_distance()`` and ``cax2epid_distance()`` metrics were giving
   artificially high values when the metric was ``median`` or ``mean``. This was because the metric was
   first calculating the maximum distance for a given image, and then taking the median or mean of those values.
   This was not the intended behavior. The metric now calculates the median or mean of all the distances for all
   BBs together. I.e. it was doing ``median(max(a1, a2, a3), max(b2, ...), ...)`` instead of ``median(a1, a2, b1, b2, ...)``.
+  This will result in lower values for the metric compared to previously.
 * Plots now show a legend of the EPID, BB, and field CAX. The legend can be turned off by passing ``legend=False`` to the ``plot_images`` method.
 * Plots are now zoomed to fit all the BBs/fields detected. In the simple case of a single BB at isocenter, this hasn't changed.
   For multi-target/multi-field WL, the plots will now be zoomed to fit all the detected BBs and fields.
   This can be turned off by passing ``zoom=False`` to the ``plot_images`` method.
 * When using custom BB arrangements, use the new :class:`~pylinac.winston_lutz.BBConfig` class instead
   of a dictionary. See the updated :ref:``custom-bb-arrangements`` section for more.
+* A bug was fixed for the BB shift vector/instructions when analyzing images with couch kicks.
+  The Low paper which contains the mathematical transforms appears to have incorrect signs in equation 6. This
+  has been fixed and validated using the new image generator ability to create images with couch kicks.
+  The bug was causing the BB shift vector to be incorrect when analyzing images with couch kicks. The shift errors
+  were always in the LAT/LONG plane and for the most part underestimated the shift that would be needed.
 
 Image Generator
 ^^^^^^^^^^^^^^^
