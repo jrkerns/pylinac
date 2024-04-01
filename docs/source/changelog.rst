@@ -59,6 +59,8 @@ Winston Lutz
   has been fixed and validated using the new image generator ability to create images with couch kicks.
   The bug was causing the BB shift vector to be incorrect when analyzing images with couch kicks. The shift errors
   were always in the LAT/LONG plane and for the most part underestimated the shift that would be needed.
+* For regular WL analyses, a virtual shift can be automatically applied to the BB to see what the 2D errors would be
+  if the BB were shifted to the optimal position. Read more in the :ref:`wl_virtual_shift` section.
 
 Image Generator
 ^^^^^^^^^^^^^^^
