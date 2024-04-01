@@ -919,6 +919,7 @@ class WinstonLutzMixin(CloudFileMixin):
                 machine_scale=self.machine_scale,
                 low_density_bb=self.low_density_bb,
                 open_field=self.open_field,
+                apply_virtual_shift=self.apply_virtual_shift,
             )
             new_max = new_wl.cax2bb_distance(metric="max")
             new_mean = new_wl.cax2bb_distance(metric="mean")
@@ -1140,6 +1141,8 @@ class SyntheticVirtualShift(SyntheticWLMixin, TestCase):
     def test_bb_shift_vector(self):
         """The vector is ~0.0 when virtually shifting"""
         self.assertAlmostEqual(self.wl.bb_shift_vector.as_scalar(), 0, delta=0.05)
+
+    # def test_bb_size_doesnt_change_result(self):
 
 
 class WLDemo(WinstonLutzMixin, TestCase):
