@@ -805,6 +805,7 @@ class WinstonLutzMixin(CloudFileMixin):
     }  # fill with as many {image#: known_axis_of_rotation} pairs as desired
     print_results = False
     use_filenames = False
+    apply_virtual_shift = False
 
     @classmethod
     def new_instance(cls) -> WinstonLutz:
@@ -835,6 +836,7 @@ class WinstonLutzMixin(CloudFileMixin):
             machine_scale=cls.machine_scale,
             low_density_bb=cls.low_density_bb,
             open_field=cls.open_field,
+            apply_virtual_shift=cls.apply_virtual_shift,
         )
         if cls.print_results:
             print(cls.wl.results())
@@ -917,6 +919,7 @@ class WinstonLutzMixin(CloudFileMixin):
                 machine_scale=self.machine_scale,
                 low_density_bb=self.low_density_bb,
                 open_field=self.open_field,
+                apply_virtual_shift=self.apply_virtual_shift,
             )
             new_max = new_wl.cax2bb_distance(metric="max")
             new_mean = new_wl.cax2bb_distance(metric="mean")
@@ -1111,6 +1114,35 @@ class Synthetic1mmOut1SidedCouch(SyntheticWLMixin, TestCase):
         (0, 0, 45),
         (0, 0, 90),  # only shift couch one way; should still give same shift result
     )
+
+
+class SyntheticVirtualShift(SyntheticWLMixin, TestCase):
+    """When virtually shifting, the BB should be at the isocenter and with these
+    perfect synthetic images the error is ~0.0"""
+
+    offset_mm_in = 1
+    offset_mm_left = 1
+    cax2bb_max_distance = 0
+    cax2bb_mean_distance = 0
+    cax2bb_median_distance = 0
+    couch_iso_size = 0
+    images_axes = (
+        (0, 0, 0),
+        (90, 0, 0),
+        (180, 0, 0),
+        (270, 0, 0),
+        (0, 0, 45),
+        (0, 0, 90),
+        (0, 0, 270),
+        (0, 0, 315),
+    )
+    apply_virtual_shift = True
+
+    def test_bb_shift_vector(self):
+        """The vector is ~0.0 when virtually shifting"""
+        self.assertAlmostEqual(self.wl.bb_shift_vector.as_scalar(), 0, delta=0.05)
+
+    # def test_bb_size_doesnt_change_result(self):
 
 
 class WLDemo(WinstonLutzMixin, TestCase):

@@ -58,6 +58,7 @@ build-backend = "poetry.core.masonry.api"
 testpaths = "tests_basic"
 python_files = "test_*.py"
 addopts = "--dist loadscope"
+filterwarnings = "ignore::UserWarning:pydicom"
 
 [tool.coverage.run]
 source = [
