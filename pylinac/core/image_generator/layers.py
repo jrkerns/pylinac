@@ -181,9 +181,9 @@ class PerfectFieldLayer(Layer):
         ----------
 
         field_size_mm
-            Field size in mm at the iso plane
+            Field size in mm at the iso plane as (width, height)
         cax_offset_mm
-            The offset in mm. (out, right)
+            The offset in mm. (down, right)
         alpha
             The intensity of the layer. 1 is full saturation/radiation. 0 is none.
         rotation: float
