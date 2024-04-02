@@ -223,13 +223,21 @@ class BBFieldMatch:
 
     @property
     def bb_field_vector_mm(self) -> Vector:
-        """The vector from the BB to the field CAX"""
-        return (self.bb - self.field) / self.dpmm
+        """The vector from the BB to the field CAX *IN COORDINATE SPACE*."""
+        v = (self.bb - self.field) / self.dpmm
+        v.y = (
+            -v.y
+        )  # invert the y-axis; positive is down in image space but negative in coordinate space
+        return v
 
     @property
     def bb_epid_vector_mm(self) -> Vector:
-        """The vector from the BB to the field CAX"""
-        return (self.bb - self.epid) / self.dpmm
+        """The vector from the BB to the field CAX *IN COORDINATE SPACE*."""
+        v = (self.bb - self.epid) / self.dpmm
+        v.y = (
+            -v.y
+        )  # invert the y-axis; positive is down in image space but negative in coordinate space
+        return v
 
     @property
     def bb_field_distance_mm(self) -> float:
@@ -483,7 +491,6 @@ class WLBaseImage(image.LinacDicomImage):
             self.detection_conditions = conditions
         super().__init__(file, use_filenames=use_filenames, **kwargs)
         self._is_analyzed = False
-        self.flipud()
 
     def analyze(
         self,
@@ -529,7 +536,9 @@ class WLBaseImage(image.LinacDicomImage):
             # convert from mm to pixels and add to the detected points
             for p in detected_bb_points:
                 p.x += lat * self.dpmm
-                p.y += sup_inf * self.dpmm
+                p.y -= (
+                    sup_inf * self.dpmm
+                )  # we subtract because the detected point is in image space, not coordinate space so we convert the shift from coordinate to image space
         bb_matches = self.find_bb_matches(detected_points=detected_bb_points)
         if len(bb_matches) != len(field_matches):
             raise ValueError("The number of detected fields and BBs do not match")
@@ -658,7 +667,7 @@ class WLBaseImage(image.LinacDicomImage):
         epid_handle = ax.axhline(y=self.epid.y, color="b")
         # show the field CAXs
         for match in self.arrangement_matches.values():
-            (field_handle,) = ax.plot(match.field.x, match.bb.y, "gs", ms=8)
+            (field_handle,) = ax.plot(match.field.x, match.field.y, "gs", ms=8)
             (bb_handle,) = ax.plot(match.bb.x, match.bb.y, "co", ms=10)
         if legend:
             ax.legend(
@@ -686,10 +695,10 @@ class WLBaseImage(image.LinacDicomImage):
                 max([match.bb.y for match in self.arrangement_matches.values()])
                 + 20 * self.dpmm
             )
-            ax.set_ylim([min_y, max_y])
+            ax.set_ylim([max_y, min_y])
             ax.set_xlim([min_x, max_x])
-        ax.set_yticklabels([])
-        ax.set_xticklabels([])
+        # ax.set_yticklabels([])
+        # ax.set_xticklabels([])
         ax.set_title("\n".join(wrap(Path(self.path).name, 30)), fontsize=10)
         ax.set_xlabel(
             f"G={self.gantry_angle:.0f}, B={self.collimator_angle:.0f}, P={self.couch_angle:.0f}"
@@ -1209,11 +1218,14 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
                 img.analyze(bb_size_mm, low_density_bb, open_field, shift_vector=shift)
         bb_config = BBArrangement.ISO[0]
         bb_config.bb_size_mm = bb_size_mm
+        # in the vanilla WL case, the BB can only be represented by non-couch-kick images
+        # the ray trace cannot handle the kick currently
         self.bb = BB3D(
             bb_config=bb_config,
             ray_lines=[
                 img.arrangement_matches["Iso"].bb_to_field_projection
                 for img in self.images
+                if img.variable_axis in (Axis.GANTRY, Axis.REFERENCE)
             ],
         )
         self._is_analyzed = True
@@ -1326,22 +1338,26 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
                 # note the signs are different than the paper; based on
                 # synthetic data we can prove this. See docs
                 [
-                    [-cos(couch), sin(couch), 0],
+                    [-cos(couch), -sin(couch), 0],
                     [
-                        cos(gantry) * sin(couch),
+                        -cos(gantry) * sin(couch),
                         cos(gantry) * cos(couch),
                         -sin(gantry),
                     ],
                 ]
             )  # equation 6 (minus delta)
             epsilon[2 * idx : 2 * idx + 2] = np.array(
-                [[img.cax2bb_vector.y], [img.cax2bb_vector.x]]
-            )  # equation 7
+                [
+                    [img.arrangement_matches["Iso"].bb_field_vector_mm.y],
+                    [-img.arrangement_matches["Iso"].bb_field_vector_mm.x],
+                ]
+            )  # equation 7; note that we have (y, -x) instead of (x, y) as in the paper. This is because
+            # of coordinate system convention differences. See docs.
 
         B = linalg.pinv(A)
-        delta = B.dot(epsilon)  # equation 9
-        # we use the negative for all values because it's from the iso POV -> linac not the linac -> iso POV
-        return Vector(x=-delta[1][0], y=-delta[0][0], z=-delta[2][0])
+        delta = B.dot(epsilon).squeeze()  # equation 9
+        # y is negative because their coordinate system is out=positive, in ours it's negative; see convestion table in docs
+        return Vector(y=-delta[0], x=delta[1], z=delta[2])
 
     def bb_shift_instructions(
         self,
@@ -1599,11 +1615,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
             + self._bb_diameter
         )
         ax = plt.axes(projection="3d")
-        _, relevant_images = self._get_images(
-            axis=(Axis.REFERENCE, Axis.GB_COMBO, Axis.COLLIMATOR, Axis.GANTRY)
-        )
         # we can represent the iso sphere as a BB object; the nominal object isn't used, just the BB size
-        # the ray lines are what we want to plot as a sphere
         # plot the x,y,z origin lines
         x_line = Line(Point(-limit, 0, 0), Point(limit, 0, 0))
         x_line.plot2axes(ax, color="green", alpha=0.5)
@@ -2011,10 +2023,6 @@ class WinstonLutzMultiTargetMultiFieldImage(WLBaseImage):
     detection_conditions = [is_round, is_symmetric, is_modest_size]
     field_conditions = [is_square, is_right_square_size]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.flipud()  # restore to original view; vanilla WL may need to revert
-
     def find_field_centroids(self, is_open_field: bool) -> list[Point]:
         """Find the centroid of the radiation field based on a 50% height threshold.
         This applies the field detection conditions and also a nearness condition.
@@ -2168,7 +2176,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         y_line.plot2axes(ax, color="green", alpha=0.5)
         z_line = Line(Point(0, 0, -100), Point(0, 0, 100))
         z_line.plot2axes(
-            ax, color="green", alpha=0.5, label="Determined isocenter (x,y,z)"
+            ax, color="green", alpha=0.5, label="Nominal isocenter (x,y,z)"
         )
         if plot_bb:
             for bb in self.bbs:

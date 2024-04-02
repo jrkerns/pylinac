@@ -824,6 +824,34 @@ class SyntheticWLMixin(WinstonLutzMixin):
             self.wl.bb_shift_vector.z, -self.offset_mm_up, delta=0.05
         )
 
+    def test_virtual_shift_has_zero_remaining_shift(self):
+        """The virtual shift should have zero remaining shift after applying it"""
+        wl = self.new_instance()
+        wl.analyze(
+            bb_size_mm=self.bb_size,
+            machine_scale=self.machine_scale,
+            low_density_bb=self.low_density_bb,
+            open_field=self.open_field,
+            apply_virtual_shift=True,
+        )
+        self.assertAlmostEqual(wl.bb_shift_vector.as_scalar(), 0, delta=0.05)
+
+    def test_bb3d_measured_position(self):
+        self.assertAlmostEqual(
+            self.wl.bb.measured_position.x, -self.offset_mm_left, delta=0.03
+        )
+        self.assertAlmostEqual(
+            self.wl.bb.measured_position.y, self.offset_mm_in, delta=0.03
+        )
+        self.assertAlmostEqual(
+            self.wl.bb.measured_position.z, self.offset_mm_up, delta=0.03
+        )
+
+    def test_bb3d_nominal_position(self):
+        self.assertAlmostEqual(self.wl.bb.nominal_position.x, 0, delta=0.01)
+        self.assertAlmostEqual(self.wl.bb.nominal_position.y, 0, delta=0.01)
+        self.assertAlmostEqual(self.wl.bb.nominal_position.z, 0, delta=0.01)
+
 
 class Synthetic1mmLeftNoCouch(SyntheticWLMixin, TestCase):
     images_axes = (
@@ -937,35 +965,6 @@ class Synthetic1mmOut1SidedCouch(SyntheticWLMixin, TestCase):
         (0, 0, 45),
         (0, 0, 90),  # only shift couch one way; should still give same shift result
     )
-
-
-class SyntheticVirtualShift(SyntheticWLMixin, TestCase):
-    """When virtually shifting, the BB should be at the isocenter and with these
-    perfect synthetic images the error is ~0.0"""
-
-    offset_mm_in = 1
-    offset_mm_left = 1
-    cax2bb_max_distance = 0
-    cax2bb_mean_distance = 0
-    cax2bb_median_distance = 0
-    couch_iso_size = 0
-    images_axes = (
-        (0, 0, 0),
-        (90, 0, 0),
-        (180, 0, 0),
-        (270, 0, 0),
-        (0, 0, 45),
-        (0, 0, 90),
-        (0, 0, 270),
-        (0, 0, 315),
-    )
-    apply_virtual_shift = True
-
-    def test_bb_shift_vector(self):
-        """The vector is ~0.0 when virtually shifting"""
-        self.assertAlmostEqual(self.wl.bb_shift_vector.as_scalar(), 0, delta=0.05)
-
-    # def test_bb_size_doesnt_change_result(self):
 
 
 class WLDemo(WinstonLutzMixin, TestCase):

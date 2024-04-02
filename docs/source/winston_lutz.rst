@@ -535,7 +535,6 @@ Couch shift
 This method is used to determine the shift instructions. Specifically, equations 6, 7, and 9.
 
 
-
 .. note::
 
     If doing research, it is very important to note that Low implicitly used the "Varian" coordinate system.
@@ -546,28 +545,82 @@ This method is used to determine the shift instructions. Specifically, equations
     To use a different scale use the ``machine_scale`` parameter, shown here :ref:`passing-a-coordinate-system`.
     Also see :ref:`scale`.
 
-Implementation for the couch shift is as follows:
+As a prologue, we should explain the differences in our coordinate system vs Low's. In the paper
+the gantry coordinate system is defined as such:
+
+"Let :math:`(X_{G},Y_{G},Z_{G})` represent a gantry coordinate system defined as follows: the :math:`X_{G}` axis
+corresponds to the gantry rotation axis, with its positive direction pointing away from the gantry (toward the couch); the :math:`Z_{G}`
+axis coincides with the central axis of the radiation beam, pointing into the collimator, and the :math:`Y_{G}`
+axis is assigned such that :math:`(X_{G},Y_{G},Z_{G})` forms a right-handed coordinate system."
+
+Later in equation 2 they defined a couch coordinate system as:
+
+.. math::
+
+    X_{c} = VERT
+
+    Y_{c} = LAT
+
+    Z_{c} = -AP
+
+but this is inconsistent because AP is the same as VERT in normal conventions.
+Using the sentence after eqn 2 as a guide: "A couch angle of :math:`\phi` degrees corresponds
+to a signed rotation around the :math:`Z_{C}` axis of the couch coordinate system."
+
+Just from this sentence it would appear :math:`Z_{C}` should be VERT. The only way this makes
+sense is if the couch coordinate system is from a HFS patient perspective where VERT is actually
+Superior-Inferior and AP is VERT. If this is true, everything falls into place.
+
+Finally, it is worth nothing that in the Varian "Standard" coordinate system (the one assumed by Low), couch vertical
+*increases* as the couch is lowered. This may explain the negative sign in the Z axis of equation 2, whereas
+for the IEC 61217 scale, vertical increases as the couch is raised.
+
+We thus can generate the following table for transforming the equations from Low to IEC 61217/pylinac coordinates:
+
+
++-----------------------+---+----------------+---+------------------------+---+-----------------+---+----------------------------+
+| Low Couch coordinates |   | Low Couch Axes |   | Low Gantry coordinates |   | Low Gantry axes |   | Pylinac Gantry coordinates |
++=======================+===+================+===+========================+===+=================+===+============================+
+| Xc                    | = | VERT           | = | Xg                     | = | LONG            | = | -Y                         |
++-----------------------+---+----------------+---+------------------------+---+-----------------+---+----------------------------+
+| Yc                    | = | LAT            | = | Yg                     | = | LAT             | = | X                          |
++-----------------------+---+----------------+---+------------------------+---+-----------------+---+----------------------------+
+| Zc                    | = | -AP            | = | Zg                     | = | VERT            | = | Z                          |
++-----------------------+---+----------------+---+------------------------+---+-----------------+---+----------------------------+
+
+
+We can now address the implementation for the couch shift as follows:
 
 For each image we determine (equation 6a):
 
 .. math::
 
-    \textbf{A}(\phi, \theta) = \begin{pmatrix} -\cos(\phi) & \sin(\phi) & 0 \\ \cos(\theta)\sin(\phi) & \cos(\theta)\cos(\phi) & -\sin(\theta) \end{pmatrix}
+    \textbf{A}(\phi, \theta) = \begin{pmatrix} -\cos(\phi) & -\sin(\phi) & 0 \\ -\cos(\theta)\sin(\phi) & \cos(\theta)\cos(\phi) & -\sin(\theta) \end{pmatrix}
 
-where :math:`\theta` is the gantry angle and :math:`\phi` is the couch angle.
+where :math:`\theta` is the gantry angle and :math:`\phi` is the couch angle (Remember, these must be in Varian Standard axes values).
 
-.. warning::
-
-  The Low paper appears to have incorrect signs for some of the matrix. Using synthetic images with known shifts
-  can prove the correctness of the algorithm.
-
-The :math:`\xi` matrix is then calculated (equation 7):
+The :math:`\xi` matrix is then calculated with an altered equation 7:
 
 .. math::
 
-    \xi = (x_{1},y_{1}, ..., x_{i},y_{i},..., x_{n},y_{n})^{T}
+    \xi = (y_{1},-x_{1}, ..., y_{i},-x_{i},..., y_{n},-x_{n})^{T}
 
-where :math:`x_{i}` and :math:`y_{i}` are the x and y scalar shifts from the field CAX to the BB for :math:`n` images.
+where :math:`x_{i}` and :math:`y_{i}` are the scalar shifts from the field CAX to the BB for :math:`n` images *in our coordinate system*.
+
+.. note::
+
+   Equation 7 has :math:`(x_{i},y_{i})` convention, but we use :math:`(y_{i},-x_{i})`. Using Figure 1
+   as a guide, it says the x-axis is pointing toward the gantry (and points to the right in the figure).
+   Both the x and y axes appear inverted here. In the figure both :math:`x_{i}` and :math:`y_{i}`
+   values are presumably positive in the example, but are both negative when using the right-hand rule of Low's gantry coordinate
+   definition ("...with [:math:`X_{G}`] positive direction pointing away from the gantry").
+   Thus :math:`x_{i}` becomes :math:`-x_{i}` when using Low's own coordinate convention. Using the above table conversion this becomes :math:`y_{i}`. A similar conversion is true for the y-axis.
+
+   .. math::
+
+         +x_{Fig1} = -x_{Low} = y_{Pylinac}
+
+         +y_{Fig1} = -y_{Low} = -x_{Pylinac}
 
 From equation 9 we can calculate :math:`\textbf{B}(\phi_{1},\theta_{1},..., \phi_{n},\theta_{n})`:
 
@@ -582,6 +635,14 @@ We can then solve for the shift vector :math:`\boldsymbol{\Delta}`:
 .. math::
 
     \boldsymbol{\Delta} = \textbf{B}(\phi_{1},\theta_{1},..., \phi_{n},\theta_{n}) \cdot \xi
+
+Using our conversion table above, :math:`\boldsymbol{\Delta}` resolves to:
+
+.. math::
+
+    \boldsymbol{\Delta} = \begin{pmatrix} \Delta \text{VERT} \\ \Delta \text{LAT} \\ \Delta \text{-AP} \end{pmatrix}_{Low} = \begin{pmatrix} \Delta \text{-LONG} \\ \Delta \text{LAT} \\ \Delta \text{VERT} \end{pmatrix}_{Pylinac}
+
+where :math:`(...)_{Low}` and :math:`(...)_{Pylinac}` are in their respective coordinate systems.
 
 Implementation
 ^^^^^^^^^^^^^^
