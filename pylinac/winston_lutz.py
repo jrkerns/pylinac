@@ -1335,8 +1335,6 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
                 rotation=img.couch_angle,
             )
             A[2 * idx : 2 * idx + 2, :] = np.array(
-                # note the signs are different than the paper; based on
-                # synthetic data we can prove this. See docs
                 [
                     [-cos(couch), -sin(couch), 0],
                     [
@@ -1345,7 +1343,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
                         -sin(gantry),
                     ],
                 ]
-            )  # equation 6 (minus delta)
+            )  # equation 6 (minus delta portion)
             epsilon[2 * idx : 2 * idx + 2] = np.array(
                 [
                     [img.arrangement_matches["Iso"].bb_field_vector_mm.y],
