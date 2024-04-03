@@ -39,7 +39,7 @@ import numpy as np
 from mpl_toolkits.mplot3d import art3d
 from py_linq import Enumerable
 from pydantic import BaseModel
-from scipy import linalg, ndimage, optimize
+from scipy import ndimage, optimize
 from scipy.ndimage import zoom
 from scipy.spatial.transform import Rotation
 from skimage.measure._regionprops import RegionProperties
@@ -257,7 +257,7 @@ class BBFieldMatch:
     @property
     def bb_to_field_projection(self):
         """The projection from the BB to the field. Used by vanilla WL
-        to determine the gantry isocenter size because there the BB is the reference point.
+        to determine the gantry, coll, couch isocenter size because there the BB is the reference point.
 
         Returns
         -------
@@ -266,25 +266,6 @@ class BBFieldMatch:
         """
         return straight_ray(self.bb_field_vector_mm, self.gantry_angle)
 
-    @property
-    def bb_to_epid_projection(self):
-        """The projection from the BB to the EPID. Used by multi-target, multi-field WL
-        because the fields are all centered around the BB. We need some approximation of the isocenter
-        so we use the EPID. Currently, this is only used for visualization purposes
-        and not for gantry iso size determination like the ``bb_to_field_projection``.
-
-        Returns
-        -------
-        Line
-            The virtual line in space made by the BB.
-        """
-        return ray(
-            self.bb_epid_vector_mm,
-            gantry_angle=self.gantry_angle,
-            couch_angle=self.couch_angle,
-            sad=self.sad,
-        )
-
 
 class BB3D:
     """A representation of a BB in 3D space"""
@@ -292,19 +273,28 @@ class BB3D:
     def __repr__(self):
         return self.nominal_position
 
-    def __init__(self, bb_config: BBConfig, ray_lines: list[Line]):
+    def __init__(
+        self,
+        bb_config: BBConfig,
+        bb_matches: Sequence[BBFieldMatch, ...],
+        scale: MachineScale,
+    ):
         self.bb_config = bb_config
-        self.ray_lines = ray_lines
+        self.matches = bb_matches
+        self.scale = scale
 
     @cached_property
     def measured_position(self) -> Point:
-        """The 3D measured position of the BB based on the ray-tracing lines in MM"""
-        initial_guess = self.nominal_position.as_array()
-        bounds = [(-200, 200), (-200, 200), (-200, 200)]
-        result = optimize.minimize(
-            max_distance_to_lines, initial_guess, args=self.ray_lines, bounds=bounds
+        """The 3D measured position of the BB based on rotation matrices and gantry/couch angles."""
+        xs = [m.bb_epid_vector_mm.x for m in self.matches]
+        ys = [m.bb_epid_vector_mm.y for m in self.matches]
+        thetas = [m.gantry_angle for m in self.matches]
+        phis = [m.couch_angle for m in self.matches]
+        vector = solve_3d_position_from_2d_planes(
+            xs=xs, ys=ys, thetas=thetas, phis=phis, scale=self.scale
         )
-        return Point(result.x)
+        # vectors and points are effectively the same thing here but we convert to a point for clarity
+        return Point(x=vector.x, y=vector.y, z=vector.z)
 
     @cached_property
     def nominal_position(self) -> Point:
@@ -1211,22 +1201,26 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
             open_field = True
         for img in self.images:
             img.analyze(bb_size_mm, low_density_bb, open_field)
+        # we need to construct the BB representation to get the shift vector
+        bb_config = BBArrangement.ISO[0]
+        bb_config.bb_size_mm = bb_size_mm
+        self.bb = BB3D(
+            bb_config=bb_config,
+            bb_matches=[img.arrangement_matches["Iso"] for img in self.images],
+            scale=self.machine_scale,
+        )
         if apply_virtual_shift:
             shift = self.bb_shift_vector
             self._virtual_shift = self.bb_shift_instructions()
             for img in self.images:
                 img.analyze(bb_size_mm, low_density_bb, open_field, shift_vector=shift)
-        bb_config = BBArrangement.ISO[0]
-        bb_config.bb_size_mm = bb_size_mm
+
         # in the vanilla WL case, the BB can only be represented by non-couch-kick images
         # the ray trace cannot handle the kick currently
         self.bb = BB3D(
             bb_config=bb_config,
-            ray_lines=[
-                img.arrangement_matches["Iso"].bb_to_field_projection
-                for img in self.images
-                if img.variable_axis in (Axis.GANTRY, Axis.REFERENCE)
-            ],
+            bb_matches=[img.arrangement_matches["Iso"] for img in self.images],
+            scale=self.machine_scale,
         )
         self._is_analyzed = True
         self._bb_diameter = bb_size_mm
@@ -1322,40 +1316,8 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
 
         The shift is based on the paper by Low et al. See online documentation for more.
         """
-        A = np.empty([2 * len(self.images), 3])
-        epsilon = np.empty([2 * len(self.images), 1])
-        for idx, img in enumerate(self.images):
-            # convert from input scale to Varian scale
-            # Low's paper assumes Varian scale input and this is easier than changing the actual signs in the equation which have a non-intuitive relationship
-            gantry, _, couch = convert(
-                input_scale=self.machine_scale,
-                output_scale=MachineScale.VARIAN_STANDARD,
-                gantry=img.gantry_angle,
-                collimator=img.collimator_angle,
-                rotation=img.couch_angle,
-            )
-            A[2 * idx : 2 * idx + 2, :] = np.array(
-                [
-                    [-cos(couch), -sin(couch), 0],
-                    [
-                        -cos(gantry) * sin(couch),
-                        cos(gantry) * cos(couch),
-                        -sin(gantry),
-                    ],
-                ]
-            )  # equation 6 (minus delta portion)
-            epsilon[2 * idx : 2 * idx + 2] = np.array(
-                [
-                    [img.arrangement_matches["Iso"].bb_field_vector_mm.y],
-                    [-img.arrangement_matches["Iso"].bb_field_vector_mm.x],
-                ]
-            )  # equation 7; note that we have (y, -x) instead of (x, y) as in the paper. This is because
-            # of coordinate system convention differences. See docs.
-
-        B = linalg.pinv(A)
-        delta = B.dot(epsilon).squeeze()  # equation 9
-        # y is negative because their coordinate system is out=positive, in ours it's negative; see convestion table in docs
-        return Vector(y=-delta[0], x=delta[1], z=delta[2])
+        # the necessary shift is directly the opposite of the vector from CAX to BB
+        return -self.bb.delta_vector
 
     def bb_shift_instructions(
         self,
@@ -2067,6 +2029,7 @@ class WinstonLutzMultiTargetMultiFieldImage(WLBaseImage):
                 radius_tolerance_mm=bb_tolerance_mm,
                 invert=not low_density,
                 detection_conditions=self.detection_conditions,
+                max_number=len(self.bb_arrangement),
             )
         )
         return centers
@@ -2078,19 +2041,6 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
     image_type = WinstonLutzMultiTargetMultiFieldImage
     bb_arrangement: tuple[BBConfig]  #:
     bbs: list[BB3D]  #:  3D representation of the BBs
-
-    def __init__(self, *args, **kwargs):
-        """We cannot yet handle non-0 couch angles so we drop them. Analysis fails otherwise"""
-        super().__init__(*args, **kwargs)
-        orig_length = len(self.images)
-        self.images = [
-            i for i in self.images if is_close(i.couch_angle, [0, 360], delta=5)
-        ]
-        new_length = len(self.images)
-        if new_length != orig_length:
-            print(
-                f"Non-zero couch angles not yet allowed. Dropped {orig_length-new_length} images"
-            )
 
     @classmethod
     def from_demo_images(cls):
@@ -2141,7 +2091,8 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             # ray lines are used for plotting
             bb = BB3D(
                 bb_config=arrangement,
-                ray_lines=[match.bb_to_epid_projection for match in matches],
+                bb_matches=matches,
+                scale=self.machine_scale,
             )
             self.bbs.append(bb)
         self._is_analyzed = True
@@ -2538,26 +2489,101 @@ def straight_ray(vector: Vector, gantry_angle: float) -> Line:
     return line
 
 
-def ray(
-    in_plane_vector: Vector, gantry_angle: float, couch_angle: float, sad: float
-) -> Line:
-    """Generate a 'ray line' from the gantry source point that passes through
-    the given in-plane vector. The x/y/z are in the system coordinates; see docs.
-    Not used currently but might be in the future. I thought this was necessary but turned
-    out to be wrong. Left here for potential future use."""
-    # Calculate the source point of the ray
-    gantry_x = sad * sin(gantry_angle)
-    gantry_z = sad * cos(gantry_angle)
-    gantry_y = 0  # always in the z/x plane
+def solve_3d_shift_vector_from_2d_planes(
+    xs: Sequence[float],
+    ys: Sequence[float],
+    thetas: Sequence[float],
+    phis: Sequence[float],
+    scale: MachineScale,
+) -> Vector:
+    """Solve for long, lat, and vert given arrays of x's, y's, theta's, and phi's.
+    This is Y, X, and Z in pylinac coordinate conventions.
 
-    # Calculate the destination point of the ray
-    # we do 2 * sad to create a line that goes well past the plane
-    dest_x = 2 * in_plane_vector.x * cos(gantry_angle) * cos(couch_angle) - sad * sin(
-        gantry_angle
-    )
-    dest_y = 2 * in_plane_vector.y * cos(couch_angle) - 2 * in_plane_vector.x * sin(
-        couch_angle
-    )
-    dest_z = -gantry_z - 2 * in_plane_vector.x * sin(gantry_angle)
+    This is a generalization of the Low et al. equation 6 and 7. This is used for both vanilla WL and Multi-BB WL.
+    This is intended to be a relatively strict interpretation of the Low et al. equations.
+    E.g. the gantry and couch angles are converted to Varian Standard scale.
+    The idea is this is meant for high readability when comparing to the Low et al. equations.
+    However, this does mean we have to invert the LONG/Y axis. See the conversion table in the docs
 
-    return Line(Point(gantry_x, gantry_y, gantry_z), Point(dest_x, dest_y, dest_z))
+    Parameters
+    ----------
+    xs : array_like
+        Array of x coordinates. Positive is to the right in the local plane.
+    ys : array_like
+        Array of y coordinates. Positive is up in the local plane.
+    thetas : array_like
+        Array of gantry angles.
+    phis : array_like
+        Array of couch angles.
+    scale: MachineScale
+        The scale of the machine. IEC61217 is the default. This converts the gantry and couch angles to Varian Standard scale
+        which is to match Low's equations.
+
+    Returns
+    -------
+    Vector
+        The coordinates are in the pylinac coordinate system. See docs.
+    """
+    if not (len(xs) == len(ys) == len(thetas) == len(phis)):
+        raise ValueError("The x, y, theta, and phi arrays must all be the same length.")
+    n = len(xs)
+
+    # convert the angles to Varian Standard scale
+    f_thetas, f_phis = [], []
+    for theta, phi in zip(thetas, phis):
+        g, _, c = convert(
+            scale,
+            MachineScale.VARIAN_STANDARD,
+            gantry=theta,
+            collimator=0,
+            rotation=phi,
+        )
+        f_thetas.append(g)
+        f_phis.append(c)
+
+    # Initialize A matrix and xi matrices
+    A = np.zeros((2 * n, 3))
+    xi = np.zeros(2 * n)
+
+    for i in range(n):
+        # A general rotation matrix and also Low eqn 6a
+        A[2 * i, :] = [-cos(f_phis[i]), -sin(f_phis[i]), 0]
+        A[2 * i + 1, :] = [
+            -cos(f_thetas[i]) * sin(f_phis[i]),
+            cos(f_thetas[i]) * cos(f_phis[i]),
+            -sin(f_thetas[i]),
+        ]
+        # Low eqn 7
+        xi[2 * i] = ys[
+            i
+        ]  # usually this would be (x, y) but Figure 1 of Low is rotated 90 degrees.
+        xi[2 * i + 1] = -xs[i]
+
+    # equation 9a; B is the pseudo-inverse of A
+    B = np.linalg.pinv(A)
+    # full equation 9
+    long, lat, vert = B.dot(xi).squeeze()
+
+    # At this point we have the **Low et al shift vector**. Conversion to pylinac coordinates
+    # requires flipping the LONG axis; see the conversion table in the docs.
+    # we use the X/Y/Z terms for the shift to be consistent with our own convention
+    # and for clarity of the conversion
+    # Finally, this is the **SHIFT VECTOR**. The 3D position in space is the inverse of this
+    y = -long
+    x = lat
+    z = vert
+    return Vector(x=x, y=y, z=z)
+
+
+def solve_3d_position_from_2d_planes(
+    xs: Sequence[float],
+    ys: Sequence[float],
+    thetas: Sequence[float],
+    phis: Sequence[float],
+    scale: MachineScale,
+) -> Vector:
+    """Solve for the 3D position of a BB in space given 2D images/vectors and the gantry/couch angles.
+
+    The good news is that the position in space is the inverse of the shift vector!
+    """
+    return -solve_3d_shift_vector_from_2d_planes(xs, ys, thetas, phis, scale)

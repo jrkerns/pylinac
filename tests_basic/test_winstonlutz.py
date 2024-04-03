@@ -28,7 +28,8 @@ from pylinac.winston_lutz import (
     WinstonLutz2D,
     WinstonLutzResult,
     bb_projection_with_rotation,
-    ray,
+    solve_3d_position_from_2d_planes,
+    solve_3d_shift_vector_from_2d_planes,
 )
 from tests_basic.utils import (
     CloudFileMixin,
@@ -42,73 +43,188 @@ from tests_basic.utils import (
 TEST_DIR = "Winston-Lutz"
 
 
-class TestRay(TestCase):
-    def test_g0_perfect(self):
-        line = ray(Vector(0, 0), 0, 0, 1000)
-        self.assertEqual(line.length, 2000)
-        self.assertEqual(line.point1.x, 0)
-        self.assertEqual(line.point1.y, 0)
-        self.assertEqual(line.point1.z, 1000)
-        self.assertEqual(line.point2.x, 0)
-        self.assertEqual(line.point2.y, 0)
-        self.assertEqual(line.point2.z, -1000)
+class Test2Dto3DPositions(TestCase):
+    def test_unequal_lengths(self):
+        with self.assertRaises(ValueError):
+            solve_3d_position_from_2d_planes(
+                xs=[0, 0],
+                ys=[0],
+                thetas=[0, 90],
+                phis=[0, 90],
+                scale=MachineScale.IEC61217,
+            )
 
-    def test_g90_perfect(self):
-        line = ray(Vector(0, 0), 90, 0, 1000)
-        self.assertAlmostEqual(line.length, 2000)
-        self.assertAlmostEqual(line.point1.x, 1000)
-        self.assertAlmostEqual(line.point1.y, 0)
-        self.assertAlmostEqual(line.point1.z, 0)
-        self.assertAlmostEqual(line.point2.x, -1000)
-        self.assertAlmostEqual(line.point2.y, 0)
-        self.assertAlmostEqual(line.point2.z, 0)
+    def test_perfect(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[0, 0],
+            ys=[0, 0],
+            thetas=[0, 90],
+            phis=[0, 90],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 0)
 
-    def test_g0_1mm_left(self):
-        line = ray(Vector(1, 0), 0, 0, 1000)
-        self.assertEqual(line.point1.x, 0)
-        self.assertEqual(line.point1.y, 0)
-        self.assertEqual(line.point1.z, 1000)
-        self.assertEqual(line.point2.x, 2)
-        self.assertEqual(line.point2.y, 0)
-        self.assertEqual(line.point2.z, -1000)
+    def test_1mm_in_gantry_rotating(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[0, 0, 0],
+            ys=[1, 1, 1],
+            thetas=[0, 90, 270],
+            phis=[0, 0, 0],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 1)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 0)
 
-    def test_g0_c90_perfect(self):
-        line = ray(Vector(0, 0), 0, 90, 1000)
-        self.assertAlmostEqual(line.length, 2000)
-        self.assertAlmostEqual(line.point1.x, 0)
-        self.assertAlmostEqual(line.point1.y, 0)
-        self.assertAlmostEqual(line.point1.z, 1000)
-        self.assertAlmostEqual(line.point2.x, 0)
-        self.assertAlmostEqual(line.point2.y, 0)
-        self.assertAlmostEqual(line.point2.z, -1000)
+    def test_1mm_out(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[0, 0, 0],
+            ys=[-1, -1, -1],
+            thetas=[0, 90, 270],
+            phis=[0, 0, 0],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, -1)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 0)
 
-    def test_g0_c90_1mm_left(self):
-        # 1mm left vector @ C90 is actually 1mm out (-y)
-        line = ray(Vector(1, 0), 0, 90, 1000)
-        self.assertAlmostEqual(line.point2.x, 0)
-        self.assertAlmostEqual(line.point2.y, -2)
+    def test_1mm_left_gantry_rotating(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[-1, 0],
+            ys=[0, 0],
+            thetas=[0, 90],
+            phis=[0, 0],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, -1)
+        self.assertAlmostEqual(vector.z, 0)
 
-    def test_g0_c270_1mm_left(self):
-        # 1mm left vector @ C270 is actually 1mm in (+y)
-        line = ray(Vector(1, 0), 0, 270, 1000)
-        self.assertAlmostEqual(line.point2.x, 0)
-        self.assertAlmostEqual(line.point2.y, 2)
+    def test_1mm_right_gantry_rotating(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[1, 0, -1, 0],
+            ys=[0, 0, 0, 0],
+            thetas=[0, 90, 180, 270],
+            phis=[0, 0, 0, 0],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 1)
+        self.assertAlmostEqual(vector.z, 0)
 
-    def test_g90_c90_resolves(self):
-        # even with an y (in) offset if the couch is 90 it will resolve to 0
-        line = ray(Vector(0, 1), 90, 90, 1000)
-        self.assertAlmostEqual(line.point2.y, 0)
-        self.assertAlmostEqual(line.point2.z, 0)
+    def test_1mm_left_couch_rotating(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[-1, 0, 0],
+            ys=[0, -1, 1],
+            thetas=[0, 0, 0],
+            phis=[0, 90, 270],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, -1)
+        self.assertAlmostEqual(vector.z, 0)
 
-    def test_g90_1mm_up(self):
-        # 1mm up vector left @ G90 is actually 1mm up (+z)
-        line = ray(Vector(-1, 0), 90, 0, 1000)
-        self.assertAlmostEqual(line.point2.z, 2)
+    def test_1mm_right_couch_rotating(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[1, 0, -1],
+            ys=[0, 1, 0],
+            thetas=[0, 0, 0],
+            phis=[0, 90, 180],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 1)
+        self.assertAlmostEqual(vector.z, 0)
 
-    def test_g90_1mm_down(self):
-        # 1mm down vector left @ G90 is actually 1mm down (-z)
-        line = ray(Vector(1, 0), 90, 0, 1000)
-        self.assertAlmostEqual(line.point2.z, -2)
+    def test_1mm_up_gantry_rotating(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[0, -1],
+            ys=[0, 0],
+            thetas=[0, 90],
+            phis=[0, 0],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 1)
+
+
+class Test3DShiftVectorFrom2DPlanes(TestCase):
+    # the shift vector is just the inverse of the position vector
+
+    def test_perfect(self):
+        vector = solve_3d_shift_vector_from_2d_planes(
+            xs=[0, 0],
+            ys=[0, 0],
+            thetas=[0, 90],
+            phis=[0, 90],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_in_gantry_rotating(self):
+        vector = solve_3d_shift_vector_from_2d_planes(
+            xs=[0, 0, 0],
+            ys=[1, 1, 1],
+            thetas=[0, 90, 270],
+            phis=[0, 0, 0],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, -1)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_left_gantry_rotating(self):
+        vector = solve_3d_shift_vector_from_2d_planes(
+            xs=[-1, 0],
+            ys=[0, 0],
+            thetas=[0, 90],
+            phis=[0, 0],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 1)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_up_gantry_rotating(self):
+        vector = solve_3d_shift_vector_from_2d_planes(
+            xs=[0, -1],
+            ys=[0, 0],
+            thetas=[0, 90],
+            phis=[0, 0],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, -1)
+
+    def test_1mm_in_couch_rotating(self):
+        vector = solve_3d_shift_vector_from_2d_planes(
+            xs=[0, -1],
+            ys=[1, 0],
+            thetas=[0, 0],
+            phis=[0, 90],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, -1)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_left_couch_rotating(self):
+        vector = solve_3d_shift_vector_from_2d_planes(
+            xs=[-1, 0],
+            ys=[0, -1],
+            thetas=[0, 0],
+            phis=[0, 90],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 1)
+        self.assertAlmostEqual(vector.z, 0)
 
 
 class TestRotationMatrix(TestCase):

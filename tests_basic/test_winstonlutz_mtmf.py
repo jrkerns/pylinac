@@ -134,12 +134,12 @@ class WinstonLutzMultiTargetMultFieldMixin(CloudFileMixin):
 class SNCMultiMet(WinstonLutzMultiTargetMultFieldMixin, TestCase):
     dir_path = ["Winston-Lutz", "multi_target_multi_field"]
     file_name = "SNC_MM_KB.zip"
-    num_images = 13
+    num_images = 19
     arrangement = BBArrangement.SNC_MULTIMET
     max_2d_distance = 0.78
     median_2d_distance = 0.25
     mean_2d_distance = 0.27
-    bb_maxes = {"Iso": 0.42, "1": 0.63}
+    bb_maxes = {"Iso": 0.58, "1": 0.68}
 
 
 class SyntheticMultiMetMixin(WinstonLutzMultiTargetMultFieldMixin):
@@ -153,10 +153,10 @@ class SyntheticMultiMetMixin(WinstonLutzMultiTargetMultFieldMixin):
         (90, 0, 0),
         (180, 0, 0),
         (270, 0, 0),
-        # (0, 0, 45),
-        # (0, 0, 90),
-        # (0, 0, 270),
-        # (0, 0, 315),
+        (0, 0, 45),
+        (0, 0, 90),
+        (0, 0, 270),
+        (0, 0, 315),
     )
     field_size = (20.0, 20.0)
     bb_size = 5.0
@@ -251,8 +251,8 @@ class Synthetic1BBOffsetLeft(SyntheticMultiMetMixin, TestCase):
     field_offsets = [(0, 0, 0)]
     bb_offsets = [(1, 0, 0)]  # 1mm offset
     max_2d_distance = 1
-    median_2d_distance = 0.5
-    mean_2d_distance = 0.5
+    median_2d_distance = 1
+    mean_2d_distance = 0.75
 
 
 class Synthetic1BBOffsetUp(SyntheticMultiMetMixin, TestCase):
@@ -271,8 +271,8 @@ class Synthetic1BBOffsetUp(SyntheticMultiMetMixin, TestCase):
     field_offsets = [(0, 0, 0)]
     bb_offsets = [(0, 1, 0)]  # 1mm offset
     max_2d_distance = 1
-    median_2d_distance = 0.5
-    mean_2d_distance = 0.5
+    median_2d_distance = 0.0
+    mean_2d_distance = 0.25
 
 
 class Synthetic2BBPerfect(SyntheticMultiMetMixin, TestCase):
@@ -328,7 +328,7 @@ class Synthetic2BB1OffLeft(SyntheticMultiMetMixin, TestCase):
     bb_offsets = [(0, 0, 0), (1, 0, -30)]
     max_2d_distance = 1
     median_2d_distance = 0
-    mean_2d_distance = 0.25
+    mean_2d_distance = 0.37
 
 
 # class WinstonLutzMultiTargetSingleFieldMixin(WinstonLutzMultiTargetMultFieldMixin):
