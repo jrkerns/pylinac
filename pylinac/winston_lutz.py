@@ -222,6 +222,15 @@ class BBFieldMatch:
     sad: float
 
     @property
+    def field_epid_vector_mm(self) -> Vector:
+        """The vector from the field CAX to the EPID center *IN COORDINATE SPACE*."""
+        v = (self.field - self.epid) / self.dpmm
+        v.y = (
+            -v.y
+        )  # invert the y-axis; positive is down in image space but negative in coordinate space
+        return v
+
+    @property
     def bb_field_vector_mm(self) -> Vector:
         """The vector from the BB to the field CAX *IN COORDINATE SPACE*."""
         v = (self.bb - self.field) / self.dpmm
@@ -271,7 +280,7 @@ class BB3D:
     """A representation of a BB in 3D space"""
 
     def __repr__(self):
-        return self.nominal_position
+        return self.nominal_bb_position
 
     def __init__(
         self,
@@ -284,7 +293,7 @@ class BB3D:
         self.scale = scale
 
     @cached_property
-    def measured_position(self) -> Point:
+    def measured_bb_position(self) -> Point:
         """The 3D measured position of the BB based on rotation matrices and gantry/couch angles."""
         xs = [m.bb_epid_vector_mm.x for m in self.matches]
         ys = [m.bb_epid_vector_mm.y for m in self.matches]
@@ -297,7 +306,7 @@ class BB3D:
         return Point(x=vector.x, y=vector.y, z=vector.z)
 
     @cached_property
-    def nominal_position(self) -> Point:
+    def nominal_bb_position(self) -> Point:
         """The nominal location of the BB in MM in coordinate space"""
         return Point(
             x=-self.bb_config.offset_left_mm,
@@ -306,26 +315,29 @@ class BB3D:
         )
 
     @cached_property
-    def delta_vector(self) -> Vector:
-        """The shift from measured BB location to nominal as a vector in MM"""
-        return self.measured_position - self.nominal_position
-
-    @cached_property
-    def delta_distance(self):
-        """The scalar distance between the measured BB location and nominal in MM"""
-        return self.measured_position.distance_to(self.nominal_position)
+    def measured_field_position(self) -> Point:
+        """The position of the field CAXs in 3D space"""
+        xs = [m.field_epid_vector_mm.x for m in self.matches]
+        ys = [m.field_epid_vector_mm.y for m in self.matches]
+        thetas = [m.gantry_angle for m in self.matches]
+        phis = [m.couch_angle for m in self.matches]
+        vector = solve_3d_position_from_2d_planes(
+            xs=xs, ys=ys, thetas=thetas, phis=phis, scale=self.scale
+        )
+        # vectors and points are effectively the same thing here but we convert to a point for clarity
+        return Point(x=vector.x, y=vector.y, z=vector.z)
 
     def plot_nominal(self, axes: plt.Axes, color: str, **kwargs):
         """Plot the BB nominal position"""
         x, y, z = create_sphere_surface(
-            radius=self.bb_config.bb_size_mm / 2, center=self.nominal_position
+            radius=self.bb_config.bb_size_mm / 2, center=self.nominal_bb_position
         )
         axes.plot_surface(x, y, z, color=color, **kwargs)
 
     def plot_measured(self, axes: plt.Axes, color: str, **kwargs):
         """Plot the BB measured position"""
         x, y, z = create_sphere_surface(
-            radius=self.bb_config.bb_size_mm / 2, center=self.measured_position
+            radius=self.bb_config.bb_size_mm / 2, center=self.measured_bb_position
         )
         axes.plot_surface(x, y, z, color=color, **kwargs)
 
@@ -1314,10 +1326,11 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
         """The shift necessary to place the BB at the radiation isocenter.
         The values are in the coordinates defined in the documentation.
 
-        The shift is based on the paper by Low et al. See online documentation for more.
+        The shift is based on the paper by Low et al. See online documentation and the ``solve_3d_shift_vector_from_2d_planes`` function for more.,
+        which is how the measured bb and field positions are determined.
         """
-        # the necessary shift is directly the opposite of the vector from CAX to BB
-        return -self.bb.delta_vector
+        # field minus BB will give the shift vector to RETURN TO ISO which is what we want. BB minus field would give the vector from field to the BB.
+        return self.bb.measured_field_position - self.bb.measured_bb_position
 
     def bb_shift_instructions(
         self,
@@ -1576,15 +1589,42 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
         )
         ax = plt.axes(projection="3d")
         # we can represent the iso sphere as a BB object; the nominal object isn't used, just the BB size
-        # plot the x,y,z origin lines
-        x_line = Line(Point(-limit, 0, 0), Point(limit, 0, 0))
-        x_line.plot2axes(ax, color="green", alpha=0.5)
-        y_line = Line(Point(0, -limit, 0), Point(0, limit, 0))
-        y_line.plot2axes(ax, color="green", alpha=0.5)
-        z_line = Line(Point(0, 0, -limit), Point(0, 0, limit))
-        z_line.plot2axes(
-            ax, color="green", alpha=0.5, label="Determined isocenter (x,y,z)"
+        # plot the field isocenter as x,y,z lines
+        x_line = Line(
+            Point(
+                -limit,
+                self.bb.measured_field_position.y,
+                self.bb.measured_field_position.z,
+            ),
+            Point(
+                limit, self.bb.measured_field_position.y, self.bb.measured_bb_position.z
+            ),
         )
+        x_line.plot2axes(ax, color="green", alpha=0.5)
+        y_line = Line(
+            Point(
+                self.bb.measured_field_position.x,
+                -limit,
+                self.bb.measured_field_position.z,
+            ),
+            Point(
+                self.bb.measured_field_position.x, limit, self.bb.measured_bb_position.z
+            ),
+        )
+        y_line.plot2axes(ax, color="green", alpha=0.5)
+        z_line = Line(
+            Point(
+                self.bb.measured_field_position.x,
+                self.bb.measured_field_position.y,
+                -limit,
+            ),
+            Point(
+                self.bb.measured_field_position.x,
+                self.bb.measured_field_position.y,
+                limit,
+            ),
+        )
+        z_line.plot2axes(ax, color="green", alpha=0.5, label="Field isocenter (x,y,z)")
         if plot_bb:
             self.bb.plot_measured(ax, color="cyan", alpha=0.6)
             # create an empty, fake line so we can add a label for the legend
@@ -1592,7 +1632,12 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
             fake_line.plot2axes(ax, color="cyan", label=f"BB ({self._bb_diameter}mm)")
         if plot_isocenter_sphere:
             x, y, z = create_sphere_surface(
-                radius=self.gantry_coll_iso_size / 2, center=Point(0, 0, 0)
+                radius=self.gantry_coll_iso_size / 2,
+                center=Point(
+                    self.bb.measured_bb_position.x,
+                    self.bb.measured_bb_position.y,
+                    self.bb.measured_bb_position.z,
+                ),
             )
             ax.plot_surface(x, y, z, alpha=0.3, color="magenta")
             # create an empty, fake line so we can add a label for the legend
@@ -1604,7 +1649,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
             )
         if plot_couch_iso:
             circle = plt.Circle(
-                (0, 0),
+                (self.bb.measured_field_position.x, self.bb.measured_field_position.y),
                 radius=self.couch_iso_size / 2,
                 fill=True,
                 color="yellow",
@@ -1612,10 +1657,12 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
                 label=f"Couch-only iso ({self.couch_iso_size:3.2f}mm)",
             )
             ax.add_patch(circle)
-            art3d.pathpatch_2d_to_3d(circle, z=0, zdir="z")
+            art3d.pathpatch_2d_to_3d(
+                circle, z=self.bb.measured_field_position.z, zdir="z"
+            )
         if plot_coll_iso:
             circle = plt.Circle(
-                (0, 0),
+                (self.bb.measured_field_position.y, self.bb.measured_field_position.z),
                 radius=self.collimator_iso_size / 2,
                 fill=True,
                 color="blue",
@@ -1623,7 +1670,9 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
                 label=f"Collimator-only iso ({self.collimator_iso_size:3.2f}mm)",
             )
             ax.add_patch(circle)
-            art3d.pathpatch_2d_to_3d(circle, z=0, zdir="x")
+            art3d.pathpatch_2d_to_3d(
+                circle, z=self.bb.measured_field_position.x, zdir="x"
+            )
         if show_legend:
             ax.legend()
         # set the limits of the 3D plot; they must be the same in all axes for equal aspect ratio
@@ -2107,9 +2156,15 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         plot_coll_iso: bool = True,
         show_legend: bool = True,
     ):
-        x_lim = max(max([np.abs(bb.measured_position.x) for bb in self.bbs]) * 1.3, 10)
-        y_lim = max(max([np.abs(bb.measured_position.y) for bb in self.bbs]) * 1.3, 10)
-        z_lim = max(max([np.abs(bb.measured_position.z) for bb in self.bbs]) * 1.3, 10)
+        x_lim = max(
+            max([np.abs(bb.measured_bb_position.x) for bb in self.bbs]) * 1.3, 10
+        )
+        y_lim = max(
+            max([np.abs(bb.measured_bb_position.y) for bb in self.bbs]) * 1.3, 10
+        )
+        z_lim = max(
+            max([np.abs(bb.measured_bb_position.z) for bb in self.bbs]) * 1.3, 10
+        )
         limit = viewbox_mm or max(x_lim, y_lim, z_lim)
         fig = plt.figure()
         ax = fig.add_subplot(projection="3d")

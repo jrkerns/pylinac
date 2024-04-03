@@ -954,19 +954,19 @@ class SyntheticWLMixin(WinstonLutzMixin):
 
     def test_bb3d_measured_position(self):
         self.assertAlmostEqual(
-            self.wl.bb.measured_position.x, -self.offset_mm_left, delta=0.03
+            self.wl.bb.measured_bb_position.x, -self.offset_mm_left, delta=0.03
         )
         self.assertAlmostEqual(
-            self.wl.bb.measured_position.y, self.offset_mm_in, delta=0.03
+            self.wl.bb.measured_bb_position.y, self.offset_mm_in, delta=0.03
         )
         self.assertAlmostEqual(
-            self.wl.bb.measured_position.z, self.offset_mm_up, delta=0.03
+            self.wl.bb.measured_bb_position.z, self.offset_mm_up, delta=0.03
         )
 
     def test_bb3d_nominal_position(self):
-        self.assertAlmostEqual(self.wl.bb.nominal_position.x, 0, delta=0.01)
-        self.assertAlmostEqual(self.wl.bb.nominal_position.y, 0, delta=0.01)
-        self.assertAlmostEqual(self.wl.bb.nominal_position.z, 0, delta=0.01)
+        self.assertAlmostEqual(self.wl.bb.nominal_bb_position.x, 0, delta=0.01)
+        self.assertAlmostEqual(self.wl.bb.nominal_bb_position.y, 0, delta=0.01)
+        self.assertAlmostEqual(self.wl.bb.nominal_bb_position.z, 0, delta=0.01)
 
 
 class Synthetic1mmLeftNoCouch(SyntheticWLMixin, TestCase):
