@@ -181,7 +181,7 @@ class PerfectFieldLayer(Layer):
         ----------
 
         field_size_mm
-            Field size in mm at the iso plane as (width, height)
+            Field size in mm at the iso plane as (height, width)
         cax_offset_mm
             The offset in mm. (down, right)
         alpha
@@ -239,7 +239,7 @@ class FilteredFieldLayer(PerfectFieldLayer):
         ----------
 
         field_size_mm
-            Field size in mm at the iso plane
+            Field size in mm at the iso plane (height, width)
         cax_offset_mm
             The offset in mm. (out, right)
         alpha
@@ -299,7 +299,7 @@ class FilterFreeFieldLayer(FilteredFieldLayer):
         ----------
 
         field_size_mm
-            Field size in mm at the iso plane
+            Field size in mm at the iso plane (height, width).
         cax_offset_mm
             The offset in mm. (out, right)
         alpha
@@ -442,7 +442,7 @@ def draw_rotated_rectangle(
     center : list
         The center of the rectangle.
     extent : list
-        The width and height of the rectangle.
+        The height and width of the rectangle.
     angle : float
         The angle of rotation in degrees.
 
@@ -457,10 +457,10 @@ def draw_rotated_rectangle(
     """
     # Calculate rectangle coordinates before rotation
     # follows row,col convention of numpy; y = row, x = col
-    x0 = center[1] - extent[0] / 2
-    x1 = center[1] + extent[0] / 2
-    y0 = center[0] - extent[1] / 2
-    y1 = center[0] + extent[1] / 2
+    x0 = center[1] - extent[1] / 2
+    x1 = center[1] + extent[1] / 2
+    y0 = center[0] - extent[0] / 2
+    y1 = center[0] + extent[0] / 2
 
     rect_coords = np.array([[x0, y0], [x1, y0], [x1, y1], [x0, y1]])
 

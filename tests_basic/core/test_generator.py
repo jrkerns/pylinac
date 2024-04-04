@@ -7,6 +7,7 @@ import numpy as np
 import numpy.testing
 import pydicom
 
+import tests_basic  # noqa; load env settings and filters
 from pylinac import Interpolation, Normalization
 from pylinac.core.image import DicomImage, load
 from pylinac.core.image_generator import (
@@ -14,6 +15,7 @@ from pylinac.core.image_generator import (
     AS1000Image,
     AS1200Image,
     ConstantLayer,
+    FilteredFieldLayer,
     FilterFreeFieldLayer,
     GaussianFilterLayer,
     PerfectBBLayer,
@@ -86,7 +88,121 @@ def profiles_from_simulator(
     return inplane_profile, cross_profile
 
 
+class TestFilteredFieldLayer(TestCase):
+    def test_50x50_1000sid_centered(self):
+        for sim in (AS500Image, AS1000Image, AS1200Image):
+            as1200 = sim(sid=1000)
+            as1200.add_layer(FilteredFieldLayer(field_size_mm=(50, 50)))
+            as1200_ds = as1200.as_dicom()
+            img = DicomImage.from_dataset(as1200_ds)
+            centers = img.compute(GlobalFieldLocator(max_number=1))
+            # test we're at the center
+            self.assertAlmostEqual(centers[0].x, img.center.x, delta=1)
+            self.assertAlmostEqual(centers[0].y, img.center.y, delta=1)
+
+    def test_50x50_1000sid_offset(self):
+        for sim in (AS500Image, AS1000Image, AS1200Image):
+            as1200 = sim(sid=1000)
+            as1200.add_layer(
+                FilteredFieldLayer(field_size_mm=(50, 50), cax_offset_mm=(30, 50))
+            )
+            as1200_ds = as1200.as_dicom()
+            img = DicomImage.from_dataset(as1200_ds)
+            centers = img.compute(GlobalFieldLocator(max_number=1))
+            # test we're at the offset
+            self.assertAlmostEqual(
+                centers[0].x, img.center.x + 50 / sim.pixel_size, delta=1
+            )
+            self.assertAlmostEqual(
+                centers[0].y, img.center.y + 30 / sim.pixel_size, delta=1
+            )
+
+    def test_50x50_1500sid_centered(self):
+        for sim in (AS500Image, AS1000Image, AS1200Image):
+            as1200 = sim(sid=1500)
+            as1200.add_layer(FilteredFieldLayer(field_size_mm=(50, 50)))
+            as1200_ds = as1200.as_dicom()
+            img = DicomImage.from_dataset(as1200_ds)
+            centers = img.compute(GlobalFieldLocator(max_number=1))
+            # test we're at the center
+            self.assertAlmostEqual(centers[0].x, img.center.x, delta=1)
+            self.assertAlmostEqual(centers[0].y, img.center.y, delta=1)
+
+    def test_50x50_1500sid_offset(self):
+        for sim in (AS500Image, AS1000Image, AS1200Image):
+            as1200 = sim(sid=1500)
+            as1200.add_layer(
+                FilteredFieldLayer(field_size_mm=(50, 50), cax_offset_mm=(30, 50))
+            )
+            as1200_ds = as1200.as_dicom()
+            img = DicomImage.from_dataset(as1200_ds)
+            centers = img.compute(GlobalFieldLocator(max_number=1))
+            # test we're at the offset
+            self.assertAlmostEqual(
+                centers[0].x, img.center.x + 50 * 1.5 / sim.pixel_size, delta=1
+            )
+            self.assertAlmostEqual(
+                centers[0].y, img.center.y + 30 * 1.5 / sim.pixel_size, delta=1
+            )
+
+
 class TestPerfectFieldLayer(TestCase):
+    def test_50x50_1000sid_centered(self):
+        for sim in (AS500Image, AS1000Image, AS1200Image):
+            as1200 = sim(sid=1000)
+            as1200.add_layer(PerfectFieldLayer(field_size_mm=(50, 50)))
+            as1200_ds = as1200.as_dicom()
+            img = DicomImage.from_dataset(as1200_ds)
+            centers = img.compute(GlobalFieldLocator(max_number=1))
+            # test we're at the center
+            self.assertAlmostEqual(centers[0].x, img.center.x, delta=1)
+            self.assertAlmostEqual(centers[0].y, img.center.y, delta=1)
+
+    def test_50x50_1000sid_offset(self):
+        for sim in (AS500Image, AS1000Image, AS1200Image):
+            as1200 = sim(sid=1000)
+            as1200.add_layer(
+                PerfectFieldLayer(field_size_mm=(50, 50), cax_offset_mm=(30, 50))
+            )
+            as1200_ds = as1200.as_dicom()
+            img = DicomImage.from_dataset(as1200_ds)
+            centers = img.compute(GlobalFieldLocator(max_number=1))
+            # test we're at the offset
+            self.assertAlmostEqual(
+                centers[0].x, img.center.x + 50 / sim.pixel_size, delta=1
+            )
+            self.assertAlmostEqual(
+                centers[0].y, img.center.y + 30 / sim.pixel_size, delta=1
+            )
+
+    def test_50x50_1500sid_centered(self):
+        for sim in (AS500Image, AS1000Image, AS1200Image):
+            as1200 = sim(sid=1500)
+            as1200.add_layer(PerfectFieldLayer(field_size_mm=(50, 50)))
+            as1200_ds = as1200.as_dicom()
+            img = DicomImage.from_dataset(as1200_ds)
+            centers = img.compute(GlobalFieldLocator(max_number=1))
+            # test we're at the center
+            self.assertAlmostEqual(centers[0].x, img.center.x, delta=1)
+            self.assertAlmostEqual(centers[0].y, img.center.y, delta=1)
+
+    def test_50x50_1500sid_offset(self):
+        for sim in (AS500Image, AS1000Image, AS1200Image):
+            as1200 = sim(sid=1500)
+            as1200.add_layer(
+                PerfectFieldLayer(field_size_mm=(50, 50), cax_offset_mm=(30, 50))
+            )
+            as1200_ds = as1200.as_dicom()
+            img = DicomImage.from_dataset(as1200_ds)
+            centers = img.compute(GlobalFieldLocator(max_number=1))
+            # test we're at the offset
+            self.assertAlmostEqual(
+                centers[0].x, img.center.x + 50 * 1.5 / sim.pixel_size, delta=1
+            )
+            self.assertAlmostEqual(
+                centers[0].y, img.center.y + 30 * 1.5 / sim.pixel_size, delta=1
+            )
+
     def test_10x10_100sid(self):
         for sim in (AS500Image, AS1000Image, AS1200Image):
             as1200 = sim(sid=1000)

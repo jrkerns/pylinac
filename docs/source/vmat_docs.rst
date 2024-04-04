@@ -251,15 +251,15 @@ In this example, we generate a perfectly flat set of images and analyze them.
     # open image
     open_path = 'perfect_open_drmlc.dcm'
     as1200 = AS1200Image()
-    as1200.add_layer(PerfectFieldLayer(field_size_mm=(150, 110), cax_offset_mm=(0, 5)))
+    as1200.add_layer(PerfectFieldLayer(field_size_mm=(150, 85), cax_offset_mm=(0, 0)))
     as1200.add_layer(GaussianFilterLayer(sigma_mm=2))
     as1200.generate_dicom(file_out_name=open_path)
 
     # DMLC image
     dmlc_path = 'perfect_dmlc_drmlc.dcm'
     as1200 = AS1200Image()
-    for offset in (-40, -10, 20, 50):
-        as1200.add_layer(PerfectFieldLayer((150, 20), cax_offset_mm=(0, offset)))
+    for offset in (-45, -15, 15, 45):
+        as1200.add_layer(PerfectFieldLayer((150, 19.5), cax_offset_mm=(0, offset)))
     as1200.add_layer(GaussianFilterLayer(sigma_mm=2))
     as1200.generate_dicom(file_out_name=dmlc_path)
 
@@ -289,7 +289,7 @@ We now add a horn effect and random noise to the data:
     # open image
     open_path = 'noisy_open_drmlc.dcm'
     as1200 = AS1200Image()
-    as1200.add_layer(FilteredFieldLayer(field_size_mm=(150, 110), cax_offset_mm=(0, 5)))
+    as1200.add_layer(FilteredFieldLayer(field_size_mm=(150, 85), cax_offset_mm=(0, 0)))
     as1200.add_layer(GaussianFilterLayer(sigma_mm=2))
     as1200.add_layer(RandomNoiseLayer(sigma=0.03))
     as1200.generate_dicom(file_out_name=open_path)
@@ -297,8 +297,8 @@ We now add a horn effect and random noise to the data:
     # DMLC image
     dmlc_path = 'noisy_dmlc_drmlc.dcm'
     as1200 = AS1200Image()
-    for offset in (-40, -10, 20, 50):
-        as1200.add_layer(FilteredFieldLayer((150, 20), cax_offset_mm=(0, offset)))
+    for offset in (-45, -15, 15, 45):
+        as1200.add_layer(FilteredFieldLayer((150, 19.5), cax_offset_mm=(0, offset)))
     as1200.add_layer(GaussianFilterLayer(sigma_mm=2))
     as1200.add_layer(RandomNoiseLayer(sigma=0.03))
     as1200.generate_dicom(file_out_name=dmlc_path)
@@ -336,7 +336,7 @@ Let's now get devious and randomly adjust the height of each ROI (effectively ch
     # open image
     open_path = 'noisy_open_drmlc.dcm'
     as1200 = AS1200Image()
-    as1200.add_layer(FilteredFieldLayer(field_size_mm=(150, 110), cax_offset_mm=(0, 5)))
+    as1200.add_layer(FilteredFieldLayer(field_size_mm=(150, 85), cax_offset_mm=(0, 0)))
     as1200.add_layer(GaussianFilterLayer(sigma_mm=2))
     as1200.add_layer(RandomNoiseLayer(sigma=0.03))
     as1200.generate_dicom(file_out_name=open_path)
@@ -344,10 +344,10 @@ Let's now get devious and randomly adjust the height of each ROI (effectively ch
     # DMLC image
     dmlc_path = 'noisy_dmlc_drmlc.dcm'
     as1200 = AS1200Image()
-    for offset in (-40, -10, 20, 50):
-        as1200.add_layer(FilteredFieldLayer((150, 20), cax_offset_mm=(0, offset), alpha=random.uniform(0.93, 1)))
+    for offset in (-45, -15, 15, 45):
+        as1200.add_layer(FilteredFieldLayer((150, 19.5), cax_offset_mm=(0, offset), alpha=random.uniform(0.93, 1)))
     as1200.add_layer(GaussianFilterLayer(sigma_mm=2))
-    as1200.add_layer(RandomNoiseLayer(sigma=0.03))
+    as1200.add_layer(RandomNoiseLayer(sigma=0.04))
     as1200.generate_dicom(file_out_name=dmlc_path)
 
     # analyze it
