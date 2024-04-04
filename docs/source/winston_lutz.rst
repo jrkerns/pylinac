@@ -890,8 +890,8 @@ values. We offset the BB to the left by 2mm for visualization purposes:
         AS1200Image(1000),
         FilteredFieldLayer,
         dir_out=wl_dir,
-        final_layers=[GaussianFilterLayer(), ],
-        bb_size_mm=4,
+        final_layers=[GaussianFilterLayer(sigma_mm=1), ],
+        bb_size_mm=5,
         field_size_mm=(20, 20),
         offset_mm_left=2,
         image_axes=[(0, 0, 0), (0, 45, 0), (0, 270, 0),
@@ -900,7 +900,7 @@ values. We offset the BB to the left by 2mm for visualization purposes:
     )
 
     wl = pylinac.WinstonLutz(wl_dir)
-    wl.analyze(bb_size_mm=4)
+    wl.analyze(bb_size_mm=5)
     print(wl.results())
     wl.plot_images(axis=Axis.GBP_COMBO)
 
