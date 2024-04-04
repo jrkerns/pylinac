@@ -53,7 +53,7 @@ Winston Lutz
   For multi-target/multi-field WL, the plots will now be zoomed to fit all the detected BBs and fields.
   This can be turned off by passing ``zoom=False`` to the ``plot_images`` method.
 * When using custom BB arrangements, use the new :class:`~pylinac.winston_lutz.BBConfig` class instead
-  of a dictionary. See the updated :ref:``custom-bb-arrangements`` section for more.
+  of a dictionary. See the updated :ref:`custom-bb-arrangements` section for more.
 * A bug was fixed for the BB shift vector/instructions when analyzing images with couch kicks.
   The Low paper which contains the mathematical transforms appears to have incorrect signs in equation 6. This
   has been fixed and validated using the new image generator ability to create images with couch kicks.
@@ -61,6 +61,17 @@ Winston Lutz
   were always in the LAT/LONG plane and for the most part underestimated the shift that would be needed.
 * For regular WL analyses, a virtual shift can be automatically applied to the BB to see what the 2D errors would be
   if the BB were shifted to the optimal position. Read more in the :ref:`wl_virtual_shift` section.
+* For multi-target/multi-field analyses, the BB shift vector is now available as the ``~pylinac.winston_lutz.WinstonLutzMultiTargetMultiField.bb_shift_vector`` property.
+  This provides a 6DOF shift vector that can be applied to the BB to move to the ideal position.
+  These shifts are also included in the ``results_data()`` call.
+* The 3D plotting of BBs in virtual space for both single-target and multi-target analyses has been reworked.
+  For single-target WL, the green isocenter lines used to always be at the origin. The lines represented the
+  field-determined isocenter. To better represent the field isocenter, bb isocenter, and the EPID isocenter, and their
+  relationships to each other, the origin is now the EPID-based isocenter and the green x/y/z lines are the field isocenter.
+  This makes it possible to see the BB and field isocenters in relation to the EPID isocenter as well.
+* Couch-kick images are now supported for multi-target analyses. They are included in the BB shift vector calculations as well.
+* Couch-kick images are also analyzed for the 2D yaw error on each image. These are included in the ``results()`` call.
+* The multi-target/multi-field demo dataset was changed to purposefully introduct error for a more realistic demonstration.
 
 Image Generator
 ^^^^^^^^^^^^^^^

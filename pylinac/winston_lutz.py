@@ -183,16 +183,32 @@ class BBArrangement:
         BBConfig(
             name="Iso",
             offset_left_mm=0,
-            offset_up_mm=0,
+            offset_up_mm=5,
             offset_in_mm=0,
             bb_size_mm=5,
             rad_size_mm=20,
         ),
         BBConfig(
-            name="Left,Down,In",
-            offset_left_mm=20,
-            offset_up_mm=-20,
-            offset_in_mm=60,
+            name="Out",
+            offset_left_mm=0,
+            offset_up_mm=00,
+            offset_in_mm=-60,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="In",
+            offset_left_mm=0,
+            offset_up_mm=00,
+            offset_in_mm=30,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="Left/Out",
+            offset_left_mm=10,
+            offset_up_mm=10,
+            offset_in_mm=-30,
             bb_size_mm=5,
             rad_size_mm=20,
         ),
@@ -415,6 +431,10 @@ class WinstonLutzMultiTargetMultiFieldResult(ResultBase):
     mean_2d_field_to_bb_mm: float  #:
     bb_arrangement: tuple[BBConfig, ...]  #:
     bb_maxes: dict[str, float]  #:
+    bb_shift_vector: VectorSerialized  #:
+    bb_shift_yaw: float  #:
+    bb_shift_pitch: float  #:
+    bb_shift_roll: float  #:
 
 
 def is_near_center(region: RegionProperties, *args, **kwargs) -> bool:
@@ -2210,24 +2230,9 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             plt.show()
         return fig, ax
 
-    def bb_shift_vector(
-        self, axes_order: str = "roll,pitch,yaw"
-    ) -> (Vector, float, float, float):
+    @property
+    def bb_shift_vector(self) -> (Vector, float, float, float):
         """Calculate the ideal shift in 6 degrees of freedom to place the BB at the isocenter.
-
-        Parameters
-        ----------
-        axes_order : str
-            The order of the axes to calculate the shift in. The order is the order of the rotations.
-            The default is 'roll,pitch,yaw'. The rule of thumb is to rotate about axes
-            with the smallest expected shift first. E.g. for a 4D couch the default value works well
-            because the roll and pitch should be small.
-
-            .. warning::
-
-                This order matters more than you think it would. Results for the yaw, pitch, and roll can
-                vary by a significant or unrealistic amount depending on the order and/or could result
-                in gimbal lock
 
         Returns
         -------
@@ -2248,8 +2253,41 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         return align_points(
             measured_points=[bb.measured_bb_position for bb in self.bbs],
             ideal_points=[bb.measured_field_position for bb in self.bbs],
-            axes_order=axes_order,
         )
+
+    def bb_shift_instructions(self) -> str:
+        """Return a string that provides instructions on how to shift the BB to the isocenter."""
+        translation, yaw, pitch, roll = self.bb_shift_vector
+        x_dir = "LEFT" if translation.x < 0 else "RIGHT"
+        y_dir = "IN" if translation.y > 0 else "OUT"
+        z_dir = "UP" if translation.z > 0 else "DOWN"
+        move = f"{x_dir} {abs(translation.x):2.2f}mm; {y_dir} {abs(translation.y):2.2f}mm; {z_dir} {abs(translation.z):2.2f}mm; Rotation {yaw:2.2f}°; Pitch {pitch:2.2f}°; Roll {roll:2.2f}°"
+        return move
+
+    def _couch_rotation_error(self) -> dict[str, dict[str, float]]:
+        """Calculate the couch rotation error in degrees for reference and couch-kicked images.
+        This just for feature parity with SNC 🤦; the BB shift vector is more important.
+
+        Returns
+        -------
+        dict
+            A dictionary where the keys are the image paths and the values are a dictionary with the yaw error and nominal couch angle.
+        """
+        couch_results = {}
+        couch_images = [
+            img
+            for img in self.images
+            if img.variable_axis in (Axis.COUCH, Axis.REFERENCE)
+        ]
+        for img in couch_images:
+            measured_points = [m.bb for m in img.arrangement_matches.values()]
+            ideal_points = [m.field for m in img.arrangement_matches.values()]
+            _, yaw, _, _ = align_points(measured_points, ideal_points)
+            couch_results[img.base_path] = {
+                "yaw error": yaw,
+                "couch angle": img.couch_angle,
+            }
+        return couch_results
 
     @property
     def gantry_coll_iso_size(self) -> float:
@@ -2322,6 +2360,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
                     )
             bb_maxes[bb.name] = max_d
 
+        translation, yaw, pitch, roll = self.bb_shift_vector
         return WinstonLutzMultiTargetMultiFieldResult(
             num_total_images=len(self.images),
             max_2d_field_to_bb_mm=self.max_bb_deviation_2d,
@@ -2329,6 +2368,10 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             median_2d_field_to_bb_mm=self.median_bb_deviation_2d,
             bb_maxes=bb_maxes,
             bb_arrangement=self.bb_arrangement,
+            bb_shift_vector=translation,
+            bb_shift_yaw=yaw,
+            bb_shift_pitch=pitch,
+            bb_shift_roll=roll,
         )
 
     def plot_summary(self, show: bool = True, fig_size: tuple | None = None):
@@ -2406,6 +2449,17 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         result += tabulate(data, headers=["Image", "G", "C", "P", *bb_names]).split(
             "\n"
         )
+        result += [""]
+
+        # calculate couch-kick errors
+        couch_results = self._couch_rotation_error()
+        couch_data = [
+            [name[-20:], v["couch angle"], f"{v['yaw error']:.2f}"]
+            for name, v in couch_results.items()
+        ]
+        result += tabulate(
+            couch_data, headers=["Image", "Couch Angle", "Yaw Error (\N{DEGREE SIGN})"]
+        ).split("\n")
         if not as_list:
             result = "\n".join(result)
         return result
