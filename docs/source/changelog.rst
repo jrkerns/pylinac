@@ -71,7 +71,7 @@ Winston Lutz
   This makes it possible to see the BB and field isocenters in relation to the EPID isocenter as well.
 * Couch-kick images are now supported for multi-target analyses. They are included in the BB shift vector calculations as well.
 * Couch-kick images are also analyzed for the 2D yaw error on each image. These are included in the ``results()`` call.
-* The multi-target/multi-field demo dataset was changed to purposefully introduct error for a more realistic demonstration.
+* The multi-target/multi-field demo dataset was changed to purposefully introduce error for a more realistic demonstration.
 
 Image Generator
 ^^^^^^^^^^^^^^^
