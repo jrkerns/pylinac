@@ -8,6 +8,7 @@ from unittest import TestCase
 import matplotlib.pyplot as plt
 
 from pylinac import WinstonLutzMultiTargetMultiField
+from pylinac.core.geometry import Vector, cos, sin
 from pylinac.core.image_generator import (
     AS1200Image,
     GaussianFilterLayer,
@@ -93,6 +94,11 @@ class WinstonLutzMultiTargetMultFieldMixin(CloudFileMixin):
     mean_2d_distance: float
     median_2d_distance: float
     bb_maxes: dict[str, float] = {}
+    bb_shift_order: str = "roll,pitch,yaw"
+    bb_shift_vector = Vector()
+    bb_roll: float = 0
+    bb_pitch: float = 0
+    bb_yaw: float = 0
 
     @classmethod
     def setUpClass(cls):
@@ -130,6 +136,24 @@ class WinstonLutzMultiTargetMultFieldMixin(CloudFileMixin):
         for key, value in self.bb_maxes.items():
             self.assertAlmostEqual(results.bb_maxes[key], value, delta=0.05)
 
+    def test_bb_cartesian_shift_vector(self):
+        translation, y, p, r = self.wl.bb_shift_vector(axes_order=self.bb_shift_order)
+        self.assertAlmostEqual(translation.x, self.bb_shift_vector.x, delta=0.05)
+        self.assertAlmostEqual(translation.y, self.bb_shift_vector.y, delta=0.05)
+        self.assertAlmostEqual(translation.z, self.bb_shift_vector.z, delta=0.05)
+
+    def test_roll(self):
+        _, _, _, roll = self.wl.bb_shift_vector(axes_order=self.bb_shift_order)
+        self.assertAlmostEqual(roll, self.bb_roll, delta=0.1)
+
+    def test_yaw(self):
+        _, yaw, _, _ = self.wl.bb_shift_vector(axes_order=self.bb_shift_order)
+        self.assertAlmostEqual(yaw, self.bb_yaw, delta=0.1)
+
+    def test_pitch(self):
+        _, _, pitch, _ = self.wl.bb_shift_vector(axes_order=self.bb_shift_order)
+        self.assertAlmostEqual(pitch, self.bb_pitch, delta=0.1)
+
 
 class SNCMultiMet(WinstonLutzMultiTargetMultFieldMixin, TestCase):
     dir_path = ["Winston-Lutz", "multi_target_multi_field"]
@@ -140,6 +164,9 @@ class SNCMultiMet(WinstonLutzMultiTargetMultFieldMixin, TestCase):
     median_2d_distance = 0.25
     mean_2d_distance = 0.27
     bb_maxes = {"Iso": 0.58, "1": 0.68}
+    bb_shift_vector = Vector(0.2, 0.0, 0.05)
+    bb_pitch = 0.1
+    bb_yaw = 0.1
 
 
 class SyntheticMultiMetMixin(WinstonLutzMultiTargetMultFieldMixin):
@@ -229,10 +256,11 @@ class Synthetic1BBOffsetIn(SyntheticMultiMetMixin, TestCase):
     bb_size = 5
     field_size = (20, 20)
     field_offsets = [(0, 0, 0)]
-    bb_offsets = [(0, 0, 1)]  # 1mm offset
+    bb_offsets = [(0, 0, 1)]  # 1mm in
     max_2d_distance = 1
     median_2d_distance = 1
     mean_2d_distance = 1
+    bb_shift_vector = Vector(0, -1, 0)  # vector is opposite of offset
 
 
 class Synthetic1BBOffsetLeft(SyntheticMultiMetMixin, TestCase):
@@ -253,6 +281,7 @@ class Synthetic1BBOffsetLeft(SyntheticMultiMetMixin, TestCase):
     max_2d_distance = 1
     median_2d_distance = 1
     mean_2d_distance = 0.75
+    bb_shift_vector = Vector(1, 0, 0)
 
 
 class Synthetic1BBOffsetUp(SyntheticMultiMetMixin, TestCase):
@@ -273,9 +302,10 @@ class Synthetic1BBOffsetUp(SyntheticMultiMetMixin, TestCase):
     max_2d_distance = 1
     median_2d_distance = 0.0
     mean_2d_distance = 0.25
+    bb_shift_vector = Vector(0, 0, -1)
 
 
-class Synthetic2BBPerfect(SyntheticMultiMetMixin, TestCase):
+class Synthetic3BBPerfect(SyntheticMultiMetMixin, TestCase):
     arrangement = (
         BBConfig(
             name="Iso",
@@ -286,24 +316,32 @@ class Synthetic2BBPerfect(SyntheticMultiMetMixin, TestCase):
             rad_size_mm=20,
         ),
         BBConfig(
-            name="1",
+            name="Out",
             offset_left_mm=0,
             offset_up_mm=0,
             offset_in_mm=-30,
             bb_size_mm=5,
             rad_size_mm=20,
         ),
+        BBConfig(
+            name="Up/In",
+            offset_left_mm=0,
+            offset_up_mm=40,
+            offset_in_mm=30,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
     )
     bb_size = 5
     field_size = (20, 20)
-    field_offsets = [(0, 0, 0), (0, 0, -30)]
-    bb_offsets = [(0, 0, 0), (0, 0, -30)]
+    field_offsets = [(0, 0, 0), (0, 0, -30), (0, 40, 30)]
+    bb_offsets = [(0, 0, 0), (0, 0, -30), (0, 40, 30)]
     max_2d_distance = 0
     median_2d_distance = 0
     mean_2d_distance = 0
 
 
-class Synthetic2BB1OffLeft(SyntheticMultiMetMixin, TestCase):
+class Synthetic2BBYaw(SyntheticMultiMetMixin, TestCase):
     arrangement = (
         BBConfig(
             name="Iso",
@@ -321,14 +359,60 @@ class Synthetic2BB1OffLeft(SyntheticMultiMetMixin, TestCase):
             bb_size_mm=5,
             rad_size_mm=20,
         ),
+        BBConfig(
+            name="Up",
+            offset_left_mm=0,
+            offset_up_mm=40,
+            offset_in_mm=0,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
     )
     bb_size = 5
     field_size = (20, 20)
-    field_offsets = [(0, 0, 0), (0, 0, -30)]
-    bb_offsets = [(0, 0, 0), (1, 0, -30)]
+    field_offsets = [(0, 0, 0), (0, 0, -30), (0, 40, 0)]  # left, up in
+    bb_offsets = [(0, 0, 0), (1, 0, -30), (0, 40, 0)]
     max_2d_distance = 1
     median_2d_distance = 0
-    mean_2d_distance = 0.37
+    mean_2d_distance = 0.25
+    bb_yaw = 1.9  # one bb is off in the x, creating a yaw rotation
+
+
+class Synthetic2BBRoll(SyntheticMultiMetMixin, TestCase):
+    arrangement = (
+        BBConfig(
+            name="Iso",
+            offset_left_mm=0,
+            offset_up_mm=0,
+            offset_in_mm=0,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="Up",
+            offset_left_mm=0,
+            offset_up_mm=30,
+            offset_in_mm=-30,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="In",
+            offset_left_mm=0,
+            offset_up_mm=0,
+            offset_in_mm=40,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+    )
+    bb_size = 5
+    field_size = (20, 20)
+    field_offsets = [(0, 0, 0), (0, 0, 40), (0, 30, -30)]  # left, up in
+    bb_offsets = [(0, 0, 0), (0, 0, 40), (30 * sin(5), 30 * cos(5), -30)]
+    max_2d_distance = 2.85
+    median_2d_distance = 0
+    mean_2d_distance = 0.7
+    bb_roll = 5.2
 
 
 # class WinstonLutzMultiTargetSingleFieldMixin(WinstonLutzMultiTargetMultFieldMixin):

@@ -2210,9 +2210,46 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             plt.show()
         return fig, ax
 
-    @property
-    def bb_shift_vector(self) -> Vector:
-        raise NotImplementedError("Not yet implemented")
+    def bb_shift_vector(
+        self, axes_order: str = "roll,pitch,yaw"
+    ) -> (Vector, float, float, float):
+        """Calculate the ideal shift in 6 degrees of freedom to place the BB at the isocenter.
+
+        Parameters
+        ----------
+        axes_order : str
+            The order of the axes to calculate the shift in. The order is the order of the rotations.
+            The default is 'roll,pitch,yaw'. The rule of thumb is to rotate about axes
+            with the smallest expected shift first. E.g. for a 4D couch the default value works well
+            because the roll and pitch should be small.
+
+            .. warning::
+
+                This order matters more than you think it would. Results for the yaw, pitch, and roll can
+                vary by a significant or unrealistic amount depending on the order and/or could result
+                in gimbal lock
+
+        Returns
+        -------
+        Vector
+            The ideal shift vector in mm for the cartesian coordinates. X,Y, and Z follow the pylinac coordinate convention.
+        float
+            Yaw; The ideal rotation about the Z-axis in degrees.
+        float
+            Pitch; The ideal rotation about the X-axis in degrees.
+        float
+            Roll; The ideal rotation about the Y-axis in degrees.
+
+        See Also
+        --------
+        Euler Angles: https://en.wikipedia.org/wiki/Euler_angles
+        Gimbal Lock: https://en.wikipedia.org/wiki/Gimbal_lock
+        """
+        return align_points(
+            measured_points=[bb.measured_bb_position for bb in self.bbs],
+            ideal_points=[bb.measured_field_position for bb in self.bbs],
+            axes_order=axes_order,
+        )
 
     @property
     def gantry_coll_iso_size(self) -> float:
@@ -2642,3 +2679,77 @@ def solve_3d_position_from_2d_planes(
     The good news is that the position in space is the inverse of the shift vector!
     """
     return -solve_3d_shift_vector_from_2d_planes(xs, ys, thetas, phis, scale)
+
+
+def conventional_to_euler_notation(axes_resolution: str) -> str:
+    """Convert conventional understandings of 6DOF rotations into Euler notation.
+
+    Ensures we don't mix up x, y, z with the pylinac coordinate system.
+    """
+    EULER = {
+        # FROM THE COUCH PERSPECTIVE
+        "pitch": "x",  # positive pitch goes up
+        "yaw": "z",
+        "roll": "y",  # positive angle rolls to the right
+    }
+    axes = axes_resolution.split(",")
+    euler = "".join([EULER[a.strip()] for a in axes])
+    return euler
+
+
+def align_points(
+    measured_points: Sequence[Point],
+    ideal_points: Sequence[Point],
+    axes_order: str = "roll,pitch,yaw",
+) -> (Vector, float, float, float):
+    """
+    Aligns a set of measured points to a set of ideal points in 3D space, returning the
+    translation and yaw rotation needed.
+
+    Parameters
+    ----------
+    measured_points : np.ndarray
+        The measured points as an Nx3 numpy array.
+    ideal_points : np.ndarray
+        The ideal points as an Nx3 numpy array.
+    axes_order : str
+        The order in which to resolve the axes.
+        Resolution is **not** independent of the axes order. I.e. doing 'yaw,pitch,roll' may result
+        in a different outcome.
+
+    Returns
+    -------
+    Vector, float, float, float
+        The vector is the cartesian translation (dx, dy, dz) and yaw, pitch, and roll angle in degrees required to align the measured points
+        to the ideal points.
+    """
+    # convert from Point to stacked array (x, y, z) x N
+    measured_array = [[p.x, p.y, p.z] for p in measured_points]
+    ideal_array = [[p.x, p.y, p.z] for p in ideal_points]
+    # Ensure the points are centered at their centroids
+    measured_centroid = np.mean(measured_array, axis=0)
+    ideal_centroid = np.mean(ideal_array, axis=0)
+    measured_centered = measured_array - measured_centroid
+    ideal_centered = ideal_array - ideal_centroid
+
+    # Compute the covariance matrix
+    H = measured_centered.T @ ideal_centered
+
+    # Singular Value Decomposition
+    U, _, Vt = np.linalg.svd(H)
+    rotation_matrix = Vt.T @ U.T
+
+    # Ensure a right-handed coordinate system
+    if np.linalg.det(rotation_matrix) < 0:
+        Vt[2, :] *= -1
+        rotation_matrix = Vt.T @ U.T
+
+    # Compute the euler angles
+    rotation = Rotation.from_matrix(rotation_matrix)
+    euler = conventional_to_euler_notation(axes_order)
+    roll, pitch, yaw = rotation.as_euler(euler, degrees=True)
+
+    rotated_measured_centroid = rotation.apply(measured_centroid)
+    translation = ideal_centroid - rotated_measured_centroid
+
+    return Vector(*translation), yaw, pitch, roll
