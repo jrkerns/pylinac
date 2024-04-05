@@ -48,7 +48,7 @@ from .core.io import get_url, retrieve_demo_file
 from .core.mtf import MTF
 from .core.profile import CollapsedCircleProfile, FWXMProfilePhysical
 from .core.roi import DiskROI, HighContrastDiskROI, LowContrastDiskROI, bbox_center
-from .core.utilities import ResultBase
+from .core.utilities import QuaacDatum, QuaacMixin, ResultBase
 from .metrics.image import SizedDiskLocator
 
 
@@ -108,7 +108,7 @@ def percent_integral_uniformity(max: float, min: float) -> float:
     return 100 * (1 - (max - min + 1e-6) / (max + min + 1e-6))
 
 
-class ImagePhantomBase:
+class ImagePhantomBase(QuaacMixin):
     """Base class for planar phantom classes.
 
     Attributes
@@ -157,7 +157,7 @@ class ImagePhantomBase:
     detection_canny_settings = {"sigma": 2, "percentiles": (0.001, 0.01)}
     phantom_bbox_size_mm2: float
     roi_match_condition: Literal["max", "closest"] = "max"
-    mtf: MTF
+    mtf: MTF | None
     _ssd: float
 
     def __init__(
@@ -333,6 +333,7 @@ class ImagePhantomBase:
         self._low_contrast_threshold = low_contrast_threshold
         self._low_contrast_method = low_contrast_method
         self.visibility_threshold = visibility_threshold
+        self.mtf = None
         self._ssd = ssd
         self._find_ssd()
         self._check_inversion()
@@ -689,8 +690,10 @@ class ImagePhantomBase:
             median_cnr=np.median(
                 [roi.contrast_to_noise for roi in self.low_contrast_rois]
             ),
-            num_contrast_rois_seen=sum(
-                roi.passed_visibility for roi in self.low_contrast_rois
+            num_contrast_rois_seen=int(
+                sum(  # a numpy sum is np.int32, which pydantic doesn't like
+                    roi.passed_visibility for roi in self.low_contrast_rois
+                )
             ),
             phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
             low_contrast_rois=[roi.as_dict() for roi in self.low_contrast_rois],
@@ -705,6 +708,36 @@ class ImagePhantomBase:
         if as_dict:
             return dataclasses.asdict(data)
         return data
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        data = self.results_data()
+        return {
+            "Median Contrast": QuaacDatum(
+                value=data.median_contrast,
+                unit="",
+                description="Median contrast of the low contrast ROIs",
+            ),
+            "Median CNR": QuaacDatum(
+                value=data.median_cnr,
+                unit="",
+                description="Median contrast-to-noise ratio of the low contrast ROIs",
+            ),
+            "Num Contrast ROIs Seen": QuaacDatum(
+                value=data.num_contrast_rois_seen,
+                unit="",
+                description="Number of low contrast ROIs 'seen'",
+            ),
+            "Percent Integral Uniformity": QuaacDatum(
+                value=data.percent_integral_uniformity,
+                unit="%",
+                description="Percent integral uniformity of the low contrast ROIs",
+            ),
+            "Phantom area": QuaacDatum(
+                value=data.phantom_area,
+                unit="pixels",
+                description="Area of the phantom in pixels^2",
+            ),
+        }
 
     def publish_pdf(
         self,
@@ -944,6 +977,41 @@ class StandardImagingFC2(ImagePhantomBase):
         if as_dict:
             return dataclasses.asdict(data)
         return data
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        data = self.results_data()
+        return {
+            "Field size (X)": QuaacDatum(
+                value=data.field_size_x_mm,
+                unit="mm",
+                description="Detected crossplane field size",
+            ),
+            "Field size (Y)": QuaacDatum(
+                value=data.field_size_y_mm,
+                unit="mm",
+                description="Detected inplane field size",
+            ),
+            "Field EPID offset (X)": QuaacDatum(
+                value=data.field_epid_offset_x_mm,
+                unit="mm",
+                description="Detected crossplane field offset from the EPID center",
+            ),
+            "Field EPID offset (Y)": QuaacDatum(
+                value=data.field_epid_offset_y_mm,
+                unit="mm",
+                description="Detected inplane field offset from the EPID center",
+            ),
+            "Field BB offset (X)": QuaacDatum(
+                value=data.field_bb_offset_x_mm,
+                unit="mm",
+                description="Detected crossplane field offset from the BB center",
+            ),
+            "Field BB offset (Y)": QuaacDatum(
+                value=data.field_bb_offset_y_mm,
+                unit="mm",
+                description="Detected inplane field offset from the BB center",
+            ),
+        }
 
     def _check_inversion(self):
         """Perform a normal corner-check inversion. Since these are always 10x10 or 15x15 fields it seems unlikely the corners will be exposed."""
@@ -1438,8 +1506,8 @@ class LasVegas(ImagePhantomBase):
             median_cnr=np.median(
                 [roi.contrast_to_noise for roi in self.low_contrast_rois]
             ),
-            num_contrast_rois_seen=sum(
-                roi.passed_visibility for roi in self.low_contrast_rois
+            num_contrast_rois_seen=int(
+                sum(roi.passed_visibility for roi in self.low_contrast_rois)
             ),
             phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
             low_contrast_rois=[r.as_dict() for r in self.low_contrast_rois],

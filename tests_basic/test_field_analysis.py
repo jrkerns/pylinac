@@ -24,6 +24,7 @@ from pylinac.field_analysis import (
     plot_symmetry_point_difference,
     symmetry_point_difference,
 )
+from tests_basic.core.test_utilities import QuaacTestBase
 from tests_basic.utils import (
     CloudFileMixin,
     get_file_from_cloud_test_repo,
@@ -40,10 +41,13 @@ def create_instance(model=FieldAnalysis):
     return fs
 
 
-class FieldAnalysisTests(TestCase):
+class FieldAnalysisTests(QuaacTestBase, TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         plt.close("all")
+
+    def quaac_instance(self):
+        return create_instance()
 
     def test_load_from_file_object(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "6x-auto-bulb-2.dcm"])

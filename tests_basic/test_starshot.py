@@ -10,6 +10,7 @@ import numpy as np
 from pylinac import Starshot
 from pylinac.core.geometry import Point
 from pylinac.starshot import StarshotResults
+from tests_basic.core.test_utilities import QuaacTestBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromURLTesterMixin,
@@ -20,6 +21,13 @@ from tests_basic.utils import (
 
 plt.close("all")
 TEST_DIR = "Starshot"
+
+
+class TestStarshotQuaac(QuaacTestBase, TestCase):
+    def quaac_instance(self):
+        s = Starshot.from_demo_image()
+        s.analyze()
+        return s
 
 
 class TestStarshotLoading(TestCase, FromURLTesterMixin):

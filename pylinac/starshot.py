@@ -37,7 +37,7 @@ from .core import image, pdf
 from .core.geometry import Circle, Line, Point
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.profile import CollapsedCircleProfile, FWXMProfile
-from .core.utilities import ResultBase
+from .core.utilities import QuaacDatum, QuaacMixin, ResultBase
 from .settings import get_dicom_cmap
 
 
@@ -56,7 +56,7 @@ class StarshotResults(ResultBase):
     circle_center_x_y: tuple[float, float]  #:
 
 
-class Starshot:
+class Starshot(QuaacMixin):
     """Class that can determine the wobble in a "starshot" image, be it gantry, collimator,
     couch or MLC. The image can be a scanned film (TIF, JPG, etc) or a sequence of EPID DICOM images.
 
@@ -406,6 +406,17 @@ class Starshot:
         if as_dict:
             return dataclasses.asdict(data)
         return data
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        """Return the data points to be saved to the QuAAC file."""
+        results_data = self.results_data()
+        return {
+            "Circle diameter": QuaacDatum(
+                value=results_data.circle_diameter_mm,
+                unit="mm",
+                description="The diameter of the fitted circle representing isocenter.",
+            ),
+        }
 
     def plot_analyzed_image(self, show: bool = True, **plt_kwargs: dict):
         """Draw the star lines, profile circle, and wobble circle on a matplotlib figure.

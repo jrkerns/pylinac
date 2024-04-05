@@ -24,16 +24,21 @@ from pylinac.nuclear import (
     determine_binning,
     integral_uniformity,
 )
+from tests_basic.core.test_utilities import QuaacTestBase
 from tests_basic.utils import get_file_from_cloud_test_repo
 
 TEST_DIR = Path("nuclear")
 
 
-class TestMaxCountRate(TestCase):
+class TestMaxCountRate(QuaacTestBase, TestCase):
     def setUp(self) -> None:
         plt.close("all")
         p = get_file_from_cloud_test_repo([TEST_DIR, "MaxCountRate.dcm"])
         self.m = MaxCountRate(p)
+
+    def quaac_instance(self):
+        self.m.analyze()
+        return self.m
 
     def test_max_count_rate(self):
         self.m.analyze()
@@ -76,10 +81,14 @@ class TestPlanarUniformityUtils(TestCase):
         self.assertAlmostEqual(u, 10 / 30 * 100)
 
 
-class TestPlanarUniformity(TestCase):
+class TestPlanarUniformity(QuaacTestBase, TestCase):
     def setUp(self) -> None:
         p = get_file_from_cloud_test_repo([TEST_DIR, "PlanarUniformity.dcm"])
         self.m = PlanarUniformity(p)
+
+    def quaac_instance(self):
+        self.m.analyze()
+        return self.m
 
     def test_results(self):
         self.m.analyze()
@@ -158,13 +167,16 @@ class TestTwoFramePlanarUniformity(TestCase):
         self.assertEqual(self.m.frame_results["2"]["binned_frame"].shape, (128, 128))
 
 
-class TestCenterOfRotation102(TestCase):
+class TestCenterOfRotation102(QuaacTestBase, TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         plt.close("all")
         p = get_file_from_cloud_test_repo([TEST_DIR, "COR_102.dcm"])
         cls.m = CenterOfRotation(p)
         cls.m.analyze()
+
+    def quaac_instance(self):
+        return self.m
 
     def test_x_cor_deviation(self):
         self.assertAlmostEqual(self.m.x_cor_deviation_mm, 0.138, delta=0.01)
@@ -200,12 +212,15 @@ class TestCenterOfRotation180(TestCase):
         self.assertAlmostEqual(self.m.y_cor_deviation_mm, 0.207, delta=0.01)
 
 
-class TestTomographicResolution(TestCase):
+class TestTomographicResolution(QuaacTestBase, TestCase):
     def setUp(self) -> None:
         plt.close("all")
         p = get_file_from_cloud_test_repo([TEST_DIR, "TomoResolution.dcm"])
         self.m = TomographicResolution(p)
         self.m.analyze()
+
+    def quaac_instance(self):
+        return self.m
 
     def test_x_fwhm(self):
         self.assertAlmostEqual(self.m.x_axis.fwhm, 22.31, delta=0.01)
@@ -226,12 +241,15 @@ class TestTomographicResolution(TestCase):
         self.assertAlmostEqual(self.m.z_axis.fwtm, 40.96, delta=0.01)
 
 
-class TestSimpleSensitivityNoBackground(TestCase):
+class TestSimpleSensitivityNoBackground(QuaacTestBase, TestCase):
     def setUp(self) -> None:
         plt.close("all")
         p = get_file_from_cloud_test_repo([TEST_DIR, "Sensitivity_Phantom.dcm"])
         self.m = SimpleSensitivity(p)
         self.m.analyze(activity_mbq=10, nuclide=Nuclide.Tc99m)
+
+    def quaac_instance(self):
+        return self.m
 
     def test_duration(self):
         self.assertAlmostEqual(self.m.duration_s, 300, delta=1)
@@ -277,13 +295,15 @@ class TestSimpleSensitivityWithBackground(TestCase):
         self.assertAlmostEqual(self.m.sensitivity_uci, 541.484, delta=0.5)
 
 
-class TestFourBar(TestCase):
+class TestFourBar(QuaacTestBase, TestCase):
     def setUp(self) -> None:
         p = get_file_from_cloud_test_repo([TEST_DIR, "FourBar.dcm"])
         self.m = FourBarResolution(p)
         self.m.analyze(separation_mm=100, roi_width_mm=10)
 
     # all reference values from NMQC
+    def quaac_instance(self):
+        return self.m
 
     def test_x_fwhm(self):
         self.assertAlmostEqual(self.m.x_axis.fwhm, 7.567, delta=0.1)
@@ -304,11 +324,14 @@ class TestFourBar(TestCase):
         self.assertAlmostEqual(self.m.y_axis.pixel_size_difference, 0.6899, delta=0.03)
 
 
-class TestQuadrantResolution(TestCase):
+class TestQuadrantResolution(QuaacTestBase, TestCase):
     def setUp(self) -> None:
         p = get_file_from_cloud_test_repo([TEST_DIR, "QuadrantBar.dcm"])
         self.m = QuadrantResolution(p)
         self.m.analyze(bar_widths=(4.23, 3.18, 2.54, 2.12))
+
+    def quaac_instance(self):
+        return self.m
 
     def test_wrong_bar_lengths(self):
         with self.assertRaises(ValueError):
@@ -339,11 +362,15 @@ class TestQuadrantResolution(TestCase):
         self.m.plot(show=False)
 
 
-class TestTomographicUniformity(TestCase):
+class TestTomographicUniformity(QuaacTestBase, TestCase):
     @classmethod
     def setUp(cls) -> None:
         p = get_file_from_cloud_test_repo([TEST_DIR, "Jaszczak.dcm"])
         cls.m = TomographicUniformity(p)
+
+    def quaac_instance(self):
+        self.m.analyze()
+        return self.m
 
     def test_results(self):
         self.m.analyze()
@@ -397,12 +424,15 @@ class TestTomographicUniformity(TestCase):
         self.assertAlmostEqual(r.cfov_differential_uniformity, 9.605, delta=0.2)
 
 
-class TestTomographicContrast(TestCase):
+class TestTomographicContrast(QuaacTestBase, TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         p = get_file_from_cloud_test_repo([TEST_DIR, "Jaszczak.dcm"])
         cls.m = TomographicContrast(p)
         cls.m.analyze()
+
+    def quaac_instance(self):
+        return self.m
 
     def test_results(self):
         results = self.m.results()

@@ -11,13 +11,13 @@ from pylinac import CatPhan503, CatPhan504, CatPhan600, CatPhan604
 from pylinac.core.geometry import Point
 from pylinac.core.io import TemporaryZipDirectory
 from pylinac.ct import CTP404CP503, CTP404CP504, CTP528CP503, CTP528CP504, CatphanResult
+from tests_basic.core.test_utilities import QuaacTestBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
     FromZipTesterMixin,
     InitTesterMixin,
-    QuaacTestBase,
     get_file_from_cloud_test_repo,
     save_file,
 )
@@ -176,28 +176,28 @@ class TestGeneral(TestCase):
 
 
 class Test504Quaac(QuaacTestBase, TestCase):
-    def create_instance(self):
+    def quaac_instance(self):
         ct = CatPhan504.from_demo_images()
         ct.analyze()
         return ct
 
 
 class Test600Quaac(QuaacTestBase, TestCase):
-    def create_instance(self):
+    def quaac_instance(self):
         ct = CatPhan600.from_demo_images()
         ct.analyze()
         return ct
 
 
 class Test604Quaac(QuaacTestBase, TestCase):
-    def create_instance(self):
+    def quaac_instance(self):
         ct = CatPhan604.from_demo_images()
         ct.analyze()
         return ct
 
 
 class Test503Quaac(QuaacTestBase, TestCase):
-    def create_instance(self):
+    def quaac_instance(self):
         ct = CatPhan503.from_demo_images()
         ct.analyze()
         return ct

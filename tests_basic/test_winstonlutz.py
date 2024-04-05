@@ -23,11 +23,11 @@ from pylinac.winston_lutz import (
     bb_projection_gantry_plane,
     bb_projection_long,
 )
+from tests_basic.core.test_utilities import QuaacTestBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
-    QuaacTestBase,
     get_file_from_cloud_test_repo,
     get_folder_from_cloud_test_repo,
     save_file,
@@ -591,7 +591,7 @@ class TestPublishPDF(TestCase):
 
 
 class TestQuaac(QuaacTestBase, TestCase):
-    def create_instance(self):
+    def quaac_instance(self):
         wl = WinstonLutz.from_demo_images()
         wl.analyze()
         return wl

@@ -9,10 +9,10 @@ from matplotlib import pyplot as plt
 from pylinac import DRGS, DRMLC
 from pylinac.core.geometry import Point
 from pylinac.vmat import VMATResult
+from tests_basic.core.test_utilities import QuaacTestBase
 from tests_basic.utils import (
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
-    QuaacTestBase,
     get_file_from_cloud_test_repo,
     save_file,
 )
@@ -118,14 +118,14 @@ class TestDRMLCLoading(LoadingBase, TestCase):
 
 
 class TestDRGSQuaac(QuaacTestBase, TestCase):
-    def create_instance(self):
+    def quaac_instance(self):
         t = DRGS.from_demo_images()
         t.analyze()
         return t
 
 
 class TestDRMLCQuaac(QuaacTestBase, TestCase):
-    def create_instance(self):
+    def quaac_instance(self):
         t = DRMLC.from_demo_images()
         t.analyze()
         return t

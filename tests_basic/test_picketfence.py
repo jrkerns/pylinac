@@ -19,12 +19,12 @@ from pylinac.core.image_generator import (
 from pylinac.core.io import TemporaryZipDirectory
 from pylinac.picketfence import MLC, MLCArrangement, Orientation, PFResult, PicketFence
 from tests_basic.core.test_profile_metrics import create_bb_image
+from tests_basic.core.test_utilities import QuaacTestBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
     InitTesterMixin,
-    QuaacTestBase,
     get_file_from_cloud_test_repo,
     save_file,
 )
@@ -413,7 +413,7 @@ class TestPlottingSaving(TestCase):
 
 
 class TestQuaac(QuaacTestBase, TestCase):
-    def create_instance(self):
+    def quaac_instance(self):
         pf = PicketFence.from_demo_image()
         pf.analyze()
         return pf

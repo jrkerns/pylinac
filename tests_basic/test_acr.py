@@ -10,11 +10,11 @@ from pylinac import ACRMRILarge
 from pylinac.acr import ACRCT, ACRCTResult, ACRMRIResult
 from pylinac.core.geometry import Point
 from pylinac.core.io import TemporaryZipDirectory
+from tests_basic.core.test_utilities import QuaacTestBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromZipTesterMixin,
     InitTesterMixin,
-    QuaacTestBase,
     get_file_from_cloud_test_repo,
     save_file,
 )
@@ -112,7 +112,7 @@ class TestACRCTQuaac(QuaacTestBase, CloudFileMixin, TestCase):
     dir_path = ["ACR", "CT"]
     file_name = "Philips.zip"
 
-    def create_instance(self):
+    def quaac_instance(self):
         filename = self.get_filename()
         ct = ACRCT.from_zip(filename)
         ct.analyze()
@@ -324,7 +324,7 @@ class TestACRMRIQuaac(QuaacTestBase, CloudFileMixin, TestCase):
     dir_path = ["ACR", "MRI"]
     file_name = "T1-Single.zip"
 
-    def create_instance(self):
+    def quaac_instance(self):
         filename = self.get_filename()
         ct = ACRMRILarge.from_zip(filename)
         ct.analyze()
