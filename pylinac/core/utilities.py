@@ -4,7 +4,6 @@ from __future__ import annotations
 import os
 import os.path as osp
 import struct
-import tempfile
 from abc import abstractmethod
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -218,10 +217,9 @@ class QuaacMixin:
         primary_equipment: Equipment,
         format: Literal["json", "yaml"] = "yaml",
         attachments: list[Attachment] | None = None,
-        pdf_kwargs: dict | None = None,
         overwrite: bool = False,
         **kwargs,
-    ):
+    ) -> None:
         """Write an analysis to a QuAAC file. This will include the items
         from results_data() and the PDF report.
 
@@ -237,8 +235,6 @@ class QuaacMixin:
             The format to write the file in.
         attachments : list of Attachment
             Additional attachments to include in the QuAAC file.
-        pdf_kwargs : dict, optional
-            Keyword arguments to pass to the PDF instantiation method.
         overwrite : bool
             Whether to overwrite the file if it already exists.
         kwargs
@@ -249,17 +245,6 @@ class QuaacMixin:
             raise FileExistsError(
                 f"{path} already exists. Pass 'overwrite=True' to overwrite."
             )
-        # generate PDF
-        with tempfile.NamedTemporaryFile(delete=False) as pdf:
-            pdf_kwargs = pdf_kwargs or {}
-            self.publish_pdf(pdf.name, open_file=False, **pdf_kwargs)
-        pdf_attachment = Attachment.from_file(
-            pdf.name,
-            name="Winston-Lutz Report",
-            comment="The PDF report of the Winston-Lutz analysis.",
-            type="pdf",
-        )
-        attachments += [pdf_attachment]
         datapoints = []
         data_values = self._quaac_datapoints()
         for name, datum in data_values.items():
