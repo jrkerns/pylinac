@@ -16,6 +16,8 @@ import os
 import sys
 import warnings
 
+import matplotlib.pyplot as plt
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -24,6 +26,9 @@ sys.path.insert(0, os.path.abspath("../.."))
 # sys.path.append(os.path.abspath('sphinxext'))
 
 # suppress pydicom VR length warnings; just creates noise
+
+
+plt.set_cmap("gray")
 
 warnings.filterwarnings("ignore", category=UserWarning, module="pydicom")
 

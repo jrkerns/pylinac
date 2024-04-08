@@ -28,15 +28,15 @@ The basics to get started are to import the image simulators and layers from pyl
 
     from matplotlib import pyplot as plt
 
-    from pylinac.core.image_generator import AS1000Image
+    from pylinac.core.image_generator import AS1200Image
     from pylinac.core.image_generator.layers import FilteredFieldLayer, GaussianFilterLayer
 
-    as1000 = AS1000Image()  # this will set the pixel size and shape automatically
-    as1000.add_layer(FilteredFieldLayer(field_size_mm=(50, 50)))  # create a 50x50mm square field
-    as1000.add_layer(GaussianFilterLayer(sigma_mm=2))  # add an image-wide gaussian to simulate penumbra/scatter
-    as1000.generate_dicom(file_out_name="my_AS1000.dcm", gantry_angle=45)  # create a DICOM file with the simulated image
+    as1200 = AS1200Image()  # this will set the pixel size and shape automatically
+    as1200.add_layer(FilteredFieldLayer(field_size_mm=(50, 50)))  # create a 50x50mm square field
+    as1200.add_layer(GaussianFilterLayer(sigma_mm=2))  # add an image-wide gaussian to simulate penumbra/scatter
+    as1200.generate_dicom(file_out_name="my_AS1200.dcm", gantry_angle=45)  # create a DICOM file with the simulated image
     # plot the generated image
-    plt.imshow(as1000.image)
+    plt.imshow(as1200.image)
 
 Layers & Simulators
 -------------------
@@ -81,10 +81,10 @@ To implement a custom layer, inherit from ``Layer`` and implement the ``apply`` 
 
 
     # use
-    from pylinac.core.image_generator import AS1000Image
+    from pylinac.core.image_generator import AS1200Image
 
-    as1000 = AS1000Image()
-    as1000.add_layer(MyAwesomeLayer())
+    as1200 = AS1200Image()
+    as1200.add_layer(MyAwesomeLayer())
     ...
 
 Examples
@@ -98,14 +98,14 @@ Simple Open Field
 .. plot::
 
     from matplotlib import pyplot as plt
-    from pylinac.core.image_generator import AS1000Image
+    from pylinac.core.image_generator import AS1200Image
     from pylinac.core.image_generator.layers import FilteredFieldLayer, GaussianFilterLayer
 
-    as1000 = AS1000Image()  # this will set the pixel size and shape automatically
-    as1000.add_layer(FilteredFieldLayer(field_size_mm=(150, 150)))  # create a 50x50mm square field
-    as1000.add_layer(GaussianFilterLayer(sigma_mm=2))  # add an image-wide gaussian to simulate penumbra/scatter
+    as1200 = AS1200Image()  # this will set the pixel size and shape automatically
+    as1200.add_layer(FilteredFieldLayer(field_size_mm=(150, 150)))  # create a 50x50mm square field
+    as1200.add_layer(GaussianFilterLayer(sigma_mm=2))  # add an image-wide gaussian to simulate penumbra/scatter
     # plot the generated image
-    plt.imshow(as1000.image)
+    plt.imshow(as1200.image)
 
 Off-center Open Field
 ^^^^^^^^^^^^^^^^^^^^^
@@ -113,14 +113,14 @@ Off-center Open Field
 .. plot::
 
     from matplotlib import pyplot as plt
-    from pylinac.core.image_generator import AS1000Image
+    from pylinac.core.image_generator import AS1200Image
     from pylinac.core.image_generator.layers import FilteredFieldLayer, GaussianFilterLayer
 
-    as1000 = AS1000Image()  # this will set the pixel size and shape automatically
-    as1000.add_layer(FilteredFieldLayer(field_size_mm=(30, 30), cax_offset_mm=(20, 40)))
-    as1000.add_layer(GaussianFilterLayer(sigma_mm=3))
+    as1200 = AS1200Image()  # this will set the pixel size and shape automatically
+    as1200.add_layer(FilteredFieldLayer(field_size_mm=(30, 30), cax_offset_mm=(20, 40)))
+    as1200.add_layer(GaussianFilterLayer(sigma_mm=3))
     # plot the generated image
-    plt.imshow(as1000.image)
+    plt.imshow(as1200.image)
 
 Winston-Lutz FFF Cone Field with Noise
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -194,17 +194,9 @@ rotates the image after every layer is applied.
     from pylinac.core.image_generator.layers import FilteredFieldLayer, GaussianFilterLayer
 
     as1200 = AS1200Image()
-    as1200.add_layer(FilteredFieldLayer((250, 7), alpha=0.5))
-    as1200.image = ndimage.rotate(as1200.image, 30, reshape=False, mode='nearest')
-    as1200.add_layer(FilteredFieldLayer((250, 7), alpha=0.5))
-    as1200.image = ndimage.rotate(as1200.image, 30, reshape=False, mode='nearest')
-    as1200.add_layer(FilteredFieldLayer((250, 7), alpha=0.5))
-    as1200.image = ndimage.rotate(as1200.image, 30, reshape=False, mode='nearest')
-    as1200.add_layer(FilteredFieldLayer((250, 7), alpha=0.5))
-    as1200.image = ndimage.rotate(as1200.image, 30, reshape=False, mode='nearest')
-    as1200.add_layer(FilteredFieldLayer((250, 7), alpha=0.5))
-    as1200.image = ndimage.rotate(as1200.image, 30, reshape=False, mode='nearest')
-    as1200.add_layer(FilteredFieldLayer((250, 7), alpha=0.5))
+    for _ in range(6):
+        as1200.add_layer(FilteredFieldLayer((250, 7), alpha=0.5))
+        as1200.image = ndimage.rotate(as1200.image, 30, reshape=False, mode='nearest')
     as1200.add_layer(GaussianFilterLayer())
     plt.imshow(as1200.image)
     plt.show()
@@ -219,7 +211,7 @@ Using the new utility functions of v2.5+ we can construct full dicom files of pi
     from pylinac.core.image_generator import generate_picketfence, generate_winstonlutz
     from pylinac.core import image_generator
 
-    sim = image_generator.simulators.AS1000Image()
+    sim = image_generator.simulators.AS1200Image()
     field_layer = image_generator.layers.FilteredFieldLayer  # could also do FilterFreeLayer
     generate_picketfence(
         simulator=Simulator,
