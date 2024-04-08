@@ -94,11 +94,11 @@ class WinstonLutzMultiTargetMultFieldMixin(CloudFileMixin):
     mean_2d_distance: float
     median_2d_distance: float
     bb_maxes: dict[str, float] = {}
-    bb_shift_order: str = "roll,pitch,yaw"
     bb_shift_vector = Vector()
     bb_roll: float = 0
     bb_pitch: float = 0
     bb_yaw: float = 0
+    bb_max_2d_yaw: float = 0
 
     @classmethod
     def setUpClass(cls):
@@ -137,22 +137,44 @@ class WinstonLutzMultiTargetMultFieldMixin(CloudFileMixin):
             self.assertAlmostEqual(results.bb_maxes[key], value, delta=0.05)
 
     def test_bb_cartesian_shift_vector(self):
-        translation, y, p, r = self.wl.bb_shift_vector(axes_order=self.bb_shift_order)
+        translation, y, p, r = self.wl.bb_shift_vector
         self.assertAlmostEqual(translation.x, self.bb_shift_vector.x, delta=0.05)
         self.assertAlmostEqual(translation.y, self.bb_shift_vector.y, delta=0.05)
         self.assertAlmostEqual(translation.z, self.bb_shift_vector.z, delta=0.05)
 
+    def test_bb_shift_instructions(self):
+        inst = self.wl.bb_shift_instructions()
+        self.assertIsInstance(inst, str)
+        if self.bb_shift_vector.x > 0:
+            self.assertIn("RIGHT", inst)
+        elif self.bb_shift_vector.x < 0:
+            self.assertIn("LEFT", inst)
+        if self.bb_shift_vector.y > 0:
+            self.assertIn("IN", inst)
+        elif self.bb_shift_vector.y < 0:
+            self.assertIn("OUT", inst)
+        if self.bb_shift_vector.z > 0:
+            self.assertIn("UP", inst)
+        elif self.bb_shift_vector.z < 0:
+            self.assertIn("DOWN", inst)
+
     def test_roll(self):
-        _, _, _, roll = self.wl.bb_shift_vector(axes_order=self.bb_shift_order)
+        _, _, _, roll = self.wl.bb_shift_vector
         self.assertAlmostEqual(roll, self.bb_roll, delta=0.1)
 
     def test_yaw(self):
-        _, yaw, _, _ = self.wl.bb_shift_vector(axes_order=self.bb_shift_order)
+        _, yaw, _, _ = self.wl.bb_shift_vector
         self.assertAlmostEqual(yaw, self.bb_yaw, delta=0.1)
 
     def test_pitch(self):
-        _, _, pitch, _ = self.wl.bb_shift_vector(axes_order=self.bb_shift_order)
+        _, _, pitch, _ = self.wl.bb_shift_vector
         self.assertAlmostEqual(pitch, self.bb_pitch, delta=0.1)
+
+    def test_2d_couch_yaw_error(self):
+        d = self.wl._couch_rotation_error()
+        self.assertAlmostEqual(
+            max(v["yaw error"] for v in d.values()), self.bb_max_2d_yaw, delta=0.1
+        )
 
 
 class SNCMultiMet(WinstonLutzMultiTargetMultFieldMixin, TestCase):
@@ -376,6 +398,7 @@ class Synthetic2BBYaw(SyntheticMultiMetMixin, TestCase):
     median_2d_distance = 0
     mean_2d_distance = 0.25
     bb_yaw = 1.9  # one bb is off in the x, creating a yaw rotation
+    bb_max_2d_yaw = 91.8  # not realistic due to choice of BB placement symmetry (roll is 180 degrees in one case), but it's the max; note the 91.8-90=1.8
 
 
 class Synthetic2BBRoll(SyntheticMultiMetMixin, TestCase):
@@ -413,6 +436,7 @@ class Synthetic2BBRoll(SyntheticMultiMetMixin, TestCase):
     median_2d_distance = 0
     mean_2d_distance = 0.7
     bb_roll = 5.2
+    bb_max_2d_yaw = -2.1
 
 
 # class WinstonLutzMultiTargetSingleFieldMixin(WinstonLutzMultiTargetMultFieldMixin):
