@@ -6,14 +6,16 @@ import math
 import shutil
 import tempfile
 from pathlib import Path
+from typing import Sequence
 from unittest import TestCase
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 from pylinac import WinstonLutz
 from pylinac.core.array_utils import create_dicom_files_from_3d_array
-from pylinac.core.geometry import Vector, vector_is_close
+from pylinac.core.geometry import Point, Vector, vector_is_close
 from pylinac.core.image_generator import (
     AS1200Image,
     GaussianFilterLayer,
@@ -27,8 +29,11 @@ from pylinac.winston_lutz import (
     Axis,
     WinstonLutz2D,
     WinstonLutzResult,
+    align_points,
     bb_projection_with_rotation,
-    ray,
+    conventional_to_euler_notation,
+    solve_3d_position_from_2d_planes,
+    solve_3d_shift_vector_from_2d_planes,
 )
 from tests_basic.utils import (
     CloudFileMixin,
@@ -42,73 +47,362 @@ from tests_basic.utils import (
 TEST_DIR = "Winston-Lutz"
 
 
-class TestRay(TestCase):
-    def test_g0_perfect(self):
-        line = ray(Vector(0, 0), 0, 0, 1000)
-        self.assertEqual(line.length, 2000)
-        self.assertEqual(line.point1.x, 0)
-        self.assertEqual(line.point1.y, 0)
-        self.assertEqual(line.point1.z, 1000)
-        self.assertEqual(line.point2.x, 0)
-        self.assertEqual(line.point2.y, 0)
-        self.assertEqual(line.point2.z, -1000)
+def apply_rotation_to_points(
+    points: list[Point], angle: float | Sequence[float], axis: str
+) -> list[Point]:
+    # convert from explicit axis to Euler angle; i.e. "roll" -> "z"
+    # for multiple axis rotations, separate by commas and also the
+    # angles must be in the same order as the axes and the same length
+    euler = conventional_to_euler_notation(axes_resolution=axis)
+    rotation = Rotation.from_euler(euler, angle, degrees=True)
+    return [Point(*rotation.apply([p.x, p.y, p.z])) for p in points]
 
-    def test_g90_perfect(self):
-        line = ray(Vector(0, 0), 90, 0, 1000)
-        self.assertAlmostEqual(line.length, 2000)
-        self.assertAlmostEqual(line.point1.x, 1000)
-        self.assertAlmostEqual(line.point1.y, 0)
-        self.assertAlmostEqual(line.point1.z, 0)
-        self.assertAlmostEqual(line.point2.x, -1000)
-        self.assertAlmostEqual(line.point2.y, 0)
-        self.assertAlmostEqual(line.point2.z, 0)
 
-    def test_g0_1mm_left(self):
-        line = ray(Vector(1, 0), 0, 0, 1000)
-        self.assertEqual(line.point1.x, 0)
-        self.assertEqual(line.point1.y, 0)
-        self.assertEqual(line.point1.z, 1000)
-        self.assertEqual(line.point2.x, 2)
-        self.assertEqual(line.point2.y, 0)
-        self.assertEqual(line.point2.z, -1000)
+class TestAlignPoints3D(TestCase):
+    def test_perfect(self):
+        v, yaw, pitch, roll = align_points(
+            measured_points=[Point(0, 0, 0), Point(1, 1, 1)],
+            ideal_points=[Point(0, 0, 0), Point(1, 1, 1)],
+        )
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, 0)
 
-    def test_g0_c90_perfect(self):
-        line = ray(Vector(0, 0), 0, 90, 1000)
-        self.assertAlmostEqual(line.length, 2000)
-        self.assertAlmostEqual(line.point1.x, 0)
-        self.assertAlmostEqual(line.point1.y, 0)
-        self.assertAlmostEqual(line.point1.z, 1000)
-        self.assertAlmostEqual(line.point2.x, 0)
-        self.assertAlmostEqual(line.point2.y, 0)
-        self.assertAlmostEqual(line.point2.z, -1000)
+    def test_1mm_offset_left(self):
+        # 1mm offset to the left means we need to shift 1mm to the right
+        v, yaw, pitch, roll = align_points(
+            measured_points=[Point(1, 3, 0), Point(1, 0, 0)],
+            ideal_points=[Point(0, 3, 0), Point(0, 0, 0)],
+        )
+        self.assertAlmostEqual(v.x, -1)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, 0)
 
-    def test_g0_c90_1mm_left(self):
-        # 1mm left vector @ C90 is actually 1mm out (-y)
-        line = ray(Vector(1, 0), 0, 90, 1000)
-        self.assertAlmostEqual(line.point2.x, 0)
-        self.assertAlmostEqual(line.point2.y, -2)
+    def test_1mm_offset_in(self):
+        # 1mm offset in means we need to shift 1mm out
+        v, yaw, pitch, roll = align_points(
+            measured_points=[Point(0, 1, 0)], ideal_points=[Point(0, 0, 0)]
+        )
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, -1)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, 0)
 
-    def test_g0_c270_1mm_left(self):
-        # 1mm left vector @ C270 is actually 1mm in (+y)
-        line = ray(Vector(1, 0), 0, 270, 1000)
-        self.assertAlmostEqual(line.point2.x, 0)
-        self.assertAlmostEqual(line.point2.y, 2)
+    def test_1mm_up(self):
+        # 1mm offset up means we need to shift 1mm down
+        v, yaw, pitch, roll = align_points(
+            measured_points=[Point(0, 0, 1)], ideal_points=[Point(0, 0, 0)]
+        )
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, -1)
+        self.assertAlmostEqual(yaw, 0)
 
-    def test_g90_c90_resolves(self):
-        # even with an y (in) offset if the couch is 90 it will resolve to 0
-        line = ray(Vector(0, 1), 90, 90, 1000)
-        self.assertAlmostEqual(line.point2.y, 0)
-        self.assertAlmostEqual(line.point2.z, 0)
+    def test_1mm_offset_left_and_3_degree_yaw(self):
+        # 1mm offset to the left means we need to shift 1mm to the right
+        ideal_points = [Point(0, 0, 0), Point(-1, 1, 0), Point(1, 0, 1)]
+        measured_offset = [Point(-1, 0, 0), Point(-2, 1, 0), Point(0, 0, 1)]
+        measured_points = apply_rotation_to_points(measured_offset, 3, "yaw")
+        v, yaw, pitch, roll = align_points(
+            measured_points=measured_points, ideal_points=ideal_points
+        )
+        self.assertAlmostEqual(v.x, 1)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, -3)
 
-    def test_g90_1mm_up(self):
-        # 1mm up vector left @ G90 is actually 1mm up (+z)
-        line = ray(Vector(-1, 0), 90, 0, 1000)
-        self.assertAlmostEqual(line.point2.z, 2)
+    def test_90_rotation(self):
+        ideal_3_long_dots = [
+            Point(0, 0, 0),
+            Point(0, 1, 0),
+            Point(0, -1, 0),
+        ]  # iso and 1mm in
+        measured_3_lateral_dots = apply_rotation_to_points(ideal_3_long_dots, 90, "yaw")
+        v, yaw, pitch, roll = align_points(
+            measured_points=measured_3_lateral_dots, ideal_points=ideal_3_long_dots
+        )
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, -90)
 
-    def test_g90_1mm_down(self):
-        # 1mm down vector left @ G90 is actually 1mm down (-z)
-        line = ray(Vector(1, 0), 90, 0, 1000)
-        self.assertAlmostEqual(line.point2.z, -2)
+    def test_45_rotation(self):
+        # test a 45 degree rotation; one bb is at iso perfectly, the other is 0.707/0.707 to the right and in but should be fully right
+        measured_45 = [
+            Point(0, 0, 0),
+            Point(0.707, 0.707, 0),
+            Point(-0.707, -0.707, 0),
+        ]  # iso and 1mm to the right
+        ideal_lateral = [
+            Point(0, 0, 0),
+            Point(1, 0, 0),
+            Point(-1, 0, 0),
+        ]  # iso and 1mm right
+        v, yaw, pitch, roll = align_points(
+            measured_points=measured_45, ideal_points=ideal_lateral
+        )
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, -45)
+
+    def test_10_degree_pitch(self):
+        # test a 10 degree pitch; the bb is at iso but the other 2 are 1mm up and down
+        ideal_flat = [Point(0, 0, 0), Point(0, 1, 0)]
+        measured_10_pitch = apply_rotation_to_points(ideal_flat, 10, "pitch")
+        v, yaw, pitch, roll = align_points(
+            measured_points=measured_10_pitch, ideal_points=ideal_flat
+        )
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, 0)
+        self.assertAlmostEqual(roll, 0)
+        self.assertAlmostEqual(pitch, -10)
+
+    def test_10_degree_roll(self):
+        ideal = [Point(0, 0, 0), Point(0, 0, 1), Point(0, 1, 1)]  # up 1
+        measured = apply_rotation_to_points(ideal, 10, "roll")
+        v, yaw, pitch, roll = align_points(measured_points=measured, ideal_points=ideal)
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, 0)
+        self.assertAlmostEqual(roll, -10)
+        self.assertAlmostEqual(pitch, 0)
+
+    def test_10_degree_yaw(self):
+        ideal = [Point(0, 0, 0), Point(1, 0, 0), Point(1, 1, 0)]
+        measured = apply_rotation_to_points(ideal, 10, "yaw")
+        v, yaw, pitch, roll = align_points(measured_points=measured, ideal_points=ideal)
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, -10)
+        self.assertAlmostEqual(roll, 0)
+        self.assertAlmostEqual(pitch, 0)
+
+    def test_pitch_and_yaw(self):
+        # here's where things get hairy based on resolution order
+        ideal = [Point(0, 0, 0), Point(0, 1, 0), Point(1, 0, 1)]
+        measured = apply_rotation_to_points(ideal, (10, 20), "pitch,yaw")
+        v, yaw, pitch, roll = align_points(measured_points=measured, ideal_points=ideal)
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        # these aren't correct so much as we test the function and constancy
+        self.assertAlmostEqual(yaw, -20.3, delta=0.1)
+        self.assertAlmostEqual(roll, -3.45, delta=0.1)
+        self.assertAlmostEqual(pitch, -9.4, delta=1)
+
+    def test_roll_and_yaw(self):
+        ideal = [Point(0, 0, 0), Point(0, 1, 0), Point(1, 0, 1)]
+        measured = apply_rotation_to_points(ideal, (10, 20), "roll,yaw")
+        v, yaw, pitch, roll = align_points(measured_points=measured, ideal_points=ideal)
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        # these aren't correct so much as we test the function and constancy
+        self.assertAlmostEqual(yaw, -19.7, delta=0.1)
+        self.assertAlmostEqual(roll, -9.4, delta=0.1)
+        self.assertAlmostEqual(pitch, 3.4, delta=0.1)
+
+    def test_roll_pitch_yaw(self):
+        ideal = [Point(0, 0, 0), Point(0, 1, 0), Point(1, 0, 1)]
+        measured = apply_rotation_to_points(ideal, (10, 12, 14), "roll,pitch,yaw")
+        v, yaw, pitch, roll = align_points(measured_points=measured, ideal_points=ideal)
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, -16.1, delta=0.1)
+        self.assertAlmostEqual(roll, -12.7, delta=0.1)
+        self.assertAlmostEqual(pitch, -9, delta=0.1)
+
+
+class Test2Dto3DPositions(TestCase):
+    def test_unequal_lengths(self):
+        with self.assertRaises(ValueError):
+            solve_3d_position_from_2d_planes(
+                xs=[0, 0],
+                ys=[0],
+                thetas=[0, 90],
+                phis=[0, 90],
+                scale=MachineScale.IEC61217,
+            )
+
+    def test_perfect(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[0, 0],
+            ys=[0, 0],
+            thetas=[0, 90],
+            phis=[0, 90],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_in_gantry_rotating(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[0, 0, 0],
+            ys=[1, 1, 1],
+            thetas=[0, 90, 270],
+            phis=[0, 0, 0],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 1)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_out(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[0, 0, 0],
+            ys=[-1, -1, -1],
+            thetas=[0, 90, 270],
+            phis=[0, 0, 0],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, -1)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_left_gantry_rotating(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[-1, 0],
+            ys=[0, 0],
+            thetas=[0, 90],
+            phis=[0, 0],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, -1)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_right_gantry_rotating(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[1, 0, -1, 0],
+            ys=[0, 0, 0, 0],
+            thetas=[0, 90, 180, 270],
+            phis=[0, 0, 0, 0],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 1)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_left_couch_rotating(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[-1, 0, 0],
+            ys=[0, -1, 1],
+            thetas=[0, 0, 0],
+            phis=[0, 90, 270],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, -1)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_right_couch_rotating(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[1, 0, -1],
+            ys=[0, 1, 0],
+            thetas=[0, 0, 0],
+            phis=[0, 90, 180],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 1)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_up_gantry_rotating(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[0, -1],
+            ys=[0, 0],
+            thetas=[0, 90],
+            phis=[0, 0],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 1)
+
+
+class Test3DShiftVectorFrom2DPlanes(TestCase):
+    # the shift vector is just the inverse of the position vector
+
+    def test_perfect(self):
+        vector = solve_3d_shift_vector_from_2d_planes(
+            xs=[0, 0],
+            ys=[0, 0],
+            thetas=[0, 90],
+            phis=[0, 90],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_in_gantry_rotating(self):
+        vector = solve_3d_shift_vector_from_2d_planes(
+            xs=[0, 0, 0],
+            ys=[1, 1, 1],
+            thetas=[0, 90, 270],
+            phis=[0, 0, 0],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, -1)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_left_gantry_rotating(self):
+        vector = solve_3d_shift_vector_from_2d_planes(
+            xs=[-1, 0],
+            ys=[0, 0],
+            thetas=[0, 90],
+            phis=[0, 0],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 1)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_up_gantry_rotating(self):
+        vector = solve_3d_shift_vector_from_2d_planes(
+            xs=[0, -1],
+            ys=[0, 0],
+            thetas=[0, 90],
+            phis=[0, 0],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, -1)
+
+    def test_1mm_in_couch_rotating(self):
+        vector = solve_3d_shift_vector_from_2d_planes(
+            xs=[0, -1],
+            ys=[1, 0],
+            thetas=[0, 0],
+            phis=[0, 90],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, -1)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_left_couch_rotating(self):
+        vector = solve_3d_shift_vector_from_2d_planes(
+            xs=[-1, 0],
+            ys=[0, -1],
+            thetas=[0, 0],
+            phis=[0, 90],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 1)
+        self.assertAlmostEqual(vector.z, 0)
 
 
 class TestRotationMatrix(TestCase):
@@ -838,19 +1132,19 @@ class SyntheticWLMixin(WinstonLutzMixin):
 
     def test_bb3d_measured_position(self):
         self.assertAlmostEqual(
-            self.wl.bb.measured_position.x, -self.offset_mm_left, delta=0.03
+            self.wl.bb.measured_bb_position.x, -self.offset_mm_left, delta=0.03
         )
         self.assertAlmostEqual(
-            self.wl.bb.measured_position.y, self.offset_mm_in, delta=0.03
+            self.wl.bb.measured_bb_position.y, self.offset_mm_in, delta=0.03
         )
         self.assertAlmostEqual(
-            self.wl.bb.measured_position.z, self.offset_mm_up, delta=0.03
+            self.wl.bb.measured_bb_position.z, self.offset_mm_up, delta=0.03
         )
 
     def test_bb3d_nominal_position(self):
-        self.assertAlmostEqual(self.wl.bb.nominal_position.x, 0, delta=0.01)
-        self.assertAlmostEqual(self.wl.bb.nominal_position.y, 0, delta=0.01)
-        self.assertAlmostEqual(self.wl.bb.nominal_position.z, 0, delta=0.01)
+        self.assertAlmostEqual(self.wl.bb.nominal_bb_position.x, 0, delta=0.01)
+        self.assertAlmostEqual(self.wl.bb.nominal_bb_position.y, 0, delta=0.01)
+        self.assertAlmostEqual(self.wl.bb.nominal_bb_position.z, 0, delta=0.01)
 
 
 class Synthetic1mmLeftNoCouch(SyntheticWLMixin, TestCase):

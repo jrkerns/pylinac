@@ -352,6 +352,9 @@ class Vector:
         new_z = self.z + other.z
         return Vector(x=new_x, y=new_y, z=new_z)
 
+    def __neg__(self) -> Vector:
+        return Vector(-self.x, -self.y, -self.z)
+
     def __truediv__(self, other: float) -> Vector:
         for attr in ("x", "y", "z"):
             val = getattr(self, attr)
