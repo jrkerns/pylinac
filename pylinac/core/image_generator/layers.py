@@ -18,6 +18,15 @@ def clip_add(
     return np.clip(combined_img, np.iinfo(dtype).min, np.iinfo(dtype).max).astype(dtype)
 
 
+def clip_multiply(
+    image1: np.ndarray, image2: np.ndarray, dtype: type[np.dtype] = np.uint16
+) -> np.ndarray:
+    """Clip the image to the dtype extrema. Otherwise, the bits will flip."""
+    # convert to float first so we don't flip bits initially
+    combined_img = image1.astype(float) * image2.astype(float)
+    return np.clip(combined_img, np.iinfo(dtype).min, np.iinfo(dtype).max).astype(dtype)
+
+
 def even_round(num: float) -> int:
     """Return an even number"""
     num = int(round(num))
@@ -278,7 +287,7 @@ class FilteredFieldLayer(PerfectFieldLayer):
             width_x=width,
             width_y=width,
         )
-        image[rr, cc] += horns.astype(image.dtype)
+        image[rr, cc] = clip_add(image[rr, cc], horns.astype(image.dtype))
         return image
 
 
@@ -393,6 +402,26 @@ class ConstantLayer(Layer):
     def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         constant_img = np.full(image.shape, fill_value=self.constant)
         return clip_add(image, constant_img, dtype=image.dtype)
+
+
+class SlopeLayer(Layer):
+    """Adds a slope in both directions of the image. Usually used for simulating asymmetry or a-flatness."""
+
+    def __init__(self, slope_x: float, slope_y: float):
+        self.slope_x = slope_x
+        self.slope_y = slope_y
+
+    def apply(
+        self, image: np.ndarray, pixel_size: float, mag_factor: float
+    ) -> np.ndarray:
+        nrows, ncols = image.shape
+        # Create the row and column scaling factors
+        y_scaling = (1 + self.slope_y * np.arange(nrows) / nrows).reshape(-1, 1)
+        x_scaling = (1 + self.slope_x * np.arange(ncols) / ncols).reshape(1, -1)
+
+        y_scaled = clip_multiply(image, y_scaling)
+        xy_scaled = clip_multiply(y_scaled, x_scaling)
+        return xy_scaled
 
 
 def rotate_point(x: float, y: float, angle: float) -> (float, float):

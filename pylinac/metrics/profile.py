@@ -345,6 +345,79 @@ class TopDistanceMetric(ProfileMetric):
         )
 
 
+class SlopeMetric(ProfileMetric):
+    """The slope of the field; useful for FFF beams where traditional flatness metrics are not as useful.
+
+    Not 100% faithful to NCS-33; see Section 3.2.5. The NCS-33 report uses several points of evaluation on either side of the CAX.
+    Pylinac uses all points within the given region and computes the slope of the best-fit line through those points.
+    """
+
+    name = "In-Field Slope"
+    unit = "%/mm"
+
+    def __init__(self, ratio_edges: (float, float) = (0.2, 0.8), color="cyan"):
+        self.ratio_edges = ratio_edges
+        super().__init__(color=color)
+
+    def calculate(self) -> float:
+        """Calculate the angle of the slope of the field. This averages the slopes of the
+        left and right side, per NCS-33"""
+        inner_left_idx, inner_right_idx, _ = self.profile.field_indices(
+            in_field_ratio=self.ratio_edges[0]
+        )
+        outer_left_idx, outer_right_idx, _ = self.profile.field_indices(
+            in_field_ratio=self.ratio_edges[1]
+        )
+        left_indices = np.arange(outer_left_idx, inner_left_idx)
+        right_indices = np.arange(inner_right_idx, outer_right_idx)
+        left_values = self.profile.y_at_x(left_indices)
+        right_values = self.profile.y_at_x(np.arange(inner_right_idx, outer_right_idx))
+        raw_combined_values = []
+        # by zipping we can avoid a potential length error if the left and right
+        # values are not the same exact same length. This is possible from an asymmetrically-open field, either intentional or not.
+        for left, right in zip(left_values, right_values[::-1]):
+            raw_combined_values.append((left + right) / 2)
+        scaled_combined_values = np.array(raw_combined_values) / self.profile.y_at_x(
+            self.profile.center_idx
+        )
+        real_fit_params = np.polyfit(
+            np.arange(len(raw_combined_values)) / self.profile.dpmm,
+            scaled_combined_values,
+            deg=1,
+        )
+        self.raw_combined_values = np.array(raw_combined_values)
+        self.left_indices = left_indices
+        self.right_indices = right_indices
+
+        return float(real_fit_params[0])
+
+    def plot(self, axis: plt.Axes):
+        """Plot the fits of the slope angles."""
+        left_plot_fit_params = np.polyfit(
+            self.left_indices,
+            self.raw_combined_values,
+            deg=1,
+        )
+        axis.plot(
+            self.left_indices,
+            np.polyval(left_plot_fit_params, self.left_indices),
+            "-.",
+            color=self.color,
+            label=self.name,
+        )
+        right_plot_fit_params = np.polyfit(
+            self.right_indices,
+            self.raw_combined_values[::-1],
+            deg=1,
+        )
+        axis.plot(
+            self.right_indices,
+            np.polyval(right_plot_fit_params, self.right_indices),
+            "-.",
+            color=self.color,
+        )
+
+
 class Dmax(ProfileMetric):
     """Find the Dmax of the profile. This is a special case of the PDD metric.
 
