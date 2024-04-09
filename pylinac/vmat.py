@@ -267,9 +267,8 @@ class VMATBase:
             else:
                 self.open_image = image2
                 self.dmlc_image = image1
-            return
         # normal check of the STD compared; for flat-ish beams this works well.
-        if np.std(field_profile1) > np.std(field_profile2):
+        elif np.std(field_profile1) > np.std(field_profile2):
             self.dmlc_image = image1
             self.open_image = image2
         else:
