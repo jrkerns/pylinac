@@ -253,6 +253,22 @@ class VMATBase:
         profile1, profile2 = self._median_profiles(image1=image1, image2=image2)
         field_profile1 = profile1.field_values()
         field_profile2 = profile2.field_values()
+        # first check if the profiles have a very different length
+        # if so, the longer one is the open field
+        # this leverages the shortcoming in FWXMProfile where the field might be very small because
+        # it "caught" on one of the first dips of the DMLC image
+        # catches most often with Halcyon images
+        if abs(len(field_profile1) - len(field_profile2)) > min(
+            len(field_profile1), len(field_profile2)
+        ):
+            if len(field_profile1) > len(field_profile2):
+                self.open_image = image1
+                self.dmlc_image = image2
+            else:
+                self.open_image = image2
+                self.dmlc_image = image1
+            return
+        # normal check of the STD compared; for flat-ish beams this works well.
         if np.std(field_profile1) > np.std(field_profile2):
             self.dmlc_image = image1
             self.open_image = image2
@@ -313,8 +329,8 @@ class VMATBase:
     def _calculate_segment_centers(self) -> list[Point]:
         """Construct the center points of the segments based on the field center and known x-offsets."""
         points = []
-        dmlc_prof, _ = self._median_profiles(self.dmlc_image, self.open_image)
-        x_field_center = round(dmlc_prof.center_idx)
+        _, open_prof = self._median_profiles(self.dmlc_image, self.open_image)
+        x_field_center = round(open_prof.center_idx)
         for roi_data in self.roi_config.values():
             x_offset_mm = roi_data["offset_mm"]
             y = self.open_image.center.y
