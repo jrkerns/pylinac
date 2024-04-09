@@ -2,6 +2,19 @@
 Changelog
 =========
 
+v 3.21.1
+--------
+
+VMAT
+^^^^
+
+* A bug in the VMAT analysis was causing apparent shifts in the ROI position. This would happen if the gaps between the
+  ROIs were below 50% of the maximum. The ROI position is now based on the center position of the open field rather than the center
+  of the DMLC image. This caused a shift in some of the ROI positions of the test images of a few pixels (2-7 pixels). This
+  also caused the ROI values to change by anywhere between 0 and 0.2% in our test suite.
+* This same bug was causing identification issues of open vs DMLC images occassionally, usually for Halcyon datasets. The identification algorithm
+  has been adjusted to better detect these scenarios.
+
 v 3.21.0
 --------
 
