@@ -405,7 +405,16 @@ class ConstantLayer(Layer):
 
 
 class SlopeLayer(Layer):
-    """Adds a slope in both directions of the image. Usually used for simulating asymmetry or a-flatness."""
+    """Adds a slope in both directions of the image. Usually used for simulating asymmetry or a-flatness.
+
+    Parameters
+    ----------
+    slope_x : float
+        The slope in the x-direction (left/right). If positive, will increase the right side.
+        The value is multiplicative to the current state of the image. E.g. a value of 0.1 will increase the right side by 10% and 0% on the left.
+    slope_y : float
+        The slope in the y-direction (up/down). If positive, will increase the bottom side.
+    """
 
     def __init__(self, slope_x: float, slope_y: float):
         self.slope_x = slope_x

@@ -356,6 +356,12 @@ class SlopeMetric(ProfileMetric):
     unit = "%/mm"
 
     def __init__(self, ratio_edges: (float, float) = (0.2, 0.8), color="cyan"):
+        if len(ratio_edges) != 2:
+            raise ValueError("The ratio_edges parameter must be a tuple of two floats.")
+        if ratio_edges[0] >= ratio_edges[1]:
+            raise ValueError(
+                "The first value in the ratio_edges tuple must be less than the second."
+            )
         self.ratio_edges = ratio_edges
         super().__init__(color=color)
 

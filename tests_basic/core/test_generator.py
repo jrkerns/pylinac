@@ -23,7 +23,7 @@ from pylinac.core.image_generator import (
     PerfectFieldLayer,
     RandomNoiseLayer,
 )
-from pylinac.core.image_generator.layers import Layer, clip_add, even_round
+from pylinac.core.image_generator.layers import Layer, SlopeLayer, clip_add, even_round
 from pylinac.core.image_generator.simulators import Simulator
 from pylinac.core.profile import SingleProfile
 from pylinac.metrics.image import GlobalFieldLocator
@@ -287,6 +287,38 @@ class TestPerfectFieldLayer(TestCase):
         self.assertAlmostEqual(
             cross_profile.fwxm_data()["width (exact) mm"], 150, delta=1
         )
+
+
+class TestSlopeLayer(TestCase):
+    def test_slope_x(self):
+        as1200 = AS1200Image(sid=1000)
+        # create field that will cover the whole image; want a uniform field
+        as1200.add_layer(PerfectFieldLayer(field_size_mm=(400, 400), alpha=0.6))
+        as1200.add_layer(SlopeLayer(slope_x=0.1, slope_y=0))
+        # test that the left is less than the right edge
+        left = as1200.image[:, 100].max()
+        right = as1200.image[:, -100].max()
+        self.assertLess(left, right)
+
+    def test_negative_slope_x(self):
+        as1200 = AS1200Image(sid=1000)
+        # create field that will cover the whole image; want a uniform field
+        as1200.add_layer(PerfectFieldLayer(field_size_mm=(400, 400), alpha=0.6))
+        as1200.add_layer(SlopeLayer(slope_x=-0.1, slope_y=0))
+        # test that the left is greater than the right edge
+        left = as1200.image[:, 100].max()
+        right = as1200.image[:, -100].max()
+        self.assertGreater(left, right)
+
+    def test_slope_y(self):
+        as1200 = AS1200Image(sid=1000)
+        # create field that will cover the whole image; want a uniform field
+        as1200.add_layer(PerfectFieldLayer(field_size_mm=(400, 400), alpha=0.6))
+        as1200.add_layer(SlopeLayer(slope_x=0, slope_y=0.1))
+        # test that the top is less than the bottom edge
+        top = as1200.image[100, :].max()
+        bottom = as1200.image[-100, :].max()
+        self.assertLess(top, bottom)
 
 
 class TestPerfectConeLayer(TestCase):
