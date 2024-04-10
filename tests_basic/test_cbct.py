@@ -155,6 +155,10 @@ class TestGeneral(TestCase):
 
         # check the additional modules got added
         self.assertAlmostEqual(data.ctp528.start_angle_radians, np.pi, delta=0.02)
+        self.assertEqual(
+            data.ctp486.nps_max_freq, self.cbct.ctp486.max_noise_power_frequency
+        )
+        self.assertEqual(data.ctp486.nps_avg_power, self.cbct.ctp486.avg_noise_power)
 
         for p in range(10, 91, 10):
             self.assertEqual(

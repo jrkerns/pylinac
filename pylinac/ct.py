@@ -114,6 +114,8 @@ class CTP486Result(BaseModel):
 
     uniformity_index: float  #:
     integral_non_uniformity: float  #:
+    nps_avg_power: float
+    nps_max_freq: float
     passed: bool  #:
     rois: dict  #:
 
@@ -2334,6 +2336,8 @@ class CatPhanBase(ResultsDataMixin[CatphanResult]):
                 uniformity_index=self.ctp486.uniformity_index,
                 integral_non_uniformity=self.ctp486.integral_non_uniformity,
                 rois=rois_to_results(self.ctp486.rois),
+                nps_avg_power=self.ctp486.avg_noise_power,
+                nps_max_freq=self.ctp486.max_noise_power_frequency,
             )
 
         # CTP 528 stuff
