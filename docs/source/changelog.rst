@@ -27,6 +27,12 @@ Core
 * Users can now export analysis results as JSON. This is helpful for dumping results to file or for use in
   passing data to another library or program. A new topic page is available: :ref:`exporting-results`.
 
+CT
+^^
+
+* The ``CTP486`` results data section for CatPhan analyses added the keys ``nps_avg_power`` and
+  ``nps_max_freq``. These are the average power and maximum frequency of the noise power spectrum, respectively.
+
 Winston Lutz
 ^^^^^^^^^^^^
 
