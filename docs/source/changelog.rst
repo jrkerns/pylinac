@@ -31,7 +31,7 @@ CT
 ^^
 
 * The ``CTP486`` results data section for CatPhan analyses added the keys ``nps_avg_power`` and
-``nps_max_freq``. These are the average power and maximum frequency of the noise power spectrum, respectively.
+  ``nps_max_freq``. These are the average power and maximum frequency of the noise power spectrum, respectively.
 
 Winston Lutz
 ^^^^^^^^^^^^
