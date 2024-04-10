@@ -1,6 +1,8 @@
 import io
 import json
+import tempfile
 from functools import partial
+from pathlib import Path
 from typing import Iterable, Type, Union
 from unittest import TestCase
 
@@ -9,6 +11,12 @@ from matplotlib import pyplot as plt
 
 from pylinac import DRGS, DRMLC
 from pylinac.core.geometry import Point
+from pylinac.core.image_generator import (
+    AS1200Image,
+    FilterFreeFieldLayer,
+    GaussianFilterLayer,
+    RandomNoiseLayer,
+)
 from pylinac.vmat import VMATResult
 from tests_basic.utils import (
     FromDemoImageTesterMixin,
@@ -131,7 +139,8 @@ class VMATMixin:
         0: {"r_dev": 0, "r_corr": 100},
         4: {"r_dev": 0, "r_corr": 100},
     }
-    kwargs = {}
+    init_kwargs = {}
+    analyze_kwargs = {}
     avg_abs_r_deviation = 0
     avg_r_deviation = 0
     max_r_deviation = 0
@@ -151,10 +160,10 @@ class VMATMixin:
 
     def setUp(self):
         if self.is_zip:
-            self.vmat = self.klass.from_zip(self.absolute_path(), **self.kwargs)
+            self.vmat = self.klass.from_zip(self.absolute_path(), **self.init_kwargs)
         else:
-            self.vmat = self.klass(self.absolute_path(), **self.kwargs)
-        self.vmat.analyze()
+            self.vmat = self.klass(self.absolute_path(), **self.init_kwargs)
+        self.vmat.analyze(**self.analyze_kwargs)
         if self.print_debug:
             print(self.vmat.results())
             print(
@@ -218,7 +227,7 @@ class TestDRGSDemo(VMATMixin, TestCase):
         0: {"r_dev": 0.965, "r_corr": 6.2, "stdev": 0.0008},
         4: {"r_dev": -0.459, "r_corr": 6, "stdev": 0.0007},
     }
-    avg_abs_r_deviation = 0.66
+    avg_abs_r_deviation = 0.74
     max_r_deviation = 1.8
     passes = False
 
@@ -249,7 +258,7 @@ class TestDRMLCDemo(VMATMixin, TestCase):
     max_r_deviation = 0.89
 
     def setUp(self):
-        self.vmat = DRMLC.from_demo_images(**self.kwargs)
+        self.vmat = DRMLC.from_demo_images(**self.init_kwargs)
         self.vmat.analyze()
 
     def test_demo(self):
@@ -259,7 +268,7 @@ class TestDRMLCDemo(VMATMixin, TestCase):
 class TestDRMLCDemoRawPixels(TestDRMLCDemo):
     """Use raw DICOM pixel values, like doselab does."""
 
-    kwargs = {"raw_pixels": True, "ground": False, "check_inversion": False}
+    init_kwargs = {"raw_pixels": True, "ground": False, "check_inversion": False}
     segment_values = {
         0: {"r_dev": -0.55, "r_corr": 138.55},
         2: {"r_dev": 0.56, "r_corr": 140},
@@ -291,7 +300,7 @@ class TestDRGS105(VMATMixin, TestCase):
 
     filepaths = ("DRGSopen-105-example.dcm", "DRGSdmlc-105-example.dcm")
     klass = DRGS
-    segment_positions = {0: Point(371, 384), 2: Point(478, 384)}
+    segment_positions = {0: Point(378, 384), 2: Point(485, 384)}
     segment_values = {
         0: {
             "r_dev": 1.385,
@@ -314,7 +323,7 @@ class TestDRMLC2(VMATMixin, TestCase):
         2: {"r_dev": -1.1, "r_corr": 6},
     }
     avg_abs_r_deviation = 1.4
-    max_r_deviation = 1.98
+    max_r_deviation = 2.11
     passes = False
 
 
@@ -373,15 +382,25 @@ class TestHalcyonDRGS(VMATMixin, TestCase):
 
     klass = DRGS
     filepaths = ("HalcyonDRGS.zip",)
-    is_zip = True
-    segment_positions = {0: Point(364, 640), 2: Point(547, 640)}
-    segment_values = {
-        0: {"r_dev": 41.4, "r_corr": 1689.2},
-        2: {"r_dev": 28, "r_corr": 1529.5},
+    analyze_kwargs = {
+        "roi_config": {
+            "ROI 1": {"offset_mm": -120},
+            "ROI 2": {"offset_mm": -80},
+            "ROI 3": {"offset_mm": -40},
+            "ROI 4": {"offset_mm": 0},
+            "ROI 5": {"offset_mm": 40},
+            "ROI 6": {"offset_mm": 80},
+            "ROI 7": {"offset_mm": 120},
+        }
     }
-    avg_abs_r_deviation = 32.64
-    max_r_deviation = 41.4
-    passes = False
+    is_zip = True
+    segment_positions = {0: Point(89, 640), 2: Point(456, 640)}
+    segment_values = {
+        0: {"r_dev": 0.583, "r_corr": 13.62},
+        2: {"r_dev": -0.30, "r_corr": 13.5},
+    }
+    avg_abs_r_deviation = 0.266
+    max_r_deviation = 0.58
 
 
 class TestHalcyonDRMLC(VMATMixin, TestCase):
@@ -390,11 +409,99 @@ class TestHalcyonDRMLC(VMATMixin, TestCase):
     klass = DRMLC
     filepaths = ("HalcyonDRMLC.zip",)
     is_zip = True
-    segment_positions = {0: Point(433, 640), 2: Point(708, 640)}
-    segment_values = {
-        0: {"r_dev": 1.17, "r_corr": 3602},
-        2: {"r_dev": -0.206, "r_corr": 3552.8},
+    analyze_kwargs = {
+        "roi_config": {
+            "ROI 1": {"offset_mm": -115},
+            "ROI 2": {"offset_mm": -57.5},
+            "ROI 3": {"offset_mm": 0},
+            "ROI 4": {"offset_mm": 57.5},
+            "ROI 5": {"offset_mm": 115},
+        }
     }
-    avg_abs_r_deviation = 0.585
-    max_r_deviation = 1.17
+    segment_positions = {0: Point(112, 640), 2: Point(639, 640)}
+    segment_values = {
+        0: {"r_dev": -0.34, "r_corr": 2.8},
+        2: {"r_dev": 1.15, "r_corr": 2.85},
+    }
+    avg_abs_r_deviation = 0.66
+    max_r_deviation = 1.15
     passes = True
+
+
+class TestHalcyonDRGS2(VMATMixin, TestCase):
+    """A Hal image w/ deep gaps between the ROIs. Causes a shift in the ROIs from RAM-3483"""
+
+    klass = DRGS
+    filepaths = ("DRGS_Halcyon2.zip",)
+    is_zip = True
+    segment_positions = {0: Point(364, 640), 2: Point(543, 640)}
+    segment_values = {
+        0: {"r_dev": 1.17, "r_corr": 13.73},
+        2: {"r_dev": -0.206, "r_corr": 13.56},
+    }
+    avg_abs_r_deviation = 0.44
+    max_r_deviation = 0.803
+    passes = True
+
+
+class TestHalcyonDRGS3(VMATMixin, TestCase):
+    """A TB image w/ deep gaps between the ROIs. Causes a shift in the ROIs from RAM-3483"""
+
+    klass = DRGS
+    filepaths = ("DRGS_example_PM.zip",)
+    is_zip = True
+    segment_positions = {0: Point(280, 384), 2: Point(433, 384)}
+    segment_values = {
+        0: {"r_dev": -0.37, "r_corr": 13.73},
+        2: {"r_dev": -0.206, "r_corr": 13.56},
+    }
+    avg_abs_r_deviation = 0.89
+    max_r_deviation = 1.87
+    passes = False
+
+
+class TestContrivedWideGapTest(VMATMixin, TestCase):
+    """A contrived test with a wide gap between the segments."""
+
+    klass = DRMLC
+    is_zip = False
+    segment_positions = {0: Point(506, 640), 2: Point(685, 640)}
+    segment_values = {
+        0: {"r_dev": 0, "r_corr": 100},
+        2: {"r_dev": 0, "r_corr": 100},
+    }
+    avg_abs_r_deviation = 0
+    max_r_deviation = 0.0
+    passes = True
+
+    def create_synthetic_images(self):
+        tmp_dir = Path(tempfile.gettempdir())
+        as1200_open = AS1200Image(1000)
+        as1200_open.add_layer(FilterFreeFieldLayer(field_size_mm=(110, 110)))
+        as1200_open.add_layer(GaussianFilterLayer())
+        open_path = tmp_dir / "contrived_wide_gap_open.dcm"
+        as1200_open.generate_dicom(open_path)
+        # generate the DMLC image
+        as1200_dmlc = AS1200Image(1000)
+        as1200_dmlc.add_layer(
+            FilterFreeFieldLayer(field_size_mm=(150, 20), cax_offset_mm=(0, 45))
+        )
+        as1200_dmlc.add_layer(
+            FilterFreeFieldLayer(field_size_mm=(150, 20), cax_offset_mm=(0, 15))
+        )
+        as1200_dmlc.add_layer(
+            FilterFreeFieldLayer(field_size_mm=(150, 20), cax_offset_mm=(0, -15))
+        )
+        as1200_dmlc.add_layer(
+            FilterFreeFieldLayer(field_size_mm=(150, 20), cax_offset_mm=(0, -45))
+        )
+        as1200_dmlc.add_layer(GaussianFilterLayer())
+        as1200_dmlc.add_layer(RandomNoiseLayer(sigma=0.005))
+        dmlc_path = tmp_dir / "contrived_wide_gap_dmlc.dcm"
+        as1200_dmlc.generate_dicom(dmlc_path)
+        return open_path, dmlc_path
+
+    def setUp(self):
+        open_path, dmlc_path = self.create_synthetic_images()
+        self.vmat = self.klass(image_paths=(open_path, dmlc_path), **self.init_kwargs)
+        self.vmat.analyze(**self.analyze_kwargs)
