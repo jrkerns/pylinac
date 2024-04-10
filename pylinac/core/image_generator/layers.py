@@ -287,7 +287,9 @@ class FilteredFieldLayer(PerfectFieldLayer):
             width_x=width,
             width_y=width,
         )
-        image[rr, cc] = clip_add(image[rr, cc], horns.astype(image.dtype))
+        # the horns are negative, so we don't have
+        # to worry about clipping here
+        image[rr, cc] += horns.astype(image.dtype)
         return image
 
 
@@ -344,6 +346,8 @@ class FilterFreeFieldLayer(FilteredFieldLayer):
             self.gaussian_sigma_mm / pixel_size,
             constant=-self.gaussian_height * np.iinfo(image.dtype).max,
         )
+        # the horns are negative, so we don't have
+        # to worry about clipping here
         image[rr, cc] += n.astype(image.dtype)
         return image
 
