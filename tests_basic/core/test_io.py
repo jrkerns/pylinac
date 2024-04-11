@@ -85,3 +85,12 @@ class TestSNCProfiler(unittest.TestCase):
         profs = prof.to_profiles()
         self.assertEqual(len(profs), 4)
         self.assertIsInstance(profs[0], SingleProfile)
+
+    def test_detectors(self):
+        path = get_file_from_cloud_test_repo(["6XFFF.prs"])
+        prof = SNCProfiler(path)
+        profs = prof.to_profiles()
+        self.assertEqual(len(profs), 4)
+        v_prof = profs[0]
+        self.assertTrue(v_prof[30] < v_prof[31])
+        self.assertTrue(v_prof[29] < v_prof[30])
