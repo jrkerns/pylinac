@@ -9,7 +9,7 @@ Field Analysis
 ^^^^^^^^^^^^^^
 
 * `#485 <https://github.com/jrkerns/pylinac/issues/485>`__ Analysis for the Profiler device would swap the 30th and 31st detector positions, possibly causing
-  flatness and symmetry calculations depending on the slope of the profile. Steeper slopes
+  flatness and symmetry calculation errors depending on the slope of the profile. Steeper slopes
   would have a larger effect. This has been fixed.
 
 Image Metrics
