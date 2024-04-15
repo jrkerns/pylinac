@@ -10,7 +10,14 @@ Field Analysis
 
 * `#485 <https://github.com/jrkerns/pylinac/issues/485>`__ Analysis for the Profiler device would swap the 30th and 31st detector positions, possibly causing
   flatness and symmetry calculation errors depending on the slope of the profile. Steeper slopes
-  would have a larger effect. This has been fixed.
+  would have a larger effect. To match SNC profiler software and RadMachine, these detector values have been removed.
+* The x-axis of the field analysis when using a device has been shifted by 1 to reflect the "detector" label
+  accurately; it used to be 0 which is non-sensical for physical detector number. This will also match SNC Profiler software for detector number.
+  Finally, the y-axis label now says "Response" vs "Normalized Response" since
+  the normalization can be a variety of options.
+
+  .. image:: images/device_plot.png
+
 
 Image Metrics
 ^^^^^^^^^^^^^

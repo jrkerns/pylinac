@@ -1,6 +1,7 @@
 """I/O helper functions for pylinac."""
 from __future__ import annotations
 
+import math
 import os
 import os.path as osp
 import struct
@@ -293,6 +294,8 @@ class SNCProfiler:
         self, n_detectors_row: int = 63, **kwargs
     ) -> tuple[SingleProfile, SingleProfile, SingleProfile, SingleProfile]:
         """Convert the SNC data to SingleProfiles. These can be analyzed directly or passed to other modules like flat/sym.
+        For the horizontal/cross-plane profile, the detectors on either side of the
+        central detector are missing. We adjust the x-values to reflect this.
 
         Parameters
         ----------
@@ -300,33 +303,40 @@ class SNCProfiler:
             The number of detectors in a given row. Note that they Y profile includes 2 extra detectors from the other 3.
         """
 
-        def copy_cax_dose(
-            array: np.ndarray, center_detector_idx: int = 31
-        ) -> np.ndarray:
-            array = np.insert(array, center_detector_idx, array[center_detector_idx])
-            array = np.insert(
-                array, center_detector_idx + 1, array[center_detector_idx]
-            )
-            return array
+        def drop_cax_sides(vals: np.ndarray) -> np.ndarray:
+            x_prof_x_vals = np.arange(start=1, stop=len(x_prof_vals) + 3)
+            half_idx = math.ceil(len(x_prof_x_vals) / 2) - 1
+            return np.delete(x_prof_x_vals, [half_idx - 1, half_idx + 1])
 
+        # x values are shifted by 1 to reflect the physical detector number
+        y_prof_vals = self.integrated_dose[n_detectors_row : 2 * n_detectors_row + 2]
         y_prof = SingleProfile(
-            self.integrated_dose[n_detectors_row : 2 * n_detectors_row + 2], **kwargs
-        )
-        # for all but the y profile, we are missing detectors to the left and right of center because the center y-detector is too wide
-        # for physical spacing purposes we have to fill those values in. we use the central value.
-        x_prof = SingleProfile(
-            copy_cax_dose(self.integrated_dose[:n_detectors_row]), **kwargs
-        )
-        pos_prof = SingleProfile(
-            copy_cax_dose(
-                self.integrated_dose[2 * n_detectors_row + 2 : 3 * n_detectors_row + 2]
-            ),
+            y_prof_vals,
+            x_values=np.arange(start=1, stop=len(y_prof_vals) + 1),
             **kwargs,
         )
+        # for all but the y profile, we are missing detectors to the left and right of center because the center y-detector is too wide
+        x_prof_vals = self.integrated_dose[:n_detectors_row]
+        x_prof = SingleProfile(
+            x_prof_vals,
+            x_values=drop_cax_sides(x_prof_vals),
+            **kwargs,
+        )
+        pos_prof_values = self.integrated_dose[
+            2 * n_detectors_row + 2 : 3 * n_detectors_row + 2
+        ]
+
+        pos_prof = SingleProfile(
+            pos_prof_values,
+            x_values=drop_cax_sides(pos_prof_values),
+            **kwargs,
+        )
+        neg_prof_values = self.integrated_dose[
+            3 * n_detectors_row + 2 : 4 * n_detectors_row + 2
+        ]
         neg_prof = SingleProfile(
-            copy_cax_dose(
-                self.integrated_dose[3 * n_detectors_row + 2 : 4 * n_detectors_row + 2]
-            ),
+            neg_prof_values,
+            x_values=drop_cax_sides(neg_prof_values),
             **kwargs,
         )
         return x_prof, y_prof, pos_prof, neg_prof

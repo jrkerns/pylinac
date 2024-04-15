@@ -3,6 +3,7 @@ import os
 import os.path as osp
 import unittest
 
+from pylinac import Interpolation
 from pylinac.core.io import (
     SNCProfiler,
     TemporaryZipDirectory,
@@ -89,8 +90,10 @@ class TestSNCProfiler(unittest.TestCase):
     def test_detectors(self):
         path = get_file_from_cloud_test_repo(["6XFFF.prs"])
         prof = SNCProfiler(path)
-        profs = prof.to_profiles()
+        profs = prof.to_profiles(interpolation=Interpolation.NONE)
         self.assertEqual(len(profs), 4)
-        v_prof = profs[0]
-        self.assertTrue(v_prof[30] < v_prof[31])
-        self.assertTrue(v_prof[29] < v_prof[30])
+        crossplane_prof = profs[0]
+        self.assertTrue(crossplane_prof[30] < crossplane_prof[31])
+        self.assertTrue(crossplane_prof[32] < crossplane_prof[31])
+        self.assertEqual(len(crossplane_prof), 63)
+        self.assertEqual(len(profs[1]), 65)
