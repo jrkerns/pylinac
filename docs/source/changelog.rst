@@ -19,6 +19,12 @@ Image Metrics
   Previously, the locator was always inverting the image (assuming images like EPID). Now, the parameter can be used to control this behavior. By
   default, the parameter is true for backwards-compatibility.
 
+Profile Metrics
+^^^^^^^^^^^^^^^
+
+* A new metric has been added: ``SlopeMetric``. This will calculate the in-field slope, similar to NCS-33.
+  This is useful for calculating the slope of a field, notably FFF fields as an alternative to flatness.
+
 Image
 ^^^^^
 
@@ -89,6 +95,8 @@ Winston Lutz
 Image Generator
 ^^^^^^^^^^^^^^^
 
+* A ``SlopeLayer`` has been added. This will apply an image-wide slope to the image. This can be useful for
+  introducing asymmetry to a synthetic image.
 * The image generator can now create images with collimator and couch rotation. For cone-style layers (e.g. :class:`~pylinac.core.image_generator.layers.PerfectConeLayer`)
   the rotation is about the center of the image and for all intents and purposes is a couch kick.
   For field-like layers :class:`~pylinac.core.image_generator.layers.PerfectFieldLayer` this simulates a collimator rotation.

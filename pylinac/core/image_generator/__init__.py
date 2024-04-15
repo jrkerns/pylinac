@@ -8,6 +8,7 @@ from .layers import (
     PerfectConeLayer,
     PerfectFieldLayer,
     RandomNoiseLayer,
+    SlopeLayer,
 )
 from .simulators import AS500Image, AS1000Image, AS1200Image
 from .utils import (
