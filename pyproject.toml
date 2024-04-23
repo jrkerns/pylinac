@@ -54,10 +54,13 @@ dev = [
     "sphinx",
     "sphinx-autobuild",
     "sphinx-copybutton",
-    "twine",
-    "bump2version",
     "pre-commit",
     "hatch",
+]
+docs = [
+    "sphinx",
+    "sphinx-copybutton",
+    "furo",
 ]
 
 [build-system]
@@ -68,7 +71,8 @@ build-backend = "hatchling.build"
 directory = "dist"
 
 [tool.hatch.version]
-path = "pylinac/version.py"
+# https://hatch.pypa.io/latest/version/
+path = "pylinac/version.py"  # hatch will automatically set the version to the value in this file.
 
 [tool.hatch.build.targets.wheel]
 packages = ["pylinac"]

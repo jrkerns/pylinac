@@ -16,14 +16,9 @@ Great! To get started install via pip:
 
     $ pip install pylinac
 
-Developers
-----------
+.. note::
 
-If you want to contribute to pylinac, you'll want to install the development version. To do so, clone the repository and install:
-
-.. code-block:: bash
-
-    $ pip install .
+    If you plan on developing or contributing to pylinac, you'll want to set up a development environment. See :ref:`setup_dev_env`.
 
 I'm new to Python
 -----------------
