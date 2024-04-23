@@ -227,6 +227,17 @@ definitions:
               - "pylinac/core/**"
               - "tests_basic/test_winstonlutz.py"
               - "pylinac/winston_lutz.py"
+    - step: &plan-generator-tests
+        name: Plan generator tests
+        script:
+          - source venv/bin/activate
+          - pytest tests_basic/test_plan_generator.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+        condition:
+            changesets:
+                includePaths:
+                - "pylinac/core/**"
+                - "pylinac/plan_generator/**"
+                - "tests_basic/test_plan_generator.py"
     - step: &core-module-tests
         name: Run core module tests
         script:
@@ -301,6 +312,7 @@ pipelines:
           - step: *vmat-tests
           - step: *winston-lutz-tests
           - step: *winston-lutz-mtmf-tests
+          - step: *plan-generator-tests
           - step: *core-module-tests
 
   branches:
