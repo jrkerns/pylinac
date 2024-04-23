@@ -861,8 +861,7 @@ class TestPlottingSaving(TestCase):
         self.wl = WinstonLutz.from_demo_images()
         self.wl.analyze()
 
-    @classmethod
-    def tearDownClass(cls):
+    def tearDown(self):
         plt.close("all")
 
     def test_plot(self):
