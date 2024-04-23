@@ -1,4 +1,0 @@
--r requirements.txt
-furo
-sphinx
-sphinx-copybutton
