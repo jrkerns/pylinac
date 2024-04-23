@@ -1184,7 +1184,7 @@ class FieldAnalysis(ResultsDataMixin[FieldResult]):
             markers,
             label="Profile",
         )
-        axis.set_ylabel("Normalized Response")
+        axis.set_ylabel("Response")
 
         # plot second axis w/ physical distance
         sec_y = axis.twiny()
@@ -1224,7 +1224,7 @@ class FieldAnalysis(ResultsDataMixin[FieldResult]):
             markers,
             label="Profile",
         )
-        axis.set_ylabel("Normalized Response")
+        axis.set_ylabel("Response")
 
         # plot second axis w/ physical distance
         sec_y = axis.twiny()

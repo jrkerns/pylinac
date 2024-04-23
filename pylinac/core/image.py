@@ -895,7 +895,8 @@ class BaseImage:
             self.metrics.append(metric)
             value = metric.context_calculate()
             metric_data[metric.name] = value
-        self.metric_values |= metric_data
+        # TODO: use |= when 3.9 is min supported version
+        self.metric_values.update(metric_data)
         if len(metrics) == 1:
             return metric_data[metrics[0].name]
         return metric_data
