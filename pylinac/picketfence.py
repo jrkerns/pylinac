@@ -96,7 +96,7 @@ class MLC(enum.Enum):
     }  #:
     HD_MILLENNIUM = {
         "name": "HD Millennium",
-        "arrangement": MLCArrangement([(10, 5), (40, 2.5), (10, 5)]),
+        "arrangement": MLCArrangement([(14, 5), (32, 2.5), (14, 5)]),
     }  #:
     BMOD = {
         "name": "B Mod",
