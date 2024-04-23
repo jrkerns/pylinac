@@ -2,6 +2,18 @@
 Changelog
 =========
 
+v 3.23.0
+--------
+
+Picket Fence
+^^^^^^^^^^^^
+
+* The HDMLC arrangement was changed from 10x40x10 leaves to 14x32x14 leaves to match reality.
+  This may affect the max leaf error metric slightly. In our tests, the change did not skew positive
+  or negative. The mean change was approximately 0.05mm. While changing a definition is not
+  desirable, matching the actual configuration is more important. If for some reason you need
+  the old configuration, you can create a custom MLC arrangement. See the :ref:`customizing_pf_mlcs` section.
+
 v 3.22.0
 --------
 

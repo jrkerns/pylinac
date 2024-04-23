@@ -305,9 +305,10 @@ Results will look similar. Here's an example of the results of using a log:
 Customizing MLCs
 ----------------
 
-As of v2.5, MLC configuration is set a priori (vs empirical determination as before) and the user can also create
-custom MLC types. Pylinac was only able to handle Millennium and HD Millennium previously.
+.. versionadded:: 2.5
 
+MLC configuration is set a priori (vs empirical determination in 2.4 and below) and the user can also create
+custom MLC types.
 
 Preset configurations
 ^^^^^^^^^^^^^^^^^^^^^^

@@ -84,7 +84,7 @@ class TestInstantiation(
     def test_all_mlc_arrangements(self):
         """This isn't really testing the MLCs so much as a constancy check to ensure they haven't changed."""
         path = get_file_from_cloud_test_repo([TEST_DIR, "AS500_PF.dcm"])
-        expected_max_error = [0.13, 0.18, 0.16, 0.14, 0.06, 0.06, 0.06]
+        expected_max_error = [0.13, 0.14, 0.16, 0.14, 0.06, 0.06, 0.06]
         for max_error, mlc in zip(expected_max_error, MLC):
             pf = PicketFence(path, mlc=mlc)
             pf.analyze()
@@ -477,7 +477,7 @@ class PFTestMixin(CloudFileMixin):
         self.assertAlmostEqual(self.pf.percent_passing, self.percent_passing, delta=1)
 
     def test_max_error(self):
-        self.assertAlmostEqual(self.pf.max_error, self.max_error, delta=0.1)
+        self.assertAlmostEqual(self.pf.max_error, self.max_error, delta=0.05)
 
     def test_abs_median_error(self):
         self.assertAlmostEqual(
@@ -715,7 +715,7 @@ class AS5004(PFTestMixin, TestCase):
     """Tests for the AS500#4 image."""
 
     file_name = "AS500#4.dcm"
-    max_error = 0.28
+    max_error = 0.21
     abs_median_error = 0.06
     mlc_skew = -0.3
 
@@ -741,7 +741,7 @@ class AS5007(PFTestMixin, TestCase):
     """Tests for the AS500#4 image."""
 
     file_name = "AS500#7.dcm"
-    max_error = 0.24
+    max_error = 0.18
     abs_median_error = 0.05
     mlc_skew = -0.3
 
@@ -759,7 +759,7 @@ class AS5009(PFTestMixin, TestCase):
     """Tests for the AS500#4 image."""
 
     file_name = "AS500#9.dcm"
-    max_error = 0.24
+    max_error = 0.16
     abs_median_error = 0.04
     mlc_skew = -0.3
 
@@ -842,7 +842,7 @@ class AS1000HDFull(PFTestMixin, TestCase):
 
     file_name = "AS1000-HD-full.dcm"
     mlc = "HD"
-    max_error = 0.2
+    max_error = 0.12
     abs_median_error = 0.06
 
 
@@ -926,7 +926,7 @@ class ChicagoNoError(PFTestMixin, TestCase):
     file_name = "PF no error.dcm"
     # log = ['Chicago', 'PF no error tlog.bin']
     mlc = "HD"
-    max_error = 0.24
+    max_error = 0.3
 
 
 class ChicagoError(PFTestMixin, TestCase):
