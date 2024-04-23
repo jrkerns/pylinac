@@ -13,7 +13,7 @@ Picket Fence
   or negative. The mean change was approximately 0.05mm. While changing a definition is not
   desirable, matching the actual configuration is more important. If for some reason you need
   the old configuration, you can create a custom MLC arrangement. See the :ref:`customizing_pf_mlcs` section.
-* The leaf error barplot to the right/bottom of a picket fence plot was somewhat confusing. It would should the
+* The leaf error barplot to the right/bottom of a picket fence plot was somewhat confusing. It would show the
   mean and standard deviation of the error, but not the entire distribution. This plot has been
   converted to a normal boxplot, showing the median, Q1, Q3 and flier data. More about the boxplot
   can be read here: `boxplots <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.boxplot.html#matplotlib.axes.Axes.boxplot>`__.
