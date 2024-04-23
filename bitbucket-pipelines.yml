@@ -21,7 +21,7 @@ definitions:
           - apt-get update
           - python -m venv venv
           - source venv/bin/activate
-          - pip install -r requirements-dev.txt
+          - pip install .[dev]
           - pip freeze
         artifacts:
           - venv/**
@@ -267,7 +267,7 @@ pipelines:
               - apt-get update
               - python -m venv venv
               - source venv/bin/activate
-              - pip install -r requirements-dev.txt
+              - pip install .[dev]
             artifacts:
               - venv/**
       - step:
