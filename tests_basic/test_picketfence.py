@@ -416,6 +416,18 @@ class TestPlottingSaving(TestCase):
         # to binary stream
         save_file(self.pf.save_leaf_profile, 20, 3, as_file_object="b")
 
+    def test_plot_leaf_error(self):
+        # shouldn't raise
+        self.pf.plot_leaf_error()
+
+        fig, ax = plt.subplots()
+        rfig = self.pf.plot_leaf_error(ax=ax)
+        self.assertEqual(fig, rfig)
+
+        self.pf.plot_leaf_error(fig_kwargs={"figsize": (10, 10)})
+
+        self.pf.plot_leaf_error(barplot_kwargs={"showfliers": False})
+
 
 class PFTestMixin(CloudFileMixin):
     """Base Mixin for testing a picketfence image."""
