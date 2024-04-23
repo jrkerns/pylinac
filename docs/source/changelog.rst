@@ -5,6 +5,17 @@ Changelog
 v 3.23.0
 --------
 
+Plan Generator
+^^^^^^^^^^^^^^
+
+* A new module has been introduced: the plan generator! This module can assist in generating DICOM RT plan QA files
+  customized for your clinic. It can produce basic shapes and typical QA fields such as picket fence, open fields,
+  and more. See the :ref:`plan-generator` section for more.
+* RT plan fluence can be plotted using a new function: ``plot_fluences()``. This will plot the fluence of the plan
+  fields as figures. This is useful for visualizing the plan fluence and comparing it to the expected fluence. This
+  can be used in conjuction with the plan generator to visualize the fluence of the generated plan. See :ref:`plan_fluence`
+  for more.
+
 Picket Fence
 ^^^^^^^^^^^^
 

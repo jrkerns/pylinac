@@ -1,3 +1,5 @@
+.. _plan-generator:
+
 ==============
 Plan Generator
 ==============
