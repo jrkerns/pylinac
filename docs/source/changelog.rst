@@ -22,6 +22,12 @@ Picket Fence
 * A new method is available ``plot_leaf_error``. This method will create a figure of the leaf error boxplot. This is
   similar to the leaf error subplot that shows up at the right/bottom of the analyzed image, but can be called independently.
 
+Core
+^^^^
+
+* Pylinac is meant to be compatible with all Python versions still in security lifecycles, which is currently 3.8.
+  Some syntax was introduced that was not compatible with Python 3.8. This has been fixed. Note that
+  Python 3.8 will be EOL in October 2024. The next pylinac release after that will drop support for Python 3.8.
 
 v 3.22.0
 --------

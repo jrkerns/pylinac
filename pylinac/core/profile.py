@@ -550,7 +550,8 @@ class ProfileBase(ProfileMixin, ABC):
             metric.inject_profile(self)
             self.metrics.append(metric)
             values[metric.name] = metric.calculate()
-        self.metric_values |= values
+        # TODO: use |= when 3.9 is min version
+        self.metric_values.update(values)
         if len(values) == 1:
             return list(values.values())[0]
         else:

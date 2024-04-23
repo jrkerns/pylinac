@@ -1,4 +1,5 @@
 import warnings
+from typing import Type
 from unittest import TestCase
 
 import numpy as np
@@ -50,7 +51,7 @@ def generate_open_field(
     field_size=(100, 100),
     sigma=2,
     center=(0, 0),
-    field: type[Layer] = FilteredFieldLayer,
+    field: Type[Layer] = FilteredFieldLayer,
 ) -> Simulator:
     from pylinac.core.image_generator import AS1000Image
 
@@ -65,7 +66,7 @@ def generate_open_field(
 
 
 def generate_profile(
-    field_size=100, sigma=2, center=0, field: type[Layer] = FilteredFieldLayer
+    field_size=100, sigma=2, center=0, field: Type[Layer] = FilteredFieldLayer
 ) -> np.ndarray:
     img = generate_open_field(
         field_size=(field_size, field_size),
