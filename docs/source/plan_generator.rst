@@ -16,6 +16,11 @@ It can create typical plans like picket fence, open fields, gantry speed, MLC sp
     The module is still experimental. It will take a few releases to work out the kinks. It's also
     primarily designed for Varian machines and the Eclipse TPS (the defaults are set for such a configuration).
 
+.. note::
+
+    Units of parameters are always in mm and degrees unless otherwise specified. Parameter names are usually explicit
+    for non-standard terms but are sometimes assumed for common terms/parameters.
+
 
 Prerequisites
 -------------
@@ -60,8 +65,8 @@ The plan generator can then add QA fields into the plan.
 
     # add a picket fence beam
     generator.add_picketfence_beam(
-        strip_width=3,
-        strip_positions=(-100, -50, 20, 80),  # 4 pickets
+        strip_width_mm=3,
+        strip_positions_mm=(-100, -50, 20, 80),  # 4 pickets
         mu=100,
         beam_name="PF 3mm",
         y1=-150,
@@ -77,7 +82,7 @@ The plan generator can then add QA fields into the plan.
         y1=-10,
         y2=110,
         defined_by_mlcs=True,
-        padding=10,
+        padding_mm=10,
     )
 
     # when done, export

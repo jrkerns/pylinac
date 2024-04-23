@@ -7,7 +7,7 @@ from pydicom import Dataset
 
 def generate_fluences(
     rt_plan: Dataset,
-    width_mm: int,
+    width_mm: float,
     resolution_mm: float = 0.1,
     dtype: np.dtype = np.uint16,
 ) -> np.ndarray:
@@ -109,7 +109,7 @@ def generate_fluences(
 
 def plot_fluences(
     plan: Dataset,
-    width_mm: int,
+    width_mm: float,
     resolution_mm: float,
     dtype: np.dtype = np.uint16,
     show: bool = True,

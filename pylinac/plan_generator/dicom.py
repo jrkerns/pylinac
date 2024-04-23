@@ -3,7 +3,6 @@ from __future__ import annotations
 import datetime
 import math
 from enum import Enum
-from itertools import zip_longest
 from pathlib import Path
 from typing import Iterable
 
@@ -55,7 +54,7 @@ class Beam:
         plan_dataset: Dataset,
         beam_name: str,
         beam_type: BeamType,
-        energy: int,
+        energy: float,
         dose_rate: int,
         x1: float,
         x2: float,
@@ -64,11 +63,11 @@ class Beam:
         machine_name: str,
         gantry_angles: float | list[float],
         gantry_direction: GantryDirection,
-        coll_angle: int,
-        couch_vrt: int,
-        couch_lat: int,
-        couch_lng: int,
-        couch_rot: int,
+        coll_angle: float,
+        couch_vrt: float,
+        couch_lat: float,
+        couch_lng: float,
+        couch_rot: float,
         mlc_boundaries: list[float],
         mlc_positions: list[list[float]],
         meter_sets: list[float],
@@ -83,7 +82,7 @@ class Beam:
             The name of the beam. Must be less than 16 characters.
         beam_type : BeamType
             The type of beam: dynamic or static.
-        energy : int
+        energy : float
             The energy of the beam.
         dose_rate : int
             The dose rate of the beam.
@@ -101,15 +100,15 @@ class Beam:
             The gantry angle(s) of the beam. If a single number, it's assumed to be a static beam. If multiple numbers, it's assumed to be a dynamic beam.
         gantry_direction : GantryDirection
             The direction of the gantry rotation. Only relevant if multiple gantry angles are specified.
-        coll_angle : int
+        coll_angle : float
             The collimator angle.
-        couch_vrt : int
+        couch_vrt : float
             The couch vertical position.
-        couch_lat : int
+        couch_lat : float
             The couch lateral position.
-        couch_lng : int
+        couch_lng : float
             The couch longitudinal position.
-        couch_rot : int
+        couch_rot : float
             The couch rotation.
         mlc_boundaries : list[float]
             The MLC boundaries. These are the same thing as the LeafPositionBoundaries in the DICOM file.
@@ -173,7 +172,7 @@ class Beam:
             couch_rot,
             mlc_positions=mlc_positions[0],
         )
-        for mlc_pos, meter_set, gantry_angle in zip_longest(
+        for mlc_pos, meter_set, gantry_angle in zip(
             mlc_positions[1:], meter_sets[1:], gantry_angles[1:]
         ):
             if beam_type == BeamType.DYNAMIC:
@@ -399,11 +398,11 @@ class PlanGenerator:
         ds: Dataset,
         plan_label: str,
         plan_name: str,
-        x_width: float = 400,
+        x_width_mm: float = 400,
         max_mlc_speed: float = 25,
         max_gantry_speed: float = 4.8,
-        sacrificial_gap: float = 5,
-        max_sacrificial_move: float = 50,
+        sacrificial_gap_mm: float = 5,
+        max_sacrificial_move_mm: float = 50,
         max_overtravel_mm: float = 140,
     ):
         """A tool for generating new QA RTPlan files based on an initial, somewhat empty RTPlan file.
@@ -416,29 +415,30 @@ class PlanGenerator:
             The label of the new plan.
         plan_name : str
             The name of the new plan.
-        x_width : float
-            The overall width of the MLC movement in the x-direction.
+        x_width_mm : float
+            The overall width of the MLC movement in the x-direction. Generally, this is the x field size.
         max_mlc_speed : float
-            The maximum speed of the MLC leaves.
+            The maximum speed of the MLC leaves in mm/s
         max_gantry_speed : float
-            The maximum speed of the gantry.
-        sacrificial_gap : float
-            For dynamic beams, the top and bottom leaf pair are used to slow axes down. This is the gap
+            The maximum speed of the gantry in degrees/s.
+        sacrificial_gap_mm : float
+            For certain dynamic beams, the top and bottom leaf pair are used to slow axes down. This is the gap
             between those leaves at any given time.
-        max_sacrificial_move : float
+        max_sacrificial_move_mm : float
             The maximum distance the sacrificial leaves can move in a given control point.
             Smaller values generate more control points and more back-and-forth movement.
+            Too large of values may cause deliverability issues.
         max_overtravel_mm : float
             The maximum distance the MLC leaves can overtravel from each other as well as the jaw size (for tail exposure protection).
         """
         if ds.Modality != "RTPLAN":
             raise ValueError("File is not an RTPLAN file")
         self.max_overtravel_mm = max_overtravel_mm
-        self.x_width = x_width
+        self.x_width = x_width_mm
         self.max_mlc_speed = max_mlc_speed
         self.max_gantry_speed = max_gantry_speed
-        self.sacrificial_gap = sacrificial_gap
-        self.max_sacrificial_move = max_sacrificial_move
+        self.sacrificial_gap = sacrificial_gap_mm
+        self.max_sacrificial_move = max_sacrificial_move_mm
         if not hasattr(ds, "PatientName") or not hasattr(ds, "PatientID"):
             raise ValueError("RTPLAN file must have PatientName and PatientID")
         if not hasattr(ds, "ToleranceTableSequence"):
@@ -502,7 +502,7 @@ class PlanGenerator:
         self.ds.BeamSequence = beam_sequence
 
     @classmethod
-    def from_rt_plan_file(cls, rt_plan_file: str, **kwargs):
+    def from_rt_plan_file(cls, rt_plan_file: str, **kwargs) -> PlanGenerator:
         """Load an existing RTPLAN file and create a new plan based on it.
 
         Parameters
@@ -534,8 +534,8 @@ class PlanGenerator:
         """Utility to create MLC shaper instances."""
         return MLCShaper(
             leaf_y_positions=self.leaf_config,
-            max_x=self.x_width / 2,
-            sacrifice_gap=self.sacrificial_gap,
+            max_x_mm=self.x_width / 2,
+            sacrifice_gap_mm=self.sacrificial_gap,
             sacrifice_max_move_mm=self.max_sacrificial_move,
             max_overtravel_mm=self.max_overtravel_mm,
         )
@@ -550,30 +550,30 @@ class PlanGenerator:
 
     def add_picketfence_beam(
         self,
-        strip_width: float = 3,
-        strip_positions: tuple = (-45, -30, -15, 0, 15, 30, 45),
+        strip_width_mm: float = 3,
+        strip_positions_mm: tuple[float] = (-45, -30, -15, 0, 15, 30, 45),
         y1: float = -100,
         y2: float = 100,
         fluence_mode: FluenceMode = FluenceMode.STANDARD,
         dose_rate: int = 600,
-        energy: int = 6,
-        gantry_angle: int = 0,
-        coll_angle: int = 0,
-        couch_vrt: int = 0,
-        couch_lng: int = 1000,
-        couch_lat: int = 0,
-        couch_rot: int = 0,
+        energy: float = 6,
+        gantry_angle: float = 0,
+        coll_angle: float = 0,
+        couch_vrt: float = 0,
+        couch_lng: float = 1000,
+        couch_lat: float = 0,
+        couch_rot: float = 0,
         mu: int = 200,
-        jaw_padding: int = 10,
+        jaw_padding_mm: float = 10,
         beam_name: str = "PF",
     ):
         """Add a picket fence beam to the plan.
 
         Parameters
         ----------
-        strip_width : float
+        strip_width_mm : float
             The width of the strips in mm.
-        strip_positions : tuple
+        strip_positions_mm : tuple
             The positions of the strips in mm relative to the center of the image.
         y1 : float
             The bottom jaw position. Usually negative. More negative is lower.
@@ -583,32 +583,32 @@ class PlanGenerator:
             The fluence mode of the beam.
         dose_rate : int
             The dose rate of the beam.
-        energy : int
+        energy : float
             The energy of the beam.
-        gantry_angle : int
+        gantry_angle : float
             The gantry angle of the beam.
-        coll_angle : int
+        coll_angle : float
             The collimator angle of the beam.
-        couch_vrt : int
+        couch_vrt : float
             The couch vertical position.
-        couch_lng : int
+        couch_lng : float
             The couch longitudinal position.
-        couch_lat : int
+        couch_lat : float
             The couch lateral position.
-        couch_rot : int
+        couch_rot : float
             The couch rotation.
         mu : int
             The monitor units of the beam.
-        jaw_padding : int
+        jaw_padding_mm : float
             The padding to add to the X jaws.
         beam_name : str
             The name of the beam.
         """
         # check MLC overtravel; machine may prevent delivery if exposing leaf tail
-        x1 = min(strip_positions) - jaw_padding
-        x2 = max(strip_positions) + jaw_padding
+        x1 = min(strip_positions_mm) - jaw_padding_mm
+        x2 = max(strip_positions_mm) + jaw_padding_mm
         max_dist_to_jaw = max(
-            max(abs(pos - x1), abs(pos + x2)) for pos in strip_positions
+            max(abs(pos - x1), abs(pos + x2)) for pos in strip_positions_mm
         )
         if max_dist_to_jaw > self.max_overtravel_mm:
             raise ValueError(
@@ -617,17 +617,17 @@ class PlanGenerator:
         mlc = self._create_mlc()
         # create initial starting point; start under the jaws
         mlc.add_strip(
-            position=strip_positions[0] + 2,
-            strip_width=strip_width,
+            position_mm=strip_positions_mm[0] + 2,
+            strip_width_mm=strip_width_mm,
             meterset_at_target=0,
         )
 
-        for strip in strip_positions:
+        for strip in strip_positions_mm:
             # starting control point
             mlc.add_strip(
-                position=strip,
-                strip_width=strip_width,
-                meterset_at_target=1 / len(strip_positions),
+                position_mm=strip,
+                strip_width_mm=strip_width_mm,
+                meterset_at_target=1 / len(strip_positions_mm),
             )
         beam = Beam(
             plan_dataset=self.ds,
@@ -656,18 +656,18 @@ class PlanGenerator:
 
     def add_dose_rate_beams(
         self,
-        dose_rates: tuple = (100, 300, 500, 600),
+        dose_rates: tuple[int] = (100, 300, 500, 600),
         default_dose_rate: int = 600,
-        gantry_angle: int = 0,
+        gantry_angle: float = 0,
         desired_mu: int = 50,
-        energy: int = 6,
+        energy: float = 6,
         fluence_mode: FluenceMode = FluenceMode.STANDARD,
-        coll_angle: int = 0,
-        couch_vrt: int = 0,
-        couch_lat: int = 0,
-        couch_lng: int = 1000,
-        couch_rot: int = 0,
-        jaw_padding: int = 5,
+        coll_angle: float = 0,
+        couch_vrt: float = 0,
+        couch_lat: float = 0,
+        couch_lng: float = 1000,
+        couch_rot: float = 0,
+        jaw_padding_mm: float = 5,
         roi_size_mm: float = 25,
         y1: float = -100,
         y2: float = 100,
@@ -679,30 +679,30 @@ class PlanGenerator:
         Parameters
         ----------
         dose_rates : tuple
-            The dose rates to test. Each dose rate will have its own ROI.
+            The dose rates to test in MU/min. Each dose rate will have its own ROI.
         default_dose_rate : int
             The default dose rate. Typically, this is the clinical default. The reference beam
             will be delivered at this dose rate for all ROIs.
-        gantry_angle : int
+        gantry_angle : float
             The gantry angle of the beam.
         desired_mu : int
             The desired monitor units to deliver. It can be that based on the dose rates asked for,
             the MU required might be higher than this value.
-        energy : int
+        energy : float
             The energy of the beam.
         fluence_mode : FluenceMode
             The fluence mode of the beam.
-        coll_angle : int
+        coll_angle : float
             The collimator angle of the beam.
-        couch_vrt : int
+        couch_vrt : float
             The couch vertical position.
-        couch_lat : int
+        couch_lat : float
             The couch lateral position.
-        couch_lng : int
+        couch_lng : float
             The couch longitudinal position.
-        couch_rot : int
+        couch_rot : float
             The couch rotation.
-        jaw_padding : int
+        jaw_padding_mm : float
             The padding to add to the X jaws. The X-jaws will close around the ROIs plus this padding.
         roi_size_mm : float
             The width of the ROIs in mm.
@@ -736,15 +736,15 @@ class PlanGenerator:
         )
         # we have a starting and ending strip
         ref_mlc.add_strip(
-            position=roi_centers[0] - roi_size_mm / 2,
-            strip_width=0,
+            position_mm=roi_centers[0] - roi_size_mm / 2,
+            strip_width_mm=0,
             meterset_at_target=0,
         )
         mlc.add_strip(
-            position=roi_centers[0] - roi_size_mm / 2,
-            strip_width=0,
+            position_mm=roi_centers[0] - roi_size_mm / 2,
+            strip_width_mm=0,
             meterset_at_target=0,
-            initial_sacrificial_gap=5,
+            initial_sacrificial_gap_mm=5,
         )
         for sacrifice_distance, center in zip(sacrificial_movements, roi_centers):
             ref_mlc.add_rectangle(
@@ -759,11 +759,11 @@ class PlanGenerator:
                 sacrificial_distance=0,
             )
             ref_mlc.add_strip(
-                position=center + roi_size_mm / 2,
-                strip_width=0,
+                position_mm=center + roi_size_mm / 2,
+                strip_width_mm=0,
                 meterset_at_target=0,
                 meterset_transition=0.5 / len(dose_rates),
-                sacrificial_distance=0,
+                sacrificial_distance_mm=0,
             )
             mlc.add_rectangle(
                 left_position=center - roi_size_mm / 2,
@@ -777,11 +777,11 @@ class PlanGenerator:
                 sacrificial_distance=sacrifice_distance,
             )
             mlc.add_strip(
-                position=center + roi_size_mm / 2,
-                strip_width=0,
+                position_mm=center + roi_size_mm / 2,
+                strip_width_mm=0,
                 meterset_at_target=0,
                 meterset_transition=0.5 / len(dose_rates),
-                sacrificial_distance=sacrifice_distance,
+                sacrificial_distance_mm=sacrifice_distance,
             )
         ref_beam = Beam(
             plan_dataset=self.ds,
@@ -789,8 +789,8 @@ class PlanGenerator:
             beam_type=BeamType.DYNAMIC,
             energy=energy,
             dose_rate=default_dose_rate,
-            x1=roi_centers[0] - roi_size_mm / 2 - jaw_padding,
-            x2=roi_centers[-1] + roi_size_mm / 2 + jaw_padding,
+            x1=roi_centers[0] - roi_size_mm / 2 - jaw_padding_mm,
+            x2=roi_centers[-1] + roi_size_mm / 2 + jaw_padding_mm,
             y1=y1,
             y2=y2,
             gantry_angles=gantry_angle,
@@ -813,8 +813,8 @@ class PlanGenerator:
             beam_type=BeamType.DYNAMIC,
             energy=energy,
             dose_rate=default_dose_rate,
-            x1=roi_centers[0] - roi_size_mm / 2 - jaw_padding,
-            x2=roi_centers[-1] + roi_size_mm / 2 + jaw_padding,
+            x1=roi_centers[0] - roi_size_mm / 2 - jaw_padding_mm,
+            x2=roi_centers[-1] + roi_size_mm / 2 + jaw_padding_mm,
             y1=y1,
             y2=y2,
             gantry_angles=gantry_angle,
@@ -834,19 +834,19 @@ class PlanGenerator:
 
     def add_mlc_speed_beams(
         self,
-        speeds: tuple = (5, 10, 15, 20),
+        speeds: tuple[float] = (5, 10, 15, 20),
         roi_size_mm: float = 20,
         mu: int = 50,
         default_dose_rate: int = 600,
-        gantry_angle: int = 0,
-        energy: int = 6,
-        coll_angle: int = 0,
-        couch_vrt: int = 0,
-        couch_lat: int = 0,
-        couch_lng: int = 1000,
-        couch_rot: int = 0,
+        gantry_angle: float = 0,
+        energy: float = 6,
+        coll_angle: float = 0,
+        couch_vrt: float = 0,
+        couch_lat: float = 0,
+        couch_lng: float = 1000,
+        couch_rot: float = 0,
         fluence_mode: FluenceMode = FluenceMode.STANDARD,
-        jaw_padding: int = 5,
+        jaw_padding_mm: float = 5,
         y1: float = -100,
         y2: float = 100,
         beam_name: str = "MLC Speed",
@@ -856,31 +856,31 @@ class PlanGenerator:
 
         Parameters
         ----------
-        speeds : tuple
-            The speeds to test. Each speed will have its own ROI.
+        speeds : tuple[float]
+            The speeds to test in mm/s. Each speed will have its own ROI.
         roi_size_mm : float
             The width of the ROIs in mm.
         mu : int
             The monitor units to deliver.
         default_dose_rate : int
             The dose rate used for the reference beam.
-        gantry_angle : int
+        gantry_angle : float
             The gantry angle of the beam.
         energy : int
             The energy of the beam.
-        coll_angle : int
+        coll_angle : float
             The collimator angle of the beam.
-        couch_vrt : int
+        couch_vrt : float
             The couch vertical position.
-        couch_lat : int
+        couch_lat : float
             The couch lateral position.
-        couch_lng : int
+        couch_lng : float
             The couch longitudinal position.
-        couch_rot : int
+        couch_rot : float
             The couch rotation.
         fluence_mode : FluenceMode
             The fluence mode of the beam.
-        jaw_padding : int
+        jaw_padding_mm : float
             The padding to add to the X jaws. The X-jaws will close around the ROIs plus this padding.
         y1 : float
             The bottom jaw position. Usually negative. More negative is lower.
@@ -929,15 +929,15 @@ class PlanGenerator:
         )
         # we have a starting and ending strip
         ref_mlc.add_strip(
-            position=roi_centers[0] - roi_size_mm / 2,
-            strip_width=0,
+            position_mm=roi_centers[0] - roi_size_mm / 2,
+            strip_width_mm=0,
             meterset_at_target=0,
         )
         mlc.add_strip(
-            position=roi_centers[0] - roi_size_mm / 2,
-            strip_width=0,
+            position_mm=roi_centers[0] - roi_size_mm / 2,
+            strip_width_mm=0,
             meterset_at_target=0,
-            initial_sacrificial_gap=5,
+            initial_sacrificial_gap_mm=5,
         )
         for sacrifice_distance, center in zip(sacrificial_movements, roi_centers):
             ref_mlc.add_rectangle(
@@ -952,11 +952,11 @@ class PlanGenerator:
                 sacrificial_distance=0,
             )
             ref_mlc.add_strip(
-                position=center + roi_size_mm / 2,
-                strip_width=0,
+                position_mm=center + roi_size_mm / 2,
+                strip_width_mm=0,
                 meterset_at_target=0,
                 meterset_transition=0.5 / len(speeds),
-                sacrificial_distance=0,
+                sacrificial_distance_mm=0,
             )
             mlc.add_rectangle(
                 left_position=center - roi_size_mm / 2,
@@ -970,11 +970,11 @@ class PlanGenerator:
                 sacrificial_distance=sacrifice_distance,
             )
             mlc.add_strip(
-                position=center + roi_size_mm / 2,
-                strip_width=0,
+                position_mm=center + roi_size_mm / 2,
+                strip_width_mm=0,
                 meterset_at_target=0,
                 meterset_transition=0.5 / len(speeds),
-                sacrificial_distance=sacrifice_distance,
+                sacrificial_distance_mm=sacrifice_distance,
             )
         ref_beam = Beam(
             plan_dataset=self.ds,
@@ -982,8 +982,8 @@ class PlanGenerator:
             beam_type=BeamType.DYNAMIC,
             energy=energy,
             dose_rate=default_dose_rate,
-            x1=roi_centers[0] - roi_size_mm / 2 - jaw_padding,
-            x2=roi_centers[-1] + roi_size_mm / 2 + jaw_padding,
+            x1=roi_centers[0] - roi_size_mm / 2 - jaw_padding_mm,
+            x2=roi_centers[-1] + roi_size_mm / 2 + jaw_padding_mm,
             y1=y1,
             y2=y2,
             gantry_angles=gantry_angle,
@@ -1006,8 +1006,8 @@ class PlanGenerator:
             beam_type=BeamType.DYNAMIC,
             energy=energy,
             dose_rate=default_dose_rate,
-            x1=roi_centers[0] - roi_size_mm / 2 - jaw_padding,
-            x2=roi_centers[-1] + roi_size_mm / 2 + jaw_padding,
+            x1=roi_centers[0] - roi_size_mm / 2 - jaw_padding_mm,
+            x2=roi_centers[-1] + roi_size_mm / 2 + jaw_padding_mm,
             y1=y1,
             y2=y2,
             gantry_angles=gantry_angle,
@@ -1032,15 +1032,15 @@ class PlanGenerator:
         y1: float = -10,
         y2: float = 10,
         defined_by_mlcs: bool = True,
-        energy: int = 6,
+        energy: float = 6,
         fluence_mode: FluenceMode = FluenceMode.STANDARD,
         dose_rate: int = 600,
         axes_positions: Iterable[dict] = ({"gantry": 0, "collimator": 0, "couch": 0},),
-        couch_vrt: int = 0,
-        couch_lng: int = 1000,
-        couch_lat: int = 0,
+        couch_vrt: float = 0,
+        couch_lng: float = 1000,
+        couch_lat: float = 0,
         mu: int = 10,
-        padding: int = 5,
+        padding_mm: float = 5,
     ):
         """Add Winston-Lutz beams to the plan. Will create a beam for each set of axes positions.
         Field names are generated automatically based on the axes positions.
@@ -1057,7 +1057,7 @@ class PlanGenerator:
             The top jaw position.
         defined_by_mlcs : bool
             Whether the field edges are defined by the MLCs or the jaws.
-        energy : int
+        energy : float
             The energy of the beam.
         fluence_mode : FluenceMode
             The fluence mode of the beam.
@@ -1065,24 +1065,24 @@ class PlanGenerator:
             The dose rate of the beam.
         axes_positions : Iterable[dict]
             The positions of the axes. Each dict should have keys 'gantry', 'collimator', and 'couch'.
-        couch_vrt : int
+        couch_vrt : float
             The couch vertical position.
-        couch_lng : int
+        couch_lng : float
             The couch longitudinal position.
-        couch_lat : int
+        couch_lat : float
             The couch lateral position.
         mu : int
             The monitor units of the beam.
-        padding : int
+        padding_mm : float
             The padding to add. If defined by the MLCs, this is the padding of the jaws. If defined by the jaws,
             this is the padding of the MLCs.
         """
         for axes in axes_positions:
             if defined_by_mlcs:
                 mlc_padding = 0
-                jaw_padding = padding
+                jaw_padding = padding_mm
             else:
-                mlc_padding = padding
+                mlc_padding = padding_mm
                 jaw_padding = 0
             mlc = self._create_mlc()
             mlc.add_rectangle(
@@ -1123,17 +1123,17 @@ class PlanGenerator:
         self,
         speeds: tuple = (2, 3, 4, 4.8),
         max_dose_rate: int = 600,
-        start_gantry_angle: int = 179,
-        energy: int = 6,
+        start_gantry_angle: float = 179,
+        energy: float = 6,
         fluence_mode: FluenceMode = FluenceMode.STANDARD,
-        coll_angle: int = 0,
-        couch_vrt: int = 0,
-        couch_lat: int = 0,
-        couch_lng: int = 1000,
-        couch_rot: int = 0,
+        coll_angle: float = 0,
+        couch_vrt: float = 0,
+        couch_lat: float = 0,
+        couch_lng: float = 1000,
+        couch_rot: float = 0,
         beam_name: str = "GS",
         gantry_rot_dir: GantryDirection = GantryDirection.CLOCKWISE,
-        jaw_padding: int = 5,
+        jaw_padding_mm: float = 5,
         roi_size_mm: float = 30,
         y1: float = -100,
         y2: float = 100,
@@ -1148,30 +1148,30 @@ class PlanGenerator:
             The gantry speeds to test. Each speed will have its own ROI.
         max_dose_rate : int
             The max dose rate clinically allowed for the energy.
-        start_gantry_angle : int
+        start_gantry_angle : float
             The starting gantry angle. The gantry will rotate around this point. It is up to the user
             to know what the machine's limitations are. (i.e. don't go through 180 for Varian machines).
             The ending gantry angle will be the starting angle + the sum of the gantry deltas generated
             by the speed ROIs. Slower speeds require more gantry angle to reach the same MU.
-        energy : int
+        energy : float
             The energy of the beam.
         fluence_mode : FluenceMode
             The fluence mode of the beam.
-        coll_angle : int
+        coll_angle : float
             The collimator angle of the beam.
-        couch_vrt : int
+        couch_vrt : float
             The couch vertical position.
-        couch_lat : int
+        couch_lat : float
             The couch lateral position.
-        couch_lng : int
+        couch_lng : float
             The couch longitudinal position.
-        couch_rot : int
+        couch_rot : float
             The couch rotation.
         beam_name : str
             The name of the beam.
         gantry_rot_dir : GantryDirection
             The direction of gantry rotation.
-        jaw_padding : int
+        jaw_padding_mm : float
             The padding to add to the X jaws. The X-jaws will close around the ROIs plus this padding.
         roi_size_mm : float
             The width of the ROIs in mm.
@@ -1225,25 +1225,25 @@ class PlanGenerator:
         )
         # we have a starting and ending strip
         ref_mlc.add_strip(
-            position=roi_centers[0],
-            strip_width=roi_size_mm,
+            position_mm=roi_centers[0],
+            strip_width_mm=roi_size_mm,
             meterset_at_target=0,
         )
         mlc.add_strip(
-            position=roi_centers[0],
-            strip_width=roi_size_mm,
+            position_mm=roi_centers[0],
+            strip_width_mm=roi_size_mm,
             meterset_at_target=0,
         )
         for center, gantry_angle in zip(roi_centers, gantry_angles):
             ref_mlc.add_strip(
-                position=center,
-                strip_width=roi_size_mm,
+                position_mm=center,
+                strip_width_mm=roi_size_mm,
                 meterset_at_target=0,
                 meterset_transition=1 / len(speeds),
             )
             mlc.add_strip(
-                position=center,
-                strip_width=roi_size_mm,
+                position_mm=center,
+                strip_width_mm=roi_size_mm,
                 meterset_at_target=0,
                 meterset_transition=1 / len(speeds),
             )
@@ -1254,8 +1254,8 @@ class PlanGenerator:
             beam_type=BeamType.DYNAMIC,
             energy=energy,
             dose_rate=max_dose_rate,
-            x1=min(roi_centers) - roi_size_mm - jaw_padding,
-            x2=max(roi_centers) + roi_size_mm + jaw_padding,
+            x1=min(roi_centers) - roi_size_mm - jaw_padding_mm,
+            x2=max(roi_centers) + roi_size_mm + jaw_padding_mm,
             y1=y1,
             y2=y2,
             gantry_angles=gantry_angles,
@@ -1278,8 +1278,8 @@ class PlanGenerator:
             beam_type=BeamType.DYNAMIC,
             energy=energy,
             dose_rate=max_dose_rate,
-            x1=min(roi_centers) - roi_size_mm - jaw_padding,
-            x2=max(roi_centers) + roi_size_mm + jaw_padding,
+            x1=min(roi_centers) - roi_size_mm - jaw_padding_mm,
+            x2=max(roi_centers) + roi_size_mm + jaw_padding_mm,
             y1=y1,
             y2=y2,
             gantry_angles=gantry_angles[-1],
@@ -1304,19 +1304,19 @@ class PlanGenerator:
         y1: float,
         y2: float,
         defined_by_mlcs: bool = True,
-        energy: int = 6,
+        energy: float = 6,
         fluence_mode: FluenceMode = FluenceMode.STANDARD,
         dose_rate: int = 600,
-        gantry_angle: int = 0,
-        coll_angle: int = 0,
-        couch_vrt: int = 0,
-        couch_lng: int = 1000,
-        couch_lat: int = 0,
-        couch_rot: int = 0,
+        gantry_angle: float = 0,
+        coll_angle: float = 0,
+        couch_vrt: float = 0,
+        couch_lng: float = 1000,
+        couch_lat: float = 0,
+        couch_rot: float = 0,
         mu: int = 200,
-        padding: float = 5,
+        padding_mm: float = 5,
         beam_name: str = "Open",
-        outside_strip_width: float = 5,
+        outside_strip_width_mm: float = 5,
     ):
         """Add an open field beam to the plan.
 
@@ -1332,39 +1332,39 @@ class PlanGenerator:
             The top jaw position.
         defined_by_mlcs : bool
             Whether the field edges are defined by the MLCs or the jaws.
-        energy : int
+        energy : float
             The energy of the beam.
         fluence_mode : FluenceMode
             The fluence mode of the beam.
         dose_rate : int
             The dose rate of the beam.
-        gantry_angle : int
+        gantry_angle : float
             The gantry angle of the beam.
-        coll_angle : int
+        coll_angle : float
             The collimator angle of the beam.
-        couch_vrt : int
+        couch_vrt : float
             The couch vertical position.
-        couch_lng : int
+        couch_lng : float
             The couch longitudinal position.
-        couch_lat : int
+        couch_lat : float
             The couch lateral position.
-        couch_rot : int
+        couch_rot : float
             The couch rotation.
         mu : int
             The monitor units of the beam.
-        padding : float
+        padding_mm : float
             The padding to add to the jaws or MLCs.
         beam_name : str
             The name of the beam.
-        outside_strip_width : float
+        outside_strip_width_mm : float
             The width of the strip of MLCs outside the field. The MLCs will be placed to the
             left, under the X1 jaw by ~2cm.
         """
         if defined_by_mlcs:
             mlc_padding = 0
-            jaw_padding = padding
+            jaw_padding = padding_mm
         else:
-            mlc_padding = padding
+            mlc_padding = padding_mm
             jaw_padding = 0
         mlc = self._create_mlc()
         mlc.add_rectangle(
@@ -1372,7 +1372,7 @@ class PlanGenerator:
             right_position=x2 + mlc_padding,
             top_position=y2 + mlc_padding,
             bottom_position=y1 - mlc_padding,
-            outer_strip_width=outside_strip_width,
+            outer_strip_width=outside_strip_width_mm,
             x_outfield_position=x1 - mlc_padding - jaw_padding - 20,
             meterset_at_target=1.0,
         )
@@ -1411,7 +1411,7 @@ class PlanGenerator:
 
     def plot_fluences(
         self,
-        width_mm: int = 400,
+        width_mm: float = 400,
         resolution_mm: float = 0.5,
         dtype: np.dtype = np.uint16,
     ) -> list[Figure]:

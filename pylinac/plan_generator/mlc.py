@@ -17,8 +17,8 @@ class MLCShaper:
     def __init__(
         self,
         leaf_y_positions: list[float],
-        max_x: float,
-        sacrifice_gap: float = 5,
+        max_x_mm: float,
+        sacrifice_gap_mm: float = 5,
         sacrifice_max_move_mm: float = 50,
         max_overtravel_mm: float = 140,
     ):
@@ -27,9 +27,9 @@ class MLCShaper:
         ----------
         leaf_y_positions
             The y-positions of the MLC leaves. This is the same as the LeafJawPositions in the DICOM RT Plan.
-        max_x
-            The maximum x-position of the MLC leaves.
-        sacrifice_gap
+        max_x_mm
+            The maximum x-position of the MLC leaves. E.g. 200mm away from the isocenter is 200.
+        sacrifice_gap_mm
             The gap between the sacrificial leaves. This is used to separate the leaves that are being moved out of the way.
         sacrifice_max_move_mm
             The maximum distance a sacrificial leaf can move in one control point.
@@ -37,8 +37,8 @@ class MLCShaper:
             The maximum distance a leaf can move beyond another MLC leaf and also the limit of exposure of the MLC tail.
         """
         self.leaf_y_positions = leaf_y_positions
-        self.max_x = max_x  # mm
-        self.sacrifice_gap = sacrifice_gap  # mm gap
+        self.max_x = max_x_mm  # mm
+        self.sacrifice_gap = sacrifice_gap_mm  # mm gap
         self.sacrifice_max_move_mm = sacrifice_max_move_mm  # mm
         self.max_overtravel_mm = max_overtravel_mm  # mm
         self.control_points = []
@@ -207,12 +207,12 @@ class MLCShaper:
 
     def add_strip(
         self,
-        position: float,
-        strip_width: float,
+        position_mm: float,
+        strip_width_mm: float,
         meterset_at_target: float,
         meterset_transition: float = 0,
-        sacrificial_distance: float = 0,
-        initial_sacrificial_gap: float | None = None,
+        sacrificial_distance_mm: float = 0,
+        initial_sacrificial_gap_mm: float | None = None,
     ) -> None:
         """Create a single strip composed of MLCs.
         This is a subset of the `add_rectangle` method, but centers the strip about the x_infield_position and uses
@@ -220,9 +220,9 @@ class MLCShaper:
 
         Parameters
         ----------
-        position
+        position_mm
             The central x-position of the leaves for the leaves on the 'infield' in mm.
-        strip_width
+        strip_width_mm
             The width of the strip in mm, centered about the x_infield_position.
         meterset_at_target
             The ratio of MU that should be delivered within this control point.
@@ -234,28 +234,28 @@ class MLCShaper:
             the dose between pickets is low or 0. For an MLC speed test or an ROI where
             the goal is to deliver through a transition region, this might be high compared
             to the meterset at target.
-        sacrificial_distance
+        sacrificial_distance_mm
             The distance to move the sacrificial leaves. This is used to module the dose rate.
             If this is set, the meterset_transition must be set to a non-zero value.
-        initial_sacrificial_gap
+        initial_sacrificial_gap_mm
             The initial gap between the sacrificial leaves. This is only used for the first control point.
         """
         self.add_rectangle(
-            left_position=position - strip_width / 2,
-            right_position=position + strip_width / 2,
+            left_position=position_mm - strip_width_mm / 2,
+            right_position=position_mm + strip_width_mm / 2,
             x_outfield_position=-200,  # not relevant/used since we will use all the leaves
             top_position=max(self.leaf_y_positions),
             bottom_position=min(self.leaf_y_positions),
             outer_strip_width=1,  # not relevant/used since we will use all the leaves
             meterset_at_target=meterset_at_target,
             meterset_transition=meterset_transition,
-            sacrificial_distance=sacrificial_distance,
-            initial_sacrificial_gap=initial_sacrificial_gap,
+            sacrificial_distance=sacrificial_distance_mm,
+            initial_sacrificial_gap=initial_sacrificial_gap_mm,
         )
 
 
 def next_sacrifice_shift(
-    current_position: float,
+    current_position_mm: float,
     travel_mm: float,
     x_width_mm: float,
     other_mlc_position: float,
@@ -267,7 +267,7 @@ def next_sacrifice_shift(
 
     Parameters
     ----------
-    current_position
+    current_position_mm
         The current position of the leaf.
     x_width_mm
         The width of the MLCs in the x-direction.
@@ -279,17 +279,17 @@ def next_sacrifice_shift(
         The max overtravel allowed by the MLCs.
     """
     largest_travel_allowed = max_overtravel_mm + abs(
-        other_mlc_position - current_position
+        other_mlc_position - current_position_mm
     )
     if travel_mm > largest_travel_allowed:
         raise ValueError("Travel distance exceeds allowed range")
     if x_width_mm < max_overtravel_mm:
         raise ValueError("Max overtravel exceeds MLC width")
-    movement_direction = 1 if current_position < other_mlc_position else -1
+    movement_direction = 1 if current_position_mm < other_mlc_position else -1
     target_shift = movement_direction * travel_mm
     # if we go beyond the MLC width limit, go the other way
-    if (target_shift + current_position < -x_width_mm / 2) or (
-        target_shift + current_position > x_width_mm / 2
+    if (target_shift + current_position_mm < -x_width_mm / 2) or (
+        target_shift + current_position_mm > x_width_mm / 2
     ):
         target_shift = -movement_direction * travel_mm
     return target_shift
@@ -323,7 +323,7 @@ def interpolate_control_points(
         raise ValueError("Control points must be the same length")
     if any(
         r < 0 or r > 1.001 for r in interpolation_ratios
-    ):  # 1.01 for floating point error
+    ):  # 1.001 for floating point error
         raise ValueError("Interpolation ratios must be between 0 and 1")
     if len(interpolation_ratios) == 0:
         raise ValueError("Interpolation ratios must be provided")
@@ -338,7 +338,7 @@ def interpolate_control_points(
     ):
         last_cp = all_cps[-1]
         sacrificial_shift = next_sacrifice_shift(
-            current_position=last_cp[0],
+            current_position_mm=last_cp[0],
             travel_mm=sacrifice,
             x_width_mm=400,
             other_mlc_position=last_cp[1],
@@ -359,7 +359,7 @@ def interpolate_control_points(
 
 def split_sacrifice_travel(distance: float, max_travel: float) -> list[float]:
     """
-    Split a number into a list of 50's and the remainder.
+    Split a number into a list of multiples of a max travel distance and a remainder. E.g. 66 => [50, 16].
 
     Parameters
     ----------

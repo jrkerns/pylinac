@@ -304,7 +304,7 @@ class TestPlanPrefabs(TestCase):
             mu=123,
             beam_name="Open Field",
             defined_by_mlcs=True,
-            padding=0,
+            padding_mm=0,
         )
         dcm = self.pg.as_dicom()
         self.assertEqual(len(dcm.BeamSequence), 1)
@@ -338,7 +338,7 @@ class TestPlanPrefabs(TestCase):
             mu=123,
             beam_name="Open Field",
             defined_by_mlcs=False,
-            padding=0,
+            padding_mm=0,
         )
         dcm = self.pg.as_dicom()
         self.assertEqual(len(dcm.BeamSequence), 1)
@@ -363,7 +363,7 @@ class TestPlanPrefabs(TestCase):
             y2=10,
             mu=123,
             beam_name="Picket Fence",
-            strip_positions=(-50, -30, -10, 10, 30, 50),
+            strip_positions_mm=(-50, -30, -10, 10, 30, 50),
         )
         dcm = self.pg.as_dicom()
         self.assertEqual(len(dcm.BeamSequence), 1)
@@ -395,7 +395,7 @@ class TestPlanPrefabs(TestCase):
                 y2=10,
                 mu=123,
                 beam_name="Picket Fence",
-                strip_positions=(-100, 100),
+                strip_positions_mm=(-100, 100),
             )
 
     def test_winston_lutz_beams(self):
@@ -581,111 +581,119 @@ class TestMLCShaper(TestCase):
         ).tolist()
 
     def test_init(self):
-        MLCShaper(leaf_y_positions=self.leaf_boundaries, max_x=400, sacrifice_gap=5)
+        MLCShaper(
+            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
+        )
 
     def test_num_leaves(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x=400, sacrifice_gap=5
+            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
         )
         self.assertEqual(shaper.num_leaves, 160)
 
     def test_meterset_over_1(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x=400, sacrifice_gap=5
+            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
         )
         with self.assertRaises(ValueError):
-            shaper.add_strip(position=-5, strip_width=0, meterset_at_target=2)
+            shaper.add_strip(position_mm=-5, strip_width_mm=0, meterset_at_target=2)
 
     def test_sacrifice_without_transition_dose(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x=400, sacrifice_gap=5
+            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
         )
         with self.assertRaises(ValueError):
             shaper.add_strip(
-                position=-5,
-                strip_width=0,
+                position_mm=-5,
+                strip_width_mm=0,
                 meterset_at_target=1,
                 meterset_transition=0,
-                sacrificial_distance=50,
+                sacrificial_distance_mm=50,
             )
 
     def test_initial_sacrificial_gap(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x=400, sacrifice_gap=5
+            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
         )
         shaper.add_strip(
-            position=-5, strip_width=0, meterset_at_target=1, initial_sacrificial_gap=10
+            position_mm=-5,
+            strip_width_mm=0,
+            meterset_at_target=1,
+            initial_sacrificial_gap_mm=10,
         )
         self.assertEqual(shaper.control_points[0][0], -10)
 
     def test_cant_add_sacrificial_gap_after_first_point(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x=400, sacrifice_gap=5
+            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
         )
         shaper.add_strip(
-            position=-5,
-            strip_width=0,
+            position_mm=-5,
+            strip_width_mm=0,
             meterset_at_target=0.2,
-            initial_sacrificial_gap=5,
+            initial_sacrificial_gap_mm=5,
         )
         with self.assertRaises(ValueError) as context:
             shaper.add_strip(
-                position=-5,
-                strip_width=0,
+                position_mm=-5,
+                strip_width_mm=0,
                 meterset_at_target=0.2,
-                initial_sacrificial_gap=10,
+                initial_sacrificial_gap_mm=10,
             )
         self.assertIn("already control points", str(context.exception))
 
     def test_cant_have_initial_sacrifice_and_transition_dose(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x=400, sacrifice_gap=5
+            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
         )
         with self.assertRaises(ValueError):
             shaper.add_strip(
-                position=-5,
-                strip_width=0,
+                position_mm=-5,
+                strip_width_mm=0,
                 meterset_at_target=0,
                 meterset_transition=1,
-                initial_sacrificial_gap=5,
+                initial_sacrificial_gap_mm=5,
             )
 
     def test_cant_have_meterset_transition_for_first_control_point(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x=400, sacrifice_gap=5
+            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
         )
         with self.assertRaises(ValueError) as context:
             shaper.add_strip(
-                position=-5, strip_width=0, meterset_at_target=0, meterset_transition=1
+                position_mm=-5,
+                strip_width_mm=0,
+                meterset_at_target=0,
+                meterset_transition=1,
             )
         self.assertIn("Cannot have a transition", str(context.exception))
 
     def test_cant_have_initial_sacrificial_gap_and_sacrificial_distance(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x=400, sacrifice_gap=5
+            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
         )
         with self.assertRaises(ValueError) as context:
             shaper.add_strip(
-                position=-5,
-                strip_width=0,
+                position_mm=-5,
+                strip_width_mm=0,
                 meterset_at_target=0.5,
                 meterset_transition=0.1,
-                sacrificial_distance=5,
-                initial_sacrificial_gap=5,
+                sacrificial_distance_mm=5,
+                initial_sacrificial_gap_mm=5,
             )
         self.assertIn("Cannot specify both", str(context.exception))
 
     def test_cannot_have_sacrifical_gap_on_secondary_control_point(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x=400, sacrifice_gap=5
+            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
         )
-        shaper.add_strip(position=-5, strip_width=0, meterset_at_target=0.5)
+        shaper.add_strip(position_mm=-5, strip_width_mm=0, meterset_at_target=0.5)
         with self.assertRaises(ValueError) as context:
             shaper.add_strip(
-                position=-5,
-                strip_width=0,
+                position_mm=-5,
+                strip_width_mm=0,
                 meterset_at_target=0.5,
-                initial_sacrificial_gap=10,
+                initial_sacrificial_gap_mm=10,
             )
         self.assertIn("already control points", str(context.exception))
 
@@ -699,9 +707,9 @@ class TestMLCShaper(TestCase):
 
     def test_as_control_points(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x=400, sacrifice_gap=5
+            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
         )
-        shaper.add_strip(position=-5, strip_width=0, meterset_at_target=1)
+        shaper.add_strip(position_mm=-5, strip_width_mm=0, meterset_at_target=1)
         cp = shaper.as_control_points()
         self.assertEqual(
             len(cp), 2
@@ -710,9 +718,9 @@ class TestMLCShaper(TestCase):
 
     def test_as_meter_sets(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x=400, sacrifice_gap=5
+            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
         )
-        shaper.add_strip(position=-5, strip_width=0, meterset_at_target=1)
+        shaper.add_strip(position_mm=-5, strip_width_mm=0, meterset_at_target=1)
         metersets = shaper.as_meter_sets()
         self.assertEqual(metersets, [0, 1])
 
@@ -720,7 +728,7 @@ class TestMLCShaper(TestCase):
 class TestNextSacrificeShift(TestCase):
     def test_easy(self):
         target = next_sacrifice_shift(
-            current_position=0,
+            current_position_mm=0,
             travel_mm=5,
             x_width_mm=400,
             other_mlc_position=0,
@@ -730,7 +738,7 @@ class TestNextSacrificeShift(TestCase):
 
     def test_toward_target_right(self):
         target = next_sacrifice_shift(
-            current_position=-5,
+            current_position_mm=-5,
             travel_mm=50,
             x_width_mm=400,
             other_mlc_position=0,
@@ -740,7 +748,7 @@ class TestNextSacrificeShift(TestCase):
 
     def test_toward_target_left(self):
         target = next_sacrifice_shift(
-            current_position=45,
+            current_position_mm=45,
             travel_mm=50,
             x_width_mm=400,
             other_mlc_position=0,
@@ -751,7 +759,7 @@ class TestNextSacrificeShift(TestCase):
     def test_travel_too_large(self):
         with self.assertRaises(ValueError):
             next_sacrifice_shift(
-                current_position=0,
+                current_position_mm=0,
                 travel_mm=200,
                 x_width_mm=400,
                 other_mlc_position=0,
@@ -760,7 +768,7 @@ class TestNextSacrificeShift(TestCase):
 
     def test_travel_can_be_over_max_overtravel_if_on_other_side(self):
         target = next_sacrifice_shift(
-            current_position=0,
+            current_position_mm=0,
             travel_mm=200,
             x_width_mm=400,
             other_mlc_position=100,
@@ -770,7 +778,7 @@ class TestNextSacrificeShift(TestCase):
 
     def test_at_edge_of_width(self):
         target = next_sacrifice_shift(
-            current_position=-180,
+            current_position_mm=-180,
             travel_mm=30,
             x_width_mm=400,
             other_mlc_position=-190,
@@ -779,7 +787,7 @@ class TestNextSacrificeShift(TestCase):
         self.assertEqual(target, 30)
 
         target = next_sacrifice_shift(
-            current_position=180,
+            current_position_mm=180,
             travel_mm=30,
             x_width_mm=400,
             other_mlc_position=190,
@@ -790,7 +798,7 @@ class TestNextSacrificeShift(TestCase):
     def test_width_vs_overtravel(self):
         with self.assertRaises(ValueError):
             next_sacrifice_shift(
-                current_position=0,
+                current_position_mm=0,
                 travel_mm=30,
                 x_width_mm=100,
                 other_mlc_position=-190,
