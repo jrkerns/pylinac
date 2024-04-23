@@ -2,6 +2,15 @@
 Changelog
 =========
 
+v 3.32.0
+--------
+
+Core
+
+* Pylinac is meant to be compatable with all Python versions still in security lifecycles, which is currently 3.8.
+  Some syntax was introduced that was not compatible with Python 3.8. This has been fixed. Note that
+  Python 3.8 will be EOL in October 2024. The next pylinac release after that will drop support for Python 3.8.
+
 v 3.22.0
 --------
 
