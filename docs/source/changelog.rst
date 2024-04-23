@@ -2,10 +2,28 @@
 Changelog
 =========
 
-v 3.32.0
+v 3.23.0
 --------
 
+Picket Fence
+^^^^^^^^^^^^
+
+* The HDMLC arrangement was changed from 10x40x10 leaves to 14x32x14 leaves to match reality.
+  This may affect the max leaf error metric slightly. In our tests, the change did not skew positive
+  or negative. The mean change was approximately 0.05mm. While changing a definition is not
+  desirable, matching the actual configuration is more important. If for some reason you need
+  the old configuration, you can create a custom MLC arrangement. See the :ref:`customizing_pf_mlcs` section.
+* The leaf error barplot to the right/bottom of a picket fence plot was somewhat confusing. It would show the
+  mean and standard deviation of the error, but not the entire distribution. This plot has been
+  converted to a normal boxplot, showing the median, Q1, Q3 and flier data. More about the boxplot
+  can be read here: `boxplots <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.boxplot.html#matplotlib.axes.Axes.boxplot>`__.
+* The leaf error subplot that shows up at the right/bottom of the analyzed image now shows leaf numbers instead
+  of pixels.
+* A new method is available ``plot_leaf_error``. This method will create a figure of the leaf error boxplot. This is
+  similar to the leaf error subplot that shows up at the right/bottom of the analyzed image, but can be called independently.
+
 Core
+^^^^
 
 * Pylinac is meant to be compatible with all Python versions still in security lifecycles, which is currently 3.8.
   Some syntax was introduced that was not compatible with Python 3.8. This has been fixed. Note that

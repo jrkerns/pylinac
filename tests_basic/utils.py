@@ -8,13 +8,13 @@ import os.path as osp
 import pprint
 import shutil
 import time
+from functools import lru_cache
 from io import BytesIO, StringIO
 from pathlib import Path, PurePosixPath
 from tempfile import TemporaryDirectory
 from typing import Callable, List, Sequence, Union
 from urllib.request import urlopen
 
-from cachetools.func import lru_cache
 from google.cloud import storage
 from py_linq import Enumerable
 
@@ -131,7 +131,7 @@ def has_www_connection():
     try:
         with urlopen("http://www.google.com") as r:
             return r.status == 200
-    except:
+    except Exception:
         return False
 
 
@@ -287,7 +287,7 @@ class DataBankMixin:
         try:
             image.load(filepath)
             return True
-        except:
+        except Exception:
             return False
 
     def test_all(self, func):
