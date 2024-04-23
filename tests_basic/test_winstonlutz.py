@@ -3,16 +3,25 @@ from __future__ import annotations
 import copy
 import io
 import math
+import shutil
 import tempfile
 from pathlib import Path
+from typing import Sequence
 from unittest import TestCase
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 from pylinac import WinstonLutz
 from pylinac.core.array_utils import create_dicom_files_from_3d_array
-from pylinac.core.geometry import Vector, vector_is_close
+from pylinac.core.geometry import Point, Vector, vector_is_close
+from pylinac.core.image_generator import (
+    AS1200Image,
+    GaussianFilterLayer,
+    PerfectFieldLayer,
+    generate_winstonlutz,
+)
 from pylinac.core.io import TemporaryZipDirectory
 from pylinac.core.scale import MachineScale
 from pylinac.metrics.features import is_round
@@ -20,8 +29,11 @@ from pylinac.winston_lutz import (
     Axis,
     WinstonLutz2D,
     WinstonLutzResult,
-    bb_projection_gantry_plane,
-    bb_projection_long,
+    align_points,
+    bb_projection_with_rotation,
+    conventional_to_euler_notation,
+    solve_3d_position_from_2d_planes,
+    solve_3d_shift_vector_from_2d_planes,
 )
 from tests_basic.utils import (
     CloudFileMixin,
@@ -35,243 +47,494 @@ from tests_basic.utils import (
 TEST_DIR = "Winston-Lutz"
 
 
-class TestBBProjection(TestCase):
-    """Test the BB isoplane projections"""
+def apply_rotation_to_points(
+    points: list[Point], angle: float | Sequence[float], axis: str
+) -> list[Point]:
+    # convert from explicit axis to Euler angle; i.e. "roll" -> "z"
+    # for multiple axis rotations, separate by commas and also the
+    # angles must be in the same order as the axes and the same length
+    euler = conventional_to_euler_notation(axes_resolution=axis)
+    rotation = Rotation.from_euler(euler, angle, degrees=True)
+    return [Point(*rotation.apply([p.x, p.y, p.z])) for p in points]
 
-    def test_longitudinal_projection(self):
-        # in coordinate space, positive is in, but in plotting space, positive is out
-        # thus, we return the opposite sign than the coordinate space
-        # dead center
-        assert (
-            bb_projection_long(
-                offset_in=0, offset_up=0, offset_left=0, sad=1000, gantry=0
-            )
-            == 0
-        )
-        # up-only won't change it
-        assert (
-            bb_projection_long(
-                offset_in=0, offset_up=30, offset_left=0, sad=1000, gantry=0
-            )
-            == 0
-        )
-        # long-only won't change it
-        assert (
-            bb_projection_long(
-                offset_in=20, offset_up=0, offset_left=0, sad=1000, gantry=0
-            )
-            == 20
-        )
-        # left-only won't change it
-        assert (
-            bb_projection_long(
-                offset_in=0, offset_up=0, offset_left=15, sad=1000, gantry=0
-            )
-            == 0
-        )
-        # in and up will make it look further away at gantry 0
-        assert math.isclose(
-            bb_projection_long(
-                offset_in=10, offset_up=10, offset_left=0, sad=1000, gantry=0
-            ),
-            10.1,
-            abs_tol=0.005,
-        )
-        # in and down will make it closer at gantry 0
-        assert math.isclose(
-            bb_projection_long(
-                offset_in=10, offset_up=-10, offset_left=0, sad=1000, gantry=0
-            ),
-            9.9,
-            abs_tol=0.005,
-        )
-        # in and up will make it look closer at gantry 180
-        assert math.isclose(
-            bb_projection_long(
-                offset_in=10, offset_up=10, offset_left=0, sad=1000, gantry=180
-            ),
-            9.9,
-            abs_tol=0.005,
-        )
-        # in and down will make it further away at gantry 180
-        assert math.isclose(
-            bb_projection_long(
-                offset_in=10, offset_up=-10, offset_left=0, sad=1000, gantry=180
-            ),
-            10.1,
-            abs_tol=0.005,
-        )
-        # in and left will make it closer at gantry 90
-        assert math.isclose(
-            bb_projection_long(
-                offset_in=10, offset_up=0, offset_left=10, sad=1000, gantry=90
-            ),
-            9.9,
-            abs_tol=0.005,
-        )
-        # in and right will make it further away at gantry 90
-        assert math.isclose(
-            bb_projection_long(
-                offset_in=10, offset_up=0, offset_left=-10, sad=1000, gantry=90
-            ),
-            10.1,
-            abs_tol=0.005,
-        )
-        # in and right will make it closer at gantry 270
-        assert math.isclose(
-            bb_projection_long(
-                offset_in=10, offset_up=0, offset_left=-10, sad=1000, gantry=270
-            ),
-            9.9,
-            abs_tol=0.005,
-        )
-        # in and left won't change at gantry 0
-        assert math.isclose(
-            bb_projection_long(
-                offset_in=10, offset_up=0, offset_left=10, sad=1000, gantry=0
-            ),
-            10,
-            abs_tol=0.005,
-        )
-        # double the sad will half the effect:
-        # in and up will make it look further away at gantry 0
-        assert math.isclose(
-            bb_projection_long(
-                offset_in=10, offset_up=10, offset_left=0, sad=1000, gantry=0
-            ),
-            10.1,
-            abs_tol=0.005,
-        )
-        # out and up will make it look further away at gantry 0
-        assert math.isclose(
-            bb_projection_long(
-                offset_in=-10, offset_up=10, offset_left=0, sad=1000, gantry=0
-            ),
-            -10.1,
-            abs_tol=0.005,
-        )
-        # out and up will make it look closer at gantry 180
-        assert math.isclose(
-            bb_projection_long(
-                offset_in=-10, offset_up=10, offset_left=0, sad=1000, gantry=180
-            ),
-            -9.9,
-            abs_tol=0.005,
-        )
-        # out and down will make it look closer at gantry 0
-        assert math.isclose(
-            bb_projection_long(
-                offset_in=-10, offset_up=-10, offset_left=0, sad=1000, gantry=0
-            ),
-            -9.9,
-            abs_tol=0.005,
-        )
-        # out and down will make it look further out at gantry 180
-        assert math.isclose(
-            bb_projection_long(
-                offset_in=-10, offset_up=-10, offset_left=0, sad=1000, gantry=180
-            ),
-            -10.1,
-            abs_tol=0.005,
-        )
 
-    def test_gantry_plane_projection(self):
-        # left is negative, right is positive
-        # dead center
-        assert (
-            bb_projection_gantry_plane(offset_up=0, offset_left=0, sad=1000, gantry=0)
-            == 0
+class TestAlignPoints3D(TestCase):
+    def test_perfect(self):
+        v, yaw, pitch, roll = align_points(
+            measured_points=[Point(0, 0, 0), Point(1, 1, 1)],
+            ideal_points=[Point(0, 0, 0), Point(1, 1, 1)],
         )
-        # up-only at gantry 0 is still 0
-        assert (
-            bb_projection_gantry_plane(offset_up=10, offset_left=0, sad=1000, gantry=0)
-            == 0
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, 0)
+
+    def test_1mm_offset_left(self):
+        # 1mm offset to the left means we need to shift 1mm to the right
+        v, yaw, pitch, roll = align_points(
+            measured_points=[Point(1, 3, 0), Point(1, 0, 0)],
+            ideal_points=[Point(0, 3, 0), Point(0, 0, 0)],
         )
-        # up-only at gantry 90 is exactly negative the offset
-        assert (
-            bb_projection_gantry_plane(offset_up=10, offset_left=0, sad=1000, gantry=90)
-            == -10
+        self.assertAlmostEqual(v.x, -1)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, 0)
+
+    def test_1mm_offset_in(self):
+        # 1mm offset in means we need to shift 1mm out
+        v, yaw, pitch, roll = align_points(
+            measured_points=[Point(0, 1, 0)], ideal_points=[Point(0, 0, 0)]
         )
-        # down-only at gantry 90 is exactly the offset
-        assert (
-            bb_projection_gantry_plane(
-                offset_up=-10, offset_left=0, sad=1000, gantry=90
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, -1)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, 0)
+
+    def test_1mm_up(self):
+        # 1mm offset up means we need to shift 1mm down
+        v, yaw, pitch, roll = align_points(
+            measured_points=[Point(0, 0, 1)], ideal_points=[Point(0, 0, 0)]
+        )
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, -1)
+        self.assertAlmostEqual(yaw, 0)
+
+    def test_1mm_offset_left_and_3_degree_yaw(self):
+        # 1mm offset to the left means we need to shift 1mm to the right
+        ideal_points = [Point(0, 0, 0), Point(-1, 1, 0), Point(1, 0, 1)]
+        measured_offset = [Point(-1, 0, 0), Point(-2, 1, 0), Point(0, 0, 1)]
+        measured_points = apply_rotation_to_points(measured_offset, 3, "yaw")
+        v, yaw, pitch, roll = align_points(
+            measured_points=measured_points, ideal_points=ideal_points
+        )
+        self.assertAlmostEqual(v.x, 1)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, -3)
+
+    def test_90_rotation(self):
+        ideal_3_long_dots = [
+            Point(0, 0, 0),
+            Point(0, 1, 0),
+            Point(0, -1, 0),
+        ]  # iso and 1mm in
+        measured_3_lateral_dots = apply_rotation_to_points(ideal_3_long_dots, 90, "yaw")
+        v, yaw, pitch, roll = align_points(
+            measured_points=measured_3_lateral_dots, ideal_points=ideal_3_long_dots
+        )
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, -90)
+
+    def test_45_rotation(self):
+        # test a 45 degree rotation; one bb is at iso perfectly, the other is 0.707/0.707 to the right and in but should be fully right
+        measured_45 = [
+            Point(0, 0, 0),
+            Point(0.707, 0.707, 0),
+            Point(-0.707, -0.707, 0),
+        ]  # iso and 1mm to the right
+        ideal_lateral = [
+            Point(0, 0, 0),
+            Point(1, 0, 0),
+            Point(-1, 0, 0),
+        ]  # iso and 1mm right
+        v, yaw, pitch, roll = align_points(
+            measured_points=measured_45, ideal_points=ideal_lateral
+        )
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, -45)
+
+    def test_10_degree_pitch(self):
+        # test a 10 degree pitch; the bb is at iso but the other 2 are 1mm up and down
+        ideal_flat = [Point(0, 0, 0), Point(0, 1, 0)]
+        measured_10_pitch = apply_rotation_to_points(ideal_flat, 10, "pitch")
+        v, yaw, pitch, roll = align_points(
+            measured_points=measured_10_pitch, ideal_points=ideal_flat
+        )
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, 0)
+        self.assertAlmostEqual(roll, 0)
+        self.assertAlmostEqual(pitch, -10)
+
+    def test_10_degree_roll(self):
+        ideal = [Point(0, 0, 0), Point(0, 0, 1), Point(0, 1, 1)]  # up 1
+        measured = apply_rotation_to_points(ideal, 10, "roll")
+        v, yaw, pitch, roll = align_points(measured_points=measured, ideal_points=ideal)
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, 0)
+        self.assertAlmostEqual(roll, -10)
+        self.assertAlmostEqual(pitch, 0)
+
+    def test_10_degree_yaw(self):
+        ideal = [Point(0, 0, 0), Point(1, 0, 0), Point(1, 1, 0)]
+        measured = apply_rotation_to_points(ideal, 10, "yaw")
+        v, yaw, pitch, roll = align_points(measured_points=measured, ideal_points=ideal)
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, -10)
+        self.assertAlmostEqual(roll, 0)
+        self.assertAlmostEqual(pitch, 0)
+
+    def test_pitch_and_yaw(self):
+        # here's where things get hairy based on resolution order
+        ideal = [Point(0, 0, 0), Point(0, 1, 0), Point(1, 0, 1)]
+        measured = apply_rotation_to_points(ideal, (10, 20), "pitch,yaw")
+        v, yaw, pitch, roll = align_points(measured_points=measured, ideal_points=ideal)
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        # these aren't correct so much as we test the function and constancy
+        self.assertAlmostEqual(yaw, -20.3, delta=0.1)
+        self.assertAlmostEqual(roll, -3.45, delta=0.1)
+        self.assertAlmostEqual(pitch, -9.4, delta=1)
+
+    def test_roll_and_yaw(self):
+        ideal = [Point(0, 0, 0), Point(0, 1, 0), Point(1, 0, 1)]
+        measured = apply_rotation_to_points(ideal, (10, 20), "roll,yaw")
+        v, yaw, pitch, roll = align_points(measured_points=measured, ideal_points=ideal)
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        # these aren't correct so much as we test the function and constancy
+        self.assertAlmostEqual(yaw, -19.7, delta=0.1)
+        self.assertAlmostEqual(roll, -9.4, delta=0.1)
+        self.assertAlmostEqual(pitch, 3.4, delta=0.1)
+
+    def test_roll_pitch_yaw(self):
+        ideal = [Point(0, 0, 0), Point(0, 1, 0), Point(1, 0, 1)]
+        measured = apply_rotation_to_points(ideal, (10, 12, 14), "roll,pitch,yaw")
+        v, yaw, pitch, roll = align_points(measured_points=measured, ideal_points=ideal)
+        self.assertAlmostEqual(v.x, 0)
+        self.assertAlmostEqual(v.y, 0)
+        self.assertAlmostEqual(v.z, 0)
+        self.assertAlmostEqual(yaw, -16.1, delta=0.1)
+        self.assertAlmostEqual(roll, -12.7, delta=0.1)
+        self.assertAlmostEqual(pitch, -9, delta=0.1)
+
+
+class Test2Dto3DPositions(TestCase):
+    def test_unequal_lengths(self):
+        with self.assertRaises(ValueError):
+            solve_3d_position_from_2d_planes(
+                xs=[0, 0],
+                ys=[0],
+                thetas=[0, 90],
+                phis=[0, 90],
+                scale=MachineScale.IEC61217,
             )
-            == 10
+
+    def test_perfect(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[0, 0],
+            ys=[0, 0],
+            thetas=[0, 90],
+            phis=[0, 90],
+            scale=MachineScale.IEC61217,
         )
-        # left-only at gantry 0 is exactly negative the offset
-        assert (
-            bb_projection_gantry_plane(offset_up=0, offset_left=10, sad=1000, gantry=0)
-            == -10
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_in_gantry_rotating(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[0, 0, 0],
+            ys=[1, 1, 1],
+            thetas=[0, 90, 270],
+            phis=[0, 0, 0],
+            scale=MachineScale.IEC61217,
         )
-        # right-only at gantry 0 is exactly negative the offset
-        assert (
-            bb_projection_gantry_plane(offset_up=0, offset_left=-10, sad=1000, gantry=0)
-            == 10
+        self.assertAlmostEqual(vector.y, 1)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_out(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[0, 0, 0],
+            ys=[-1, -1, -1],
+            thetas=[0, 90, 270],
+            phis=[0, 0, 0],
+            scale=MachineScale.IEC61217,
         )
-        # left-only at gantry 180 is exactly the offset
-        assert (
-            bb_projection_gantry_plane(
-                offset_up=0, offset_left=10, sad=1000, gantry=180
-            )
-            == 10
+        self.assertAlmostEqual(vector.y, -1)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_left_gantry_rotating(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[-1, 0],
+            ys=[0, 0],
+            thetas=[0, 90],
+            phis=[0, 0],
+            scale=MachineScale.IEC61217,
         )
-        # left and up at gantry 0 makes the bb appear away from CAX
-        assert math.isclose(
-            bb_projection_gantry_plane(
-                offset_up=10, offset_left=20, sad=1000, gantry=0
-            ),
-            -20.2,
-            abs_tol=0.005,
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, -1)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_right_gantry_rotating(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[1, 0, -1, 0],
+            ys=[0, 0, 0, 0],
+            thetas=[0, 90, 180, 270],
+            phis=[0, 0, 0, 0],
+            scale=MachineScale.IEC61217,
         )
-        # left and down at gantry 0 makes the bb appear closer to the CAX
-        assert math.isclose(
-            bb_projection_gantry_plane(
-                offset_up=-10, offset_left=20, sad=1000, gantry=0
-            ),
-            -19.8,
-            abs_tol=0.005,
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 1)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_left_couch_rotating(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[-1, 0, 0],
+            ys=[0, -1, 1],
+            thetas=[0, 0, 0],
+            phis=[0, 90, 270],
+            scale=MachineScale.IEC61217,
         )
-        # left and up at gantry 180 makes the bb appear closer to CAX
-        assert math.isclose(
-            bb_projection_gantry_plane(
-                offset_up=10, offset_left=20, sad=1000, gantry=180
-            ),
-            19.8,
-            abs_tol=0.005,
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, -1)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_right_couch_rotating(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[1, 0, -1],
+            ys=[0, 1, 0],
+            thetas=[0, 0, 0],
+            phis=[0, 90, 180],
+            scale=MachineScale.IEC61217,
         )
-        # left and up at gantry 90 makes the bb appear closer to CAX
-        assert math.isclose(
-            bb_projection_gantry_plane(
-                offset_up=10, offset_left=20, sad=1000, gantry=90
-            ),
-            -9.8,
-            abs_tol=0.005,
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 1)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_up_gantry_rotating(self):
+        vector = solve_3d_position_from_2d_planes(
+            xs=[0, -1],
+            ys=[0, 0],
+            thetas=[0, 90],
+            phis=[0, 0],
+            scale=MachineScale.IEC61217,
         )
-        # left and down at gantry 90 makes the bb appear closer to CAX
-        assert math.isclose(
-            bb_projection_gantry_plane(
-                offset_up=-10, offset_left=20, sad=1000, gantry=90
-            ),
-            9.8,
-            abs_tol=0.005,
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 1)
+
+
+class Test3DShiftVectorFrom2DPlanes(TestCase):
+    # the shift vector is just the inverse of the position vector
+
+    def test_perfect(self):
+        vector = solve_3d_shift_vector_from_2d_planes(
+            xs=[0, 0],
+            ys=[0, 0],
+            thetas=[0, 90],
+            phis=[0, 90],
+            scale=MachineScale.IEC61217,
         )
-        # left and down at gantry 270 makes the bb appear further from the CAX
-        assert math.isclose(
-            bb_projection_gantry_plane(
-                offset_up=-10, offset_left=20, sad=1000, gantry=270
-            ),
-            -10.2,
-            abs_tol=0.005,
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_in_gantry_rotating(self):
+        vector = solve_3d_shift_vector_from_2d_planes(
+            xs=[0, 0, 0],
+            ys=[1, 1, 1],
+            thetas=[0, 90, 270],
+            phis=[0, 0, 0],
+            scale=MachineScale.IEC61217,
         )
-        # right and down at gantry 270 makes the bb appear closer the CAX
-        assert math.isclose(
-            bb_projection_gantry_plane(
-                offset_up=-10, offset_left=-20, sad=1000, gantry=270
-            ),
-            -9.8,
-            abs_tol=0.005,
+        self.assertAlmostEqual(vector.y, -1)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_left_gantry_rotating(self):
+        vector = solve_3d_shift_vector_from_2d_planes(
+            xs=[-1, 0],
+            ys=[0, 0],
+            thetas=[0, 90],
+            phis=[0, 0],
+            scale=MachineScale.IEC61217,
         )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 1)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_up_gantry_rotating(self):
+        vector = solve_3d_shift_vector_from_2d_planes(
+            xs=[0, -1],
+            ys=[0, 0],
+            thetas=[0, 90],
+            phis=[0, 0],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, -1)
+
+    def test_1mm_in_couch_rotating(self):
+        vector = solve_3d_shift_vector_from_2d_planes(
+            xs=[0, -1],
+            ys=[1, 0],
+            thetas=[0, 0],
+            phis=[0, 90],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, -1)
+        self.assertAlmostEqual(vector.x, 0)
+        self.assertAlmostEqual(vector.z, 0)
+
+    def test_1mm_left_couch_rotating(self):
+        vector = solve_3d_shift_vector_from_2d_planes(
+            xs=[-1, 0],
+            ys=[0, -1],
+            thetas=[0, 0],
+            phis=[0, 90],
+            scale=MachineScale.IEC61217,
+        )
+        self.assertAlmostEqual(vector.y, 0)
+        self.assertAlmostEqual(vector.x, 1)
+        self.assertAlmostEqual(vector.z, 0)
+
+
+class TestRotationMatrix(TestCase):
+    def test_dead_center(self):
+        # 0 == 0
+        x, y = bb_projection_with_rotation(0, 0, 0, 0, 0, 1000)
+        assert math.isclose(x, 0)
+        assert math.isclose(y, 0)
+
+    def test_left_1mm(self):
+        x, y = bb_projection_with_rotation(
+            offset_left=1, offset_up=0, offset_in=0, gantry=0, couch=0, sad=1000
+        )
+        assert math.isclose(x, -1)
+        assert math.isclose(y, 0)
+
+    def test_right_1mm(self):
+        x, y = bb_projection_with_rotation(
+            offset_left=-1, offset_up=0, offset_in=0, gantry=0, couch=0, sad=1000
+        )
+        assert math.isclose(x, 1)
+        assert math.isclose(y, 0)
+
+    def test_up_1mm(self):
+        # 0 at gantry 0
+        x, y = bb_projection_with_rotation(
+            offset_left=0, offset_up=1, offset_in=0, gantry=0, couch=0, sad=1000
+        )
+        assert math.isclose(x, 0)
+        assert math.isclose(y, 0)
+
+    def test_down_1mm(self):
+        # 0 at gantry 0
+        x, y = bb_projection_with_rotation(
+            offset_left=0, offset_up=-1, offset_in=0, gantry=0, couch=0, sad=1000
+        )
+        assert math.isclose(x, 0)
+        assert math.isclose(y, 0)
+
+    def test_in_1mm(self):
+        x, y = bb_projection_with_rotation(
+            offset_left=0, offset_up=0, offset_in=1, gantry=0, couch=0, sad=1000
+        )
+        assert math.isclose(x, 0)
+        assert math.isclose(y, 1)
+
+    def test_out_1mm(self):
+        x, y = bb_projection_with_rotation(
+            offset_left=0, offset_up=0, offset_in=-1, gantry=0, couch=0, sad=1000
+        )
+        assert math.isclose(x, 0)
+        assert math.isclose(y, -1)
+
+    def test_1mm_up_gantry_90(self):
+        # at gantry 90 the bb is up 1mm (negative/left)
+        x, y = bb_projection_with_rotation(
+            offset_left=0, offset_up=1, offset_in=0, gantry=90, couch=0, sad=1000
+        )
+        assert math.isclose(x, -1)
+        assert math.isclose(y, 0)
+
+    def test_1mm_up_gantry_270(self):
+        # at gantry 270 the bb is down 1mm (positive/right)
+        x, y = bb_projection_with_rotation(
+            offset_left=0, offset_up=1, offset_in=0, gantry=270, couch=0, sad=1000
+        )
+        assert math.isclose(x, 1)
+        assert math.isclose(y, 0)
+
+    def test_1mm_in_couch_90(self):
+        # at couch 90 the bb is rotated to be 1mm left
+        x, y = bb_projection_with_rotation(
+            offset_left=0, offset_up=0, offset_in=1, gantry=0, couch=90, sad=1000
+        )
+        assert math.isclose(x, -1)
+        assert math.isclose(y, 0, abs_tol=0.001)
+
+    def test_1mm_out_couch_90(self):
+        # at couch 90 the bb is rotated to be 1mm right
+        x, y = bb_projection_with_rotation(
+            offset_left=0, offset_up=0, offset_in=-1, gantry=0, couch=90, sad=1000
+        )
+        assert math.isclose(x, 1)
+        assert math.isclose(y, 0, abs_tol=0.001)
+
+    def test_1mm_in_couch_270(self):
+        # at couch 270 the bb is rotated to be 1mm right
+        x, y = bb_projection_with_rotation(
+            offset_left=0, offset_up=0, offset_in=1, gantry=0, couch=270, sad=1000
+        )
+        assert math.isclose(x, 1)
+        assert math.isclose(y, 0, abs_tol=0.001)
+
+    def test_in_and_up_magnification(self):
+        # when gantry=0 and offset up > 0 the bb should appear even further away than the in offset
+        x, y = bb_projection_with_rotation(
+            offset_left=0, offset_up=20, offset_in=10, gantry=0, couch=0, sad=1000
+        )
+        assert math.isclose(x, 0)
+        assert math.isclose(y, 10.204, abs_tol=0.001)
+
+    def test_in_and_down_magnification(self):
+        # when gantry=0 and offset up < 0 the bb should appear even closer than the in offset
+        x, y = bb_projection_with_rotation(
+            offset_left=0, offset_up=-10, offset_in=10, gantry=0, couch=0, sad=1000
+        )
+        assert math.isclose(x, 0)
+        assert math.isclose(y, 9.9, abs_tol=0.001)
+
+    def test_in_and_right_gantry_90(self):
+        # at gantry 90 the offset is to the right the bb should appear even further away than the in offset
+        x, y = bb_projection_with_rotation(
+            offset_left=-10, offset_up=0, offset_in=10, gantry=90, couch=0, sad=1000
+        )
+        assert math.isclose(x, 0, abs_tol=0.001)
+        assert math.isclose(y, 10.101, abs_tol=0.001)
+
+    def test_1mm_left_gantry_180(self):
+        # at gantry 180 the bb is 1mm right
+        x, y = bb_projection_with_rotation(
+            offset_left=1, offset_up=0, offset_in=0, gantry=180, couch=0, sad=1000
+        )
+        assert math.isclose(x, 1)
+        assert math.isclose(y, 0)
+
+    def test_1mm_in_couch_45(self):
+        # at couch 45 the bb is rotated to be 0.707mm in and 0.707mm left
+        x, y = bb_projection_with_rotation(
+            offset_left=0, offset_up=0, offset_in=1, gantry=0, couch=45, sad=1000
+        )
+        assert math.isclose(x, -0.707, abs_tol=0.001)
+        assert math.isclose(y, 0.707, abs_tol=0.001)
 
 
 class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
@@ -496,10 +759,10 @@ class GeneralTests(TestCase):
 
     def test_bb_shift_instructions(self):
         move = self.wl.bb_shift_instructions()
-        self.assertTrue("RIGHT" in move)
+        self.assertTrue("LEFT" in move)
 
         move = self.wl.bb_shift_instructions(couch_vrt=-2, couch_lat=1, couch_lng=100)
-        self.assertTrue("RIGHT" in move)
+        self.assertTrue("LEFT" in move)
         self.assertTrue("VRT" in move)
 
     def test_results_data(self):
@@ -530,6 +793,10 @@ class GeneralTests(TestCase):
             self.wl.images[0].bb.x,
             delta=0.02,
         )
+
+    def test_results_data_as_json(self):
+        data_json = self.wl.results_data(as_json=True)
+        self.assertIsInstance(data_json, str)
 
     def test_results_data_individual_keys_duplicate(self):
         # lucky for us, the demo set has duplicates already
@@ -655,6 +922,7 @@ class WinstonLutzMixin(CloudFileMixin):
     }  # fill with as many {image#: known_axis_of_rotation} pairs as desired
     print_results = False
     use_filenames = False
+    apply_virtual_shift = False
 
     @classmethod
     def new_instance(cls) -> WinstonLutz:
@@ -685,6 +953,7 @@ class WinstonLutzMixin(CloudFileMixin):
             machine_scale=cls.machine_scale,
             low_density_bb=cls.low_density_bb,
             open_field=cls.open_field,
+            apply_virtual_shift=cls.apply_virtual_shift,
         )
         if cls.print_results:
             print(cls.wl.results())
@@ -767,6 +1036,7 @@ class WinstonLutzMixin(CloudFileMixin):
                 machine_scale=self.machine_scale,
                 low_density_bb=self.low_density_bb,
                 open_field=self.open_field,
+                apply_virtual_shift=self.apply_virtual_shift,
             )
             new_max = new_wl.cax2bb_distance(metric="max")
             new_mean = new_wl.cax2bb_distance(metric="mean")
@@ -775,6 +1045,220 @@ class WinstonLutzMixin(CloudFileMixin):
             self.assertAlmostEqual(
                 original_gantry_iso, new_wl.gantry_iso_size, delta=0.1
             )
+
+
+class SyntheticWLMixin(WinstonLutzMixin):
+    """This mixin generates WL images on the fly for testing purposes rather than pulling from the cloud"""
+
+    tmp_path: str = ""
+    zip = False
+    field_size = 20
+    penumbra_mm = 1.5
+    offset_mm_in = 0
+    offset_mm_left = 0
+    offset_mm_up = 0
+    bb_alpha = -0.8
+    gantry_sag = 0
+    gantry_tilt = 0
+    images_axes: tuple[tuple[int, int, int]] = (
+        (0, 0, 0),
+        (90, 0, 0),
+        (180, 0, 0),
+        (270, 0, 0),
+        (0, 0, 45),
+        (0, 0, 90),
+        (0, 0, 270),
+        (0, 0, 315),
+    )
+
+    @classmethod
+    def tearDownClass(cls):
+        # clean up the folder we created;
+        # in BB space can be at a premium.
+        shutil.rmtree(cls.tmp_path, ignore_errors=True)
+
+    @classmethod
+    def get_filename(cls) -> str:
+        """We generate the files and return a local temp path.
+        This may get called multiple times so we do a poor-man's caching"""
+        if not cls.tmp_path:
+            cls.tmp_path = tempfile.mkdtemp()
+            generate_winstonlutz(
+                simulator=AS1200Image(1000),
+                field_layer=PerfectFieldLayer,
+                dir_out=cls.tmp_path,
+                field_size_mm=(cls.field_size, cls.field_size),
+                final_layers=[GaussianFilterLayer(sigma_mm=cls.penumbra_mm)],
+                bb_alpha=cls.bb_alpha,
+                offset_mm_in=cls.offset_mm_in,
+                offset_mm_up=cls.offset_mm_up,
+                offset_mm_left=cls.offset_mm_left,
+                bb_size_mm=cls.bb_size,
+                gantry_sag=cls.gantry_sag,
+                gantry_tilt=cls.gantry_tilt,
+                machine_scale=MachineScale.IEC61217,
+                image_axes=cls.images_axes,
+            )
+        return cls.tmp_path
+
+    @property
+    def num_images(self):
+        """Shortcut the num of images check since we are creating them. No need to check."""
+        return len(self.images_axes)
+
+    def test_bb_shift_vector(self):
+        """The vector should be opposite the set offsets"""
+        self.assertAlmostEqual(
+            self.wl.bb_shift_vector.x, self.offset_mm_left, delta=0.05
+        )  # no negative; left is negative
+        self.assertAlmostEqual(
+            self.wl.bb_shift_vector.y, -self.offset_mm_in, delta=0.05
+        )
+        self.assertAlmostEqual(
+            self.wl.bb_shift_vector.z, -self.offset_mm_up, delta=0.05
+        )
+
+    def test_virtual_shift_has_zero_remaining_shift(self):
+        """The virtual shift should have zero remaining shift after applying it"""
+        wl = self.new_instance()
+        wl.analyze(
+            bb_size_mm=self.bb_size,
+            machine_scale=self.machine_scale,
+            low_density_bb=self.low_density_bb,
+            open_field=self.open_field,
+            apply_virtual_shift=True,
+        )
+        self.assertAlmostEqual(wl.bb_shift_vector.as_scalar(), 0, delta=0.05)
+
+    def test_bb3d_measured_position(self):
+        self.assertAlmostEqual(
+            self.wl.bb.measured_bb_position.x, -self.offset_mm_left, delta=0.03
+        )
+        self.assertAlmostEqual(
+            self.wl.bb.measured_bb_position.y, self.offset_mm_in, delta=0.03
+        )
+        self.assertAlmostEqual(
+            self.wl.bb.measured_bb_position.z, self.offset_mm_up, delta=0.03
+        )
+
+    def test_bb3d_nominal_position(self):
+        self.assertAlmostEqual(self.wl.bb.nominal_bb_position.x, 0, delta=0.01)
+        self.assertAlmostEqual(self.wl.bb.nominal_bb_position.y, 0, delta=0.01)
+        self.assertAlmostEqual(self.wl.bb.nominal_bb_position.z, 0, delta=0.01)
+
+
+class Synthetic1mmLeftNoCouch(SyntheticWLMixin, TestCase):
+    images_axes = (
+        (0, 0, 0),
+        (90, 0, 0),
+        (180, 0, 0),
+        (270, 0, 0),
+    )
+    offset_mm_left = 1
+    cax2bb_max_distance = 1
+    cax2bb_mean_distance = 0.5
+    cax2bb_median_distance = 0.5
+
+
+class Synthetic1mmLeft(SyntheticWLMixin, TestCase):
+    """This should give the same result as above but including couch images"""
+
+    offset_mm_left = 1
+    cax2bb_max_distance = 1
+    cax2bb_mean_distance = 0.67
+    cax2bb_median_distance = 1
+    couch_iso_size = 2
+
+
+class Synthetic1mmRight(SyntheticWLMixin, TestCase):
+    offset_mm_left = -1
+    cax2bb_max_distance = 1.0
+    cax2bb_mean_distance = 0.75
+    cax2bb_median_distance = 1
+    couch_iso_size = 2
+
+
+class Synthetic1mmUp(SyntheticWLMixin, TestCase):
+    offset_mm_up = 1
+    cax2bb_max_distance = 1.0
+    cax2bb_mean_distance = 0.25
+    cax2bb_median_distance = 0
+
+
+class Synthetic1mmDown(SyntheticWLMixin, TestCase):
+    offset_mm_up = -1
+    cax2bb_max_distance = 1.0
+    cax2bb_mean_distance = 0.25
+    cax2bb_median_distance = 0
+    couch_iso_size = 0
+
+
+class Synthetic1mmIn(SyntheticWLMixin, TestCase):
+    offset_mm_in = 1
+    cax2bb_max_distance = 1.0
+    cax2bb_mean_distance = 1.0
+    cax2bb_median_distance = 1
+    couch_iso_size = 2.0
+
+
+class Synthetic1mmOut(SyntheticWLMixin, TestCase):
+    offset_mm_in = -1
+    cax2bb_max_distance = 1.0
+    cax2bb_mean_distance = 1.0
+    cax2bb_median_distance = 1
+    couch_iso_size = 2.0
+
+
+class Synthetic1mmIn1mmLeft(SyntheticWLMixin, TestCase):
+    offset_mm_in = 1
+    offset_mm_left = 1
+    cax2bb_max_distance = 1.41
+    cax2bb_mean_distance = 1.3
+    cax2bb_median_distance = 1.4
+    couch_iso_size = 2.8
+
+
+class Synthetic1mmOut1mmRight(SyntheticWLMixin, TestCase):
+    offset_mm_in = -1
+    offset_mm_left = -1
+    cax2bb_max_distance = 1.41
+    cax2bb_mean_distance = 1.3
+    cax2bb_median_distance = 1.4
+    couch_iso_size = 2.8
+
+
+class Synthetic2mmUp1mmLeft(SyntheticWLMixin, TestCase):
+    offset_mm_up = 2
+    offset_mm_left = 1
+    cax2bb_max_distance = 2.0
+    cax2bb_mean_distance = 1.25
+    cax2bb_median_distance = 1.0
+    couch_iso_size = 2.0
+
+
+class Synthetic2mmRight1mmDown(SyntheticWLMixin, TestCase):
+    offset_mm_up = -1
+    offset_mm_left = -2
+    cax2bb_max_distance = 2.0
+    cax2bb_mean_distance = 1.75
+    cax2bb_median_distance = 2.0
+    couch_iso_size = 4.0
+
+
+class Synthetic1mmOut1SidedCouch(SyntheticWLMixin, TestCase):
+    offset_mm_in = -1
+    cax2bb_max_distance = 1.0
+    cax2bb_mean_distance = 1.0
+    cax2bb_median_distance = 1
+    couch_iso_size = 1.42
+    images_axes = (
+        (0, 0, 0),
+        (90, 0, 0),
+        (180, 0, 0),
+        (270, 0, 0),
+        (0, 0, 45),
+        (0, 0, 90),  # only shift couch one way; should still give same shift result
+    )
 
 
 class WLDemo(WinstonLutzMixin, TestCase):
@@ -788,7 +1272,7 @@ class WLDemo(WinstonLutzMixin, TestCase):
     machine_scale = MachineScale.VARIAN_IEC
     epid_deviation = 1.3
     axis_of_rotation = {0: Axis.REFERENCE}
-    bb_shift_vector = Vector(x=0.4, y=-0.4, z=-0.2)
+    bb_shift_vector = Vector(x=0, y=-0.25, z=-0.2)
     delete_file = False
 
     @classmethod
@@ -801,12 +1285,12 @@ class WLDemo(WinstonLutzMixin, TestCase):
         return WinstonLutz.from_demo_images()
 
     def test_different_scale_has_different_shift(self):
-        assert "RIGHT" in self.wl.bb_shift_instructions()
-        assert self.wl.bb_shift_vector.x > 0.1
+        assert "LEFT" in self.wl.bb_shift_instructions()
+        assert self.wl.bb_shift_vector.x < 0.0
         new_wl = WinstonLutz.from_demo_images()
         new_wl.analyze(machine_scale=MachineScale.IEC61217)
-        assert new_wl.bb_shift_vector.x < 0.1
-        assert "LEFT" in new_wl.bb_shift_instructions()
+        assert new_wl.bb_shift_vector.x > 0.1
+        assert "RIGHT" in new_wl.bb_shift_instructions()
 
     def test_multiple_analyses_gives_same_result(self):
         original_vector = copy.copy(self.wl.bb_shift_vector)
@@ -978,7 +1462,7 @@ class KatyiX0(WinstonLutzMixin, TestCase):
     cax2bb_median_distance = 0.8
     cax2bb_mean_distance = 0.7
     machine_scale = MachineScale.VARIAN_IEC
-    bb_shift_vector = Vector(x=-0.5, y=0.4, z=-0.5)
+    bb_shift_vector = Vector(x=-0.4, y=0.15, z=-0.5)
     print_results = True
 
 
@@ -1004,7 +1488,7 @@ class KatyiX2(WinstonLutzMixin, TestCase):
     cax2bb_median_distance = 0.5
     cax2bb_mean_distance = 0.6
     machine_scale = MachineScale.VARIAN_IEC
-    bb_shift_vector = Vector(x=0.4, y=-0.1, z=0.1)
+    bb_shift_vector = Vector(x=0.15, y=-0.15, z=0.1)
 
 
 class KatyiX3(WinstonLutzMixin, TestCase):
@@ -1017,7 +1501,7 @@ class KatyiX3(WinstonLutzMixin, TestCase):
     cax2bb_median_distance = 0.8
     cax2bb_mean_distance = 0.75
     machine_scale = MachineScale.VARIAN_IEC
-    bb_shift_vector = Vector(x=-0.3, y=0.4, z=-0.5)
+    bb_shift_vector = Vector(x=-0.1, y=0.2, z=-0.5)
 
 
 class KatyTB0(WinstonLutzMixin, TestCase):
@@ -1031,7 +1515,7 @@ class KatyTB0(WinstonLutzMixin, TestCase):
     cax2bb_mean_distance = 0.8
     machine_scale = MachineScale.VARIAN_IEC
     axis_of_rotation = {-1: Axis.REFERENCE}
-    bb_shift_vector = Vector(x=-0.7, y=-0.1, z=-0.2)
+    bb_shift_vector = Vector(x=-0.4, y=-0.1, z=-0.25)
 
 
 class KatyTB1(WinstonLutzMixin, TestCase):
@@ -1045,7 +1529,7 @@ class KatyTB1(WinstonLutzMixin, TestCase):
     cax2bb_mean_distance = 0.6
     axis_of_rotation = {0: Axis.GANTRY}
     machine_scale = MachineScale.VARIAN_IEC
-    bb_shift_vector = Vector(x=-0.6, y=-0.2)
+    bb_shift_vector = Vector(x=-0.3, y=-0.2)
 
 
 class KatyTB2(WinstonLutzMixin, TestCase):
@@ -1109,7 +1593,7 @@ class SugarLandiX2015(WinstonLutzMixin, TestCase):
     cax2bb_median_distance = 1.05
     cax2bb_mean_distance = 1.1
     machine_scale = MachineScale.VARIAN_IEC
-    bb_shift_vector = Vector(x=0.4, y=-0.7, z=0.1)
+    bb_shift_vector = Vector(x=0.6, y=-0.5, z=0.1)
 
 
 class BayAreaiX0(WinstonLutzMixin, TestCase):
@@ -1123,7 +1607,7 @@ class BayAreaiX0(WinstonLutzMixin, TestCase):
     cax2bb_median_distance = 0.6
     cax2bb_mean_distance = 0.6
     machine_scale = MachineScale.VARIAN_IEC
-    bb_shift_vector = Vector(x=0.3, y=-0.4, z=-0.2)
+    bb_shift_vector = Vector(x=0, y=-0.3, z=-0.2)
 
 
 class DAmoursElektaOffset(WinstonLutzMixin, TestCase):

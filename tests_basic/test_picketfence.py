@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import os.path as osp
 import tempfile
@@ -83,7 +84,7 @@ class TestInstantiation(
     def test_all_mlc_arrangements(self):
         """This isn't really testing the MLCs so much as a constancy check to ensure they haven't changed."""
         path = get_file_from_cloud_test_repo([TEST_DIR, "AS500_PF.dcm"])
-        expected_max_error = [0.13, 0.18, 0.16, 0.14, 0.06, 0.06, 0.06]
+        expected_max_error = [0.13, 0.14, 0.16, 0.14, 0.06, 0.06, 0.06]
         for max_error, mlc in zip(expected_max_error, MLC):
             pf = PicketFence(path, mlc=mlc)
             pf.analyze()
@@ -148,6 +149,11 @@ class TestAnalyze(TestCase):
         self.assertIsInstance(data_dict, dict)
         self.assertIn("pylinac_version", data_dict)
         self.assertEqual(len(data_dict), 16)
+
+        data_str = self.pf.results_data(as_json=True)
+        self.assertIsInstance(data_str, str)
+        # shouldn't raise
+        json.loads(data_str)
 
     def test_no_measurements_suggests_inversion(self):
         file_loc = get_file_from_cloud_test_repo(
@@ -304,7 +310,7 @@ class TestBBBasedAnalysis(TestCase):
 
         pf_file = "separated_wide_gap_up_down.dcm"
         generate_picketfence(
-            simulator=AS1200Image(sid=1500),
+            simulator=AS1200Image(sid=1000),
             field_layer=FilteredFieldLayer,
             # this applies a non-uniform intensity about the CAX, simulating the horn effect
             file_out=pf_file,
@@ -483,7 +489,7 @@ class PFTestMixin(CloudFileMixin):
         self.assertAlmostEqual(self.pf.percent_passing, self.percent_passing, delta=1)
 
     def test_max_error(self):
-        self.assertAlmostEqual(self.pf.max_error, self.max_error, delta=0.1)
+        self.assertAlmostEqual(self.pf.max_error, self.max_error, delta=0.05)
 
     def test_abs_median_error(self):
         self.assertAlmostEqual(
@@ -721,7 +727,7 @@ class AS5004(PFTestMixin, TestCase):
     """Tests for the AS500#4 image."""
 
     file_name = "AS500#4.dcm"
-    max_error = 0.28
+    max_error = 0.21
     abs_median_error = 0.06
     mlc_skew = -0.3
 
@@ -747,7 +753,7 @@ class AS5007(PFTestMixin, TestCase):
     """Tests for the AS500#4 image."""
 
     file_name = "AS500#7.dcm"
-    max_error = 0.24
+    max_error = 0.18
     abs_median_error = 0.05
     mlc_skew = -0.3
 
@@ -765,7 +771,7 @@ class AS5009(PFTestMixin, TestCase):
     """Tests for the AS500#4 image."""
 
     file_name = "AS500#9.dcm"
-    max_error = 0.24
+    max_error = 0.16
     abs_median_error = 0.04
     mlc_skew = -0.3
 
@@ -848,7 +854,7 @@ class AS1000HDFull(PFTestMixin, TestCase):
 
     file_name = "AS1000-HD-full.dcm"
     mlc = "HD"
-    max_error = 0.2
+    max_error = 0.12
     abs_median_error = 0.06
 
 
@@ -932,7 +938,7 @@ class ChicagoNoError(PFTestMixin, TestCase):
     file_name = "PF no error.dcm"
     # log = ['Chicago', 'PF no error tlog.bin']
     mlc = "HD"
-    max_error = 0.24
+    max_error = 0.3
 
 
 class ChicagoError(PFTestMixin, TestCase):

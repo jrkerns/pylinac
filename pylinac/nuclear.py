@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 import math
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
-from typing import Sequence, TypedDict
+from typing import Sequence
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -12,6 +13,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle
 from numpy.lib.stride_tricks import sliding_window_view
+from pydantic import BaseModel
 from scipy.optimize import curve_fit, minimize
 from scipy.signal import convolve2d
 from skimage.measure import block_reduce, label, regionprops
@@ -21,6 +23,7 @@ from skimage.morphology import (
     remove_small_objects,
 )
 from skimage.segmentation import find_boundaries
+from typing_extensions import TypedDict
 
 from pylinac.core.contrast import michelson
 from pylinac.core.geometry import Circle, Point, direction_to_coords
@@ -28,18 +31,18 @@ from pylinac.core.image import DicomImage, NMImageStack
 from pylinac.core.mtf import MomentMTF
 from pylinac.core.profile import find_peaks
 from pylinac.core.roi import DiskROI, HighContrastDiskROI, RectangleROI
+from pylinac.core.utilities import ResultsDataMixin
 from pylinac.metrics.image import WeightedCentroid
 
 
-@dataclass
-class MaxCountRateResults:
+class MaxCountRateResults(BaseModel):
     max_countrate: float  #:
     max_frame: int  #:
     frame_duration: float  #:
     sums: dict[int, float]  #:
 
 
-class MaxCountRate:
+class MaxCountRate(ResultsDataMixin[MaxCountRateResults]):
     """Calculate the maximum countrate of a gamma camera.
 
     Reimplementation of the NMQC toolkit's MaxCountRate test (4.2)
@@ -117,22 +120,17 @@ class MaxCountRate:
             f"Max frame: {self.max_frame} out of {len(self.stack.frames)}\n"
         )
 
-    def results_data(self, as_dict: bool = False) -> dict | MaxCountRateResults:
+    def _generate_results_data(self) -> MaxCountRateResults:
         """Return the results as a dict or dataclass."""
-        d = MaxCountRateResults(
+        return MaxCountRateResults(
             max_countrate=self.max_countrate,
             frame_duration=self.frame_duration,
             max_frame=self.max_frame,
             sums=self.sums,
         )
-        if as_dict:
-            return asdict(d)
-        else:
-            return d
 
 
-@dataclass
-class PlanarUniformityResults:
+class PlanarUniformityResults(BaseModel):
     ufov_integral_uniformity: float  #:
     ufov_differential_uniformity: float  #:
     cfov_integral_uniformity: float  #:
@@ -333,7 +331,9 @@ class PlanarUniformity:
             s.append("\n")
         return "".join(s)
 
-    def results_data(self, as_dict: bool = False) -> dict:
+    def results_data(
+        self, as_dict: bool = False, as_json: bool = False
+    ) -> dict[str, PlanarUniformityResults | dict | str] | str:
         data = {}
         for key, result in self.frame_results.items():
             r = PlanarUniformityResults(
@@ -345,9 +345,13 @@ class PlanarUniformity:
             if as_dict:
                 # make the key 1-based for ease of understanding by the user and match
                 # dicom labeling
-                data[f"Frame {key}"] = asdict(r)
+                data[f"Frame {key}"] = r.model_dump()
+            elif as_json:
+                data[f"Frame {key}"] = r.model_dump_json()
             else:
                 data[f"Frame {key}"] = r
+        if as_json:
+            data = json.dumps(data)
         return data
 
     def plot(self, show: bool = True, cmap: str = "gray") -> (list[Figure], list[Axes]):
@@ -452,13 +456,12 @@ def determine_binning(pixel_size: float) -> int:
     return binning
 
 
-@dataclass
-class CenterOfRotationResults:
+class CenterOfRotationResults(BaseModel):
     x_deviation_mm: float  #:
     y_deviation_mm: float  #:
 
 
-class CenterOfRotation:
+class CenterOfRotation(ResultsDataMixin[CenterOfRotationResults]):
     """Analyze the center of rotation deviation of a gamma camera."""
 
     centroids: dict[float, Point]
@@ -539,18 +542,12 @@ class CenterOfRotation:
             f"Y-axis center of rotation deviation (mm): {self.y_cor_deviation_mm:.3f}\n"
         )
 
-    def results_data(
-        self, as_dict: bool = False
-    ) -> dict[str, float] | CenterOfRotationResults:
+    def _generate_results_data(self) -> CenterOfRotationResults:
         """Return the results as a structure."""
-        r = CenterOfRotationResults(
+        return CenterOfRotationResults(
             x_deviation_mm=self.x_cor_deviation_mm,
             y_deviation_mm=self.y_cor_deviation_mm,
         )
-        if as_dict:
-            return asdict(r)
-        else:
-            return r
 
     def plot(self, show: bool = True) -> (list[Figure], list[Axes]):
         figs = []
@@ -616,8 +613,7 @@ def weighted_centroid_3d(arr: np.ndarray) -> tuple[float, float, float] | None:
     return centroid_x, centroid_y, centroid_z
 
 
-@dataclass
-class TomographicResolutionResults:
+class TomographicResolutionResults(BaseModel):
     x_fwhm: float  #:
     y_fwhm: float  #:
     z_fwhm: float  #:
@@ -674,7 +670,7 @@ class TomographicResolutionAxisData:
         return fig, ax
 
 
-class TomographicResolution:
+class TomographicResolution(ResultsDataMixin[TomographicResolutionResults]):
     """Analyze a tomographic resolution image for its x/y/z resolution. Based on IAEA test 4.3.4, pg 169
 
     Parameters
@@ -726,11 +722,9 @@ class TomographicResolution:
             f"Z-axis FWTM (mm): {self.z_axis.fwtm:.3f}\n"
         )
 
-    def results_data(
-        self, as_dict: bool = False
-    ) -> dict[str, float] | TomographicResolutionResults:
+    def _generate_results_data(self) -> TomographicResolutionResults:
         """Return the results as a structure."""
-        r = TomographicResolutionResults(
+        return TomographicResolutionResults(
             x_fwhm=self.x_axis.fwhm,
             y_fwhm=self.y_axis.fwhm,
             z_fwhm=self.z_axis.fwhm,
@@ -738,10 +732,6 @@ class TomographicResolution:
             y_fwtm=self.y_axis.fwtm,
             z_fwtm=self.z_axis.fwtm,
         )
-        if as_dict:
-            return asdict(r)
-        else:
-            return r
 
     def plot(self) -> (list[Figure], list[Axes]):
         """Plot the x/y/z profiles and their gaussian fits."""
@@ -804,8 +794,7 @@ class Nuclide:
     }  # 6.647 days https://www.nndc.bnl.gov/nudat3/
 
 
-@dataclass
-class SimpleSensitivityResults:
+class SimpleSensitivityResults(BaseModel):
     phantom_cps: float  #:
     background_cps: float  #:
     half_life_s: float  #:
@@ -815,7 +804,7 @@ class SimpleSensitivityResults:
     sensitivity_uci: float  #:
 
 
-class SimpleSensitivity:
+class SimpleSensitivity(ResultsDataMixin[SimpleSensitivityResults]):
     """The 'simple' sensitivity test as defined by IAEA 2.3.9. Equations come from the IAEA NMQC toolkit."""
 
     half_life_s: float
@@ -871,11 +860,11 @@ class SimpleSensitivity:
             f"Sensitivity (uCi): {self.sensitivity_uci:.3f}\n"
         )
 
-    def results_data(
-        self, as_dict: bool = False
-    ) -> dict[str, float] | SimpleSensitivityResults:
+    def _generate_results_data(
+        self,
+    ) -> SimpleSensitivityResults:
         """Return the results as a structure."""
-        r = SimpleSensitivityResults(
+        return SimpleSensitivityResults(
             phantom_cps=self.phantom_cps,
             background_cps=self.background_cps,
             half_life_s=self.half_life_s,
@@ -884,10 +873,6 @@ class SimpleSensitivity:
             sensitivity_mbq=self.sensitivity_mbq,
             sensitivity_uci=self.sensitivity_uci,
         )
-        if as_dict:
-            return asdict(r)
-        else:
-            return r
 
     @property
     def decay_correction(self) -> float:
@@ -981,8 +966,7 @@ class DoubleGaussianProfile:
         return fig, ax
 
 
-@dataclass
-class FourBarResolutionResults:
+class FourBarResolutionResults(BaseModel):
     x_fwhm: float
     y_fwhm: float
     x_fwtm: float
@@ -993,7 +977,7 @@ class FourBarResolutionResults:
     y_pixel_size_difference: float
 
 
-class FourBarResolution:
+class FourBarResolution(ResultsDataMixin[FourBarResolutionResults]):
     """Spatial resolution in the X and Y direction as measured by a 'four-bar' phantom.
 
     Parameters
@@ -1067,9 +1051,9 @@ class FourBarResolution:
             f"Y-axis Pixel size difference (%): {self.y_axis.pixel_size_difference:.2f}\n"
         )
 
-    def results_data(self, as_dict: bool = False) -> dict | FourBarResolutionResults:
+    def _generate_results_data(self) -> FourBarResolutionResults:
         """Return the results as a structure."""
-        r = FourBarResolutionResults(
+        return FourBarResolutionResults(
             x_fwhm=self.x_axis.fwhm,
             y_fwhm=self.y_axis.fwhm,
             x_fwtm=self.x_axis.fwtm,
@@ -1079,10 +1063,6 @@ class FourBarResolution:
             x_pixel_size_difference=self.x_axis.pixel_size_difference,
             y_pixel_size_difference=self.y_axis.pixel_size_difference,
         )
-        if as_dict:
-            return asdict(r)
-        else:
-            return r
 
     def plot(self, show: bool = True) -> (list[Figure], list[Axes]):
         """Plot the image with the sample ROIs and the x/y profiles with gaussian fits"""
@@ -1107,14 +1087,13 @@ class FourBarResolution:
         return figs, axes
 
 
-@dataclass
-class QuadrantResolutionResults:
+class QuadrantResolutionResults(BaseModel):
     quadrants: dict[
         str, dict[str, float]
     ]  #:  quadrant idx: {'mtf': mtf, 'fwhm': fwhm, 'lpmm': lpmm}
 
 
-class QuadrantResolution:
+class QuadrantResolution(ResultsDataMixin[QuadrantResolutionResults]):
     """Analyze a 4-quadrant image of high-contrast line pairs to determine MTF and FWHM.
 
     Parameters
@@ -1178,9 +1157,9 @@ class QuadrantResolution:
             s += f"Quadrant {quadrant+1}; Bar width: {spacing:.2f}mm; FWHM: {fwhm:.3f}mm; MTF: {mtf:.3f}\n"
         return s
 
-    def results_data(self, as_dict: bool = False) -> dict | QuadrantResolutionResults:
+    def _generate_results_data(self) -> QuadrantResolutionResults:
         """Return the results as a structure."""
-        r = QuadrantResolutionResults(
+        return QuadrantResolutionResults(
             quadrants={
                 f"{idx+1}": {
                     "mtf": mtf,
@@ -1193,10 +1172,6 @@ class QuadrantResolution:
                 )
             }
         )
-        if as_dict:
-            return asdict(r)
-        else:
-            return r
 
     def plot(self, show: bool = True) -> (list[Figure], list[Axes]):
         """Plot the image, the MTF, and the FWHMs."""
@@ -1225,8 +1200,7 @@ class QuadrantResolution:
         return figs, axes
 
 
-@dataclass
-class TomographicUniformityResults:
+class TomographicUniformityResults(BaseModel):
     cfov_integral_uniformity: float
     cfov_differential_uniformity: float
     ufov_integral_uniformity: float
@@ -1236,7 +1210,9 @@ class TomographicUniformityResults:
     last_frame: int
 
 
-class TomographicUniformity(PlanarUniformity):
+class TomographicUniformity(
+    ResultsDataMixin[TomographicUniformityResults], PlanarUniformity
+):
     """Evaluation of the tomographic uniformity of a SPECT image. Typically, a Jaszczak phantom or similar.
     This is similar to the Planar Uniformity test."""
 
@@ -1346,11 +1322,9 @@ class TomographicUniformity(PlanarUniformity):
             center_ratio=center_ratio * ufov_ratio, window_size=window_size
         )
 
-    def results_data(
-        self, as_dict: bool = False
-    ) -> dict | TomographicUniformityResults:
+    def _generate_results_data(self) -> TomographicUniformityResults:
         """Return the results as a structure."""
-        r = TomographicUniformityResults(
+        return TomographicUniformityResults(
             cfov_integral_uniformity=self.frame_result["cfov"].integral_uniformity,
             cfov_differential_uniformity=self.frame_result[
                 "cfov"
@@ -1363,10 +1337,6 @@ class TomographicUniformity(PlanarUniformity):
             first_frame=self.first_frame,
             last_frame=self.last_frame,
         )
-        if as_dict:
-            return asdict(r)
-        else:
-            return r
 
     def results(self) -> str:
         """Return a string representation of the results."""
@@ -1445,13 +1415,12 @@ class TomgraphicSphere(TypedDict):
     max_contrast: float
 
 
-@dataclass
-class TomographicContrastResults:
+class TomographicContrastResults(BaseModel):
     uniformity_baseline: float
     spheres: dict[str, TomgraphicSphere]
 
 
-class TomographicContrast:
+class TomographicContrast(ResultsDataMixin[TomographicContrastResults]):
     rois: dict[str, TomographicROI]
 
     def __init__(self, path: str | Path):
@@ -1587,26 +1556,23 @@ class TomographicContrast:
             s += f"Sphere {idx}: X={roi.x:.2f},Y={roi.y:.2f},Z={roi.z:.2f} Mean: {roi.mean_value:.2f}; Mean Contrast: {roi.mean_contrast:.2f}; Max Contrast: {roi.max_contrast:.2f}\n"
         return s
 
-    def results_data(self, as_dict: bool = False) -> dict | TomographicContrastResults:
+    def _generate_results_data(self) -> TomographicContrastResults:
         """Return the results as a structure."""
-        r = TomographicContrastResults(
+        return TomographicContrastResults(
             uniformity_baseline=self.uniformity_value,
             spheres={
-                idx: {
-                    "x": roi.x,
-                    "y": roi.y,
-                    "z": roi.z,
-                    "mean": roi.mean_value,
-                    "mean_contrast": roi.mean_contrast,
-                    "max_contrast": roi.max_contrast,
-                }
+                idx: TomgraphicSphere(
+                    x=roi.x,
+                    y=roi.y,
+                    z=roi.z,
+                    radius=roi.radius,
+                    mean=roi.mean_value,
+                    mean_contrast=roi.mean_contrast,
+                    max_contrast=roi.max_contrast,
+                )
                 for idx, roi in self.rois.items()
             },
         )
-        if as_dict:
-            return asdict(r)
-        else:
-            return r
 
     def plot(self, show: bool = True) -> (list[Figure], list[Axes]):
         """Plot the uniformity frame, sphere ROI frame, and contrast vs sphere number."""

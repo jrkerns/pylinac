@@ -37,6 +37,7 @@ from pylinac.metrics.profile import (
     FlatnessRatioMetric,
     PenumbraLeftMetric,
     PenumbraRightMetric,
+    SlopeMetric,
     SymmetryAreaMetric,
     SymmetryPointDifferenceMetric,
     SymmetryPointDifferenceQuotientMetric,
@@ -1816,6 +1817,26 @@ class TestPDDMetric(TestCase):
         profile = FWXMProfile(values=y, x_values=x)
         pdd = profile.compute(metrics=[PDD(depth_mm=50, normalize_to="max")])
         self.assertAlmostEqual(pdd, 89.96, delta=0.01)
+
+
+class TestSlopeMetric(TestCase):
+    def test_normal(self):
+        x, y = create_pdd_x_y()
+        profile = FWXMProfilePhysical(values=y, x_values=x, dpmm=1)
+        slope = profile.compute(metrics=[SlopeMetric()])
+        self.assertAlmostEqual(slope, 0.00136, delta=0.001)
+
+    def test_passing_inverted_ratios_fails(self):
+        x, y = create_pdd_x_y()
+        profile = FWXMProfilePhysical(values=y, x_values=x, dpmm=-1)
+        with self.assertRaises(ValueError):
+            profile.compute(metrics=[SlopeMetric(ratio_edges=(0.8, 0.2))])
+
+    def test_passing_three_ratios_fails(self):
+        x, y = create_pdd_x_y()
+        profile = FWXMProfilePhysical(values=y, x_values=x, dpmm=1)
+        with self.assertRaises(ValueError):
+            profile.compute(metrics=[SlopeMetric(ratio_edges=(0.8, 0.2, 0.1))])
 
 
 class TestDmaxMetric(TestCase):

@@ -15,14 +15,12 @@ Features:
 """
 from __future__ import annotations
 
-import dataclasses
 import io
 import itertools
 import os
 import textwrap
 import webbrowser
 import zipfile
-from dataclasses import dataclass
 from functools import cached_property
 from io import BytesIO
 from os import path as osp
@@ -33,6 +31,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from py_linq import Enumerable
+from pydantic import BaseModel
 from scipy import ndimage
 from skimage import draw, filters, measure, segmentation
 from skimage.measure._regionprops import RegionProperties
@@ -51,7 +50,7 @@ from .core.nps import (
 )
 from .core.profile import CollapsedCircleProfile, FWXMProfile
 from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
-from .core.utilities import ResultBase
+from .core.utilities import ResultBase, ResultsDataMixin
 from .settings import get_dicom_cmap
 
 # The ramp angle ratio is from the Catphan manual ("Scan slice geometry" section)
@@ -72,8 +71,7 @@ BONE_50 = 725
 WATER = 0
 
 
-@dataclass
-class ROIResult:
+class ROIResult(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
 
@@ -87,8 +85,7 @@ class ROIResult:
     passed: bool | None  #:
 
 
-@dataclass
-class CTP404Result:
+class CTP404Result(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
 
@@ -109,8 +106,7 @@ class CTP404Result:
     hu_rois: dict  #:
 
 
-@dataclass
-class CTP486Result:
+class CTP486Result(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
 
@@ -118,12 +114,13 @@ class CTP486Result:
 
     uniformity_index: float  #:
     integral_non_uniformity: float  #:
+    nps_avg_power: float
+    nps_max_freq: float
     passed: bool  #:
     rois: dict  #:
 
 
-@dataclass
-class CTP515Result:
+class CTP515Result(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
 
@@ -135,8 +132,7 @@ class CTP515Result:
     roi_results: dict  #:
 
 
-@dataclass
-class CTP528Result:
+class CTP528Result(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
 
@@ -147,7 +143,6 @@ class CTP528Result:
     roi_settings: dict  #:
 
 
-@dataclass
 class CatphanResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -367,7 +362,7 @@ class CatPhanModule(Slice):
         self.origin_slice = catphan.origin_slice
         self.tolerance = tolerance
         self.slice_thickness = catphan.dicom_stack.metadata.SliceThickness
-        self.slice_spacing = catphan.dicom_stack[0].slice_spacing
+        self.slice_spacing = catphan.dicom_stack.slice_spacing
         self.catphan_roll = catphan.catphan_roll
         self.mm_per_pixel = catphan.mm_per_pixel
         self.rois: dict[str, HUDiskROI] = {}
@@ -1551,7 +1546,7 @@ class CTP515CP600(CTP515):
     }
 
 
-class CatPhanBase:
+class CatPhanBase(ResultsDataMixin[CatphanResult]):
     """A class for loading and analyzing CT DICOM files of a CatPhan 504 & CatPhan 503. Can be from a CBCT or CT scanner
     Analyzes: Uniformity (CTP486), High-Contrast Spatial Resolution (CTP528), Image Scaling & HU Linearity (CTP404).
     """
@@ -2308,7 +2303,7 @@ class CatPhanBase:
             result = results
         return result
 
-    def results_data(self, as_dict: bool = False) -> CatphanResult | dict:
+    def _generate_results_data(self) -> CatphanResult:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         ctp404_result = CTP404Result(
@@ -2341,6 +2336,8 @@ class CatPhanBase:
                 uniformity_index=self.ctp486.uniformity_index,
                 integral_non_uniformity=self.ctp486.integral_non_uniformity,
                 rois=rois_to_results(self.ctp486.rois),
+                nps_avg_power=self.ctp486.avg_noise_power,
+                nps_max_freq=self.ctp486.max_noise_power_frequency,
             )
 
         # CTP 528 stuff
@@ -2363,9 +2360,6 @@ class CatPhanBase:
                     key: roi.as_dict() for key, roi in self.ctp515.rois.items()
                 },
             )
-
-        if as_dict:
-            return dataclasses.asdict(data)
         return data
 
 
