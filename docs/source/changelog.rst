@@ -13,7 +13,7 @@ Plan Generator
   and more. See the :ref:`plan-generator` section for more.
 * RT plan fluence can be plotted using a new function: ``plot_fluences()``. This will plot the fluence of the plan
   fields as figures. This is useful for visualizing the plan fluence and comparing it to the expected fluence. This
-  can be used in conjuction with the plan generator to visualize the fluence of the generated plan. See :ref:`plan_fluence`
+  can be used in conjunction with the plan generator to visualize the fluence of the generated plan. See :ref:`plan_fluence`
   for more.
 
 Picket Fence
