@@ -136,7 +136,7 @@ def create_beam(**kwargs) -> Beam:
         couch_rot=kwargs.get("couch_rot", 0),
         mlc_boundaries=kwargs.get("mlc_boundaries", [-200, -100, 0, 100, 200]),
         mlc_positions=kwargs.get("mlc_positions", [[0], [0]]),
-        meter_sets=kwargs.get("meter_sets", [0, 1]),
+        metersets=kwargs.get("metersets", [0, 1]),
         fluence_mode=kwargs.get("fluence_mode", FluenceMode.STANDARD),
     )
 
@@ -161,18 +161,18 @@ class TestBeam(TestCase):
             create_beam(
                 mlc_positions=[[0], [0], [0], [0], [0]],
                 beam_type=BeamType.STATIC,
-                meter_sets=[0, 0, 0, 0, 0],
+                metersets=[0, 0, 0, 0, 0],
             )
 
         # valid
         beam = create_beam(
-            mlc_positions=[[0]], meter_sets=[0], beam_type=BeamType.STATIC
+            mlc_positions=[[0]], metersets=[0], beam_type=BeamType.STATIC
         )
         self.assertEqual(beam.as_dicom().BeamType, "STATIC")
 
-    def test_mlc_positions_match_meter_sets(self):
+    def test_mlc_positions_match_metersets(self):
         with self.assertRaises(ValueError):
-            create_beam(mlc_positions=[[0] * 5], meter_sets=[1, 2, 3])
+            create_beam(mlc_positions=[[0] * 5], metersets=[1, 2, 3])
 
     def test_gantry_must_be_dynamic_for_multiple_angles(self):
         with self.assertRaises(ValueError) as context:
@@ -181,7 +181,7 @@ class TestBeam(TestCase):
                 mlc_positions=[
                     [0],
                 ],
-                meter_sets=[0],
+                metersets=[0],
                 beam_type=BeamType.STATIC,
             )
         self.assertIn("Cannot specify multiple gantry angles", str(context.exception))
@@ -716,12 +716,12 @@ class TestMLCShaper(TestCase):
         )  # start and end positions given meterset increments
         self.assertEqual(cp[0][0], -5)
 
-    def test_as_meter_sets(self):
+    def test_as_metersets(self):
         shaper = MLCShaper(
             leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
         )
         shaper.add_strip(position_mm=-5, strip_width_mm=0, meterset_at_target=1)
-        metersets = shaper.as_meter_sets()
+        metersets = shaper.as_metersets()
         self.assertEqual(metersets, [0, 1])
 
 

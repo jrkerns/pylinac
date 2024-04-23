@@ -12,7 +12,7 @@ class MLCShaper:
     """
 
     control_points: list[list[float]]
-    meter_sets: list[float]
+    metersets: list[float]
 
     def __init__(
         self,
@@ -42,7 +42,7 @@ class MLCShaper:
         self.sacrifice_max_move_mm = sacrifice_max_move_mm  # mm
         self.max_overtravel_mm = max_overtravel_mm  # mm
         self.control_points = []
-        self.meter_sets = []
+        self.metersets = []
 
     @property
     def centers(self) -> list[float]:
@@ -68,9 +68,9 @@ class MLCShaper:
         """Return the MLC positions in DICOM format as a list of positions for each control point"""
         return self.control_points
 
-    def as_meter_sets(self) -> list[float]:
+    def as_metersets(self) -> list[float]:
         """Return the MLC metersets in DICOM format as a list for each control point"""
-        return self.meter_sets
+        return self.metersets
 
     def add_rectangle(
         self,
@@ -139,7 +139,7 @@ class MLCShaper:
             positions[int(self.num_leaves / 2) - 1] -= initial_sacrificial_gap / 2
             positions[int(self.num_leaves / 2)] += initial_sacrificial_gap / 2
             positions[-1] += initial_sacrificial_gap / 2
-        start_meterset = self.meter_sets[-1] if self.meter_sets else 0
+        start_meterset = self.metersets[-1] if self.metersets else 0
         end_meterset = start_meterset + meterset_at_target + meterset_transition
         if end_meterset > 1.0:
             raise ValueError("Meterset exceeds 1.0")
@@ -184,7 +184,7 @@ class MLCShaper:
                     max_overtravel=self.max_overtravel_mm,
                 )
                 self.control_points.extend(interpolated_control_points)
-                self.meter_sets.extend(
+                self.metersets.extend(
                     [
                         start_meterset + meterset_transition * ratio
                         for ratio in interpolation_ratios
@@ -194,16 +194,16 @@ class MLCShaper:
                 # we have transition doses but no sacrifices
                 # this just adds a control point
                 self.control_points.append(positions)
-                self.meter_sets.append(start_meterset + meterset_transition)
+                self.metersets.append(start_meterset + meterset_transition)
         else:
             # add starting control point; no transition dose
             self.control_points.append(positions)
-            self.meter_sets.append(start_meterset)
+            self.metersets.append(start_meterset)
             # if there is no dose delivered at the target, we can skip
             # adding another control point
             if end_meterset != start_meterset:
                 self.control_points.append(positions)
-                self.meter_sets.append(end_meterset)
+                self.metersets.append(end_meterset)
 
     def add_strip(
         self,

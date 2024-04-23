@@ -70,7 +70,7 @@ class Beam:
         couch_rot: float,
         mlc_boundaries: list[float],
         mlc_positions: list[list[float]],
-        meter_sets: list[float],
+        metersets: list[float],
         fluence_mode: FluenceMode,
     ):
         """
@@ -114,7 +114,7 @@ class Beam:
             The MLC boundaries. These are the same thing as the LeafPositionBoundaries in the DICOM file.
         mlc_positions : list[list[float]]
             The MLC positions for each control point. This is the x-position of each leaf for each control point.
-        meter_sets : list[float]
+        metersets : list[float]
             The meter sets for each control point. The length must match the number of control points in mlc_positions.
         fluence_mode : FluenceMode
             The fluence mode of the beam.
@@ -127,9 +127,9 @@ class Beam:
                 f"Static beam can only have one MLC position change ({len(mlc_positions)})"
             )
 
-        if len(meter_sets) != len(mlc_positions):
+        if len(metersets) != len(mlc_positions):
             raise ValueError(
-                f"The number of meter sets ({len(meter_sets)}) "
+                f"The number of meter sets ({len(metersets)}) "
                 f"must match the number of MLC position changes ({len(mlc_positions)})"
             )
 
@@ -155,7 +155,7 @@ class Beam:
         if not isinstance(
             gantry_angles, Iterable
         ):  # if it's just a single number (like for a static beam) set it to an array of that value
-            gantry_angles = [gantry_angles] * len(meter_sets)
+            gantry_angles = [gantry_angles] * len(metersets)
         self._append_initial_control_point(
             energy,
             dose_rate,
@@ -172,18 +172,18 @@ class Beam:
             couch_rot,
             mlc_positions=mlc_positions[0],
         )
-        for mlc_pos, meter_set, gantry_angle in zip(
-            mlc_positions[1:], meter_sets[1:], gantry_angles[1:]
+        for mlc_pos, meterset, gantry_angle in zip(
+            mlc_positions[1:], metersets[1:], gantry_angles[1:]
         ):
             if beam_type == BeamType.DYNAMIC:
                 self._append_secondary_dynamic_control_point(
                     mlc_positions=mlc_pos,
-                    meter_set=meter_set,
+                    meterset=meterset,
                     gantry_angle=gantry_angle,
                     gantry_dir=gantry_direction,
                 )
             else:
-                self._append_secondary_static_control_point(meter_set=meter_set)
+                self._append_secondary_static_control_point(meterset=meterset)
 
     def _create_basic_beam_info(
         self,
@@ -338,13 +338,13 @@ class Beam:
         self.ds.NumberOfControlPoints = 1  # increment this
         self.ds.ControlPointSequence.append(cp0)
 
-    def _append_secondary_static_control_point(self, meter_set: float) -> None:
+    def _append_secondary_static_control_point(self, meterset: float) -> None:
         # Control Point Sequence: Control Point 1
         cp1 = Dataset()
         cp1.ControlPointIndex = len(self.ds.ControlPointSequence)
 
         cp1.CumulativeMetersetWeight = (
-            f"{meter_set:.5f}"  # convert to truncated string to fit VR limitations
+            f"{meterset:.5f}"  # convert to truncated string to fit VR limitations
         )
 
         self.ds.NumberOfControlPoints = int(self.ds.NumberOfControlPoints) + 1
@@ -353,7 +353,7 @@ class Beam:
     def _append_secondary_dynamic_control_point(
         self,
         mlc_positions: list[float],
-        meter_set: float,
+        meterset: float,
         gantry_angle: float,
         gantry_dir: GantryDirection,
     ) -> None:
@@ -365,7 +365,7 @@ class Beam:
             cp1.GantryAngle = gantry_angle
             cp1.GantryRotationDirection = gantry_dir.value
         cp1.CumulativeMetersetWeight = (
-            f"{meter_set:.5f}"  # convert to truncated string to fit VR limitations
+            f"{meterset:.5f}"  # convert to truncated string to fit VR limitations
         )
 
         # Beam Limiting Device Position Sequence
@@ -647,7 +647,7 @@ class PlanGenerator:
             couch_lng=couch_lng,
             couch_rot=couch_rot,
             mlc_positions=mlc.as_control_points(),
-            meter_sets=mlc.as_meter_sets(),
+            metersets=mlc.as_metersets(),
             fluence_mode=fluence_mode,
             mlc_boundaries=self.leaf_config,
             machine_name=self.machine_name,
@@ -803,7 +803,7 @@ class PlanGenerator:
             machine_name=self.machine_name,
             fluence_mode=fluence_mode,
             mlc_positions=ref_mlc.as_control_points(),
-            meter_sets=ref_mlc.as_meter_sets(),
+            metersets=ref_mlc.as_metersets(),
             mlc_boundaries=self.leaf_config,
         )
         self.add_beam(ref_beam.as_dicom(), mu=mu)
@@ -827,7 +827,7 @@ class PlanGenerator:
             machine_name=self.machine_name,
             fluence_mode=fluence_mode,
             mlc_positions=mlc.as_control_points(),
-            meter_sets=mlc.as_meter_sets(),
+            metersets=mlc.as_metersets(),
             mlc_boundaries=self.leaf_config,
         )
         self.add_beam(beam.as_dicom(), mu=mu)
@@ -996,7 +996,7 @@ class PlanGenerator:
             machine_name=self.machine_name,
             fluence_mode=fluence_mode,
             mlc_positions=ref_mlc.as_control_points(),
-            meter_sets=ref_mlc.as_meter_sets(),
+            metersets=ref_mlc.as_metersets(),
             mlc_boundaries=self.leaf_config,
         )
         self.add_beam(ref_beam.as_dicom(), mu=mu)
@@ -1020,7 +1020,7 @@ class PlanGenerator:
             machine_name=self.machine_name,
             fluence_mode=fluence_mode,
             mlc_positions=mlc.as_control_points(),
-            meter_sets=mlc.as_meter_sets(),
+            metersets=mlc.as_metersets(),
             mlc_boundaries=self.leaf_config,
         )
         self.add_beam(beam.as_dicom(), mu=mu)
@@ -1112,7 +1112,7 @@ class PlanGenerator:
                 couch_lng=couch_lng,
                 couch_rot=0,
                 mlc_positions=mlc.as_control_points(),
-                meter_sets=mlc.as_meter_sets(),
+                metersets=mlc.as_metersets(),
                 fluence_mode=fluence_mode,
                 mlc_boundaries=self.leaf_config,
                 machine_name=self.machine_name,
@@ -1268,7 +1268,7 @@ class PlanGenerator:
             machine_name=self.machine_name,
             fluence_mode=fluence_mode,
             mlc_positions=mlc.as_control_points(),
-            meter_sets=mlc.as_meter_sets(),
+            metersets=mlc.as_metersets(),
             mlc_boundaries=self.leaf_config,
         )
         self.add_beam(beam.as_dicom(), mu=mu)
@@ -1292,7 +1292,7 @@ class PlanGenerator:
             machine_name=self.machine_name,
             fluence_mode=fluence_mode,
             mlc_positions=ref_mlc.as_control_points(),
-            meter_sets=ref_mlc.as_meter_sets(),
+            metersets=ref_mlc.as_metersets(),
             mlc_boundaries=self.leaf_config,
         )
         self.add_beam(ref_beam.as_dicom(), mu=mu)
@@ -1394,7 +1394,7 @@ class PlanGenerator:
             couch_lng=couch_lng,
             couch_rot=couch_rot,
             mlc_positions=mlc.as_control_points(),
-            meter_sets=mlc.as_meter_sets(),
+            metersets=mlc.as_metersets(),
             fluence_mode=fluence_mode,
             mlc_boundaries=self.leaf_config,
             machine_name=self.machine_name,
