@@ -1,18 +1,18 @@
-[tool.poetry]
+[project]
 name = "pylinac"
-version = "3.22.0"
+requires-python = ">=3.8"
 description = "A toolkit for performing TG-142 QA-related tasks on a linear accelerator"
-authors = ["James Kerns <jkerns100@gmail.com>"]
+authors = [
+    {name = "James Kerns", email = "jkerns100@gmail.com"}
+]
+dynamic = [
+   "version"  # this will be set by hatch
+]
 license = "MIT"
 readme = "README.rst"
 documentation = "https://pylinac.readthedocs.io/en/latest/"
 repository = "https://github.com/jrkerns/pylinac"
 keywords = ["medical", "physics", "image", "analysis", "TG-142"]
-packages = [
-    { include = "pylinac", format = 'wheel' },
-]
-include = ['pylinac/files/*.png']
-exclude = ['pylinac/demo_files/**']
 classifiers=[
     "Intended Audience :: Developers",
     "Intended Audience :: Healthcare Industry",
@@ -27,33 +27,62 @@ classifiers=[
     "Topic :: Software Development :: Libraries"
 ]
 
-[tool.poetry.dependencies]
-python = "^3.8.10"
-scikit-image = ">=0.17.3"
-numpy = ">=0.16"
-scipy = ">=1.1"
-tqdm = ">=3.8"
-Pillow = ">=4.0"
-argue = "^0.3.1"
-py-linq = "^1.3.0"
-reportlab = ">=3.3"
-pydicom = ">=2.0"
-matplotlib = ">=2.0"
-tabulate = "~0.9.0"
-pydantic = ">=2.0"
-eval-type-backport = {version = ">=0.2.0", python = "<=3.8"}
+dependencies = [
+    "scikit-image>=0.17.3",
+    "numpy>=0.16",
+    "scipy>=1.1",
+    "tqdm>=3.8",
+    "Pillow>=4.0",
+    "argue~=0.3.1",
+    "py-linq~=1.4.0",
+    "reportlab>=3.3",
+    "pydicom>=2.0",
+    "matplotlib>=2.0",
+    "tabulate~=0.9.0",
+    "pydantic>=2.0",
+    "eval-type-backport; python_version<='3.8'"
+]
 
-[tool.poetry.dev-dependencies]
-pytest = {version = "^7.1.2", python = ">=3.8,<4.0"}
-bump2version = "^1.0.1"
-nox = "^2022.1.7"
-pytest-xdist = "^2.5.0"
-google-cloud-storage = {version = "^2.4.0", python = ">=3.8,<4.0"}
-sphinx-autobuild = "^2021.3.14"
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-xdist",
+    "pytest-cov",
+    "nox",
+    "furo",
+    "google-cloud-storage",
+    "sphinx",
+    "sphinx-autobuild",
+    "sphinx-copybutton",
+    "pre-commit",
+    "hatch",
+]
+docs = [
+    "sphinx",
+    "sphinx-copybutton",
+    "furo",
+]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+directory = "dist"
+
+[tool.hatch.version]
+# https://hatch.pypa.io/latest/version/
+path = "pylinac/version.py"  # hatch will automatically set the version to the value in this file.
+
+[tool.hatch.build.targets.wheel]
+packages = ["pylinac"]
+include = ['pylinac/files/*.png']
+exclude = ['pylinac/demo_files/**']
+
+[tool.hatch.build.targets.sdist]
+packages = ["pylinac"]
+include = ['pylinac/files/*.png']
+exclude = ['pylinac/demo_files/**']
 
 [tool.pytest.ini_options]
 testpaths = "tests_basic"

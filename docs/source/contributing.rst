@@ -54,7 +54,7 @@ Be sure to ask for help if you need it!
 * Clone your `forked repository to your local machine <https://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository>`__: ``git clone`` followed by the URL of your forked repository.
   Some IDEs also have a GUI for this. See also :ref:`distro_stack`.
 * Create a virtual environment. This is optional but highly recommended. See the `Python guide <https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/>`__ to set up a new venv.
-* Install the requirements and developer requirements: ``pip install -r requirements.txt -r requirements-dev.txt``
+* Install the requirements and developer requirements: ``pip install .[dev]``
 * Create a new branch for your work: ``git checkout -b my_new_branch``
 * Make your changes
 * Write tests for your changes. Most test modules in pylinac have a 1:1 correlation with the library modules and thus the
