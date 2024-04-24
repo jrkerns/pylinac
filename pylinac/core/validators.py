@@ -21,3 +21,9 @@ def double_dimension(array: np.ndarray) -> None:
     """Check an array is a double dimension"""
     if array.ndim != 2:
         raise ValueError(f"Array was not 2D. Must pass 2D array; found {array.ndim}")
+
+
+def is_positive(value: float) -> None:
+    """Check a value is positive"""
+    if value < 0:
+        raise ValueError("Value must be positive")

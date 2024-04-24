@@ -38,6 +38,7 @@
 
    core_modules
    image_generator
+   plan_generator
    contrib
 
 .. toctree::
@@ -53,6 +54,7 @@
    topics/scale
    topics/profiles
    topics/image_metrics
+   topics/fluence
 
 .. toctree::
    :hidden:

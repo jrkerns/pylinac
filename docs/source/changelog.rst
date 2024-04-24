@@ -2,6 +2,44 @@
 Changelog
 =========
 
+v 3.23.0
+--------
+
+Plan Generator
+^^^^^^^^^^^^^^
+
+* A new module has been introduced: the plan generator! This module can assist in generating DICOM RT plan QA files
+  customized for your clinic. It can produce basic shapes and typical QA fields such as picket fence, open fields,
+  and more. See the :ref:`plan-generator` section for more.
+* RT plan fluence can be plotted using a new function: ``plot_fluences()``. This will plot the fluence of the plan
+  fields as figures. This is useful for visualizing the plan fluence and comparing it to the expected fluence. This
+  can be used in conjunction with the plan generator to visualize the fluence of the generated plan. See :ref:`plan_fluence`
+  for more.
+
+Picket Fence
+^^^^^^^^^^^^
+
+* The HDMLC arrangement was changed from 10x40x10 leaves to 14x32x14 leaves to match reality.
+  This may affect the max leaf error metric slightly. In our tests, the change did not skew positive
+  or negative. The mean change was approximately 0.05mm. While changing a definition is not
+  desirable, matching the actual configuration is more important. If for some reason you need
+  the old configuration, you can create a custom MLC arrangement. See the :ref:`customizing_pf_mlcs` section.
+* The leaf error barplot to the right/bottom of a picket fence plot was somewhat confusing. It would show the
+  mean and standard deviation of the error, but not the entire distribution. This plot has been
+  converted to a normal boxplot, showing the median, Q1, Q3 and flier data. More about the boxplot
+  can be read here: `boxplots <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.boxplot.html#matplotlib.axes.Axes.boxplot>`__.
+* The leaf error subplot that shows up at the right/bottom of the analyzed image now shows leaf numbers instead
+  of pixels.
+* A new method is available ``plot_leaf_error``. This method will create a figure of the leaf error boxplot. This is
+  similar to the leaf error subplot that shows up at the right/bottom of the analyzed image, but can be called independently.
+
+Core
+^^^^
+
+* Pylinac is meant to be compatible with all Python versions still in security lifecycles, which is currently 3.8.
+  Some syntax was introduced that was not compatible with Python 3.8. This has been fixed. Note that
+  Python 3.8 will be EOL in October 2024. The next pylinac release after that will drop support for Python 3.8.
+
 v 3.22.0
 --------
 
