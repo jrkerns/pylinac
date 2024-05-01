@@ -892,8 +892,8 @@ class BaseImage:
             metrics = [metrics]
         for metric in metrics:
             metric.inject_image(self)
-            self.metrics.append(metric)
             value = metric.context_calculate()
+            self.metrics.append(metric)
             metric_data[metric.name] = value
         # TODO: use |= when 3.9 is min supported version
         self.metric_values.update(metric_data)

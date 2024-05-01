@@ -33,12 +33,23 @@ Picket Fence
 * A new method is available ``plot_leaf_error``. This method will create a figure of the leaf error boxplot. This is
   similar to the leaf error subplot that shows up at the right/bottom of the analyzed image, but can be called independently.
 
+Winston-Lutz
+^^^^^^^^^^^^
+
+* For multi-target multi-field analysis, the analysis has been sped up considerably. The speedup depends on the
+  image size and the number of BBs, but overall the speed up is ~2x.
+* Calls to WL image's ``plot()`` method now accepts keyword arguments that are passed to the underlying image plot method.
+  E.g. ``wl_image.plot(vmin=1)``.
+
 Core
 ^^^^
 
 * Pylinac is meant to be compatible with all Python versions still in security lifecycles, which is currently 3.8.
   Some syntax was introduced that was not compatible with Python 3.8. This has been fixed. Note that
   Python 3.8 will be EOL in October 2024. The next pylinac release after that will drop support for Python 3.8.
+* When computing image metrics, a failed metric analysis would still add the metric to the running list of metrics under
+  certain conditions such as running image metrics in a try clause.
+  This could result in errors when trying to plot the metrics. Now, if a metric computation fails, the metric is not added to the list.
 
 v 3.22.0
 --------
