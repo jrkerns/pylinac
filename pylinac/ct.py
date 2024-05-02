@@ -1892,8 +1892,8 @@ class CatPhanBase(ResultsDataMixin[CatphanResult]):
         print(f"Common idxs: {common_idxs}")
         print(f"Zs: {zs[common_idxs]}")
         print(f"Center Xs: {center_xs[common_idxs]}")
-        fzx = np.polyfit(zs[common_idxs], center_xs[common_idxs], deg=1)
-        fzy = np.polyfit(zs[common_idxs], center_ys[common_idxs], deg=1)
+        fzx = np.polyfit(zs[common_idxs], center_xs[common_idxs], deg=1, rcond=0.00001)
+        fzy = np.polyfit(zs[common_idxs], center_ys[common_idxs], deg=1, rcond=0.00001)
         fit_zx = np.poly1d(fzx)
         fit_zy = np.poly1d(fzy)
         return fit_zx, fit_zy
