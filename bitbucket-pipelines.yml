@@ -22,6 +22,7 @@ definitions:
           - python -m venv venv
           - source venv/bin/activate
           - pip install .[dev]
+          - pip uninstall pylinac -y
           - pip freeze
         artifacts:
           - venv/**
