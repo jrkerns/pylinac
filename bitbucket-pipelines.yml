@@ -46,6 +46,7 @@ definitions:
               - "*.rst"
     - step: &cbct-tests
         name: Run CBCT Tests
+        size: 2x
         script:
           - source venv/bin/activate
           - pytest tests_basic/test_cbct.py -n 2 --cov=pylinac.cbct --cov-report term --junitxml=./test-reports/pytest_results.xml
