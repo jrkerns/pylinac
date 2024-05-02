@@ -1889,8 +1889,14 @@ class CatPhanBase(ResultsDataMixin[CatphanResult]):
         )
         common_idxs = np.intersect1d(x_idxs, y_idxs)
         # fit to 1D polynomials; inspiration: https://stackoverflow.com/a/45351484
-        fit_zx = np.poly1d(np.polyfit(zs[common_idxs], center_xs[common_idxs], deg=1))
-        fit_zy = np.poly1d(np.polyfit(zs[common_idxs], center_ys[common_idxs], deg=1))
+        # rcond should be explicitly passed. Started randomly failing in the pipe. v1.14.0 numpy release notes
+        # say it should be explicitly passed. Value is arbitrary but small and tests pass.
+        fit_zx = np.poly1d(
+            np.polyfit(zs[common_idxs], center_xs[common_idxs], deg=1, rcond=0.00001)
+        )
+        fit_zy = np.poly1d(
+            np.polyfit(zs[common_idxs], center_ys[common_idxs], deg=1, rcond=0.00001)
+        )
         return fit_zx, fit_zy
 
     @property

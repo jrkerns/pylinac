@@ -68,11 +68,7 @@ from .metrics.features import (
     is_solid,
     is_symmetric,
 )
-from .metrics.image import (
-    GlobalSizedDiskLocator,
-    GlobalSizedFieldLocator,
-    SizedDiskLocator,
-)
+from .metrics.image import GlobalSizedFieldLocator, SizedDiskLocator
 
 BB_ERROR_MESSAGE = (
     "Unable to locate the BB. Make sure the field edges do not obscure the BB, that there are no artifacts in the images, that the 'bb_size' parameter is close to reality, "
@@ -667,6 +663,7 @@ class WLBaseImage(image.LinacDicomImage):
         clear_fig: bool = False,
         zoom: bool = True,
         legend: bool = True,
+        **kwargs,
     ) -> plt.Axes:
         """Plot an individual WL image.
 
@@ -683,7 +680,9 @@ class WLBaseImage(image.LinacDicomImage):
         legend : bool
             Whether to show the legend.
         """
-        ax = super().plot(ax=ax, show=False, clear_fig=clear_fig, show_metrics=True)
+        ax = super().plot(
+            ax=ax, show=False, clear_fig=clear_fig, show_metrics=True, **kwargs
+        )
         # show EPID center
         ax.axvline(x=self.epid.x, color="b")
         epid_handle = ax.axhline(y=self.epid.y, color="b")
@@ -2090,17 +2089,34 @@ class WinstonLutzMultiTargetMultiFieldImage(WLBaseImage):
         self, bb_diameter_mm: float, low_density: bool
     ) -> list[Point]:
         """Find the specific BB based on the arrangement rather than a single one. This is in local pixel coordinates"""
-        # get initial starting conditions
-        bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter_mm)
-        centers = self.compute(
-            metrics=GlobalSizedDiskLocator(
-                radius_mm=bb_diameter_mm / 2,
-                radius_tolerance_mm=bb_tolerance_mm,
-                invert=not low_density,
-                detection_conditions=self.detection_conditions,
-                max_number=len(self.bb_arrangement),
+        centers = []
+        for bb in self.bb_arrangement:
+            bb_diameter_mm = bb.bb_size_mm
+            bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter_mm)
+            left, sup = bb_projection_with_rotation(
+                offset_left=bb.offset_left_mm,
+                offset_up=bb.offset_up_mm,
+                offset_in=bb.offset_in_mm,
+                gantry=self.gantry_angle,
+                couch=self.couch_angle,
+                sad=self.sad,
             )
-        )
+            try:
+                new_centers = self.compute(
+                    metrics=SizedDiskLocator.from_center_physical(
+                        expected_position_mm=Point(
+                            x=left, y=-sup
+                        ),  # we do -sup because sup is in WL coordinate space but the disk locator is in image coordinates.
+                        search_window_mm=(40 + bb_diameter_mm, 40 + bb_diameter_mm),
+                        radius_mm=bb_diameter_mm / 2,
+                        radius_tolerance_mm=bb_tolerance_mm / 2,
+                        invert=not low_density,
+                        detection_conditions=self.detection_conditions,
+                    )
+                )
+                centers.extend(new_centers)
+            except ValueError:
+                pass
         return centers
 
 
