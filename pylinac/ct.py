@@ -1889,8 +1889,13 @@ class CatPhanBase(ResultsDataMixin[CatphanResult]):
         )
         common_idxs = np.intersect1d(x_idxs, y_idxs)
         # fit to 1D polynomials; inspiration: https://stackoverflow.com/a/45351484
-        fit_zx = np.poly1d(np.polyfit(zs[common_idxs], center_xs[common_idxs], deg=1))
-        fit_zy = np.poly1d(np.polyfit(zs[common_idxs], center_ys[common_idxs], deg=1))
+        print(f"Common idxs: {common_idxs}")
+        print(f"Zs: {zs[common_idxs]}")
+        print(f"Center Xs: {center_xs[common_idxs]}")
+        fzx = np.poly1d(np.polyfit(zs[common_idxs], center_xs[common_idxs], deg=1))
+        fzy = np.poly1d(np.polyfit(zs[common_idxs], center_ys[common_idxs], deg=1))
+        fit_zx = np.poly1d(fzx)
+        fit_zy = np.poly1d(fzy)
         return fit_zx, fit_zy
 
     @property
