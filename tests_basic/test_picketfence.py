@@ -2,7 +2,9 @@ import io
 import json
 import os
 import os.path as osp
+import statistics
 import tempfile
+from itertools import chain
 from pathlib import Path
 from unittest import TestCase, skip
 
@@ -144,11 +146,24 @@ class TestAnalyze(TestCase):
         self.assertEqual(len(data.picket_widths), 10)
         self.assertIn("picket_5", data.picket_widths)
         self.assertAlmostEqual(data.picket_widths["picket_5"]["max"], 3, delta=0.03)
+        # test individual leaf values
+        self.assertEqual(
+            len(data.mlc_positions_by_leaf), 36
+        )  # 36 leaf pairs in the image
+        # constancy check
+        self.assertAlmostEqual(
+            statistics.mean(data.mlc_positions_by_leaf["17"]), 204.63, delta=0.1
+        )
+        # check max error matches a combination of the leaf values
+        self.assertEqual(
+            max(abs(v) for v in chain.from_iterable(data.mlc_errors_by_leaf.values())),
+            data.max_error_mm,
+        )
 
         data_dict = self.pf.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
         self.assertIn("pylinac_version", data_dict)
-        self.assertEqual(len(data_dict), 16)
+        self.assertEqual(len(data_dict), 18)
 
         data_str = self.pf.results_data(as_json=True)
         self.assertIsInstance(data_str, str)

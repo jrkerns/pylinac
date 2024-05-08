@@ -32,6 +32,10 @@ Picket Fence
   of pixels.
 * A new method is available ``plot_leaf_error``. This method will create a figure of the leaf error boxplot. This is
   similar to the leaf error subplot that shows up at the right/bottom of the analyzed image, but can be called independently.
+* The PF ``results_data`` object has two new attributes: ``mlc_positions_by_leaf`` and ``mlc_errors_by_leaf``. These are dictionaries with the MLC
+  number as the key and the value is a list of float values. The values are the absolute positions of the MLC leaves in mm and the error in mm
+  respectively. See the new :ref:`individual_leaf_positions` section for more.
+
 
 Winston-Lutz
 ^^^^^^^^^^^^
