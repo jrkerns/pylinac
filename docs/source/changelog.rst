@@ -50,6 +50,7 @@ Core
 * When computing image metrics, a failed metric analysis would still add the metric to the running list of metrics under
   certain conditions such as running image metrics in a try clause.
   This could result in errors when trying to plot the metrics. Now, if a metric computation fails, the metric is not added to the list.
+* Some MTF calls, mostly for the nuclear module, were generating ``ZeroDivision`` warnings or errors. This has been fixed.
 
 v 3.22.0
 --------
