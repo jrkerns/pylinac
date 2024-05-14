@@ -23,7 +23,7 @@ import warnings
 import webbrowser
 from functools import cached_property
 from io import BytesIO
-from itertools import cycle
+from itertools import cycle, groupby
 from pathlib import Path
 from typing import BinaryIO, Iterable, Sequence
 
@@ -142,6 +142,8 @@ class PFResult(ResultBase):
     failed_leaves: list[str] | list[int]  #:
     mlc_skew: float  #:
     picket_widths: dict[str, dict[str, float]]  #:
+    mlc_positions_by_leaf: dict[str, list[float]]  #:
+    mlc_errors_by_leaf: dict[str, list[float]]  #:
 
 
 class PFDicomImage(image.LinacDicomImage):
@@ -1080,6 +1082,22 @@ class PicketFence(ResultsDataMixin[PFResult]):
             }
             for pk in range(len(self.pickets))
         }
+        errors_by_leaf = {}
+        positions_by_leaf = {}
+        for _, group_iter in groupby(self.mlc_meas, key=lambda m: m.leaf_num):
+            leaf_items = list(group_iter)  # group_iter is a generator
+            leaf_names = leaf_items[0].full_leaf_nums
+            for idx, leaf_name in enumerate(leaf_names):
+                pos_vals = [m.position_mm[idx] for m in leaf_items]
+                error_vals = [m.error[idx] for m in leaf_items]
+                positions_by_leaf[str(leaf_name)] = pos_vals
+                errors_by_leaf[str(leaf_name)] = error_vals
+        errors_by_leaf = dict(
+            sorted(errors_by_leaf.items())
+        )  # sort by A/B and leaf number; A1, A2, ..., B1, B2, ...
+        positions_by_leaf = dict(
+            sorted(positions_by_leaf.items())
+        )  # sort by A/B and leaf number; A1, A2, ..., B1, B2, ...
         return PFResult(
             tolerance_mm=self.tolerance,
             action_tolerance_mm=self.action_tolerance,
@@ -1095,6 +1113,8 @@ class PicketFence(ResultsDataMixin[PFResult]):
             failed_leaves=self.failed_leaves(),
             mlc_skew=self.mlc_skew(),
             picket_widths=picket_widths,
+            mlc_positions_by_leaf=positions_by_leaf,
+            mlc_errors_by_leaf=errors_by_leaf,
         )
 
     def publish_pdf(
@@ -1305,6 +1325,11 @@ class MLCValue:
             return (
                 prof.center_idx + max(self._approximate_idx - self._spacing / 2, 0),
             )  # crop to left edge if need be
+
+    @property
+    def position_mm(self) -> Sequence[float]:
+        """The position of the MLC leaf in the travel direction in mm from the left/top side of the image."""
+        return [pos / self._image.dpmm for pos in self.position]
 
     @property
     def passed(self) -> Sequence[bool]:

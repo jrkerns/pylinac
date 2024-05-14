@@ -422,6 +422,31 @@ This results with the edge leaves now being caught in this case. You may need to
 
 .. image:: images/pf_now_catching_edges.png
 
+.. _individual_leaf_positions:
+
+Individual leaf positions & errors
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Individual leaf positions and errors can be found in the ``results_data`` object under the ``mlc_positions_by_leaf`` and ``mlc_errors_by_leaf`` attribute. This will be a dictionary
+where the key is the leaf number (as a string) and the value is a list of positions in mm. The length of the list will be number of pickets. This is useful for further analysis as desired.
+For combined analysis mode, the result will look something like::
+
+    {
+        '11': [110.2, 140.1, 170.0, ...],
+        '12': [110.1, 140.2, 169.9, ...],
+        ...
+    }
+
+For separate analysis, the result will be similar to::
+
+    {
+        'A11': [110.2, 140.1, 170.0, ...],
+        'A12': [110.2, 140.1, 170.0, ...],
+        ...
+        'B11': [112.1, 142.2, 172.2, ...],
+        ...
+    }
+
 Benchmarking the algorithm
 --------------------------
 
