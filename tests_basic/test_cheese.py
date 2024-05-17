@@ -1,4 +1,5 @@
 import copy
+import json
 import math
 from unittest import TestCase
 
@@ -54,6 +55,11 @@ class TestResults(TestCase):
         r = self.cheese.results_data(as_dict=True)
         assert isinstance(r, dict)
         assert self.cheese.module.rois["9"].std == r["roi_9"]["std"]
+
+        data_json = self.cheese.results_data(as_json=True)
+        assert isinstance(data_json, str)
+        # shouldn't raise
+        json.loads(data_json)
 
 
 class TestGeneral(TestCase):

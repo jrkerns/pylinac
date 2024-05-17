@@ -1,6 +1,7 @@
 import io
 import os
 from pathlib import Path
+from typing import List
 from unittest import TestCase
 
 from matplotlib import pyplot as plt
@@ -339,7 +340,7 @@ class ACRMRMixin(CloudFileMixin):
     slice1_shift: float
     slice11_shift: float
     psg: float
-    results: list[str] = []
+    results: List[str] = []
 
     @classmethod
     def setUpClass(cls):

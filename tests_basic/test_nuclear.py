@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from unittest import TestCase
 
@@ -451,6 +452,14 @@ class TestTomographicContrast(QuaacTestBase, TestCase):
         self.assertAlmostEqual(
             data.spheres["6"]["mean_contrast"], 13.65, delta=4
         )  # the notable exception in difference
+
+        data_dict = self.m.results_data(as_dict=True)
+        self.assertIsInstance(data_dict, dict)
+
+        data_str = self.m.results_data(as_json=True)
+        self.assertIsInstance(data_str, str)
+        # shouldn't raise
+        json.loads(data_str)
 
     def plot(self):
         # shouldn't raise

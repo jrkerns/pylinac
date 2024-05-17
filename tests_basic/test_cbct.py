@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import os.path as osp
 import tempfile
@@ -155,11 +156,23 @@ class TestGeneral(TestCase):
 
         # check the additional modules got added
         self.assertAlmostEqual(data.ctp528.start_angle_radians, np.pi, delta=0.02)
+        self.assertEqual(
+            data.ctp486.nps_max_freq, self.cbct.ctp486.max_noise_power_frequency
+        )
+        self.assertEqual(data.ctp486.nps_avg_power, self.cbct.ctp486.avg_noise_power)
 
         for p in range(10, 91, 10):
             self.assertEqual(
                 data.ctp528.mtf_lp_mm[p], self.cbct.ctp528.mtf.relative_resolution(p)
             )
+
+        data_dict = self.cbct.results_data(as_dict=True)
+        self.assertIsInstance(data_dict, dict)
+
+        data_json = self.cbct.results_data(as_json=True)
+        self.assertIsInstance(data_json, str)
+        # shouldn't raise
+        json.loads(data_json)
 
     def test_contrast_str(self):
         # shouldn't raise

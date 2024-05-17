@@ -1,4 +1,5 @@
 import io
+import json
 import os.path as osp
 from typing import Callable
 from unittest import TestCase, skip
@@ -100,6 +101,14 @@ class GeneralTests(TestCase):
         self.assertIsInstance(data_dict, dict)
         self.assertEqual(len(data_dict), 11)
         self.assertIn("pylinac_version", data_dict)
+
+        data_dict = phan.results_data(as_dict=True)
+        self.assertIsInstance(data_dict, dict)
+
+        data_json = phan.results_data(as_json=True)
+        self.assertIsInstance(data_json, str)
+        # shouldn't raise
+        json.loads(data_json)
 
     def test_results_data_no_mtf(self):
         phan = LasVegas.from_demo_image()

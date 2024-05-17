@@ -18,17 +18,7 @@ Great! To get started install via pip:
 
 .. note::
 
-    Installing from source (``setup.py install``) is possible but not recommended as downloading the source includes numerous sizable test files.
-
-.. _dependencies:
-
-Dependencies
-------------
-
-Pylinac, as a scientific package, has fairly standard scientific dependencies (>= means at least that version or newer).
-Installing the package via ``pip`` will install these for you:
-
-.. literalinclude:: ../../requirements.txt
+    If you plan on developing or contributing to pylinac, you'll want to set up a development environment. See :ref:`setup_dev_env`.
 
 I'm new to Python
 -----------------

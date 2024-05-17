@@ -21,10 +21,8 @@ Features:
 from __future__ import annotations
 
 import copy
-import dataclasses
 import io
 import webbrowser
-from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO
 
@@ -37,11 +35,11 @@ from .core import image, pdf
 from .core.geometry import Circle, Line, Point
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.profile import CollapsedCircleProfile, FWXMProfile
+from .core.utilities import ResultBase, ResultsDataMixin
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase
 from .settings import get_dicom_cmap
 
 
-@dataclass
 class StarshotResults(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -56,7 +54,7 @@ class StarshotResults(ResultBase):
     circle_center_x_y: tuple[float, float]  #:
 
 
-class Starshot(QuaacMixin):
+class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
     """Class that can determine the wobble in a "starshot" image, be it gantry, collimator,
     couch or MLC. The image can be a scanned film (TIF, JPG, etc) or a sequence of EPID DICOM images.
 
@@ -393,19 +391,16 @@ class Starshot(QuaacMixin):
             results = "\n".join(results)
         return results
 
-    def results_data(self, as_dict: bool = False) -> StarshotResults | dict:
+    def _generate_results_data(self) -> StarshotResults:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
-        data = StarshotResults(
+        return StarshotResults(
             tolerance_mm=self.tolerance,
             circle_diameter_mm=self.wobble.radius_mm * 2,
             circle_radius_mm=self.wobble.radius_mm,
             circle_center_x_y=(self.wobble.center.x, self.wobble.center.y),
             passed=self.passed,
         )
-        if as_dict:
-            return dataclasses.asdict(data)
-        return data
 
     def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
         """Return the data points to be saved to the QuAAC file."""

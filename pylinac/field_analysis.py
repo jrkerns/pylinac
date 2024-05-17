@@ -1,12 +1,10 @@
 """Module for performing analysis of images or 2D arrays for parameters such as flatness and symmetry."""
 from __future__ import annotations
 
-import dataclasses
 import io
 import os.path as osp
 import warnings
 import webbrowser
-from dataclasses import dataclass
 from enum import Enum
 from math import ceil, floor
 from pathlib import Path
@@ -23,6 +21,7 @@ from .core.hill import Hill
 from .core.io import SNCProfiler, retrieve_demo_file
 from .core.profile import Edge, Interpolation, Normalization, SingleProfile
 from .core.roi import RectangleROI
+from .core.utilities import ResultBase, ResultsDataMixin, convert_to_enum
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, convert_to_enum
 from .settings import get_dicom_cmap
 
@@ -275,14 +274,13 @@ class Protocol(Enum):
     ELEKTA = elekta_protocol  #:
 
 
-@dataclass
 class DeviceResult(ResultBase):
-    protocol: Protocol  #:
+    protocol: str  #:
     protocol_results: dict  #:
-    centering_method: Centering  #:
-    normalization_method: Normalization  #:
-    interpolation_method: Interpolation  #:
-    edge_detection_method: Edge  #:
+    centering_method: str | None  #:
+    normalization_method: str | None  #:
+    interpolation_method: str | None  #:
+    edge_detection_method: str  #:
     top_penumbra_mm: float  #:
     bottom_penumbra_mm: float  #:
     left_penumbra_mm: float  #:
@@ -314,7 +312,6 @@ class DeviceResult(ResultBase):
     right_penumbra_percent_mm: float = 0  #:
 
 
-@dataclass
 class FieldResult(DeviceResult):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -334,7 +331,7 @@ class FieldResult(DeviceResult):
     central_roi_min: float = 0  #:
 
 
-class FieldAnalysis(QuaacMixin):
+class FieldAnalysis(ResultsDataMixin[FieldResult], QuaacMixin):
     """Class for analyzing the various parameters of a radiation image, most commonly an open image from a linac."""
 
     def __init__(
@@ -861,10 +858,10 @@ class FieldAnalysis(QuaacMixin):
             results = "\n".join(result for result in results)
         return results
 
-    def results_data(self, as_dict: bool = False) -> FieldResult | dict:
+    def _generate_results_data(self) -> FieldResult:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
-        data = FieldResult(
+        return FieldResult(
             **self._results,
             protocol=self._protocol.name,
             centering_method=getattr(self._centering, "value", None),
@@ -877,9 +874,6 @@ class FieldAnalysis(QuaacMixin):
             central_roi_min=self.central_roi.min,
             central_roi_std=self.central_roi.std,
         )
-        if as_dict:
-            return dataclasses.asdict(data)
-        return data
 
     def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
         """Return the data points for the QUAAC analysis."""
@@ -1275,7 +1269,7 @@ class FieldAnalysis(QuaacMixin):
             markers,
             label="Profile",
         )
-        axis.set_ylabel("Normalized Response")
+        axis.set_ylabel("Response")
 
         # plot second axis w/ physical distance
         sec_y = axis.twiny()
@@ -1315,7 +1309,7 @@ class FieldAnalysis(QuaacMixin):
             markers,
             label="Profile",
         )
-        axis.set_ylabel("Normalized Response")
+        axis.set_ylabel("Response")
 
         # plot second axis w/ physical distance
         sec_y = axis.twiny()
@@ -1599,11 +1593,11 @@ class DeviceFieldAnalysis(FieldAnalysis):
         self.vert_profile = y_prof
         self.horiz_profile = x_prof
 
-    def results_data(self, as_dict: bool = False) -> FieldResult | dict:
+    def _generate_results_data(self) -> DeviceResult:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass. Unlike vanilla FA, there is no central ROI since it's only profiles
         """
-        data = DeviceResult(
+        return DeviceResult(
             **self._results,
             protocol=self._protocol.name,
             centering_method=getattr(self._centering, "value", None),
@@ -1612,9 +1606,6 @@ class DeviceFieldAnalysis(FieldAnalysis):
             edge_detection_method=self.horiz_profile._edge_method.value,
             protocol_results=self._extra_results,
         )
-        if as_dict:
-            return dataclasses.asdict(data)
-        return data
 
 
 def _remove_ticklabels(axis: plt.Axes):

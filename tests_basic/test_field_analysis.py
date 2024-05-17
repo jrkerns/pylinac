@@ -1,6 +1,7 @@
 """Tests for the flatsym module of pylinac."""
 import enum
 import io
+import json
 import os
 import os.path as osp
 import tempfile
@@ -116,6 +117,11 @@ class FieldAnalysisTests(QuaacTestBase, TestCase):
             data_dict["protocol_results"]["flatness_vertical"],
             fs._extra_results["flatness_vertical"],
         )
+
+        data_json = fs.results_data(as_json=True)
+        self.assertIsInstance(data_json, str)
+        # shouldn't raise
+        json.loads(data_json)
 
     def test_results_fails_if_not_analyzed(self):
         fs = FieldAnalysis.from_demo_image()

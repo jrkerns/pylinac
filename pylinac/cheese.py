@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import dataclasses
 import io
 import webbrowser
 from pathlib import Path
@@ -13,11 +12,11 @@ from .core import pdf
 from .core.profile import CollapsedCircleProfile
 from .core.roi import DiskROI
 from .core.scale import abs360
+from .core.utilities import ResultBase, ResultsDataMixin
 from .core.utilities import QuaacDatum, ResultBase
 from .ct import CatPhanBase, CatPhanModule, Slice
 
 
-@dataclasses.dataclass
 class TomoCheeseResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -52,7 +51,6 @@ class TomoCheeseResult(ResultBase):
     roi_20: dict  #:
 
 
-@dataclasses.dataclass
 class CheeseResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -205,7 +203,7 @@ class TomoCheeseModule(CheeseModule):
     }
 
 
-class CheesePhantomBase(CatPhanBase):
+class CheesePhantomBase(CatPhanBase, ResultsDataMixin[CheeseResult]):
     """A base class for doing cheese-like phantom analysis. A subset of catphan analysis where only one module is assumed."""
 
     model: str
@@ -411,21 +409,16 @@ class CheesePhantomBase(CatPhanBase):
     def plot_analyzed_subimage(self) -> None:
         raise NotImplementedError("There are no sub-images for cheese-like phantoms")
 
-    def results_data(self, as_dict: bool = False) -> CheeseResult | dict:
-        """Return the results of the analysis as a structure dataclass"""
-        data = CheeseResult(
+    def _generate_results_data(self) -> CheeseResult:
+        return CheeseResult(
             origin_slice=self.origin_slice,
             num_images=self.num_images,
             phantom_roll=self.catphan_roll,
             rois={name: roi.as_dict() for name, roi in self.module.rois.items()},
         )
 
-        if as_dict:
-            return dataclasses.asdict(data)
-        return data
 
-
-class TomoCheese(CheesePhantomBase):
+class TomoCheese(CheesePhantomBase, ResultsDataMixin[TomoCheeseResult]):
     """A class for analyzing the TomoTherapy 'Cheese' Phantom containing insert holes and plugs for HU analysis."""
 
     model = "Tomotherapy Cheese"
@@ -445,9 +438,9 @@ class TomoCheese(CheesePhantomBase):
         print(cheese.results())
         cheese.plot_analyzed_image(show)
 
-    def results_data(self, as_dict: bool = False) -> TomoCheeseResult | dict:
+    def _generate_results_data(self):
         """Return the results of the analysis as a structure dataclass"""
-        data = TomoCheeseResult(
+        return TomoCheeseResult(
             origin_slice=self.origin_slice,
             num_images=self.num_images,
             phantom_roll=self.catphan_roll,
@@ -473,10 +466,6 @@ class TomoCheese(CheesePhantomBase):
             roi_19=self.module.rois["19"].as_dict(),
             roi_20=self.module.rois["20"].as_dict(),
         )
-
-        if as_dict:
-            return dataclasses.asdict(data)
-        return data
 
 
 class CIRSHUModule(CheeseModule):

@@ -305,9 +305,10 @@ Results will look similar. Here's an example of the results of using a log:
 Customizing MLCs
 ----------------
 
-As of v2.5, MLC configuration is set a priori (vs empirical determination as before) and the user can also create
-custom MLC types. Pylinac was only able to handle Millennium and HD Millennium previously.
+.. versionadded:: 2.5
 
+MLC configuration is set a priori (vs empirical determination in 2.4 and below) and the user can also create
+custom MLC types.
 
 Preset configurations
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -420,6 +421,31 @@ edge leaves:
 This results with the edge leaves now being caught in this case. You may need to experiment with this number a few times:
 
 .. image:: images/pf_now_catching_edges.png
+
+.. _individual_leaf_positions:
+
+Individual leaf positions & errors
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Individual leaf positions and errors can be found in the ``results_data`` object under the ``mlc_positions_by_leaf`` and ``mlc_errors_by_leaf`` attribute. This will be a dictionary
+where the key is the leaf number (as a string) and the value is a list of positions in mm. The length of the list will be number of pickets. This is useful for further analysis as desired.
+For combined analysis mode, the result will look something like::
+
+    {
+        '11': [110.2, 140.1, 170.0, ...],
+        '12': [110.1, 140.2, 169.9, ...],
+        ...
+    }
+
+For separate analysis, the result will be similar to::
+
+    {
+        'A11': [110.2, 140.1, 170.0, ...],
+        'A12': [110.2, 140.1, 170.0, ...],
+        ...
+        'B11': [112.1, 142.2, 172.2, ...],
+        ...
+    }
 
 Benchmarking the algorithm
 --------------------------
@@ -823,7 +849,6 @@ These are the classes a typical user may interface with.
     :members:
 
 .. autoclass:: pylinac.picketfence.PFResult
-    :inherited-members:
     :members:
 
 Supporting Classes

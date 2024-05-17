@@ -9,11 +9,14 @@ sphinx:
 #   - pdf
 
 # Optionally set the version of Python and requirements required to build your docs
-python:
-   install:
-   - requirements: requirements-rtd.txt
+#python:
+#   install:
+#   - requirements: requirements-rtd.txt
 
 build:
    os: ubuntu-22.04
    tools:
       python: "3.11"
+   jobs:
+      post_install:
+         - pip install .[docs]

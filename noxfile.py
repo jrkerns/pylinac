@@ -31,8 +31,6 @@ def build_docs(session):
         "docs/build",
         "-W",
         "--keep-going",
-        "-j",
-        "auto",
         "-a",
         "-E",
         "-b",

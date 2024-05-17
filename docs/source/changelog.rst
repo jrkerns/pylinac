@@ -2,6 +2,184 @@
 Changelog
 =========
 
+v 3.23.0
+--------
+
+Plan Generator
+^^^^^^^^^^^^^^
+
+* A new module has been introduced: the plan generator! This module can assist in generating DICOM RT plan QA files
+  customized for your clinic. It can produce basic shapes and typical QA fields such as picket fence, open fields,
+  and more. See the :ref:`plan-generator` section for more.
+* RT plan fluence can be plotted using a new function: ``plot_fluences()``. This will plot the fluence of the plan
+  fields as figures. This is useful for visualizing the plan fluence and comparing it to the expected fluence. This
+  can be used in conjunction with the plan generator to visualize the fluence of the generated plan. See :ref:`plan_fluence`
+  for more.
+
+Picket Fence
+^^^^^^^^^^^^
+
+* The HDMLC arrangement was changed from 10x40x10 leaves to 14x32x14 leaves to match reality.
+  This may affect the max leaf error metric slightly. In our tests, the change did not skew positive
+  or negative. The mean change was approximately 0.05mm. While changing a definition is not
+  desirable, matching the actual configuration is more important. If for some reason you need
+  the old configuration, you can create a custom MLC arrangement. See the :ref:`customizing_pf_mlcs` section.
+* The leaf error barplot to the right/bottom of a picket fence plot was somewhat confusing. It would show the
+  mean and standard deviation of the error, but not the entire distribution. This plot has been
+  converted to a normal boxplot, showing the median, Q1, Q3 and flier data. More about the boxplot
+  can be read here: `boxplots <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.boxplot.html#matplotlib.axes.Axes.boxplot>`__.
+* The leaf error subplot that shows up at the right/bottom of the analyzed image now shows leaf numbers instead
+  of pixels.
+* A new method is available ``plot_leaf_error``. This method will create a figure of the leaf error boxplot. This is
+  similar to the leaf error subplot that shows up at the right/bottom of the analyzed image, but can be called independently.
+* The PF ``results_data`` object has two new attributes: ``mlc_positions_by_leaf`` and ``mlc_errors_by_leaf``. These are dictionaries with the MLC
+  number as the key and the value is a list of float values. The values are the absolute positions of the MLC leaves in mm and the error in mm
+  respectively. See the new :ref:`individual_leaf_positions` section for more.
+
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* For multi-target multi-field analysis, the analysis has been sped up considerably. The speedup depends on the
+  image size and the number of BBs, but overall the speed up is ~2x.
+* Calls to WL image's ``plot()`` method now accepts keyword arguments that are passed to the underlying image plot method.
+  E.g. ``wl_image.plot(vmin=1)``.
+
+Core
+^^^^
+
+* Pylinac is meant to be compatible with all Python versions still in security lifecycles, which is currently 3.8.
+  Some syntax was introduced that was not compatible with Python 3.8. This has been fixed. Note that
+  Python 3.8 will be EOL in October 2024. The next pylinac release after that will drop support for Python 3.8.
+* When computing image metrics, a failed metric analysis would still add the metric to the running list of metrics under
+  certain conditions such as running image metrics in a try clause.
+  This could result in errors when trying to plot the metrics. Now, if a metric computation fails, the metric is not added to the list.
+* Some MTF calls, mostly for the nuclear module, were generating ``ZeroDivision`` warnings or errors. This has been fixed.
+
+v 3.22.0
+--------
+
+Field Analysis
+^^^^^^^^^^^^^^
+
+* `#485 <https://github.com/jrkerns/pylinac/issues/485>`__ Analysis for the Profiler device would swap the 30th and 31st detector positions, possibly causing
+  flatness and symmetry calculation errors depending on the slope of the profile. Steeper slopes
+  would have a larger effect. To match SNC profiler software and RadMachine, these detector values have been removed.
+* The x-axis of the field analysis when using a device has been shifted by 1 to reflect the "detector" label
+  accurately; it used to be 0 which is non-sensical for physical detector number. This will also match SNC Profiler software for detector number.
+  Finally, the y-axis label now says "Response" vs "Normalized Response" since
+  the normalization can be a variety of options.
+
+  .. image:: images/device_plot.png
+
+
+Image Metrics
+^^^^^^^^^^^^^
+
+* The ``GlobalSizedDiskLocator`` class has added an ``invert`` parameter. This parameter existed for the other locators, but was missing for the global disk locator.
+  Previously, the locator was always inverting the image (assuming images like EPID). Now, the parameter can be used to control this behavior. By
+  default, the parameter is true for backwards-compatibility.
+
+Profile Metrics
+^^^^^^^^^^^^^^^
+
+* A new metric has been added: ``SlopeMetric``. This will calculate the in-field slope, similar to NCS-33.
+  This is useful for calculating the slope of a field, notably FFF fields as an alternative to flatness.
+
+Image
+^^^^^
+
+* It is now possible to save ``XIM`` images back to a *simplified* DICOM dataset. A new method has been added: ``as_dicom`` which will
+  return a pydicom Dataset.
+* When plotting an image (``DicomImage``, ``ArrayImage``, etc) where metrics had been computed, the metrics would
+  be plotted on the resulting figure all the time. A new parameter ``show_metrics`` has been added to the ``plot`` method
+  to control this behavior.
+
+Core
+^^^^
+
+* Users can now export analysis results as JSON. This is helpful for dumping results to file or for use in
+  passing data to another library or program. A new topic page is available: :ref:`exporting-results`.
+
+CT
+^^
+
+* The ``CTP486`` results data section for CatPhan analyses added the keys ``nps_avg_power`` and
+  ``nps_max_freq``. These are the average power and maximum frequency of the noise power spectrum, respectively.
+
+Winston Lutz
+^^^^^^^^^^^^
+
+* The Winston-Lutz algorithm has been updated and generalized. More work is happening for multi-field
+  and multi-target and single-field analyses. The BB-finding and field-finding is now generalized for the
+  cases of N targets and M fields. For multi-target/multi-field analyses, the algorithm was very memory-intensive
+  because it was creating X*Y analysis objects where X is the number of images and Y is the number of targets.
+  Memory usage has been reduced from this refactor.
+* The class ``WinstonLutz2DMultiTarget`` has changed to :class:`~pylinac.winston_lutz.WinstonLutzMultiTargetMultiFieldImage`.
+  Unless you are using the class directly, this change should not affect you.
+* The :meth:`~pylinac.winston_lutz.WinstonLutzMultiTargetMultiField.plot_images` method has changed.
+  Instead of returning N figures where N is the number of BBs where each figure is a set of plots for each BB, M figures are returned where
+  M is the number of images. Each plot will show the image and all detected BBs and fields. This gives
+  better context about which BB was detected where as it relates to the image as a whole.
+  Images within PDFs will also be generated in the same way.
+* For MultiField analyses, the ``cax2bb_distance()`` and ``cax2epid_distance()`` metrics were giving
+  artificially high values when the metric was ``median`` or ``mean``. This was because the metric was
+  first calculating the maximum distance for a given image, and then taking the median or mean of those values.
+  This was not the intended behavior. The metric now calculates the median or mean of all the distances for all
+  BBs together. I.e. it was doing ``median(max(a1, a2, a3), max(b2, ...), ...)`` instead of ``median(a1, a2, b1, b2, ...)``.
+  This will result in lower values for the metric compared to previously.
+* Plots now show a legend of the EPID, BB, and field CAX. The legend can be turned off by passing ``legend=False`` to the ``plot_images`` method.
+* Plots are now zoomed to fit all the BBs/fields detected. In the simple case of a single BB at isocenter, this hasn't changed.
+  For multi-target/multi-field WL, the plots will now be zoomed to fit all the detected BBs and fields.
+  This can be turned off by passing ``zoom=False`` to the ``plot_images`` method.
+* When using custom BB arrangements, use the new :class:`~pylinac.winston_lutz.BBConfig` class instead
+  of a dictionary. See the updated :ref:`custom-bb-arrangements` section for more.
+* A bug was fixed for the BB shift vector/instructions when analyzing images with couch kicks.
+  The Low paper which contains the mathematical transforms appears to have incorrect signs in equation 6. This
+  has been fixed and validated using the new image generator ability to create images with couch kicks.
+  The bug was causing the BB shift vector to be incorrect when analyzing images with couch kicks. The shift errors
+  were always in the LAT/LONG plane and for the most part underestimated the shift that would be needed.
+* For regular WL analyses, a virtual shift can be automatically applied to the BB to see what the 2D errors would be
+  if the BB were shifted to the optimal position. Read more in the :ref:`wl_virtual_shift` section.
+* For multi-target/multi-field analyses, the BB shift vector is now available as the ``~pylinac.winston_lutz.WinstonLutzMultiTargetMultiField.bb_shift_vector`` property.
+  This provides a 6DOF shift vector that can be applied to the BB to move to the ideal position.
+  These shifts are also included in the ``results_data()`` call.
+* The 3D plotting of BBs in virtual space for both single-target and multi-target analyses has been reworked.
+  For single-target WL, the green isocenter lines used to always be at the origin. The lines represented the
+  field-determined isocenter. To better represent the field isocenter, bb isocenter, and the EPID isocenter, and their
+  relationships to each other, the origin is now the EPID-based isocenter and the green x/y/z lines are the field isocenter.
+  This makes it possible to see the BB and field isocenters in relation to the EPID isocenter as well.
+* Couch-kick images are now supported for multi-target analyses. They are included in the BB shift vector calculations as well.
+* Couch-kick images are also analyzed for the 2D yaw error on each image. These are included in the ``results()`` call.
+* The multi-target/multi-field demo dataset was changed to purposefully introduce error for a more realistic demonstration.
+
+Image Generator
+^^^^^^^^^^^^^^^
+
+* A ``SlopeLayer`` has been added. This will apply an image-wide slope to the image. This can be useful for
+  introducing asymmetry to a synthetic image.
+* The image generator can now create images with collimator and couch rotation. For cone-style layers (e.g. :class:`~pylinac.core.image_generator.layers.PerfectConeLayer`)
+  the rotation is about the center of the image and for all intents and purposes is a couch kick.
+  For field-like layers :class:`~pylinac.core.image_generator.layers.PerfectFieldLayer` this simulates a collimator rotation.
+* The Winston-Lutz image generator will respect and apply collimator and couch rotations when generating images
+  based on the ``image_axes`` parameter. E.g. ``(90, 45, 15)`` will generate an image with gantry and 90, collimator at 45, and couch at 15
+  with the BB and field aspects corrected for these rotations.
+* The Winston-Lutz image generator has a machine scale input.
+
+
+v 3.21.1
+--------
+
+VMAT
+^^^^
+
+* A bug in the VMAT analysis was causing apparent shifts in the ROI position. This would happen if the gaps between the
+  ROIs were below 50% of the maximum. The ROI position is now based on the center position of the open field rather than the center
+  of the DMLC image. This caused a shift in some of the ROI positions of the test images of a few pixels (2-7 pixels). This
+  also caused the ROI values to change by anywhere between 0 and 0.2% in our test suite.
+* This same bug was causing identification issues of open vs DMLC images occassionally, usually for Halcyon datasets. The identification algorithm
+  has been adjusted to better detect these scenarios.
+
 v 3.21.0
 --------
 
@@ -13,6 +191,11 @@ The intent is for community-contributed modules and/or one-off analyses that are
 library but are still useful. So far, many RadMachine customers have asked for one-off analyses.
 While I disagree with adding one-off analyses to the core library, I also don't want to let the
 code be in secret for no good reason.
+
+VMAT
+^^^^
+
+* The VMAT image identification algorithm was changed slightly to better detect FFF DRMLC/DRGS images.
 
 CT
 ^^
@@ -32,6 +215,19 @@ CT
   is smoother when averaged using multiple, separate ROIs.
 * The ``power_spectrum`` property of the CTP486 module has been renamed to ``power_spectrum_2d``
   and another property, ``power_spectrum_1d`` has been added.
+* CT scans with overlapping slices AND without the ``SpacingBetweenSlices`` tag were failing.
+  The slice spacing distance will now use the distance between ``ImagePositionPatient`` tags of
+  the first two slices to avoid reliance on the ``SpacingBetweenSlices`` tag.
+
+Picket Fence
+^^^^^^^^^^^^
+
+* Picket fences where only a relatively small subset of the leaves were being analyzed (e.g. 10 pairs) were sometimes failing.
+  This would produce a ``ValueError: cannot convert float NaN to integer`` error. This has been fixed.
+  As a workaround, often the fix was to set ``required_prominence`` to a small value or None. This is no longer necessary.
+  ``required_prominence`` now reflects the *normalized* height (0-1.0) the pickets should be above the background. Previously,
+  this value was not normalized, requiring fiddling with the value to get correct and depending on the number
+  of leaf pairs that were being analyzed. The number of leaf pairs should no longer be a factor in the analysis.
 
 Image Metrics
 ^^^^^^^^^^^^^
@@ -48,6 +244,11 @@ Image Metrics
 
     This change also means that ``SizedDiskLocator`` and ``SizedDiskRegion``'s ``calculate`` method will now always return a list of Points or ROIs.
     Previously, a single Point or ROI was returned. This change will break code that was expecting a single Point or ROI.
+
+Core
+^^^^
+
+* The ``DicomStack.from_zip`` class constructor now accepts ``**kwargs`` which will pass to the normal constructor.
 
 v 3.20.0
 --------

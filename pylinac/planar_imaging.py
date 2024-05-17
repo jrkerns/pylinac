@@ -21,13 +21,11 @@ Features:
 """
 from __future__ import annotations
 
-import dataclasses
 import io
 import math
 import os.path as osp
 import warnings
 import webbrowser
-from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 from typing import BinaryIO, Callable, Literal
@@ -48,11 +46,11 @@ from .core.io import get_url, retrieve_demo_file
 from .core.mtf import MTF
 from .core.profile import CollapsedCircleProfile, FWXMProfilePhysical
 from .core.roi import DiskROI, HighContrastDiskROI, LowContrastDiskROI, bbox_center
+from .core.utilities import ResultBase, ResultsDataMixin
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase
 from .metrics.image import SizedDiskLocator
 
 
-@dataclass
 class PlanarResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -108,7 +106,7 @@ def percent_integral_uniformity(max: float, min: float) -> float:
     return 100 * (1 - (max - min + 1e-6) / (max + min + 1e-6))
 
 
-class ImagePhantomBase(QuaacMixin):
+class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
     """Base class for planar phantom classes.
 
     Attributes
@@ -683,7 +681,7 @@ class ImagePhantomBase(QuaacMixin):
             text = "\n".join(text)
         return text
 
-    def results_data(self, as_dict=False) -> PlanarResult | dict:
+    def _generate_results_data(self) -> PlanarResult:
         data = PlanarResult(
             analysis_type=self.common_name,
             median_contrast=np.median([roi.contrast for roi in self.low_contrast_rois]),
@@ -705,8 +703,6 @@ class ImagePhantomBase(QuaacMixin):
             data.mtf_lp_mm = [
                 {p: self.mtf.relative_resolution(p)} for p in (80, 50, 30)
             ]
-        if as_dict:
-            return dataclasses.asdict(data)
         return data
 
     def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
@@ -861,7 +857,6 @@ class ImagePhantomBase(QuaacMixin):
                 self.phantom_ski_region
 
 
-@dataclass
 class LightRadResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -964,9 +959,9 @@ class StandardImagingFC2(ImagePhantomBase):
         """Field offset from BB centroid using vector difference"""
         return (self.bb_center - self.field_center) / self.image.dpmm
 
-    def results_data(self, as_dict: bool = False) -> LightRadResult | dict:
+    def _generate_results_data(self) -> LightRadResult:
         """Return the results as a dict or dataclass"""
-        data = LightRadResult(
+        return LightRadResult(
             field_size_x_mm=self.field_width_x,
             field_size_y_mm=self.field_width_y,
             field_epid_offset_x_mm=self.field_epid_offset_mm.x,
@@ -974,9 +969,6 @@ class StandardImagingFC2(ImagePhantomBase):
             field_bb_offset_x_mm=self.field_bb_offset_mm.x,
             field_bb_offset_y_mm=self.field_bb_offset_mm.y,
         )
-        if as_dict:
-            return dataclasses.asdict(data)
-        return data
 
     def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
         data = self.results_data()
@@ -1498,9 +1490,9 @@ class LasVegas(ImagePhantomBase):
             text = "\n".join(text)
         return text
 
-    def results_data(self, as_dict: bool = False) -> PlanarResult | dict:
+    def _generate_results_data(self) -> PlanarResult:
         """Overridden because ROIs seen is based on visibility, not CNR"""
-        data = PlanarResult(
+        return PlanarResult(
             analysis_type=self.common_name,
             median_contrast=np.median([roi.contrast for roi in self.low_contrast_rois]),
             median_cnr=np.median(
@@ -1514,9 +1506,6 @@ class LasVegas(ImagePhantomBase):
             percent_integral_uniformity=self.percent_integral_uniformity(),
             phantom_area=self.phantom_area,
         )
-        if as_dict:
-            return dataclasses.asdict(data)
-        return data
 
 
 class ElektaLasVegas(LasVegas):

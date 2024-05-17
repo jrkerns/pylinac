@@ -38,12 +38,14 @@
 
    core_modules
    image_generator
+   plan_generator
    contrib
 
 .. toctree::
    :hidden:
    :caption: Topics
 
+   topics/exporting_results
    topics/images
    topics/xim
    topics/contrast
@@ -52,6 +54,7 @@
    topics/scale
    topics/profiles
    topics/image_metrics
+   topics/fluence
 
 .. toctree::
    :hidden:

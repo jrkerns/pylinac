@@ -6,7 +6,7 @@ import numpy as np
 import quaac
 from quaac import Attachment, Equipment, User
 
-from pylinac import Interpolation
+from pylinac import Interpolation, PicketFence
 from pylinac.core.scale import abs360, wrap360
 from pylinac.core.utilities import (
     OptionListMixin,
@@ -14,6 +14,7 @@ from pylinac.core.utilities import (
     is_iterable,
     simple_round,
 )
+from pylinac.picketfence import PFResult
 
 performer = User(name="James Kerns", email="j@j.com")
 linac = Equipment(
@@ -170,3 +171,29 @@ class QuaacTestBase:
                 overwrite=True,
             )
         quaac.Document.from_yaml_file(str(t.name))
+
+
+class TestResultsDataMixin(TestCase):
+    def test_results_normal(self):
+        pf = PicketFence.from_demo_image()
+        pf.analyze()
+        data = pf.results_data()
+        self.assertIsInstance(data, PFResult)
+
+    def test_results_dict(self):
+        pf = PicketFence.from_demo_image()
+        pf.analyze()
+        data = pf.results_data(as_dict=True)
+        self.assertIsInstance(data, dict)
+
+    def test_results_json(self):
+        pf = PicketFence.from_demo_image()
+        pf.analyze()
+        data = pf.results_data(as_json=True)
+        self.assertIsInstance(data, str)
+
+    def test_json_and_dict_not_allowed(self):
+        pf = PicketFence.from_demo_image()
+        pf.analyze()
+        with self.assertRaises(ValueError):
+            pf.results_data(as_dict=True, as_json=True)

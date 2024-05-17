@@ -368,6 +368,51 @@ Example usage:
     profile = FWXMProfile(...)
     profile.compute(metrics=[TopDistanceMetric(top_region_ratio=0.2)])
 
+Field Slope
+^^^^^^^^^^^
+
+NCS-33 defined a field slope metric that used "Profile evaluation points" at various distances from
+the CAX. These points were averaged from the left and right sides and used as constancy values.
+Pylinac does something similar with the :class:`~pylinac.metrics.profile.SlopeMetric` plugin.
+The inner and outer in-field ratio defines the range that the slope will be calculated over.
+The values within this range are averaged and the slope is calculated.
+
+Example usage:
+
+.. code-block:: python
+
+    profile = FWXMProfile(...)
+    profile.compute(metrics=[SlopeMetric(inner_field_ratio=0.2, outer_field_ratio=0.8)])
+
+.. plot::
+  :include-source: false
+
+  from pylinac.core.array_utils import normalize
+  from pylinac.core.image_generator import AS1200Image, FilterFreeFieldLayer, GaussianFilterLayer
+  from pylinac.core.profile import InflectionDerivativeProfilePhysical
+  from pylinac.metrics.profile import SlopeMetric
+
+  # this is our set up to get a nice profile
+  as1000 = AS1200Image()
+  as1000.add_layer(
+      FilterFreeFieldLayer(field_size_mm=(100, 100))
+  )
+  as1000.add_layer(
+      GaussianFilterLayer(sigma_mm=2)
+  )  # add an image-wide gaussian to simulate penumbra/scatter
+
+  # pull out the profile array
+  array = normalize(as1000.image[:, as1000.shape[1] // 2])
+
+  # create the profile
+  profile = InflectionDerivativeProfilePhysical(array, dpmm=1)
+
+  # compute the profile with our plugin
+  profile.compute(metrics=[SlopeMetric()])
+
+  # plot the profile
+  profile.plot()
+
 Dmax
 ^^^^
 
@@ -765,6 +810,10 @@ API
     :members:
 
 .. autoclass:: pylinac.metrics.profile.Dmax
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.metrics.profile.SlopeMetric
     :inherited-members:
     :members:
 

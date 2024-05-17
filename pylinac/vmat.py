@@ -11,24 +11,25 @@ Features:
 from __future__ import annotations
 
 import copy
-import dataclasses
 import enum
 import typing
 import webbrowser
-from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
+from pydantic import BaseModel, ConfigDict
 
 from . import Normalization
 from .core import image
-from .core.geometry import Point, Rectangle
+from .core.geometry import Point, PointSerialized, Rectangle
 from .core.image import DicomImage, ImageLike
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.pdf import PylinacCanvas
+from .core.profile import FWXMProfile
+from .core.utilities import ResultBase, ResultsDataMixin
 from .core.profile import InflectionDerivativeProfile
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase
 from .settings import get_dicom_cmap
@@ -42,19 +43,19 @@ class ImageType(enum.Enum):
     PROFILE = "profile"  #:
 
 
-@dataclass
-class SegmentResult:
+class SegmentResult(BaseModel):
     """An individual segment/ROI result"""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     passed: bool  #:
     x_position_mm: float  #:
     r_corr: float  #:
     r_dev: float  #:
-    center_x_y: float  #:
+    center_x_y: PointSerialized  #:
     stdev: float  #:
 
 
-@dataclass
 class VMATResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -140,7 +141,7 @@ class Segment(Rectangle):
         return "blue" if self.passed else "red"
 
 
-class VMATBase(QuaacMixin):
+class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
     _url_suffix: str
     _result_header: str
     _result_short_header: str
@@ -253,7 +254,22 @@ class VMATBase(QuaacMixin):
         profile1, profile2 = self._median_profiles(image1=image1, image2=image2)
         field_profile1 = profile1.field_values()
         field_profile2 = profile2.field_values()
-        if np.std(field_profile1) > np.std(field_profile2):
+        # first check if the profiles have a very different length
+        # if so, the longer one is the open field
+        # this leverages the shortcoming in FWXMProfile where the field might be very small because
+        # it "caught" on one of the first dips of the DMLC image
+        # catches most often with Halcyon images
+        if abs(len(field_profile1) - len(field_profile2)) > min(
+            len(field_profile1), len(field_profile2)
+        ):
+            if len(field_profile1) > len(field_profile2):
+                self.open_image = image1
+                self.dmlc_image = image2
+            else:
+                self.open_image = image2
+                self.dmlc_image = image1
+        # normal check of the STD compared; for flat-ish beams this works well.
+        elif np.std(field_profile1) > np.std(field_profile2):
             self.dmlc_image = image1
             self.open_image = image2
         else:
@@ -300,7 +316,7 @@ class VMATBase(QuaacMixin):
             )
         return data
 
-    def results_data(self, as_dict=False) -> VMATResult | dict:
+    def _generate_results_data(self) -> VMATResult:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         segment_data = []
@@ -312,13 +328,13 @@ class VMATBase(QuaacMixin):
                 passed=segment.passed,
                 r_corr=segment.r_corr,
                 r_dev=segment.r_dev,
-                center_x_y=segment.center.as_array(),
+                center_x_y=segment.center,
                 x_position_mm=roi_data["offset_mm"],
                 stdev=segment.stdev,
             )
             segment_data.append(segment)
             named_segment_data[roi_name] = segment
-        data = VMATResult(
+        return VMATResult(
             test_type=self._result_header,
             tolerance_percent=self._tolerance * 100,
             max_deviation_percent=self.max_r_deviation,
@@ -328,15 +344,11 @@ class VMATBase(QuaacMixin):
             named_segment_data=named_segment_data,
         )
 
-        if as_dict:
-            return dataclasses.asdict(data)
-        return data
-
     def _calculate_segment_centers(self) -> list[Point]:
         """Construct the center points of the segments based on the field center and known x-offsets."""
         points = []
-        dmlc_prof, _ = self._median_profiles(self.dmlc_image, self.open_image)
-        x_field_center = round(dmlc_prof.center_idx)
+        _, open_prof = self._median_profiles(self.dmlc_image, self.open_image)
+        x_field_center = round(open_prof.center_idx)
         for roi_data in self.roi_config.values():
             x_offset_mm = roi_data["offset_mm"]
             y = self.open_image.center.y
@@ -504,7 +516,7 @@ class VMATBase(QuaacMixin):
     @classmethod
     def _median_profiles(
         cls, image1: DicomImage, image2: DicomImage
-    ) -> list[InflectionDerivativeProfile, InflectionDerivativeProfile]:
+    ) -> list[FWXMProfile, FWXMProfile]:
         """Return two median profiles from the open and DMLC image. Only used for visual purposes.
         Evaluation is not based on these profiles."""
         profiles = []
@@ -512,7 +524,7 @@ class VMATBase(QuaacMixin):
             img = copy.deepcopy(orig_img)
             img.ground()
             img.check_inversion()
-            profile = InflectionDerivativeProfile(
+            profile = FWXMProfile(
                 np.mean(img.array, axis=0),
                 ground=True,
                 normalization=Normalization.BEAM_CENTER,

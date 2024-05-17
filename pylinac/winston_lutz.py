@@ -19,7 +19,6 @@ Features:
 """
 from __future__ import annotations
 
-import copy
 import dataclasses
 import enum
 import io
@@ -28,32 +27,40 @@ import os.path as osp
 import statistics
 import tempfile
 import webbrowser
-from dataclasses import dataclass
 from functools import cached_property
 from itertools import zip_longest
 from pathlib import Path
 from textwrap import wrap
-from typing import BinaryIO, Iterable, Sequence, TypedDict
+from typing import BinaryIO, Iterable, Sequence
 
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import art3d
-from scipy import linalg, ndimage, optimize
+from py_linq import Enumerable
+from pydantic import BaseModel
+from scipy import ndimage, optimize
 from scipy.ndimage import zoom
 from scipy.spatial.transform import Rotation
-from skimage import measure
 from skimage.measure._regionprops import RegionProperties
 from tabulate import tabulate
 
 from .core import image, pdf
 from .core.array_utils import array_to_dicom
 from .core.decorators import lru_cache
-from .core.geometry import Line, Point, Vector, cos, sin
-from .core.image import DicomImageStack, LinacDicomImage, is_image, tiff_to_dicom
+from .core.geometry import (
+    Line,
+    Point,
+    PointSerialized,
+    Vector,
+    VectorSerialized,
+    cos,
+    sin,
+)
+from .core.image import DicomImageStack, is_image, tiff_to_dicom
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
-from .core.mask import bounding_box
 from .core.scale import MachineScale, convert
+from .core.utilities import ResultBase, ResultsDataMixin, convert_to_enum, is_close
 from .core.utilities import (
     QuaacDatum,
     QuaacMixin,
@@ -68,7 +75,7 @@ from .metrics.features import (
     is_solid,
     is_symmetric,
 )
-from .metrics.image import SizedDiskLocator
+from .metrics.image import GlobalSizedFieldLocator, SizedDiskLocator
 
 BB_ERROR_MESSAGE = (
     "Unable to locate the BB. Make sure the field edges do not obscure the BB, that there are no artifacts in the images, that the 'bb_size' parameter is close to reality, "
@@ -76,77 +83,138 @@ BB_ERROR_MESSAGE = (
 )
 
 
+class BBConfig(BaseModel):
+    name: str
+    offset_left_mm: float
+    offset_up_mm: float
+    offset_in_mm: float
+    bb_size_mm: float
+    rad_size_mm: float
+
+    def to_human(self) -> str:
+        """Convert one BB location to a human-readable str"""
+        lr = "Left" if self.offset_left_mm >= 0 else "Right"
+        ud = "Up" if self.offset_up_mm >= 0 else "Down"
+        io = "In" if self.offset_in_mm >= 0 else "Out"
+        return f"{lr} {abs(self.offset_left_mm)}mm, {ud} {abs(self.offset_up_mm)}mm, {io} {abs(self.offset_in_mm)}mm"
+
+
 class BBArrangement:
     """Presets for multi-target phantoms."""
 
+    # a BB at iso; represents the simplest case
+    ISO = (
+        BBConfig(
+            name="Iso",
+            offset_left_mm=0,
+            offset_up_mm=0,
+            offset_in_mm=0,
+            bb_size_mm=5,  # overridden later dynamically
+            rad_size_mm=20,  # not used;
+        ),
+    )
+    # ISOCAL = (
+    #     BBConfig(
+    #         name="1",
+    #         offset_left_mm=0,
+    #         offset_up_mm=-170,
+    #         offset_in_mm=-30,
+    #         bb_size_mm=5,
+    #         rad_size_mm=20,
+    #     ),
+    # {
+    #     'name': '2',
+    #     'offset_left_mm': -170,
+    #     'offset_up_mm': 0,
+    #     'offset_in_mm': -45,
+    #     "bb_size_mm": 5,
+    #     'rad_size_mm': 20,
+    # }
+    # )
     # locations: https://www.postersessiononline.eu/173580348_eu/congresos/ESTRO2020/aula/-PO_1320_ESTRO2020.pdf
     SNC_MULTIMET = (
-        {
-            "name": "Iso",
-            "offset_left_mm": 0,
-            "offset_up_mm": 0,
-            "offset_in_mm": 0,
-            "bb_size_mm": 5,
-            "rad_size_mm": 20,
-        },
-        {
-            "name": "1",
-            "offset_left_mm": 0,
-            "offset_up_mm": 0,
-            "offset_in_mm": 30,
-            "bb_size_mm": 5,
-            "rad_size_mm": 20,
-        },
-        {
-            "name": "2",
-            "offset_left_mm": -30,
-            "offset_up_mm": 0,
-            "offset_in_mm": 15,
-            "bb_size_mm": 5,
-            "rad_size_mm": 20,
-        },
-        {
-            "name": "3",
-            "offset_left_mm": 0,
-            "offset_up_mm": 0,
-            "offset_in_mm": -30,
-            "bb_size_mm": 5,
-            "rad_size_mm": 20,
-        },
-        {
-            "name": "4",
-            "offset_left_mm": 30,
-            "offset_up_mm": 0,
-            "offset_in_mm": -50,
-            "bb_size_mm": 5,
-            "rad_size_mm": 20,
-        },
-        {
-            "name": "5",
-            "offset_left_mm": 0,
-            "offset_up_mm": 0,
-            "offset_in_mm": -70,
-            "bb_size_mm": 5,
-            "rad_size_mm": 20,
-        },
+        BBConfig(
+            name="Iso",
+            offset_left_mm=0,
+            offset_up_mm=0,
+            offset_in_mm=0,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="1",
+            offset_left_mm=0,
+            offset_up_mm=0,
+            offset_in_mm=30,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="2",
+            offset_left_mm=-30,
+            offset_up_mm=0,
+            offset_in_mm=15,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="3",
+            offset_left_mm=0,
+            offset_up_mm=0,
+            offset_in_mm=-30,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="4",
+            offset_left_mm=30,
+            offset_up_mm=0,
+            offset_in_mm=-50,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="5",
+            offset_left_mm=0,
+            offset_up_mm=0,
+            offset_in_mm=-70,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
     )
     DEMO = (
-        {
-            "name": "Iso",
-            "offset_left_mm": 0,
-            "offset_up_mm": 0,
-            "offset_in_mm": 0,
-            "bb_size_mm": 5,
-            "rad_size_mm": 20,
-        },
-        {
-            "name": "Left,Down,In",
-            "offset_left_mm": 20,
-            "offset_up_mm": -20,
-            "offset_in_mm": 60,
-            "bb_size_mm": 5,
-            "rad_size_mm": 20,
-        },
+        BBConfig(
+            name="Iso",
+            offset_left_mm=0,
+            offset_up_mm=5,
+            offset_in_mm=0,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="Out",
+            offset_left_mm=0,
+            offset_up_mm=00,
+            offset_in_mm=-60,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="In",
+            offset_left_mm=0,
+            offset_up_mm=00,
+            offset_in_mm=30,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="Left/Out",
+            offset_left_mm=10,
+            offset_up_mm=10,
+            offset_in_mm=-30,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
     )
 
     @staticmethod
@@ -159,65 +227,136 @@ class BBArrangement:
         return f"'{a['name']}': {lr} {abs(a['offset_left_mm'])}mm, {ud} {abs(a['offset_up_mm'])}mm, {io} {abs(a['offset_in_mm'])}mm"
 
 
-class NominalBB(TypedDict):
-    """Input for BB location"""
+@dataclasses.dataclass
+class BBFieldMatch:
+    """A match of a BB and field to an expected arrangement position. I.e. the nominal BB, measured BB, and field.
+    This can calculate distances, create backprojections, etc for a single BB/Field."""
 
-    offset_left_mm: float
-    offset_up_mm: float
-    offset_in_mm: float
-    bb_diameter_mm: float
+    epid: Point
+    field: Point
+    bb: Point
+    dpmm: float
+    gantry_angle: float
+    couch_angle: float
+    sad: float
+
+    @property
+    def field_epid_vector_mm(self) -> Vector:
+        """The vector from the field CAX to the EPID center *IN COORDINATE SPACE*."""
+        v = (self.field - self.epid) / self.dpmm
+        v.y = (
+            -v.y
+        )  # invert the y-axis; positive is down in image space but negative in coordinate space
+        return v
+
+    @property
+    def bb_field_vector_mm(self) -> Vector:
+        """The vector from the BB to the field CAX *IN COORDINATE SPACE*."""
+        v = (self.bb - self.field) / self.dpmm
+        v.y = (
+            -v.y
+        )  # invert the y-axis; positive is down in image space but negative in coordinate space
+        return v
+
+    @property
+    def bb_epid_vector_mm(self) -> Vector:
+        """The vector from the BB to the field CAX *IN COORDINATE SPACE*."""
+        v = (self.bb - self.epid) / self.dpmm
+        v.y = (
+            -v.y
+        )  # invert the y-axis; positive is down in image space but negative in coordinate space
+        return v
+
+    @property
+    def bb_field_distance_mm(self) -> float:
+        """The distance from the BB to the field CAX in mm."""
+        return self.field.distance_to(self.bb) / self.dpmm
+
+    @property
+    def bb_epid_distance_mm(self) -> float:
+        """The distance from the BB to the EPID center in mm."""
+        return self.epid.distance_to(self.bb) / self.dpmm
+
+    @property
+    def field_epid_distance_mm(self) -> float:
+        """The distance from the field CAX to the EPID center in mm."""
+        return self.epid.distance_to(self.field) / self.dpmm
+
+    @property
+    def bb_to_field_projection(self):
+        """The projection from the BB to the field. Used by vanilla WL
+        to determine the gantry, coll, couch isocenter size because there the BB is the reference point.
+
+        Returns
+        -------
+        Line
+            The virtual line in space made by the BB.
+        """
+        return straight_ray(self.bb_field_vector_mm, self.gantry_angle)
 
 
-class BB:
+class BB3D:
     """A representation of a BB in 3D space"""
 
     def __repr__(self):
-        return self.nominal_position
+        return self.nominal_bb_position
 
-    def __init__(self, nominal_bb: NominalBB, ray_lines: list[Line]):
-        self.nominal_bb = nominal_bb
-        self.ray_lines = ray_lines
+    def __init__(
+        self,
+        bb_config: BBConfig,
+        bb_matches: Sequence[BBFieldMatch, ...],
+        scale: MachineScale,
+    ):
+        self.bb_config = bb_config
+        self.matches = bb_matches
+        self.scale = scale
 
     @cached_property
-    def measured_position(self) -> Point:
-        """The 3D measured position of the BB based on the ray-tracing lines in MM"""
-        initial_guess = self.nominal_position.as_array()
-        bounds = [(-200, 200), (-200, 200), (-200, 200)]
-        result = optimize.minimize(
-            max_distance_to_lines, initial_guess, args=self.ray_lines, bounds=bounds
+    def measured_bb_position(self) -> Point:
+        """The 3D measured position of the BB based on rotation matrices and gantry/couch angles."""
+        xs = [m.bb_epid_vector_mm.x for m in self.matches]
+        ys = [m.bb_epid_vector_mm.y for m in self.matches]
+        thetas = [m.gantry_angle for m in self.matches]
+        phis = [m.couch_angle for m in self.matches]
+        vector = solve_3d_position_from_2d_planes(
+            xs=xs, ys=ys, thetas=thetas, phis=phis, scale=self.scale
         )
-        return Point(result.x)
+        # vectors and points are effectively the same thing here but we convert to a point for clarity
+        return Point(x=vector.x, y=vector.y, z=vector.z)
 
     @cached_property
-    def nominal_position(self) -> Point:
-        """The nominal location of the BB in MM"""
+    def nominal_bb_position(self) -> Point:
+        """The nominal location of the BB in MM in coordinate space"""
         return Point(
-            x=-self.nominal_bb["offset_left_mm"],
-            y=-self.nominal_bb["offset_in_mm"],
-            z=self.nominal_bb["offset_up_mm"],
+            x=-self.bb_config.offset_left_mm,
+            y=self.bb_config.offset_in_mm,
+            z=self.bb_config.offset_up_mm,
         )
 
     @cached_property
-    def delta_vector(self) -> Vector:
-        """The shift from measured BB location to nominal as a vector in MM"""
-        return self.measured_position - self.nominal_position
-
-    @cached_property
-    def delta_distance(self):
-        """The scalar distance between the measured BB location and nominal in MM"""
-        return self.measured_position.distance_to(self.nominal_position)
+    def measured_field_position(self) -> Point:
+        """The position of the field CAXs in 3D space"""
+        xs = [m.field_epid_vector_mm.x for m in self.matches]
+        ys = [m.field_epid_vector_mm.y for m in self.matches]
+        thetas = [m.gantry_angle for m in self.matches]
+        phis = [m.couch_angle for m in self.matches]
+        vector = solve_3d_position_from_2d_planes(
+            xs=xs, ys=ys, thetas=thetas, phis=phis, scale=self.scale
+        )
+        # vectors and points are effectively the same thing here but we convert to a point for clarity
+        return Point(x=vector.x, y=vector.y, z=vector.z)
 
     def plot_nominal(self, axes: plt.Axes, color: str, **kwargs):
         """Plot the BB nominal position"""
         x, y, z = create_sphere_surface(
-            radius=self.nominal_bb["bb_diameter_mm"] / 2, center=self.nominal_position
+            radius=self.bb_config.bb_size_mm / 2, center=self.nominal_bb_position
         )
         axes.plot_surface(x, y, z, color=color, **kwargs)
 
     def plot_measured(self, axes: plt.Axes, color: str, **kwargs):
         """Plot the BB measured position"""
         x, y, z = create_sphere_surface(
-            radius=self.nominal_bb["bb_diameter_mm"] / 2, center=self.measured_position
+            radius=self.bb_config.bb_size_mm / 2, center=self.measured_bb_position
         )
         axes.plot_surface(x, y, z, color=color, **kwargs)
 
@@ -244,18 +383,16 @@ class Axis(enum.Enum):
     REFERENCE = "Reference"  #:
 
 
-@dataclass
 class WinstonLutz2DResult(ResultBase):
     variable_axis: str  #:
-    cax2epid_vector: Vector  #:
+    bb_location: PointSerialized  #:
+    cax2epid_vector: VectorSerialized  #:
     cax2epid_distance: float  #:
     cax2bb_distance: float  #:
-    cax2bb_vector: Vector  #:
-    bb_location: Point  #:
-    field_cax: Point  #:
+    cax2bb_vector: VectorSerialized  #:
+    field_cax: PointSerialized  #:
 
 
-@dataclass
 class WinstonLutzResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -285,7 +422,6 @@ class WinstonLutzResult(ResultBase):
     keyed_image_details: dict[str, WinstonLutz2DResult]  #:
 
 
-@dataclass
 class WinstonLutzMultiTargetMultiFieldResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -296,17 +432,12 @@ class WinstonLutzMultiTargetMultiFieldResult(ResultBase):
     max_2d_field_to_bb_mm: float  #:
     median_2d_field_to_bb_mm: float  #:
     mean_2d_field_to_bb_mm: float  #:
-    bb_arrangement: Iterable[dict]  #:
-    bb_maxes: dict  #:
-
-
-def plot_image(img: WinstonLutz2D | None, axis: plt.Axes) -> None:
-    """Helper function to plot a WLImage to an axis."""
-    if img is None:
-        axis.set_frame_on(False)
-        axis.axis("off")
-    else:
-        img.plot(ax=axis, show=False)
+    bb_arrangement: tuple[BBConfig, ...]  #:
+    bb_maxes: dict[str, float]  #:
+    bb_shift_vector: VectorSerialized  #:
+    bb_shift_yaw: float  #:
+    bb_shift_pitch: float  #:
+    bb_shift_roll: float  #:
 
 
 def is_near_center(region: RegionProperties, *args, **kwargs) -> bool:
@@ -352,20 +483,18 @@ def is_right_square_size(region: RegionProperties, *args, **kwargs) -> bool:
     return smaller_bb_area < field_area < larger_bb_area
 
 
-class WinstonLutz2D(image.LinacDicomImage):
-    """Holds individual Winston-Lutz EPID images, image properties, and automatically finds the field CAX and BB."""
+class WLBaseImage(image.LinacDicomImage):
+    """Base class for a WL Image. Represents a single image with N fields and M BBs.
 
-    bb: Point
-    field_cax: Point
-    _rad_field_bounding_box: list
-    is_from_tiff: bool = False
-    detection_conditions: list[callable] = [
-        is_right_size_bb,
-        is_round,
-        is_right_circumference,
-        is_symmetric,
-        is_solid,
-    ]
+    Methods are provided to find the field CAXs and BBs and matching to the expected locations.
+    """
+
+    field_caxs: list[Point]
+    bb_positions: list[Point]
+    bb_arrangement: tuple[BBConfig]
+    arrangement_matches: dict[
+        str, BBFieldMatch
+    ]  # a field CAX and BB matched to their respective nominal locations
 
     def __init__(
         self,
@@ -387,31 +516,280 @@ class WinstonLutz2D(image.LinacDicomImage):
             self.detection_conditions = conditions
         super().__init__(file, use_filenames=use_filenames, **kwargs)
         self._is_analyzed = False
-        self.flipud()
 
     def analyze(
         self,
-        bb_size_mm: float = 5,
-        low_density_bb: bool = False,
-        open_field: bool = False,
-    ) -> None:
-        """Analyze the image. See WinstonLutz.analyze for parameter details."""
+        bb_arrangement: tuple[BBConfig],
+        is_open_field: bool = False,
+        is_low_density: bool = False,
+        shift_vector: Vector | None = None,
+    ) -> (tuple[Point], tuple[Point]):
+        """Analyze the image for BBs and field CAXs.
+
+        Parameters
+        ----------
+        bb_arrangement : tuple[BBConfig]
+            The expected BB locations.
+        is_open_field : bool
+            Whether the field is open or not. If open, only one CAX is expected.
+        is_low_density : bool
+            Whether the BBs are low density (e.g. kV images).
+        shift_vector : Vector, optional
+            A vector to shift the detected BBs by. Useful for images that are not perfectly aligned.
+        """
         self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
         self._clean_edges()
         self.ground()
         self.normalize()
-        self.field_cax, self._rad_field_bounding_box = self._find_field_centroid(
-            open_field
+        self.bb_arrangement = bb_arrangement
+        field_caxs = self.find_field_centroids(is_open_field=is_open_field)
+        field_matches = self.find_field_matches(field_caxs)
+        detected_bb_points = self.find_bb_centroids(
+            bb_diameter_mm=bb_arrangement[0].bb_size_mm,
+            low_density=is_low_density,
         )
-        self.bb = self._find_bb(bb_size_mm, low_density_bb)
+        if shift_vector:
+            # apply shift to detected BB points
+            lat, sup_inf = bb_projection_with_rotation(
+                offset_left=-shift_vector.x,  # negative because left is negative x
+                offset_up=shift_vector.z,
+                offset_in=shift_vector.y,
+                sad=self.sad,
+                gantry=self.gantry_angle,
+                couch=self.couch_angle,
+            )
+            # convert from mm to pixels and add to the detected points
+            for p in detected_bb_points:
+                p.x += lat * self.dpmm
+                p.y -= (
+                    sup_inf * self.dpmm
+                )  # we subtract because the detected point is in image space, not coordinate space so we convert the shift from coordinate to image space
+        bb_matches = self.find_bb_matches(detected_points=detected_bb_points)
+        if len(bb_matches) != len(field_matches):
+            raise ValueError("The number of detected fields and BBs do not match")
+        if not field_matches:
+            raise ValueError("No fields were detected")
+        if not bb_matches:
+            raise ValueError(BB_ERROR_MESSAGE)
+        # we now have field CAXs and BBs matched to their respective nominal locations
+        # merge the field and BBs per arrangement position
+        combined_matches = {}
+        for bb_name, bb_match in bb_matches.items():
+            combined_matches[bb_name] = BBFieldMatch(
+                epid=self.center,
+                field=field_matches[bb_name],
+                bb=bb_match,
+                dpmm=self.dpmm,
+                gantry_angle=self.gantry_angle,
+                couch_angle=self.couch_angle,
+                sad=self.sad,
+            )
         self._is_analyzed = True
+        self.arrangement_matches = combined_matches
 
-    def __repr__(self):
-        return f"WLImage(gantry={self.gantry_angle:.1f}, coll={self.collimator_angle:.1f}, couch={self.couch_angle:.1f})"
+    def find_field_centroids(self, is_open_field: bool) -> list[Point]:
+        """Find the field CAX(s) in the image. If the field is open or this is a vanilla WL, only one CAX is found."""
+        if is_open_field:
+            p = self.center
+        else:
+            # TODO: Use metrics field finder
+            # can't use it out of the box because the
+            # analyze method doesn't pass the field size
+            # using the global field locator without size will
+            # find several other unrelated fields and show up in the image
+            # the metric algorithm should have a post-processing function parameter
+            min, max = np.percentile(self.array, [5, 99.9])
+            threshold_img = self.as_binary((max - min) / 2 + min)
+            filled_img = ndimage.binary_fill_holes(threshold_img)
+            coords = ndimage.center_of_mass(filled_img)
+            p = Point(x=coords[-1], y=coords[0])
+        return [p]
 
-    def to_axes(self) -> str:
-        """Give just the axes values as a human-readable string"""
-        return f"Gantry={self.gantry_angle:.1f}, Coll={self.collimator_angle:.1f}, Couch={self.couch_angle:.1f}"
+    def find_field_matches(self, detected_points: list[Point]) -> dict[str, Point]:
+        """Find matches between detected field points and the arrangement. See ``find_bb_matches`` for more info."""
+        return self.find_bb_matches(detected_points)
+
+    def find_bb_centroids(
+        self, bb_diameter_mm: float, low_density: bool
+    ) -> list[Point]:
+        """Find BBs in the image. This method can return MORE than the desired number of BBs. Matching
+        of the detected BBs vs the expected BBs is done in the ``find_bb_matches`` method.
+        """
+        bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter_mm)
+        centers = self.compute(
+            metrics=SizedDiskLocator.from_center_physical(
+                expected_position_mm=(0, 0),
+                search_window_mm=(40 + bb_diameter_mm, 40 + bb_diameter_mm),
+                radius_mm=bb_diameter_mm / 2,
+                radius_tolerance_mm=bb_tolerance_mm,
+                invert=not low_density,
+                detection_conditions=self.detection_conditions,
+            )
+        )
+        return centers
+
+    def find_bb_matches(self, detected_points: list[Point]) -> dict[str, Point]:
+        """Given an arrangement and detected BB positions, find the bbs that are closest to the expected positions.
+
+        This is to prevent false positives from being detected as BBs (e.g. noise, couch, etc).
+        The detected BBs are matched to the expected BBs based on proximity.
+
+        These matches are linked to the individual BB arrangement by arrangement name.
+        """
+        bbs = {}
+        for bb_arng in self.bb_arrangement:
+            nominal_point = self.nominal_bb_position(bb_arng)
+            distances = [
+                nominal_point.distance_to(found_point)
+                for found_point in detected_points
+            ]
+            min_distance = min(distances)
+            min_distance_idx = distances.index(min_distance)
+            if min_distance < 20 * self.dpmm:
+                bbs[bb_arng.name] = detected_points[min_distance_idx]
+        return bbs
+
+    def field_to_bb_distances(self) -> list[float]:
+        """The distances from the field CAXs to the BBs in mm. Useful for metrics as this is only
+        the resulting floats vs a dict of points."""
+        return [
+            match.bb_field_distance_mm for match in self.arrangement_matches.values()
+        ]
+
+    def epid_to_bb_distances(self) -> list[float]:
+        """The distances from the EPID center to the BBs in mm. Useful for metrics as this is only
+        the resulting floats vs a dict of points."""
+        return [
+            match.bb_epid_distance_mm for match in self.arrangement_matches.values()
+        ]
+
+    def plot(
+        self,
+        ax: plt.Axes | None = None,
+        show: bool = True,
+        clear_fig: bool = False,
+        zoom: bool = True,
+        legend: bool = True,
+        **kwargs,
+    ) -> plt.Axes:
+        """Plot an individual WL image.
+
+        Parameters
+        ----------
+        ax : None, plt.Axes
+            The axis to plot to. If None, a new figure is created.
+        show : bool
+            Whether to show the plot.
+        clear_fig : bool
+            Whether to clear the figure before plotting.
+        zoom : bool
+            Whether to zoom in on the BBs. If False, no zooming is done and the entire image is shown.
+        legend : bool
+            Whether to show the legend.
+        """
+        ax = super().plot(
+            ax=ax, show=False, clear_fig=clear_fig, show_metrics=True, **kwargs
+        )
+        # show EPID center
+        ax.axvline(x=self.epid.x, color="b")
+        epid_handle = ax.axhline(y=self.epid.y, color="b")
+        # show the field CAXs
+        for match in self.arrangement_matches.values():
+            (field_handle,) = ax.plot(match.field.x, match.field.y, "gs", ms=8)
+            (bb_handle,) = ax.plot(match.bb.x, match.bb.y, "co", ms=10)
+        if legend:
+            ax.legend(
+                (field_handle, bb_handle, epid_handle),
+                ("Field CAX", "Detected BB", "EPID Center"),
+                loc="upper right",
+            )
+
+        if zoom:
+            # find the x and y limits based on the detected BB positions
+            # and add a margin of 20mm
+            min_x = (
+                min([match.bb.x for match in self.arrangement_matches.values()])
+                - 20 * self.dpmm
+            )
+            min_y = (
+                min([match.bb.y for match in self.arrangement_matches.values()])
+                - 20 * self.dpmm
+            )
+            max_x = (
+                max([match.bb.x for match in self.arrangement_matches.values()])
+                + 20 * self.dpmm
+            )
+            max_y = (
+                max([match.bb.y for match in self.arrangement_matches.values()])
+                + 20 * self.dpmm
+            )
+            ax.set_ylim([max_y, min_y])
+            ax.set_xlim([min_x, max_x])
+        # ax.set_yticklabels([])
+        # ax.set_xticklabels([])
+        ax.set_title("\n".join(wrap(Path(self.path).name, 30)), fontsize=10)
+        ax.set_xlabel(
+            f"G={self.gantry_angle:.0f}, B={self.collimator_angle:.0f}, P={self.couch_angle:.0f}"
+        )
+        ax.set_ylabel(f"Max Nominal to BB: {max(self.field_to_bb_distances()):3.2f}mm")
+        if show:
+            plt.show()
+        return ax
+
+    def nominal_bb_position(self, bb_config: BBConfig) -> Point:
+        """Calculate the expected point position in 2D"""
+        shift_x_mm, shift_y_mm = bb_projection_with_rotation(
+            offset_left=bb_config.offset_left_mm,
+            offset_up=bb_config.offset_up_mm,
+            offset_in=bb_config.offset_in_mm,
+            sad=self.sad,
+            gantry=self.gantry_angle,
+            couch=self.couch_angle,
+        )
+        # the field can be asymmetric, so use center of image
+        expected_y = self.epid.y - shift_y_mm * self.dpmm
+        expected_x = self.epid.x + shift_x_mm * self.dpmm
+        return Point(x=expected_x, y=expected_y)
+
+    @property
+    def epid(self) -> Point:
+        """Center of the EPID panel"""
+        return self.center
+
+    def _calculate_bb_tolerance(self, bb_diameter: float) -> int:
+        """Calculate the BB tolerance based on the BB diameter.
+        Min will be 2 for 1.5mm and under. Will be 4 for diameters at or above 30mm."""
+        y = (2, 4)
+        x = (1.5, 30)
+        return np.interp(bb_diameter, x, y)
+
+    @property
+    def variable_axis(self) -> Axis:
+        """The axis that is varying.
+
+        There are five types of images:
+
+        * Reference : All axes are at 0.
+        * Gantry: All axes but gantry at 0.
+        * Collimator : All axes but collimator at 0.
+        * Couch : All axes but couch at 0.
+        * Combo : More than one axis is not at 0.
+        """
+        G0 = is_close(self.gantry_angle, [0, 360])
+        B0 = is_close(self.collimator_angle, [0, 360])
+        P0 = is_close(self.couch_angle, [0, 360])
+        if G0 and B0 and not P0:
+            return Axis.COUCH
+        elif G0 and P0 and not B0:
+            return Axis.COLLIMATOR
+        elif P0 and B0 and not G0:
+            return Axis.GANTRY
+        elif P0 and B0 and G0:
+            return Axis.REFERENCE
+        elif P0:
+            return Axis.GB_COMBO
+        else:
+            return Axis.GBP_COMBO
 
     def _clean_edges(self, window_size: int = 2) -> None:
         """Clean the edges of the image to be near the background level."""
@@ -439,104 +817,49 @@ class WinstonLutz2D(image.LinacDicomImage):
             self.crop(window_size)
             safety_stop -= 1
 
-    def _find_field_centroid(self, is_open_field: bool) -> tuple[Point, list]:
-        """Find the centroid of the radiation field.
 
-        Parameters
-        ----------
-        is_open_field
-            If True, simply uses the image/EPID center as the field center.
-            If False, finds the radiation field based on a 50% height threshold.
+class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
+    """Holds individual Winston-Lutz EPID images, image properties, and automatically finds the field CAX and BB."""
 
-        Returns
-        -------
-        p
-            The CAX point location.
-        edges
-            The bounding box of the field, plus a small margin.
-        """
-        if is_open_field:
-            p = self.center
-            edges = [0, self.shape[0], 0, self.shape[1]]
-        else:
-            min, max = np.percentile(self.array, [5, 99.9])
-            threshold_img = self.as_binary((max - min) / 2 + min)
-            filled_img = ndimage.binary_fill_holes(threshold_img)
-            # clean single-pixel noise from outside field
-            cleaned_img = ndimage.binary_erosion(threshold_img)
-            [*edges] = bounding_box(cleaned_img)
-            edges[0] -= 10
-            edges[1] += 10
-            edges[2] -= 10
-            edges[3] += 10
-            coords = ndimage.center_of_mass(filled_img)
-            p = Point(x=coords[-1], y=coords[0])
-        return p, edges
+    bb: Point
+    field_cax: Point
+    bb_arrangement: tuple[BBConfig]
+    is_from_tiff: bool = False
+    detection_conditions: list[callable] = [
+        is_right_size_bb,
+        is_round,
+        is_right_circumference,
+        is_symmetric,
+        is_solid,
+    ]
 
-    def _calculate_bb_tolerance(self, bb_diameter: float) -> int:
-        """Calculate the BB tolerance based on the BB diameter.
-        Min will be 2 for 1.5mm and under. Will be 4 for diameters at or above 30mm."""
-        y = (2, 4)
-        x = (1.5, 30)
-        return np.interp(bb_diameter, x, y)
-
-    def _find_bb(self, bb_diameter: float, low_density: bool) -> Point:
-        """Find the BB within the radiation field. Iteratively searches for a circle-like object
-        by lowering a low-pass threshold value until found.
-
-        Returns
-        -------
-        Point
-            The weighted-pixel value location of the BB.
-        """
-        bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter)
-        centers = self.compute(
-            metrics=SizedDiskLocator.from_center_physical(
-                expected_position_mm=(0, 0),
-                search_window_mm=(40 + bb_diameter, 40 + bb_diameter),
-                radius_mm=bb_diameter / 2,
-                radius_tolerance_mm=bb_tolerance_mm,
-                invert=not low_density,
-                detection_conditions=self.detection_conditions,
-            )
+    def analyze(
+        self,
+        bb_size_mm: float = 5,
+        low_density_bb: bool = False,
+        open_field: bool = False,
+        shift_vector: Vector | None = None,
+    ) -> None:
+        """Analyze the image. See WinstonLutz.analyze for parameter details."""
+        bb_config = BBArrangement.ISO
+        bb_config[0].bb_size_mm = bb_size_mm
+        super().analyze(
+            bb_arrangement=bb_config,
+            is_open_field=open_field,
+            is_low_density=low_density_bb,
+            shift_vector=shift_vector,
         )
-        return centers[0]
+        self.bb_arrangement = bb_config
+        # these are set for the deprecated properties of the 2D analysis specifically where 1 field and 1 bb are expected.
+        self.field_cax = self.arrangement_matches["Iso"].field
+        self.bb = self.arrangement_matches["Iso"].bb
 
-    @property
-    def epid(self) -> Point:
-        """Center of the EPID panel"""
-        return self.center
+    def __repr__(self):
+        return f"WLImage(gantry={self.gantry_angle:.1f}, coll={self.collimator_angle:.1f}, couch={self.couch_angle:.1f})"
 
-    @property
-    def cax_line_projection(self) -> Line:
-        """The projection of the field CAX through space around the area of the BB.
-        Used for determining gantry isocenter size.
-
-        Returns
-        -------
-        Line
-            The virtual line in space made by the beam CAX.
-        """
-        p1 = Point()
-        p2 = Point()
-        # point 1 - ray origin
-        p1.x = self.cax2bb_vector.x * cos(self.gantry_angle) + 20 * sin(
-            self.gantry_angle
-        )
-        p1.z = self.cax2bb_vector.x * -sin(self.gantry_angle) + 20 * cos(
-            self.gantry_angle
-        )
-        p1.y = self.cax2bb_vector.y
-        # point 2 - ray destination
-        p2.x = self.cax2bb_vector.x * cos(self.gantry_angle) - 20 * sin(
-            self.gantry_angle
-        )
-        p2.z = self.cax2bb_vector.x * -sin(self.gantry_angle) - 20 * cos(
-            self.gantry_angle
-        )
-        p2.y = self.cax2bb_vector.y
-        line = Line(p1, p2)
-        return line
+    def to_axes(self) -> str:
+        """Give just the axes values as a human-readable string"""
+        return f"Gantry={self.gantry_angle:.1f}, Coll={self.collimator_angle:.1f}, Couch={self.couch_angle:.1f}"
 
     @property
     def cax2bb_vector(self) -> Vector:
@@ -560,40 +883,6 @@ class WinstonLutz2D(image.LinacDicomImage):
     def cax2epid_distance(self) -> float:
         """The scalar distance in mm from the CAX to the EPID center pixel"""
         return self.field_cax.distance_to(self.epid) / self.dpmm
-
-    def plot(
-        self, ax: plt.Axes | None = None, show: bool = True, clear_fig: bool = False
-    ) -> plt.Axes:
-        """Plot the image, zoomed-in on the radiation field, along with the detected
-        BB location and field CAX location.
-
-        Parameters
-        ----------
-        ax : None, matplotlib Axes instance
-            The axis to plot to. If None, will create a new figure.
-        show : bool
-            Whether to actually show the image.
-        clear_fig : bool
-            Whether to clear the figure first before drawing.
-        """
-        ax = super().plot(ax=ax, show=False, clear_fig=clear_fig)
-        ax.plot(self.field_cax.x, self.field_cax.y, "gs", ms=8)
-        ax.axvline(x=self.epid.x, color="b")
-        ax.axhline(y=self.epid.y, color="b")
-        ax.set_ylim([self._rad_field_bounding_box[0], self._rad_field_bounding_box[1]])
-        ax.set_xlim([self._rad_field_bounding_box[2], self._rad_field_bounding_box[3]])
-        ax.set_yticklabels([])
-        ax.set_xticklabels([])
-        ax.set_title("\n".join(wrap(str(self.path), 30)), fontsize=10)
-        ax.set_xlabel(
-            f"G={self.gantry_angle:.0f}, B={self.collimator_angle:.0f}, P={self.couch_angle:.0f}"
-        )
-        ax.set_ylabel(
-            f"CAX to BB: {self.cax2bb_distance:3.2f}mm\nX: {self.cax2bb_vector.x:3.2f}mm; Y: {self.cax2bb_vector.y:3.2f}mm"
-        )
-        if show:
-            plt.show()
-        return ax
 
     def save_plot(self, filename: str, **kwargs):
         """Save the image plot to file."""
@@ -629,13 +918,13 @@ class WinstonLutz2D(image.LinacDicomImage):
         else:
             return Axis.GBP_COMBO
 
-    def results_data(self, as_dict: bool = False) -> WinstonLutz2DResult | dict:
+    def _generate_results_data(self) -> WinstonLutz2DResult:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         if not self._is_analyzed:
             raise ValueError("The image is not analyzed. Use .analyze() first.")
 
-        data = WinstonLutz2DResult(
+        return WinstonLutz2DResult(
             variable_axis=self.variable_axis.value,
             cax2bb_vector=self.cax2bb_vector,
             cax2epid_vector=self.cax2epid_vector,
@@ -644,19 +933,18 @@ class WinstonLutz2D(image.LinacDicomImage):
             bb_location=self.bb,
             field_cax=self.field_cax,
         )
-        if as_dict:
-            return dataclasses.asdict(data)
-        return data
 
 
-class WinstonLutz(QuaacMixin):
+class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
     """Class for performing a Winston-Lutz test of the radiation isocenter."""
 
     images: list[WinstonLutz2D]  #:
     machine_scale: MachineScale  #:
     image_type = WinstonLutz2D
+    bb: BB3D  # 3D representation of the BB; there is a .bb object for 2D images but is a 2D representation
     is_from_cbct: bool = False
-    _bb_diameter = float
+    _bb_diameter: float
+    _virtual_shift: str | None = None
     detection_conditions: list[callable] = [
         is_right_size_bb,
         is_round,
@@ -799,7 +1087,7 @@ class WinstonLutz(QuaacMixin):
         return cls.from_zip(demo_file, **kwargs)
 
     @classmethod
-    def from_zip(cls, zfile: str | BinaryIO, **kwargs):
+    def from_zip(cls, zfile: str | BinaryIO | Path, **kwargs):
         """Instantiate from a zip file rather than a directory.
 
         Parameters
@@ -926,6 +1214,7 @@ class WinstonLutz(QuaacMixin):
         machine_scale: MachineScale = MachineScale.IEC61217,
         low_density_bb: bool = False,
         open_field: bool = False,
+        apply_virtual_shift: bool = False,
     ) -> None:
         """Analyze the WL images.
 
@@ -941,6 +1230,8 @@ class WinstonLutz(QuaacMixin):
             If True, sets the field center to the EPID center under the assumption the field is not the focus of interest or is too wide to be calculated.
             This is often helpful for kV WL analysis where the blades are wide open and even then the blade edge is of
             less interest than simply the imaging iso vs the BB.
+        apply_virtual_shift
+            If True, applies a virtual shift to the BBs based on the shift necessary to place the BB at the radiation isocenter.
         """
         self.machine_scale = machine_scale
         if self.is_from_cbct:
@@ -948,6 +1239,27 @@ class WinstonLutz(QuaacMixin):
             open_field = True
         for img in self.images:
             img.analyze(bb_size_mm, low_density_bb, open_field)
+        # we need to construct the BB representation to get the shift vector
+        bb_config = BBArrangement.ISO[0]
+        bb_config.bb_size_mm = bb_size_mm
+        self.bb = BB3D(
+            bb_config=bb_config,
+            bb_matches=[img.arrangement_matches["Iso"] for img in self.images],
+            scale=self.machine_scale,
+        )
+        if apply_virtual_shift:
+            shift = self.bb_shift_vector
+            self._virtual_shift = self.bb_shift_instructions()
+            for img in self.images:
+                img.analyze(bb_size_mm, low_density_bb, open_field, shift_vector=shift)
+
+        # in the vanilla WL case, the BB can only be represented by non-couch-kick images
+        # the ray trace cannot handle the kick currently
+        self.bb = BB3D(
+            bb_config=bb_config,
+            bb_matches=[img.arrangement_matches["Iso"] for img in self.images],
+            scale=self.machine_scale,
+        )
         self._is_analyzed = True
         self._bb_diameter = bb_size_mm
 
@@ -958,7 +1270,9 @@ class WinstonLutz(QuaacMixin):
             axes = (axes,)
 
         things = [
-            image.cax_line_projection
+            # we want the bb<->field because the BB is our reference point for vanilla WL
+            # whether it's BB->field or field->BB is irrelevant for this case; we are not determining shift here.
+            image.arrangement_matches["Iso"].bb_to_field_projection
             for image in self.images
             if image.variable_axis in (axes + (Axis.REFERENCE,))
         ]
@@ -1038,34 +1352,11 @@ class WinstonLutz(QuaacMixin):
         """The shift necessary to place the BB at the radiation isocenter.
         The values are in the coordinates defined in the documentation.
 
-        The shift is based on the paper by Low et al. See online documentation for more.
+        The shift is based on the paper by Low et al. See online documentation and the ``solve_3d_shift_vector_from_2d_planes`` function for more.,
+        which is how the measured bb and field positions are determined.
         """
-        A = np.empty([2 * len(self.images), 3])
-        epsilon = np.empty([2 * len(self.images), 1])
-        for idx, img in enumerate(self.images):
-            # convert from input scale to Varian scale
-            # Low's paper assumes Varian scale input and this is easier than changing the actual signs in the equation which have a non-intuitive relationship
-            gantry, _, couch = convert(
-                input_scale=self.machine_scale,
-                output_scale=MachineScale.VARIAN_STANDARD,
-                gantry=img.gantry_angle,
-                collimator=img.collimator_angle,
-                rotation=img.couch_angle,
-            )
-            A[2 * idx : 2 * idx + 2, :] = np.array(
-                [
-                    [-cos(couch), -sin(couch), 0],
-                    [-cos(gantry) * sin(couch), cos(gantry) * cos(couch), -sin(gantry)],
-                ]
-            )  # equation 6 (minus delta)
-            epsilon[2 * idx : 2 * idx + 2] = np.array(
-                [[img.cax2bb_vector.y], [img.cax2bb_vector.x]]
-            )  # equation 7
-
-        B = linalg.pinv(A)
-        delta = B.dot(epsilon)  # equation 9
-        # we use the negative for all values because it's from the iso POV -> linac not the linac -> iso POV
-        return Vector(x=-delta[1][0], y=-delta[0][0], z=-delta[2][0])
+        # field minus BB will give the shift vector to RETURN TO ISO which is what we want. BB minus field would give the vector from field to the BB.
+        return self.bb.measured_field_position - self.bb.measured_bb_position
 
     def bb_shift_instructions(
         self,
@@ -1138,12 +1429,15 @@ class WinstonLutz(QuaacMixin):
         metric : {'max', 'median', 'mean'}
             The metric of distance to use.
         """
+        distances = []
+        for img in self.images:
+            distances.extend(img.field_to_bb_distances())
         if metric == "max":
-            return max(image.cax2bb_distance for image in self.images)
+            return max(distances)
         elif metric == "median":
-            return float(np.median([image.cax2bb_distance for image in self.images]))
+            return statistics.median(distances)
         elif metric == "mean":
-            return float(np.mean([image.cax2bb_distance for image in self.images]))
+            return statistics.mean(distances)
 
     @argue.options(metric=("max", "median", "mean"))
     def cax2epid_distance(self, metric: str = "max") -> float:
@@ -1154,12 +1448,15 @@ class WinstonLutz(QuaacMixin):
         metric : {'max', 'median', 'mean'}
             The metric of distance to use.
         """
+        distances = []
+        for img in self.images:
+            distances.extend(img.epid_to_bb_distances())
         if metric == "max":
-            return max(image.cax2epid_distance for image in self.images)
+            return max(distances)
         elif metric == "median":
-            return float(np.median([image.cax2epid_distance for image in self.images]))
+            return statistics.median(distances)
         elif metric == "mean":
-            return float(np.mean([image.cax2epid_distance for image in self.images]))
+            return statistics.mean(distances)
 
     def _plot_deviation(
         self, axis: Axis, ax: plt.Axes | None = None, show: bool = True
@@ -1317,37 +1614,56 @@ class WinstonLutz(QuaacMixin):
             + self._bb_diameter
         )
         ax = plt.axes(projection="3d")
-        _, relevant_images = self._get_images(
-            axis=(Axis.REFERENCE, Axis.GB_COMBO, Axis.COLLIMATOR, Axis.GANTRY)
-        )
         # we can represent the iso sphere as a BB object; the nominal object isn't used, just the BB size
-        # the ray lines are what we want to plot as a sphere
-        iso_sphere = BB(
-            nominal_bb={
-                "offset_left_mm": 0,
-                "offset_in_mm": 0,
-                "offset_up_mm": 0,
-                "bb_diameter_mm": self._bb_diameter,
-            },
-            ray_lines=[image.cax_line_projection for image in relevant_images],
+        # plot the field isocenter as x,y,z lines
+        x_line = Line(
+            Point(
+                -limit,
+                self.bb.measured_field_position.y,
+                self.bb.measured_field_position.z,
+            ),
+            Point(
+                limit, self.bb.measured_field_position.y, self.bb.measured_bb_position.z
+            ),
         )
-        # plot the x,y,z origin lines
-        x_line = Line(Point(-limit, 0, 0), Point(limit, 0, 0))
         x_line.plot2axes(ax, color="green", alpha=0.5)
-        y_line = Line(Point(0, -limit, 0), Point(0, limit, 0))
-        y_line.plot2axes(ax, color="green", alpha=0.5)
-        z_line = Line(Point(0, 0, -limit), Point(0, 0, limit))
-        z_line.plot2axes(
-            ax, color="green", alpha=0.5, label="Determined isocenter (x,y,z)"
+        y_line = Line(
+            Point(
+                self.bb.measured_field_position.x,
+                -limit,
+                self.bb.measured_field_position.z,
+            ),
+            Point(
+                self.bb.measured_field_position.x, limit, self.bb.measured_bb_position.z
+            ),
         )
+        y_line.plot2axes(ax, color="green", alpha=0.5)
+        z_line = Line(
+            Point(
+                self.bb.measured_field_position.x,
+                self.bb.measured_field_position.y,
+                -limit,
+            ),
+            Point(
+                self.bb.measured_field_position.x,
+                self.bb.measured_field_position.y,
+                limit,
+            ),
+        )
+        z_line.plot2axes(ax, color="green", alpha=0.5, label="Field isocenter (x,y,z)")
         if plot_bb:
-            iso_sphere.plot_measured(ax, color="cyan", alpha=0.6)
+            self.bb.plot_measured(ax, color="cyan", alpha=0.6)
             # create an empty, fake line so we can add a label for the legend
             fake_line = Line(Point(0, 0, 0), Point(0, 0, 0))
             fake_line.plot2axes(ax, color="cyan", label=f"BB ({self._bb_diameter}mm)")
         if plot_isocenter_sphere:
             x, y, z = create_sphere_surface(
-                radius=self.gantry_coll_iso_size / 2, center=Point(0, 0, 0)
+                radius=self.gantry_coll_iso_size / 2,
+                center=Point(
+                    self.bb.measured_bb_position.x,
+                    self.bb.measured_bb_position.y,
+                    self.bb.measured_bb_position.z,
+                ),
             )
             ax.plot_surface(x, y, z, alpha=0.3, color="magenta")
             # create an empty, fake line so we can add a label for the legend
@@ -1359,7 +1675,7 @@ class WinstonLutz(QuaacMixin):
             )
         if plot_couch_iso:
             circle = plt.Circle(
-                (0, 0),
+                (self.bb.measured_field_position.x, self.bb.measured_field_position.y),
                 radius=self.couch_iso_size / 2,
                 fill=True,
                 color="yellow",
@@ -1367,10 +1683,12 @@ class WinstonLutz(QuaacMixin):
                 label=f"Couch-only iso ({self.couch_iso_size:3.2f}mm)",
             )
             ax.add_patch(circle)
-            art3d.pathpatch_2d_to_3d(circle, z=0, zdir="z")
+            art3d.pathpatch_2d_to_3d(
+                circle, z=self.bb.measured_field_position.z, zdir="z"
+            )
         if plot_coll_iso:
             circle = plt.Circle(
-                (0, 0),
+                (self.bb.measured_field_position.y, self.bb.measured_field_position.z),
                 radius=self.collimator_iso_size / 2,
                 fill=True,
                 color="blue",
@@ -1378,7 +1696,9 @@ class WinstonLutz(QuaacMixin):
                 label=f"Collimator-only iso ({self.collimator_iso_size:3.2f}mm)",
             )
             ax.add_patch(circle)
-            art3d.pathpatch_2d_to_3d(circle, z=0, zdir="x")
+            art3d.pathpatch_2d_to_3d(
+                circle, z=self.bb.measured_field_position.x, zdir="x"
+            )
         if show_legend:
             ax.legend()
         # set the limits of the 3D plot; they must be the same in all axes for equal aspect ratio
@@ -1399,6 +1719,8 @@ class WinstonLutz(QuaacMixin):
         self,
         axis: Axis = Axis.GANTRY,
         show: bool = True,
+        zoom: bool = True,
+        legend: bool = True,
         split: bool = False,
         **kwargs,
     ) -> (list[plt.Figure], list[str]):
@@ -1412,6 +1734,10 @@ class WinstonLutz(QuaacMixin):
             The axis to plot.
         show : bool
             Whether to show the image.
+        zoom : bool
+            Whether to zoom in around the BB.
+        legend : bool
+            Whether to show the legend.
         split : bool
             Whether to show/plot the images individually or as one large figure.
         """
@@ -1466,7 +1792,12 @@ class WinstonLutz(QuaacMixin):
         if not split:
             fig, axes = plt.subplots(nrows=max_num_images, ncols=4, **kwargs)
             for mpl_axis, wl_image in zip_longest(axes.flatten(), images):
-                plot_image(wl_image, mpl_axis)
+                # plot the images and turn off extra axes
+                if wl_image:
+                    wl_image.plot(ax=mpl_axis, show=False, zoom=zoom, legend=legend)
+                else:
+                    mpl_axis.set_frame_on(False)
+                    mpl_axis.axis("off")
 
             # set titles
             fig.suptitle(f"{axis.value} images", fontsize=14, y=1)
@@ -1476,7 +1807,8 @@ class WinstonLutz(QuaacMixin):
         else:
             for wl_image in images:
                 fig, axes = plt.subplots(**kwargs)
-                plot_image(wl_image, axes)
+                wl_image.plot(ax=axes, show=False, zoom=zoom, legend=legend)
+                # plot_image(wl_image, axes)
                 figs.append(fig)
                 names.append(str(wl_image))
 
@@ -1566,7 +1898,16 @@ class WinstonLutz(QuaacMixin):
             f"Maximum 2D CAX->BB distance: {self.cax2bb_distance('max'):.2f}mm",
             f"Median 2D CAX->BB distance: {self.cax2bb_distance('median'):.2f}mm",
             f"Mean 2D CAX->BB distance: {self.cax2bb_distance('mean'):.2f}mm",
-            f"Shift to iso: facing gantry, move BB: {self.bb_shift_instructions()}",
+        ]
+        if self._virtual_shift:
+            result.append(
+                f"Virtual shift applied to BB to place at isocenter: {self._virtual_shift}"
+            )
+        else:
+            result.append(
+                f"Shift to iso: facing gantry, move BB: {self.bb_shift_instructions()}"
+            )
+        result += [
             f"Gantry 3D isocenter diameter: {self.gantry_iso_size:.2f}mm ({num_gantry_imgs}/{num_imgs} images considered)",
             f"Maximum Gantry RMS deviation (mm): {max(self.axis_rms_deviation((Axis.GANTRY, Axis.REFERENCE))):.2f}mm",
             f"Maximum EPID RMS deviation (mm): {max(self.axis_rms_deviation(Axis.EPID)):.2f}mm",
@@ -1580,7 +1921,7 @@ class WinstonLutz(QuaacMixin):
             result = "\n".join(result)
         return result
 
-    def results_data(self, as_dict: bool = False) -> WinstonLutzResult | dict:
+    def _generate_results_data(self) -> WinstonLutzResult:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         if not self._is_analyzed:
@@ -1592,18 +1933,9 @@ class WinstonLutz(QuaacMixin):
         num_coll_imgs = self._get_images(axis=(Axis.COLLIMATOR, Axis.REFERENCE))[0]
         num_couch_imgs = self._get_images(axis=(Axis.COUCH, Axis.REFERENCE))[0]
 
-        individual_image_data = [i.results_data(as_dict=as_dict) for i in self.images]
-        if as_dict:
-            # convert classes to dicts; little wonky but we have to get it through
-            # to radmachine and we want to dynamically convert classes to dicts
-            for img in individual_image_data:
-                for key, value in img.items():
-                    try:
-                        img[key] = value.__dict__
-                    except AttributeError:
-                        pass
+        individual_image_data = [i.results_data() for i in self.images]
 
-        data = WinstonLutzResult(
+        return WinstonLutzResult(
             num_total_images=len(self.images),
             num_gantry_images=num_gantry_imgs,
             num_coll_images=num_coll_imgs,
@@ -1632,13 +1964,10 @@ class WinstonLutz(QuaacMixin):
             image_details=individual_image_data,
             keyed_image_details=self._generate_keyed_images(individual_image_data),
         )
-        if as_dict:
-            return dataclasses.asdict(data)
-        return data
 
     def _generate_keyed_images(
-        self, individual_image_data: list[WinstonLutz2D] | dict
-    ) -> dict:
+        self, individual_image_data: list[WinstonLutz2DResult]
+    ) -> dict[str, WinstonLutz2DResult]:
         """Generate a dict where each key is based on the axes values and the key is an image. Used in the results_data method.
         We can't do a simple dict comprehension because we may have duplicate axes sets. We pass individual data
         because we may have already converted to a dict; we don't want to do that again.
@@ -1771,178 +2100,87 @@ class WinstonLutz(QuaacMixin):
         return dataset
 
 
-class WinstonLutz2DMultiTarget(WinstonLutz2D):
+class WinstonLutzMultiTargetMultiFieldImage(WLBaseImage):
     """A 2D image of a WL delivery, but where multiple BBs are in use."""
 
     detection_conditions = [is_round, is_symmetric, is_modest_size]
     field_conditions = [is_square, is_right_square_size]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.flipud()  # restore to original view; vanilla WL may need to revert
-
-    def as_analyzed(self, bb_location: dict) -> WinstonLutz2DMultiTarget:
-        """Analyze the image of the multi-BB setup. We return a copy of the
-        WL image because we analyze images more than once. Each "analyzed" image
-        is really the analysis of a BB/image combo.
-
-        Parameters
-        ----------
-        bb_location
-            An iterable of dictionaries. Each dict contains keys for the offsets and size of the BB in mm.
-            Use the ``BBArrangement`` class as a guide.
-        """
-        self.field_cax, self._rad_field_bounding_box = self._find_field_centroid(
-            bb_location
-        )
-        self.bb = self._find_bb(bb_location)
-        self._is_analyzed = True
-        return copy.deepcopy(self)
-
-    def plot(
-        self, ax: plt.Axes | None = None, show: bool = True, clear_fig: bool = False
-    ) -> plt.Axes:
-        ax = super(LinacDicomImage, self).plot(ax=ax, show=False, clear_fig=clear_fig)
-        ax.plot(self.field_cax.x, self.field_cax.y, "gs", ms=8)
-        ax.set_ylim([self._rad_field_bounding_box[0], self._rad_field_bounding_box[2]])
-        ax.set_xlim([self._rad_field_bounding_box[1], self._rad_field_bounding_box[3]])
-        ax.set_yticklabels([])
-        ax.set_xticklabels([])
-        ax.set_title("\n".join(wrap(Path(self.path).name, 30)), fontsize=10)
-        ax.set_xlabel(
-            f"G={self.gantry_angle:.0f}, B={self.collimator_angle:.0f}, P={self.couch_angle:.0f}"
-        )
-        ax.set_ylabel(f"CAX to BB: {self.cax2bb_distance:3.2f}mm")
-        if show:
-            plt.show()
-        return ax
-
-    def _nominal_point(self, bb: dict) -> Point:
-        """Calculate the expected point position in 2D"""
-        shift_y_mm = bb_projection_long(
-            offset_in=bb["offset_in_mm"],
-            offset_up=bb["offset_up_mm"],
-            offset_left=bb["offset_left_mm"],
-            sad=self.sad,
-            gantry=self.gantry_angle,
-        )
-        shift_x_mm = bb_projection_gantry_plane(
-            offset_left=bb["offset_left_mm"],
-            offset_up=bb["offset_up_mm"],
-            sad=self.sad,
-            gantry=self.gantry_angle,
-        )
-        # unlike vanilla WL, the field can be asymmetric, so use center of image
-        expected_y = self.epid.y - shift_y_mm * self.dpmm
-        expected_x = self.epid.x + shift_x_mm * self.dpmm
-        return Point(x=expected_x, y=expected_y)
-
-    def _find_field_centroid(self, location: dict) -> tuple[Point, list]:
+    def find_field_centroids(self, is_open_field: bool) -> list[Point]:
         """Find the centroid of the radiation field based on a 50% height threshold.
         This applies the field detection conditions and also a nearness condition.
 
         Returns
         -------
-        p
-            The CAX point location.
-        edges
-            The bounding box of the field, plus a small margin.
+        points
+            The CAX point locations.
         """
-        min, max = np.percentile(self.array, [5, 99.9])
-        threshold_img = self.as_binary((max - min) / 2 + min)
-        filled_img = ndimage.binary_fill_holes(threshold_img)
-        labeled_arr, num_roi = ndimage.label(filled_img)
-        regions = measure.regionprops(labeled_arr)
-        field_candidates = [
-            all(
-                condition(
-                    region,
-                    dpmm=self.dpmm,
-                    rad_size=location["rad_size_mm"],
-                    shape=labeled_arr.shape,
-                )
-                for condition in self.field_conditions
-            )
-            for region in regions
-        ]
-        if not any(field_candidates):
-            raise ValueError(
-                "Did not find an ROI that looked like the radiation field. Ensure the rad_size parameter is correct."
-            )
-        field_localized = [
-            self.location_near_nominal(region, location) for region in regions
-        ]
-        if not any(field_localized):
-            raise ValueError("Did not find the radiation field where it was expected.")
-        else:
-            region_idx = [
-                idx
-                for idx, _ in enumerate(regions)
-                if field_candidates[idx] and field_localized[idx]
-            ][0]
-            field_roi = regions[region_idx]
-        bbox = list(field_roi.bbox)
-        bbox[0] -= 40
-        bbox[1] -= 40
-        bbox[2] += 40
-        bbox[3] += 40
-        return Point(field_roi.centroid[1], field_roi.centroid[0]), bbox
+        if is_open_field:
+            return [self.center]
 
-    def _find_bb(self, bb_of_interest: dict) -> Point:
+        # find all the fields by setting the field to the mean rad size and tolerance
+        # to max-min field sizes across the arrangements
+        max_field_size = max(
+            self.bb_arrangement, key=lambda x: x.rad_size_mm
+        ).rad_size_mm
+        min_field_size = min(
+            self.bb_arrangement, key=lambda x: x.rad_size_mm
+        ).rad_size_mm
+        mean_field_size = (max_field_size + min_field_size) / 2
+        tolerance_field_size = max(
+            (max_field_size - min_field_size) * 1.2, 0.1 * mean_field_size
+        )
+        points = self.compute(
+            metrics=GlobalSizedFieldLocator.from_physical(
+                max_number=len(self.bb_arrangement),
+                field_height_mm=mean_field_size,
+                field_width_mm=mean_field_size,
+                field_tolerance_mm=tolerance_field_size,
+            )
+        )
+        return points
+
+    def find_bb_centroids(
+        self, bb_diameter_mm: float, low_density: bool
+    ) -> list[Point]:
         """Find the specific BB based on the arrangement rather than a single one. This is in local pixel coordinates"""
-        # get initial starting conditions
-        bb_diameter = bb_of_interest["bb_size_mm"]
-        window = bb_of_interest["rad_size_mm"]
-        expected_position = self._nominal_point(bb_of_interest)
-        expected_position_mm = expected_position / self.dpmm
-        bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter)
-        centers = self.compute(
-            metrics=SizedDiskLocator.from_physical(
-                expected_position_mm=expected_position_mm,
-                search_window_mm=(window, window),
-                radius_mm=bb_diameter / 2,
-                radius_tolerance_mm=bb_tolerance_mm,
-                invert=True,  # only MV images are involved for MTWL AFAICT
-                detection_conditions=self.detection_conditions,
+        centers = []
+        for bb in self.bb_arrangement:
+            bb_diameter_mm = bb.bb_size_mm
+            bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter_mm)
+            left, sup = bb_projection_with_rotation(
+                offset_left=bb.offset_left_mm,
+                offset_up=bb.offset_up_mm,
+                offset_in=bb.offset_in_mm,
+                gantry=self.gantry_angle,
+                couch=self.couch_angle,
+                sad=self.sad,
             )
-        )
-        return centers[0]
-
-    def location_near_nominal(self, region: RegionProperties, location: dict) -> bool:
-        """Determine whether the given BB ROI is near where the BB is expected to be"""
-        # since we are dealing with images at the isoplane we have to calculate the expected position
-        # of the BB at that plane from the 3D coordinates
-        if region.area < 5:
-            return False  # skip single or very small pixel regions
-        expected = self._nominal_point(location)
-        near_y = math.isclose(expected.y, region.centroid[0], abs_tol=5 * self.dpmm)
-        near_x = math.isclose(expected.x, region.centroid[1], abs_tol=5 * self.dpmm)
-        return near_y and near_x
-
-    def results_data(self, as_dict: bool = False) -> WinstonLutz2DResult | dict:
-        raise NotImplementedError(
-            "Results data is not available for a multi-bb 2D WL image"
-        )
+            try:
+                new_centers = self.compute(
+                    metrics=SizedDiskLocator.from_center_physical(
+                        expected_position_mm=Point(
+                            x=left, y=-sup
+                        ),  # we do -sup because sup is in WL coordinate space but the disk locator is in image coordinates.
+                        search_window_mm=(40 + bb_diameter_mm, 40 + bb_diameter_mm),
+                        radius_mm=bb_diameter_mm / 2,
+                        radius_tolerance_mm=bb_tolerance_mm / 2,
+                        invert=not low_density,
+                        detection_conditions=self.detection_conditions,
+                    )
+                )
+                centers.extend(new_centers)
+            except ValueError:
+                pass
+        return centers
 
 
 class WinstonLutzMultiTargetMultiField(WinstonLutz):
-    images: Sequence[WinstonLutz2DMultiTarget]  #:
-    analyzed_images: dict[str, list[WinstonLutz2DMultiTarget]]  #:
-    image_type = WinstonLutz2DMultiTarget
-    bb_arrangement: Sequence[dict]  #:
-
-    def __init__(self, *args, **kwargs):
-        """We cannot yet handle non-0 couch angles so we drop them. Analysis fails otherwise"""
-        super().__init__(*args, **kwargs)
-        orig_length = len(self.images)
-        self.images = [
-            i for i in self.images if is_close(i.couch_angle, [0, 360], delta=5)
-        ]
-        new_length = len(self.images)
-        if new_length != orig_length:
-            print(
-                f"Non-zero couch angles not yet allowed. Dropped {orig_length-new_length} images"
-            )
+    machine_scale: MachineScale  #:
+    images: Sequence[WinstonLutzMultiTargetMultiFieldImage]  #:
+    image_type = WinstonLutzMultiTargetMultiFieldImage
+    bb_arrangement: tuple[BBConfig]  #:
+    bbs: list[BB3D]  #:  3D representation of the BBs
 
     @classmethod
     def from_demo_images(cls):
@@ -1953,30 +2191,18 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
     @staticmethod
     def run_demo():
         """Run the Winston-Lutz MT MF demo, which loads the demo files, prints results, and plots a summary image."""
-        arrangement = (
-            {
-                "name": "Iso",
-                "offset_left_mm": 0,
-                "offset_up_mm": 0,
-                "offset_in_mm": 0,
-                "bb_size_mm": 5,
-                "rad_size_mm": 20,
-            },
-            {
-                "name": "Left,Down,In",
-                "offset_left_mm": 20,
-                "offset_up_mm": -20,
-                "offset_in_mm": 60,
-                "bb_size_mm": 5,
-                "rad_size_mm": 20,
-            },
-        )
         wl = WinstonLutzMultiTargetMultiField.from_demo_images()
-        wl.analyze(bb_arrangement=arrangement)
+        wl.analyze(bb_arrangement=BBArrangement.DEMO)
         print(wl.results())
         wl.plot_images()
 
-    def analyze(self, bb_arrangement: Sequence[dict]):
+    def analyze(
+        self,
+        bb_arrangement: tuple[BBConfig, ...],
+        is_open_field: bool = False,
+        is_low_density: bool = False,
+        machine_scale: MachineScale = MachineScale.IEC61217,
+    ):
         """Analyze the WL images.
 
         Parameters
@@ -1985,36 +2211,184 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             The arrangement of the BBs in the phantom. A dict with offset and BB size keys. See the ``BBArrangement`` class for
             keys and syntax.
         """
-        self.analyzed_images = {}
+        self.machine_scale = machine_scale
         self.bb_arrangement = bb_arrangement
-        for idx, bb in enumerate(bb_arrangement):
-            image_set = []
+        for img in self.images:
+            img.analyze(
+                bb_arrangement=bb_arrangement,
+                is_open_field=is_open_field,
+                is_low_density=is_low_density,
+            )
+
+        self.bbs = []
+        for arrangement in self.bb_arrangement:
+            # add bbs to the matches if the match is in the given image
+            matches = []
             for img in self.images:
-                try:
-                    image_set.append(img.as_analyzed(bb))
-                except ValueError:
-                    pass
-            if not image_set:
-                raise ValueError(f"Did not find any field/bb pairs for bb: {bb}")
-            self.analyzed_images[BBArrangement.to_human(bb)] = image_set
+                if arrangement.name in img.arrangement_matches:
+                    match = img.arrangement_matches[arrangement.name]
+                    matches.append(match)
+            # ray lines are used for plotting
+            bb = BB3D(
+                bb_config=arrangement,
+                bb_matches=matches,
+                scale=self.machine_scale,
+            )
+            self.bbs.append(bb)
         self._is_analyzed = True
 
-    def plot_images(self, show: bool = True, **kwargs) -> (list[plt.Figure], list[str]):
+    def plot_location(
+        self,
+        show: bool = True,
+        viewbox_mm: float | None = None,
+        plot_bb: bool = True,
+        plot_isocenter_sphere: bool = True,
+        plot_couch_iso: bool = True,
+        plot_coll_iso: bool = True,
+        show_legend: bool = True,
+    ):
+        x_lim = max(
+            max([np.abs(bb.measured_bb_position.x) for bb in self.bbs]) * 1.3, 10
+        )
+        y_lim = max(
+            max([np.abs(bb.measured_bb_position.y) for bb in self.bbs]) * 1.3, 10
+        )
+        z_lim = max(
+            max([np.abs(bb.measured_bb_position.z) for bb in self.bbs]) * 1.3, 10
+        )
+        limit = viewbox_mm or max(x_lim, y_lim, z_lim)
+        fig = plt.figure()
+        ax = fig.add_subplot(projection="3d")
+        _, relevant_images = self._get_images(
+            axis=(Axis.REFERENCE, Axis.GB_COMBO, Axis.COLLIMATOR, Axis.GANTRY)
+        )
+        # we can represent the iso sphere as a BB object; the nominal object isn't used, just the BB size
+        # the ray lines are what we want to plot as a sphere
+        # plot the x,y,z origin lines
+        x_line = Line(Point(-100, 0, 0), Point(100, 0, 0))
+        x_line.plot2axes(ax, color="green", alpha=0.5)
+        y_line = Line(Point(0, -100, 0), Point(0, 100, 0))
+        y_line.plot2axes(ax, color="green", alpha=0.5)
+        z_line = Line(Point(0, 0, -100), Point(0, 0, 100))
+        z_line.plot2axes(
+            ax, color="green", alpha=0.5, label="Nominal isocenter (x,y,z)"
+        )
+        if plot_bb:
+            for bb in self.bbs:
+                bb.plot_measured(ax, color="cyan", alpha=0.6)
+                bb.plot_nominal(ax, color="green", alpha=0.6)
+
+            # create an empty, fake line so we can add a label for the legend
+            fake_line = Line(Point(0, 0, 0), Point(0, 0, 0))
+            fake_line.plot2axes(ax, color="cyan", label="Measured BB")
+            fake_line = Line(Point(0, 0, 0), Point(0, 0, 0))
+            fake_line.plot2axes(ax, color="green", label="Nominal BB")
+
+        if show_legend:
+            ax.legend()
+        # set the limits of the 3D plot; they must be the same in all axes for equal aspect ratio
+        ax.set(
+            xlabel="X (mm), Right (+)",
+            ylabel="Y (mm), In (+)",
+            zlabel="Z (mm), Up (+)",
+            title="Isocenter Visualization",
+            ylim=[-limit, limit],
+            xlim=[-limit, limit],
+            zlim=[-limit, limit],
+        )
+
+        if show:
+            plt.show()
+        return fig, ax
+
+    @property
+    def bb_shift_vector(self) -> (Vector, float, float, float):
+        """Calculate the ideal shift in 6 degrees of freedom to place the BB at the isocenter.
+
+        Returns
+        -------
+        Vector
+            The ideal shift vector in mm for the cartesian coordinates. X,Y, and Z follow the pylinac coordinate convention.
+        float
+            Yaw; The ideal rotation about the Z-axis in degrees.
+        float
+            Pitch; The ideal rotation about the X-axis in degrees.
+        float
+            Roll; The ideal rotation about the Y-axis in degrees.
+
+        See Also
+        --------
+        Euler Angles: https://en.wikipedia.org/wiki/Euler_angles
+        Gimbal Lock: https://en.wikipedia.org/wiki/Gimbal_lock
+        """
+        return align_points(
+            measured_points=[bb.measured_bb_position for bb in self.bbs],
+            ideal_points=[bb.measured_field_position for bb in self.bbs],
+        )
+
+    def bb_shift_instructions(self) -> str:
+        """Return a string that provides instructions on how to shift the BB to the isocenter."""
+        translation, yaw, pitch, roll = self.bb_shift_vector
+        x_dir = "LEFT" if translation.x < 0 else "RIGHT"
+        y_dir = "IN" if translation.y > 0 else "OUT"
+        z_dir = "UP" if translation.z > 0 else "DOWN"
+        move = f"{x_dir} {abs(translation.x):2.2f}mm; {y_dir} {abs(translation.y):2.2f}mm; {z_dir} {abs(translation.z):2.2f}mm; Rotation {yaw:2.2f}°; Pitch {pitch:2.2f}°; Roll {roll:2.2f}°"
+        return move
+
+    def _couch_rotation_error(self) -> dict[str, dict[str, float]]:
+        """Calculate the couch rotation error in degrees for reference and couch-kicked images.
+        This just for feature parity with SNC 🤦; the BB shift vector is more important.
+
+        Returns
+        -------
+        dict
+            A dictionary where the keys are the image paths and the values are a dictionary with the yaw error and nominal couch angle.
+        """
+        couch_results = {}
+        couch_images = [
+            img
+            for img in self.images
+            if img.variable_axis in (Axis.COUCH, Axis.REFERENCE)
+        ]
+        for img in couch_images:
+            measured_points = [m.bb for m in img.arrangement_matches.values()]
+            ideal_points = [m.field for m in img.arrangement_matches.values()]
+            _, yaw, _, _ = align_points(measured_points, ideal_points)
+            couch_results[img.base_path] = {
+                "yaw error": yaw,
+                "couch angle": img.couch_angle,
+            }
+        return couch_results
+
+    @property
+    def gantry_coll_iso_size(self) -> float:
+        raise NotImplementedError("Not yet implemented")
+
+    @property
+    def collimator_iso_size(self) -> float:
+        raise NotImplementedError("Not yet implemented")
+
+    @property
+    def couch_iso_size(self) -> float:
+        raise NotImplementedError("Not yet implemented")
+
+    @property
+    def gantry_iso_size(self) -> float:
+        raise NotImplementedError("Not yet implemented")
+
+    def plot_images(
+        self, show: bool = True, zoomed: bool = True, legend: bool = True, **kwargs
+    ) -> (list[plt.Figure], list[str]):
         """Make a plot for each BB. Each plot contains the analysis of that BB on each image
         it was found."""
         figs, names = [], []
         figsize = kwargs.pop("figsize", None) or (8, 8)
-        for bb, img_set in self.analyzed_images.items():
-            rows = len(img_set) // 3 + 1
-            fig, axes = plt.subplots(nrows=rows, ncols=3, figsize=figsize, **kwargs)
-            for mpl_axis, wl_image in zip_longest(axes.flatten(), img_set):
-                plot_image(wl_image, mpl_axis)
-
-            # set titles
-            fig.suptitle(f"BB {bb}", fontsize=14, y=1)
+        for img in self.images:
+            fig, axes = plt.subplots(figsize=figsize, **kwargs)
+            img.plot(ax=axes, show=False, zoom=zoomed, legend=legend)
             fig.tight_layout()
             figs.append(fig)
-            names.append(f"BB_{bb}")
+            names.append(img.base_path)
         if show:
             plt.show()
         return figs, names
@@ -2039,48 +2413,37 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             fig.savefig(stream, **kwargs)
         return {name: stream for name, stream in zip(names, streams)}
 
-    def cax2bb_distance(self, bb: str, metric: str = "max") -> float:
-        """The distance in mm between the CAX and BB for all images according to the given metric.
-
-        Parameters
-        ----------
-        metric : {'max', 'median', 'mean'}
-            The metric of distance to use.
-        bb : str
-            The BB to analyze
-        """
-        if metric == "max":
-            return max(image.cax2bb_distance for image in self.analyzed_images[bb])
-        elif metric == "median":
-            return statistics.median(
-                [image.cax2bb_distance for image in self.analyzed_images[bb]]
-            )
-        elif metric == "mean":
-            return statistics.mean(
-                [image.cax2bb_distance for image in self.analyzed_images[bb]]
-            )
-
-    def results_data(
-        self, as_dict: bool = False
-    ) -> WinstonLutzMultiTargetMultiFieldResult | dict:
+    def _generate_results_data(self) -> WinstonLutzMultiTargetMultiFieldResult:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         if not self._is_analyzed:
             raise ValueError("The set is not analyzed. Use .analyze() first.")
 
-        data = WinstonLutzMultiTargetMultiFieldResult(
+        # for backward-compatibility, we have to find the max distance for each BB
+        # across the images.
+        bb_maxes = {}
+        for bb in self.bb_arrangement:
+            max_d = 0.0
+            for img in self.images:
+                if bb.name in img.arrangement_matches:
+                    max_d = max(
+                        max_d, img.arrangement_matches[bb.name].bb_field_distance_mm
+                    )
+            bb_maxes[bb.name] = max_d
+
+        translation, yaw, pitch, roll = self.bb_shift_vector
+        return WinstonLutzMultiTargetMultiFieldResult(
             num_total_images=len(self.images),
             max_2d_field_to_bb_mm=self.max_bb_deviation_2d,
             mean_2d_field_to_bb_mm=self.mean_bb_deviation_2d,
             median_2d_field_to_bb_mm=self.median_bb_deviation_2d,
-            bb_maxes={
-                bb: self.cax2bb_distance(bb) for bb in self.analyzed_images.keys()
-            },
+            bb_maxes=bb_maxes,
             bb_arrangement=self.bb_arrangement,
+            bb_shift_vector=translation,
+            bb_shift_yaw=yaw,
+            bb_shift_pitch=pitch,
+            bb_shift_roll=roll,
         )
-        if as_dict:
-            return dataclasses.asdict(data)
-        return data
 
     def plot_summary(self, show: bool = True, fig_size: tuple | None = None):
         raise NotImplementedError("Not yet implemented")
@@ -2093,26 +2456,17 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
     @property
     def max_bb_deviation_2d(self) -> float:
         """The maximum distance from any measured BB to its nominal position"""
-        dists = []
-        for bb, images in self.analyzed_images.items():
-            dists.append(self.cax2bb_distance(bb))
-        return max(dists)
+        return self.cax2bb_distance(metric="max")
 
     @property
     def mean_bb_deviation_2d(self) -> float:
         """The mean distance from any measured BB to its nominal position"""
-        dists = []
-        for bb, images in self.analyzed_images.items():
-            dists.append(self.cax2bb_distance(bb))
-        return statistics.mean(dists)
+        return self.cax2bb_distance(metric="mean")
 
     @property
     def median_bb_deviation_2d(self) -> float:
         """The median distance from any measured BB to its nominal position"""
-        dists = []
-        for bb, images in self.analyzed_images.items():
-            dists.append(self.cax2bb_distance(bb))
-        return statistics.median(dists)
+        return self.cax2bb_distance(metric="median")
 
     def results(self, as_list: bool = False) -> str:
         """Return the analysis results summary.
@@ -2132,45 +2486,51 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             "",
             "2D distances",
             "============",
-            f"Max 2D distance of any BB: {self.max_bb_deviation_2d:.2f} mm",
-            f"Mean 2D distance of any BB: {self.mean_bb_deviation_2d:.2f} mm",
-            f"Median 2D distance of any BB: {self.median_bb_deviation_2d:.2f} mm",
+            f"Max 2D distance of any BB->Field: {self.max_bb_deviation_2d:.2f} mm",
+            f"Mean 2D distance of any BB->Field: {self.mean_bb_deviation_2d:.2f} mm",
+            f"Median 2D distance of any BB->Field: {self.median_bb_deviation_2d:.2f} mm",
             "",
         ]
-        bb_descriptions = [
-            [idx, bb] for idx, bb in enumerate(self.analyzed_images.keys())
-        ]
+        bb_descriptions = [[bb.name, bb.to_human()] for bb in self.bb_arrangement]
+        bb_names = [bb[0] for bb in bb_descriptions]
         result += tabulate(bb_descriptions, headers=["BB #", "Description"]).split("\n")
         result += [
             "",
         ]
 
-        # construct the image -> bb table
-        # we use abbreviations and truncations so that the table will more likely fit the PDF
-        data = {
-            "Image": [],
-            "G": [],
-            "Co": [],
-            "Ch": [],
-        }
-        bbs = {f"BB #{idx}": [] for idx in range(len(self.analyzed_images.keys()))}
-        data.update(bbs)
+        data = []
         for img in self.images:
-            data["Image"].append(
-                img.base_path[-20:]
-            )  # textwrap doesn't work here because files may be all one word
-            data["G"].append(f"{img.gantry_angle:.1f}")
-            data["Co"].append(f"{img.collimator_angle:.1f}")
-            data["Ch"].append(f"{img.couch_angle:.1f}")
-            for bb_idx, (bb, img_set) in enumerate(self.analyzed_images.items()):
-                has_value = False
-                for sub_img in img_set:
-                    if img.base_path == sub_img.base_path:
-                        data[f"BB #{bb_idx}"].append(f"{sub_img.cax2bb_distance:.2f}")
-                        has_value = True
-                if not has_value:
-                    data[f"BB #{bb_idx}"].append("---")
-        result += tabulate(data, headers="keys").split("\n")
+            img_name = img.base_path[-20:]
+            gantry = f"{img.gantry_angle:.1f}"
+            collimator = f"{img.collimator_angle:.1f}"
+            couch = f"{img.couch_angle:.1f}"
+            deviations = []
+            # loop through the expected BBs.
+            # not every BB may be in every image, so we have to loop through the
+            # BBs and find the match if there is one.
+            for bb in self.bb_arrangement:
+                match = Enumerable(img.arrangement_matches.items()).single_or_default(
+                    lambda x: x[0] == bb.name
+                )
+                if match:
+                    deviations.append(f"{match[1].bb_field_distance_mm:.2f}")
+                else:
+                    deviations.append("---")
+            data.append([img_name, gantry, collimator, couch, *deviations])
+        result += tabulate(data, headers=["Image", "G", "C", "P", *bb_names]).split(
+            "\n"
+        )
+        result += [""]
+
+        # calculate couch-kick errors
+        couch_results = self._couch_rotation_error()
+        couch_data = [
+            [name[-20:], v["couch angle"], f"{v['yaw error']:.2f}"]
+            for name, v in couch_results.items()
+        ]
+        result += tabulate(
+            couch_data, headers=["Image", "Couch Angle", "Yaw Error (\N{DEGREE SIGN})"]
+        ).split("\n")
         if not as_list:
             result = "\n".join(result)
         return result
@@ -2232,57 +2592,49 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             webbrowser.open(filename)
 
 
+# class WinstonLutzMultiTargetSingleFieldImage(WinstonLutzMultiTargetMultiFieldImage):
+#     def find_field_centroids(self, is_open_field: bool) -> list[Point]:
+#         """For the single field case, the field centroid is the same as the CAX."""
+#         # TODO: use the global field finder
+#         return [self.center]
+#
+#     def find_field_matches(self, detected_points: list[Point]) -> dict[str, Point]:
+#         """For the single field case, the field centroid is the same as the CAX for every BB."""
+#         return {bb.name: detected_points[0] for bb in self.bb_arrangement}
+#
+#     def field_to_bb_distances(self) -> list[float]:
+#         """For a single-field, multi-BB setup we shift the BBs to the isocenter by shifting by the nominal offset.
+#         The delta between the nominal and actual BB position is the same distance as if we were at iso.
+#         """
+#         distances = []
+#         for match in self.arrangement_matches.values():
+#             distances.append(match["bb nominal"].distance_to(match["bb"]) / self.dpmm)
+#         return distances
+#
+#
+# class WinstonLutzMultiTargetSingleField(WinstonLutzMultiTargetMultiField):
+#     image_type = WinstonLutzMultiTargetSingleFieldImage
+#     images: Sequence[WinstonLutzMultiTargetSingleFieldImage]
+
+
 def max_distance_to_lines(p, lines: Iterable[Line]) -> float:
     """Calculate the maximum distance to any line from the given point."""
     point = Point(p[0], p[1], p[2])
     return max(line.distance_to(point) for line in lines)
 
 
-def bb_projection_long(
-    offset_in: float, offset_up: float, offset_left: float, sad: float, gantry: float
-) -> float:
-    """Calculate the isoplane projection in the sup/inf/longitudinal direction in mm"""
-    # the divergence of the beam causes the BB to be closer or further depending on the
-    # up/down position, left/right position and gantry angle
-    addtl_long_shift_cos = (
-        offset_up * offset_in / (sad - cos(gantry) * offset_up) * cos(gantry)
-    )
-    addtl_left_shift_sin = (
-        offset_left * offset_in / (sad + sin(gantry) * offset_left) * -sin(gantry)
-    )
-    return offset_in + addtl_long_shift_cos + addtl_left_shift_sin
-
-
-def bb_projection_gantry_plane(
-    offset_left: float, offset_up: float, sad: float, gantry: float
-) -> float:
-    """Calculate the isoplane projection in the plane of gantry rotation (X/Z)"""
-    addtl_left_shift = (
-        -offset_up * offset_left / (sad + cos(gantry) * offset_up) * abs(cos(gantry))
-    )
-    addtl_up_shift = (
-        offset_left * offset_up / (sad + sin(gantry) * offset_left) * abs(sin(gantry))
-    )
-    return (
-        offset_up * -sin(gantry)
-        + addtl_up_shift
-        + offset_left * -cos(gantry)
-        + addtl_left_shift
-    )
-
-
-def _bb_projection_with_rotation(
+def bb_projection_with_rotation(
     offset_left: float,
     offset_up: float,
     offset_in: float,
     gantry: float,
-    couch: float = 0,
+    couch: float,
     sad: float = 1000,
 ) -> (float, float):
     """Calculate the isoplane projection onto the panel at the given SSD.
 
     This function applies a rotation around the gantry plane (X/Z) to the
-    ball bearing (BB) position and calculates its projection onto the isocentre plane in the beam's eye view.
+    ball bearing (BB) position and calculates its projection onto the isocenter plane in the beam's eye view.
 
     Could be used to calculate couch rotations, but not validated yet.
 
@@ -2297,10 +2649,11 @@ def _bb_projection_with_rotation(
 
     Returns
     -------
-    np.ndarray: The projection of the BB onto the panel at the given SSD.
-        The array has shape (2,) where the first element is the projection in the
-        left/right direction and the second element is the projection in the
-        superior/inferior direction.
+    left_right_projection (float): The projection of the BB onto the panel in the left/right direction.
+        Left is negative, right is positive. This is always in the plane normal to the CAX.
+    superior_inferior_projection (float): The projection of the BB onto the panel in the superior/inferior direction.
+        Superior is positive, inferior is negative. This is always in the plane normal to the CAX which
+        in this case is also the absolute Y coordinate system axis.
     """
     # Define the BB positions in the patient coordinate system (ap, lr, si)
     bb_positions = np.array([offset_up, offset_left, offset_in])
@@ -2308,15 +2661,220 @@ def _bb_projection_with_rotation(
     # Apply the rotation matrix to the BB positions
     collimator = 0  # Collimator doesn't change positional projection onto panel
     rotation_matrix = Rotation.from_euler(
-        "xyz", [couch, collimator, gantry], degrees=True
+        "xyz",
+        [-couch, collimator, gantry],
+        degrees=True,  # negative couch due to origin shift vs coordinate space
     )
     rotated_positions = rotation_matrix.apply(bb_positions)
 
-    # Calculate the projection onto the panel at the given SSD
+    # Calculate the projection onto the panel at the given SAD
     bb_magnification = sad / (
         sad - rotated_positions[0]
     )  # Distance from source to panel
     imager_projection = (
         np.array([rotated_positions[1], rotated_positions[2]]) * bb_magnification
     )
-    return imager_projection[0], imager_projection[1]
+    return -imager_projection[0], imager_projection[1]
+
+
+def straight_ray(vector: Vector, gantry_angle: float) -> Line:
+    """A ray projecting from the gantry source point in the given direction.
+
+    Notes
+    -----
+    This does NOT account for couch rotation. It also generates a straight line
+    that goes through the vector. I.e. if the vector is 5mm left, the line will be straight
+    up and down 5mm left. It does not account for 2D projection from the gantry source.
+    The reason is that in vanilla WL, the assumption is that the field is about isocenter (i.e. not purposely offset)
+    and thus creating straight lines is a good approximation.
+    In the Multi-BB case, our fields are purposely off-center,
+    so this assumption does not hold for that case. See the ``ray`` function for that.
+
+    TL;DR: this is useful for vanilla WL but not Multi-BB.
+    """
+    p1 = Point()
+    p2 = Point()
+    # point 1 - ray origin
+    p1.x = vector.x * cos(gantry_angle) + 20 * sin(gantry_angle)
+    p1.z = vector.x * -sin(gantry_angle) + 20 * cos(gantry_angle)
+    p1.y = vector.y
+    # point 2 - ray destination
+    p2.x = vector.x * cos(gantry_angle) - 20 * sin(gantry_angle)
+    p2.z = vector.x * -sin(gantry_angle) - 20 * cos(gantry_angle)
+    p2.y = vector.y
+    line = Line(p1, p2)
+    return line
+
+
+def solve_3d_shift_vector_from_2d_planes(
+    xs: Sequence[float],
+    ys: Sequence[float],
+    thetas: Sequence[float],
+    phis: Sequence[float],
+    scale: MachineScale,
+) -> Vector:
+    """Solve for long, lat, and vert given arrays of x's, y's, theta's, and phi's.
+    This is Y, X, and Z in pylinac coordinate conventions.
+
+    This is a generalization of the Low et al. equation 6 and 7. This is used for both vanilla WL and Multi-BB WL.
+    This is intended to be a relatively strict interpretation of the Low et al. equations.
+    E.g. the gantry and couch angles are converted to Varian Standard scale.
+    The idea is this is meant for high readability when comparing to the Low et al. equations.
+    However, this does mean we have to invert the LONG/Y axis. See the conversion table in the docs
+
+    Parameters
+    ----------
+    xs : array_like
+        Array of x coordinates. Positive is to the right in the local plane.
+    ys : array_like
+        Array of y coordinates. Positive is up in the local plane.
+    thetas : array_like
+        Array of gantry angles.
+    phis : array_like
+        Array of couch angles.
+    scale: MachineScale
+        The scale of the machine. IEC61217 is the default. This converts the gantry and couch angles to Varian Standard scale
+        which is to match Low's equations.
+
+    Returns
+    -------
+    Vector
+        The coordinates are in the pylinac coordinate system. See docs.
+    """
+    if not (len(xs) == len(ys) == len(thetas) == len(phis)):
+        raise ValueError("The x, y, theta, and phi arrays must all be the same length.")
+    n = len(xs)
+
+    # convert the angles to Varian Standard scale
+    f_thetas, f_phis = [], []
+    for theta, phi in zip(thetas, phis):
+        g, _, c = convert(
+            scale,
+            MachineScale.VARIAN_STANDARD,
+            gantry=theta,
+            collimator=0,
+            rotation=phi,
+        )
+        f_thetas.append(g)
+        f_phis.append(c)
+
+    # Initialize A matrix and xi matrices
+    A = np.zeros((2 * n, 3))
+    xi = np.zeros(2 * n)
+
+    for i in range(n):
+        # A general rotation matrix and also Low eqn 6a
+        A[2 * i, :] = [-cos(f_phis[i]), -sin(f_phis[i]), 0]
+        A[2 * i + 1, :] = [
+            -cos(f_thetas[i]) * sin(f_phis[i]),
+            cos(f_thetas[i]) * cos(f_phis[i]),
+            -sin(f_thetas[i]),
+        ]
+        # Low eqn 7
+        xi[2 * i] = ys[
+            i
+        ]  # usually this would be (x, y) but Figure 1 of Low is rotated 90 degrees.
+        xi[2 * i + 1] = -xs[i]
+
+    # equation 9a; B is the pseudo-inverse of A
+    B = np.linalg.pinv(A)
+    # full equation 9
+    long, lat, vert = B.dot(xi).squeeze()
+
+    # At this point we have the **Low et al shift vector**. Conversion to pylinac coordinates
+    # requires flipping the LONG axis; see the conversion table in the docs.
+    # we use the X/Y/Z terms for the shift to be consistent with our own convention
+    # and for clarity of the conversion
+    # Finally, this is the **SHIFT VECTOR**. The 3D position in space is the inverse of this
+    y = -long
+    x = lat
+    z = vert
+    return Vector(x=x, y=y, z=z)
+
+
+def solve_3d_position_from_2d_planes(
+    xs: Sequence[float],
+    ys: Sequence[float],
+    thetas: Sequence[float],
+    phis: Sequence[float],
+    scale: MachineScale,
+) -> Vector:
+    """Solve for the 3D position of a BB in space given 2D images/vectors and the gantry/couch angles.
+
+    The good news is that the position in space is the inverse of the shift vector!
+    """
+    return -solve_3d_shift_vector_from_2d_planes(xs, ys, thetas, phis, scale)
+
+
+def conventional_to_euler_notation(axes_resolution: str) -> str:
+    """Convert conventional understandings of 6DOF rotations into Euler notation.
+
+    Ensures we don't mix up x, y, z with the pylinac coordinate system.
+    """
+    EULER = {
+        # FROM THE COUCH PERSPECTIVE
+        "pitch": "x",  # positive pitch goes up
+        "yaw": "z",
+        "roll": "y",  # positive angle rolls to the right
+    }
+    axes = axes_resolution.split(",")
+    euler = "".join([EULER[a.strip()] for a in axes])
+    return euler
+
+
+def align_points(
+    measured_points: Sequence[Point],
+    ideal_points: Sequence[Point],
+    axes_order: str = "roll,pitch,yaw",
+) -> (Vector, float, float, float):
+    """
+    Aligns a set of measured points to a set of ideal points in 3D space, returning the
+    translation and yaw rotation needed.
+
+    Parameters
+    ----------
+    measured_points : np.ndarray
+        The measured points as an Nx3 numpy array.
+    ideal_points : np.ndarray
+        The ideal points as an Nx3 numpy array.
+    axes_order : str
+        The order in which to resolve the axes.
+        Resolution is **not** independent of the axes order. I.e. doing 'yaw,pitch,roll' may result
+        in a different outcome.
+
+    Returns
+    -------
+    Vector, float, float, float
+        The vector is the cartesian translation (dx, dy, dz) and yaw, pitch, and roll angle in degrees required to align the measured points
+        to the ideal points.
+    """
+    # convert from Point to stacked array (x, y, z) x N
+    measured_array = [[p.x, p.y, p.z] for p in measured_points]
+    ideal_array = [[p.x, p.y, p.z] for p in ideal_points]
+    # Ensure the points are centered at their centroids
+    measured_centroid = np.mean(measured_array, axis=0)
+    ideal_centroid = np.mean(ideal_array, axis=0)
+    measured_centered = measured_array - measured_centroid
+    ideal_centered = ideal_array - ideal_centroid
+
+    # Compute the covariance matrix
+    H = measured_centered.T @ ideal_centered
+
+    # Singular Value Decomposition
+    U, _, Vt = np.linalg.svd(H)
+    rotation_matrix = Vt.T @ U.T
+
+    # Ensure a right-handed coordinate system
+    if np.linalg.det(rotation_matrix) < 0:
+        Vt[2, :] *= -1
+        rotation_matrix = Vt.T @ U.T
+
+    # Compute the euler angles
+    rotation = Rotation.from_matrix(rotation_matrix)
+    euler = conventional_to_euler_notation(axes_order)
+    roll, pitch, yaw = rotation.as_euler(euler, degrees=True)
+
+    rotated_measured_centroid = rotation.apply(measured_centroid)
+    translation = ideal_centroid - rotated_measured_centroid
+
+    return Vector(*translation), yaw, pitch, roll

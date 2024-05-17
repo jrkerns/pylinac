@@ -100,6 +100,7 @@ class GlobalSizedDiskLocator(MetricBase):
             is_right_size_bb,
             is_right_circumference,
         ),
+        invert: bool = True,
         min_number: int = 1,
         max_number: int | None = None,
         min_separation_mm: float = 5,
@@ -117,6 +118,8 @@ class GlobalSizedDiskLocator(MetricBase):
             A list of functions that take a regionprops object and return a boolean.
             The functions should be used to determine whether the regionprops object
             is a BB.
+        invert : bool
+            Whether to invert the image before searching for BBs.
         min_number : int
             The minimum number of BBs to find. If not found, an error is raised.
         max_number : int, None
@@ -131,6 +134,7 @@ class GlobalSizedDiskLocator(MetricBase):
         self.radius_tolerance = radius_tolerance_mm
         self.detection_conditions = detection_conditions
         self.name = name
+        self.invert = invert
         self.min_number = min_number
         self.max_number = max_number or 1e3
         self.min_separation_mm = min_separation_mm
@@ -138,7 +142,10 @@ class GlobalSizedDiskLocator(MetricBase):
     def calculate(self) -> list[Point]:
         """Find up to N BBs/disks in the image. This will look for BBs at every percentile range.
         Multiple BBs may be found at different threshold levels."""
-        sample = invert(self.image.array)
+        if self.invert:
+            sample = invert(self.image.array)
+        else:
+            sample = self.image.array
         self.points, boundaries, _ = find_features(
             sample,
             top_offset=0,

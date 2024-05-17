@@ -13,6 +13,16 @@ from .contrast import michelson
 from .roi import HighContrastDiskROI
 
 
+def _plot_invert(x: np.ndarray) -> np.ndarray:
+    # avoid zero division errors when plotting
+    # 1/x with special treatment of x == 0
+    n = np.copy(x).astype(float)
+    near_zero = np.isclose(n, 0)
+    n[near_zero] = np.inf
+    n[~near_zero] = 1 / n[~near_zero]
+    return n
+
+
 class MTF:
     """This class will calculate relative MTF"""
 
@@ -125,19 +135,10 @@ class MTF:
         axis.set_ylabel(y_label)
         axis.set_title(title)
 
-        # this whole below thing is to avoid zero division errors when plotting
-        def invert(x: np.ndarray) -> np.ndarray:
-            # 1/x with special treatment of x == 0
-            n = np.copy(x).astype(float)
-            near_zero = np.isclose(n, 0)
-            n[near_zero] = np.inf
-            n[~near_zero] = 1 / n[~near_zero]
-            return n
-
         # in addition to setting the `functions`, we need to set the ticks manually.
         # if not, for some reason the ticks are bunched up on the left side and unreadable.
         # both are needed. 🤷‍♂️
-        spacing_ax = axis.secondary_xaxis("top", functions=(invert, invert))
+        spacing_ax = axis.secondary_xaxis("top", functions=(_plot_invert, _plot_invert))
         x_ticks = axis.get_xticks()
         x2_ticks = 1 / np.clip(x_ticks, a_min=1e-2, a_max=None)
         spacing_ax.set_xticks(x2_ticks)
@@ -241,9 +242,7 @@ class MomentMTF:
         axis.set_xlabel("Line pairs / mm")
         axis.set_ylabel("MTF")
         axis.set_title("Moments-based MTF")
-        spacing_ax = axis.secondary_xaxis(
-            "top", functions=(lambda x: 1 / x, lambda x: 1 / x)
-        )
+        spacing_ax = axis.secondary_xaxis("top", functions=(_plot_invert, _plot_invert))
         spacing_ax.set_xlabel("Pair Distance (mm)")
         plt.tight_layout()
         return axis
@@ -260,9 +259,7 @@ class MomentMTF:
         axis.set_xlabel("Line pairs / mm")
         axis.set_ylabel("FWHM")
         axis.set_title("Moments-based FWHM")
-        spacing_ax = axis.secondary_xaxis(
-            "top", functions=(lambda x: 1 / x, lambda x: 1 / x)
-        )
+        spacing_ax = axis.secondary_xaxis("top", functions=(_plot_invert, _plot_invert))
         spacing_ax.set_xlabel("Pair Distance (mm)")
         plt.tight_layout()
         return axis

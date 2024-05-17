@@ -15,17 +15,15 @@ Features:
 from __future__ import annotations
 
 import copy
-import dataclasses
 import enum
 import io
 import os.path as osp
 import statistics
 import warnings
 import webbrowser
-from dataclasses import dataclass
 from functools import cached_property
 from io import BytesIO
-from itertools import cycle
+from itertools import cycle, groupby
 from pathlib import Path
 from typing import BinaryIO, Iterable, Sequence
 
@@ -39,6 +37,7 @@ from .core import image, pdf
 from .core.geometry import Line, Point, Rectangle
 from .core.io import get_url, retrieve_demo_file
 from .core.profile import FWXMProfilePhysical, MultiProfile
+from .core.utilities import ResultBase, ResultsDataMixin, convert_to_enum
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, convert_to_enum
 from .log_analyzer import load_log
 from .metrics.image import SizedDiskLocator
@@ -98,7 +97,7 @@ class MLC(enum.Enum):
     }  #:
     HD_MILLENNIUM = {
         "name": "HD Millennium",
-        "arrangement": MLCArrangement([(10, 5), (40, 2.5), (10, 5)]),
+        "arrangement": MLCArrangement([(14, 5), (32, 2.5), (14, 5)]),
     }  #:
     BMOD = {
         "name": "B Mod",
@@ -124,7 +123,6 @@ class MLC(enum.Enum):
     }  #:
 
 
-@dataclass
 class PFResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -132,7 +130,7 @@ class PFResult(ResultBase):
     Use the following attributes as normal class attributes."""
 
     tolerance_mm: float  #:
-    action_tolerance_mm: float  #:
+    action_tolerance_mm: float | None  #:
     percent_leaves_passing: float  #:
     number_of_pickets: int  #:
     absolute_median_error_mm: float  #:
@@ -144,7 +142,9 @@ class PFResult(ResultBase):
     passed: bool  #:
     failed_leaves: list[str] | list[int]  #:
     mlc_skew: float  #:
-    picket_widths: dict[int, dict[str, float]]  #:
+    picket_widths: dict[str, dict[str, float]]  #:
+    mlc_positions_by_leaf: dict[str, list[float]]  #:
+    mlc_errors_by_leaf: dict[str, list[float]]  #:
 
 
 class PFDicomImage(image.LinacDicomImage):
@@ -206,7 +206,7 @@ class PFDicomImage(image.LinacDicomImage):
             return super().center
 
 
-class PicketFence(QuaacMixin):
+class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
     """A class used for analyzing EPID images where radiation strips have been formed by the
     MLCs. The strips are assumed to be parallel to one another and normal to the image edge;
     i.e. a "left-right" or "up-down" orientation is assumed. Further work could follow up by accounting
@@ -347,7 +347,7 @@ class PicketFence(QuaacMixin):
 
         Thank the French for this."""
         bb_image = image.load(bb_image)
-        cax = bb_image.compute(
+        caxs = bb_image.compute(
             metrics=SizedDiskLocator.from_center_physical(
                 expected_position_mm=(0, 0),
                 search_window_mm=(30 + bb_diameter, 30 + bb_diameter),
@@ -355,7 +355,7 @@ class PicketFence(QuaacMixin):
                 radius_tolerance_mm=bb_diameter * 0.1 + 1,
             )
         )
-        cax_shift = cax - bb_image.center
+        cax_shift = caxs[0] - bb_image.center
         # we convert to physical because we may have images of different sizes/dpmms
         cax_physical_shift = Point(
             x=cax_shift.x / bb_image.dpmm, y=cax_shift.y / bb_image.dpmm
@@ -680,6 +680,7 @@ class PicketFence(QuaacMixin):
         else:
             leaf_prof = np.mean(self.image, 1)
         leaf_prof = MultiProfile(leaf_prof)
+        leaf_prof.normalize()  # normalize so required prominence is also normalized.
         peak_idxs, peak_vals = leaf_prof.find_fwxm_peaks(
             min_distance=0.02,
             threshold=height_threshold,
@@ -849,6 +850,7 @@ class PicketFence(QuaacMixin):
         leaf_error_subplot: bool = True,
         show: bool = True,
         figure_size: str | tuple = "auto",
+        barplot_kwargs: dict | None = None,
     ) -> None:
         """Plot the analyzed image.
 
@@ -882,7 +884,15 @@ class PicketFence(QuaacMixin):
         self.image.plot(ax=ax, show=False)
 
         if leaf_error_subplot:
-            self._add_leaf_error_subplot(ax)
+            if barplot_kwargs is None:
+                barplot_kwargs = {"widths": 10}
+            # make the new axis
+            divider = make_axes_locatable(ax)
+            if self.orientation == Orientation.UP_DOWN:
+                axtop = divider.append_axes("right", 2, pad=1, sharey=ax)
+            else:
+                axtop = divider.append_axes("bottom", 2, pad=1, sharex=ax)
+            self._add_leaf_error_subplot(axtop, barplot_kwargs)
 
         if guard_rails:
             for picket in self.pickets:
@@ -904,16 +914,8 @@ class PicketFence(QuaacMixin):
         if show:
             plt.show()
 
-    def _add_leaf_error_subplot(self, ax: plt.Axes) -> None:
+    def _add_leaf_error_subplot(self, ax: plt.Axes, barplot_kwargs: dict) -> None:
         """Add a bar subplot showing the leaf error."""
-
-        # make the new axis
-        divider = make_axes_locatable(ax)
-        if self.orientation == Orientation.UP_DOWN:
-            axtop = divider.append_axes("right", 2, pad=1, sharey=ax)
-        else:
-            axtop = divider.append_axes("bottom", 2, pad=1, sharex=ax)
-
         # get leaf positions, errors, standard deviation, and leaf numbers
         if self.orientation == Orientation.UP_DOWN:
             pos = [
@@ -925,57 +927,76 @@ class PicketFence(QuaacMixin):
                 position.marker_lines[0].center.x
                 for position in self.pickets[0].mlc_meas
             ][::-1]
+        # get leaf pair names
+        labels = sorted(list({m.leaf_num for m in self.mlc_meas}))
 
-        # calculate the error and stdev values per MLC pair
-        error_stdev = []
-        error_vals = []
+        # generate the error distributions per MLC pair
+        error_clusters = []
         for leaf_num in {m.leaf_num for m in self.mlc_meas}:
-            error_vals.append(
-                np.mean(
-                    [np.abs(m.error) for m in self.mlc_meas if m.leaf_num == leaf_num]
+            if self.separate_leaves:
+                # flatten the error list and take the absolute value
+                error_clusters.append(
+                    np.abs(
+                        [
+                            e
+                            for m in self.mlc_meas
+                            if m.leaf_num == leaf_num
+                            for e in m.error
+                        ]
+                    )
                 )
-            )
-            error_stdev.append(
-                np.std([m.error for m in self.mlc_meas if m.leaf_num == leaf_num])
-            )
+            else:
+                error_clusters.append(
+                    np.abs([m.error for m in self.mlc_meas if m.leaf_num == leaf_num])
+                )
+        error_dists = np.stack(error_clusters).squeeze().transpose()
 
         # plot the leaf errors as a bar plot
         if self.orientation == Orientation.UP_DOWN:
-            axtop.barh(
-                pos,
-                error_vals,
-                xerr=error_stdev,
-                height=self.leaf_analysis_width * 2,
-                alpha=0.4,
-                align="center",
+            ax.boxplot(
+                x=error_dists,
+                positions=np.array(pos),
+                vert=False,
+                manage_ticks=False,
+                **barplot_kwargs,
             )
+            # show every other leaf number on the ticks
+            ax.set_yticks(pos[::2])
+            ax.set_yticklabels(labels[::2])
             # plot the tolerance line(s)
-            axtop.axvline(self.tolerance, color="r", linewidth=3)
+            ax.axvline(self.tolerance, color="r", linewidth=3)
             if self.action_tolerance is not None:
-                axtop.axvline(self.action_tolerance, color="m", linewidth=3)
+                ax.axvline(self.action_tolerance, color="m", linewidth=3)
             # reset xlims to comfortably include the max error or tolerance value
-            axtop.set_xlim(
-                [0, max([max(error_vals) + max(error_stdev), self.tolerance]) + 0.1]
-            )
+            ax.set_xlim([0, max([error_dists.max(), self.tolerance]) + 0.1])
         else:
-            axtop.bar(
-                pos,
-                error_vals,
-                yerr=error_stdev,
-                width=self.leaf_analysis_width * 2,
-                alpha=0.4,
-                align="center",
+            ax.boxplot(
+                x=error_dists,
+                positions=np.array(pos),
+                vert=True,
+                manage_ticks=False,
+                **barplot_kwargs,
             )
+            # show every other leaf number on the ticks
+            # we also adjust the y position of the ticks to avoid overlap
+            # the leaf numbers are tighter for left/right orientations by default
+            ax.set_xticks(pos[::2])
+            ax.set_xticklabels(labels[::2], rotation=90)
+            ticklabels = ax.get_xticklabels()
+            # Loop over the tick labels and adjust the position of every other one
+            for i, ticklabel in enumerate(ticklabels):
+                if i % 2 == 0:
+                    ticklabel.set_y(-0.06)  # Adjust the y-position downwards
+                else:
+                    ticklabel.set_y(0.03)  # Adjust the y-position upwards
             # plot the tolerance line(s)
-            axtop.axhline(self.tolerance, color="r", linewidth=3)
+            ax.axhline(self.tolerance, color="r", linewidth=3)
             if self.action_tolerance is not None:
-                axtop.axhline(self.action_tolerance, color="m", linewidth=3)
-            axtop.set_ylim(
-                [0, max([max(error_vals) + max(error_stdev), self.tolerance]) + 0.1]
-            )
+                ax.axhline(self.action_tolerance, color="m", linewidth=3)
+            ax.set_ylim([0, max([error_dists.max(), self.tolerance]) + 0.1])
 
-        axtop.grid(True)
-        axtop.set_title("Average Error (mm)")
+        ax.grid(True)
+        ax.set_title("Average Error (mm)")
 
     def save_analyzed_image(
         self,
@@ -1000,6 +1021,39 @@ class PicketFence(QuaacMixin):
         if isinstance(filename, str):
             print(f"Picket fence image saved to: {osp.abspath(filename)}")
 
+    def plot_leaf_error(
+        self,
+        ax: plt.Axes | None = None,
+        show: bool = True,
+        fig_kwargs: dict | None = None,
+        barplot_kwargs: dict | None = None,
+    ) -> plt.Figure:
+        """Plot the leaf error as a bar plot.
+
+        Parameters
+        ----------
+        ax
+            The axis to plot on. If None (default), a new figure is created.
+        show
+            Whether to display the plot. Set to false for saving to a figure, etc.
+        fig_kwargs
+            If ax is None, these kwargs are passed to plt.subplots() to create the figure.
+        barplot_kwargs
+            These kwargs are passed to the barplot function. If None, defaults are used.
+        """
+        if not ax:
+            if not fig_kwargs:
+                fig_kwargs = {}
+            fig, ax = plt.subplots(**fig_kwargs)
+        else:
+            fig = plt.gcf()
+        if not barplot_kwargs:
+            barplot_kwargs = {"widths": 10}
+        self._add_leaf_error_subplot(ax=ax, barplot_kwargs=barplot_kwargs)
+        if show:
+            plt.show()
+        return fig
+
     def results(self, as_list: bool = False) -> str:
         """Return results of analysis. Use with print()."""
         offsets = " ".join(f"{pk.dist2cax:.1f}" for pk in self.pickets)
@@ -1021,9 +1075,7 @@ class PicketFence(QuaacMixin):
             results = "\n".join(results)
         return results
 
-    def results_data(self, as_dict=False) -> PFResult | dict:
-        """Present the results data and metadata as a dataclass, dict, or tuple.
-        The default return type is a dataclass."""
+    def _generate_results_data(self) -> PFResult:
         picket_widths = {
             f"picket_{pk}": {
                 key: self.picket_width_stat(pk, key)
@@ -1031,7 +1083,23 @@ class PicketFence(QuaacMixin):
             }
             for pk in range(len(self.pickets))
         }
-        data = PFResult(
+        errors_by_leaf = {}
+        positions_by_leaf = {}
+        for _, group_iter in groupby(self.mlc_meas, key=lambda m: m.leaf_num):
+            leaf_items = list(group_iter)  # group_iter is a generator
+            leaf_names = leaf_items[0].full_leaf_nums
+            for idx, leaf_name in enumerate(leaf_names):
+                pos_vals = [m.position_mm[idx] for m in leaf_items]
+                error_vals = [m.error[idx] for m in leaf_items]
+                positions_by_leaf[str(leaf_name)] = pos_vals
+                errors_by_leaf[str(leaf_name)] = error_vals
+        errors_by_leaf = dict(
+            sorted(errors_by_leaf.items())
+        )  # sort by A/B and leaf number; A1, A2, ..., B1, B2, ...
+        positions_by_leaf = dict(
+            sorted(positions_by_leaf.items())
+        )  # sort by A/B and leaf number; A1, A2, ..., B1, B2, ...
+        return PFResult(
             tolerance_mm=self.tolerance,
             action_tolerance_mm=self.action_tolerance,
             percent_leaves_passing=self.percent_passing,
@@ -1046,10 +1114,9 @@ class PicketFence(QuaacMixin):
             failed_leaves=self.failed_leaves(),
             mlc_skew=self.mlc_skew(),
             picket_widths=picket_widths,
+            mlc_positions_by_leaf=positions_by_leaf,
+            mlc_errors_by_leaf=errors_by_leaf,
         )
-        if as_dict:
-            return dataclasses.asdict(data)
-        return data
 
     def publish_pdf(
         self,
@@ -1306,6 +1373,11 @@ class MLCValue:
             return (
                 prof.center_idx + max(self._approximate_idx - self._spacing / 2, 0),
             )  # crop to left edge if need be
+
+    @property
+    def position_mm(self) -> Sequence[float]:
+        """The position of the MLC leaf in the travel direction in mm from the left/top side of the image."""
+        return [pos / self._image.dpmm for pos in self.position]
 
     @property
     def passed(self) -> Sequence[bool]:
