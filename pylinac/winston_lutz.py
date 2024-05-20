@@ -2335,6 +2335,45 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         move = f"{x_dir} {abs(translation.x):2.2f}mm; {y_dir} {abs(translation.y):2.2f}mm; {z_dir} {abs(translation.z):2.2f}mm; Rotation {yaw:2.2f}°; Pitch {pitch:2.2f}°; Roll {roll:2.2f}°"
         return move
 
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        """Generate the Quaac datapoints for MTMF Winston-Lutz analysis"""
+        if not self._is_analyzed:
+            raise ValueError("The set is not analyzed. Use .analyze() first.")
+        result_data = self.results_data()
+        dataset = {
+            "Max 2D CAX->BB": QuaacDatum(
+                value=result_data.max_2d_field_to_bb_mm,
+                unit="mm",
+                description="The maximum 2D distance of any image from the CAX to the BB.",
+            ),
+            "Median 2D CAX->BB": QuaacDatum(
+                value=result_data.median_2d_field_to_bb_mm,
+                unit="mm",
+                description="The median 2D distance of any image from the CAX to the BB.",
+            ),
+            "Mean 2D CAX->BB": QuaacDatum(
+                value=result_data.mean_2d_field_to_bb_mm,
+                unit="mm",
+                description="The mean 2D distance of any image from the CAX to the BB.",
+            ),
+            "BB Shift (Yaw)": QuaacDatum(
+                value=result_data.bb_shift_yaw,
+                unit="degrees",
+                description="The ideal yaw rotation to place the BB at the isocenter.",
+            ),
+            "BB Shift (Pitch)": QuaacDatum(
+                value=result_data.bb_shift_pitch,
+                unit="degrees",
+                description="The ideal pitch rotation to place the BB at the isocenter.",
+            ),
+            "BB Shift (Roll)": QuaacDatum(
+                value=result_data.bb_shift_roll,
+                unit="degrees",
+                description="The ideal roll rotation to place the BB at the isocenter.",
+            ),
+        }
+        return dataset
+
     def _couch_rotation_error(self) -> dict[str, dict[str, float]]:
         """Calculate the couch rotation error in degrees for reference and couch-kicked images.
         This just for feature parity with SNC 🤦; the BB shift vector is more important.

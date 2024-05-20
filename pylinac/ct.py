@@ -2310,7 +2310,6 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             result = results
         return result
 
-    def _generate_results_data(self) -> CatphanResult:
     def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
         results_data = self.results_data(as_dict=True)
         data = {
@@ -2373,7 +2372,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
                 )
         return data
 
-    def results_data(self, as_dict: bool = False) -> CatphanResult | dict:
+    def _generate_results_data(self) -> CatphanResult:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         ctp404_result = CTP404Result(

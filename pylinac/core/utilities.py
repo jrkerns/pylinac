@@ -6,6 +6,7 @@ import os.path as osp
 import struct
 from abc import abstractmethod
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import BinaryIO, Generic, Sequence, TypeVar
