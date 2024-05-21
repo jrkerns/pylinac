@@ -1581,3 +1581,22 @@ class CatPhan604NegativeSliceOverlap(CatPhan604Mixin, TestCase):
     unif_values = {"Center": 24, "Left": 23, "Right": 22, "Top": 23, "Bottom": 21}
     mtf_values = {50: 0.40}
     lowcon_visible = 6
+
+
+class CatPhan504NearEdge(CatPhan504Mixin, TestCase):
+    file_name = "phantom_edge.zip"
+    expected_roll = 1.4
+    origin_slice = 41
+    hu_values = {
+        "Poly": -41,
+        "Acrylic": 120,
+        "Delrin": 322,
+        "Air": -1010,
+        "Teflon": 905,
+        "PMP": -189,
+        "LDPE": -98,
+    }
+    unif_values = {"Center": 12, "Left": 10, "Right": 9, "Top": 9, "Bottom": 11}
+    mtf_values = {50: 0.33}
+    lowcon_visible = 4
+    slice_thickness = 3
