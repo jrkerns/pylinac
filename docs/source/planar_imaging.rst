@@ -1025,6 +1025,35 @@ and methods, the plotting and PDF report functionality comes for free.
 Usage tips, tweaks, & troubleshooting
 -------------------------------------
 
+.. _fine-tuning-planar:
+
+Fine-tuning the ROI locations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 3.24
+
+If after the automatic analysis you find that the ROIs are not quite where you want them, you can adjust the ROI locations
+by setting any of the following parameters: ``x_adjustment``, ``y_adjustment``, ``angle_adjustment``, ``scaling_factor``,
+or ``zoom_factor``. These parameters can be set in the ``analyze`` method.
+
+.. code-block:: python
+
+    from pylinac import LeedsTOR
+
+    leeds = LeedsTOR(...)
+    leeds.analyze(
+        ...,
+        x_adjustment=0.5,
+        y_adjustment=-0.3,
+        angle_adjustment=5,
+        scaling_factor=1.1,
+        roi_size_factor=0.9,
+    )
+
+In contrast to the ``angle_override``, ``size_override``, and ``center_override`` parameters, the adjustments are applied
+**after** the analysis. I.e. use adjustments if you need to fine-tune the automatic analysis; use overrides if the
+detection is failing.
+
 Set the SSD of your phantom
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1044,6 +1073,10 @@ distance via the ``ssd`` parameter.
 
 Adjust an ROI on an existing phantom
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. note::
+
+    If you are trying to uniformly adjust all the ROIs, see :ref:`fine-tuning-planar`.
 
 To adjust an ROI, override the relevant attribute or create a subclass. E.g. to move the 2nd ROI of the high-contrast ROI set of the QC-3 phantom:
 
@@ -1137,8 +1170,8 @@ do so fairly easily by overloading the current tooling:
 
 .. _planar_scaling:
 
-Scaling
--------
+Scaling measurement
+-------------------
 
 .. versionadded:: 3.19
 
@@ -1163,6 +1196,11 @@ E.g.:
 
 Adjusting the scaling
 ^^^^^^^^^^^^^^^^^^^^^
+
+.. note::
+
+    This can also be adjusted uniformly using the ``scaling_factor`` parameter in the ``analyze`` method.
+    The below method is recommended if your adjustments are not uniform in both directions. See :ref:`fine-tuning-planar`.
 
 If you are dead-set on having the scaling value be the exact size of the phantom,
 or you simply have a different interpretation of what the scaling should be you

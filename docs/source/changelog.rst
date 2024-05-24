@@ -2,6 +2,21 @@
 Changelog
 =========
 
+v 3.24.0
+--------
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* Planar phantom analyses now have new parameter options for fine-tuning the automatic analysis. See :ref:`fine-tuning-planar`.
+
+Core
+^^^^
+
+* Multiplying ``Point`` s together would not return a new point. It now performs both an in-place
+  and out-of-place multiplication. E.g. ``Point(1, 2) * 2`` will return a new point at (2, 4) and
+  also change the original point to (2, 4).
+
 v 3.23.0
 --------
 
