@@ -44,7 +44,7 @@ class JawOrthogonality:
         # and the vertical in the last two
         # but we don't know which one is top/bottom or left/right
         # so we need to sort them
-        # we can do this by sorting the distances; the lower distance is will be the top/left
+        # we can do this by sorting the distances; the lower distance will be the top/left
         # and the higher distance will be the bottom/right
         line_angles = {}
         if sorted_dists[0] < sorted_dists[1]:
