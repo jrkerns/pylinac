@@ -88,7 +88,10 @@ exclude = ['pylinac/demo_files/**']
 testpaths = "tests_basic"
 python_files = "test_*.py"
 addopts = "--dist loadscope"
-filterwarnings = "ignore::UserWarning:pydicom"
+filterwarnings = [
+    "ignore::UserWarning:pydicom",
+    "ignore:FigureCanvasAgg.*:UserWarning"
+    ]
 
 [tool.coverage.run]
 source = [
