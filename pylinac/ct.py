@@ -2582,7 +2582,7 @@ def get_regions(
         thres = thresmeth(edges)
     bw = edges > thres
     if clear_borders:
-        bw = segmentation.clear_border(bw, buffer_size=int(max(bw.shape) / 50))
+        bw = segmentation.clear_border(bw, buffer_size=min(int(max(bw.shape) / 100), 3))
     if fill_holes:
         bw = ndimage.binary_fill_holes(bw)
     labeled_arr, num_roi = measure.label(bw, return_num=True)
