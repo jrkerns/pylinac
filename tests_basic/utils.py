@@ -192,7 +192,7 @@ class CloudFileMixin:
 
     @classmethod
     def tearDownClass(cls):
-        if cls.delete_file and DELETE_FILES:
+        if cls.delete_file and DELETE_FILES and cls.file_name:
             file = cls.get_filename()
             if osp.isfile(file):
                 os.remove(file)
