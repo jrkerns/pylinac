@@ -5,6 +5,13 @@ Changelog
 v 3.24.0
 --------
 
+CBCT
+^^^^
+
+* Some datasets were failing due to the proximity to the edge of the FOV. While we encourage an FOV that is 1cm+ larger than the
+  phantom to minimize edge artifacts and ensure the entire phantom is captured, we have reduced the required clearance
+  of the phantom to the edge by approximately half.
+
 Planar Imaging
 ^^^^^^^^^^^^^^
 
