@@ -74,13 +74,13 @@ def profiles_from_simulator(
     y_pixel = int(round(simulator.shape[0] * y_position))
     x_pixel = int(round(simulator.shape[1] * x_position))
     inplane_profile = SingleProfile(
-        img[:, x_pixel],
+        img[:, x_pixel].copy(),
         dpmm=img.dpmm,
         interpolation=interpolation,
         normalization_method=Normalization.NONE,
     )
     cross_profile = SingleProfile(
-        img[y_pixel, :],
+        img[y_pixel, :].copy(),
         dpmm=img.dpmm,
         interpolation=interpolation,
         normalization_method=Normalization.NONE,
@@ -457,7 +457,7 @@ class TestPerfectBBLayer(TestCase):
 
 class TestFFFLayer(TestCase):
     def test_10x10_100sid(self):
-        for sim in (AS1000Image, AS1200Image):
+        for sim in (AS500Image, AS1000Image, AS1200Image):
             as1200 = sim(sid=1000)
             as1200.add_layer(FilterFreeFieldLayer(field_size_mm=(100, 100)))
             # no interpolation
@@ -488,7 +488,7 @@ class TestFFFLayer(TestCase):
             )
             # spline interp
             as1200.add_layer(
-                GaussianFilterLayer(sigma_mm=0.2)
+                GaussianFilterLayer(sigma_mm=0.5)
             )  # spline causes ringing artifacts for ultra-sharp gradients, this is also more realistic anyway
             inplane_profile, cross_profile = profiles_from_simulator(
                 as1200, interpolation=Interpolation.SPLINE
@@ -505,7 +505,7 @@ class TestFFFLayer(TestCase):
             )
 
     def test_10x10_150sid(self):
-        for sim in (AS1000Image, AS1200Image):
+        for sim in (AS500Image, AS1000Image, AS1200Image):
             as1200 = sim(sid=1000)
             as1200.add_layer(FilterFreeFieldLayer(field_size_mm=(150, 150)))
             inplane_profile, cross_profile = profiles_from_simulator(
@@ -611,6 +611,15 @@ class SimulatorTestMixin:
         self.assertEqual(ds.BeamLimitingDeviceAngle, 33)
         self.assertEqual(ds.PatientSupportAngle, 5)
 
+    def test_invert_array(self):
+        sim = self.simulator()
+        sim.add_layer(PerfectFieldLayer(field_size_mm=(100, 100)))
+        ds = sim.as_dicom(invert_array=False)
+        # when false, the array retains the same values
+        # the corner should be lower than the center, where dose was delivered
+        mid = sim.image.shape[0] // 2
+        self.assertGreater(ds.pixel_array[mid, mid], ds.pixel_array[0, 0])
+
 
 class TestAS500(SimulatorTestMixin, TestCase):
     simulator = AS500Image
@@ -647,3 +656,6 @@ class TestCustomSimulator(SimulatorTestMixin, TestCase):
                 sim.generate_dicom(
                     tf.name, gantry_angle=12, coll_angle=33, table_angle=5
                 )
+
+    def test_invert_array(self):
+        pass  # method not implemented

@@ -12,6 +12,12 @@ CBCT
   phantom to minimize edge artifacts and ensure the entire phantom is captured, we have reduced the required clearance
   of the phantom to the edge by approximately half.
 
+Image Generator
+^^^^^^^^^^^^^^^
+
+* When saving a simulated image to DICOM, the user can now choose whether to invert the image array.
+  This can help simulate older or newer EPID types.
+
 Planar Imaging
 ^^^^^^^^^^^^^^
 
