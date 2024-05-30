@@ -12,6 +12,30 @@ CBCT
   phantom to minimize edge artifacts and ensure the entire phantom is captured, we have reduced the required clearance
   of the phantom to the edge by approximately half.
 
+Field Analysis
+^^^^^^^^^^^^^^
+
+* There is a new module for performing field analysis that leverages the 1D metrics framework. This
+  is an alternative and successor to the original field analysis module. You can read more here: :ref:`field-profile-analysis`.
+
+Profiles & 1D Metrics
+^^^^^^^^^^^^^^^^^^^^^
+
+* 1D Profile Metrics have two new methods: ``geometric_center_idx`` and ``cax_index`` that return the index
+  (interpolated) for their respective values.
+* The ``plot`` method for profiles now includes a ``mirror`` parameter. This will mirror the profile about the
+  geomtric center or beam center index. This is useful for visualizing the symmetry of the profile.
+* Physical profile plots now also plot the x-axis in physical values on a secondary axis.
+* 1D metrics now have a ``full_name`` property that concatenates the name of the metric and the unit if applicable.
+* Calculated metrics of a profile that are stored in the ``metric_values`` attribute are now saved using the full name
+  as described above. This means if you access metrics this way, you may need to update the lookup to include the unit.
+* Two new metrics have been added: ``CAXtoLeftBeamEdge`` and ``CAXToRightBeamEdge``. These metrics will calculate the distance
+  from the CAX to the left and right beam edges, respectively.
+* The ``FlatnessDifferenceMetric`` had a bug that would cause plotting to fail.
+* The ``SymmetryPointDifferenceQuotientMetric`` 's default max and min range has been adjusted to 100-105 to better reflect default values.
+* The ``PenumbraLeftMetric`` and ``PenumbraRightMetric`` had their unit's changed from % to mm. % was incorrect.
+* The ``SlopeMetric`` would sometimes fail to plot if an uneven number of points were calculated over.
+
 v 3.23.0
 --------
 

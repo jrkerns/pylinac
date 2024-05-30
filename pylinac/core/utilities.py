@@ -42,8 +42,12 @@ class ResultBase(BaseModel):
     model_config = ConfigDict(
         arbitrary_types_allowed=True
     )  # https://docs.pydantic.dev/latest/api/config/#pydantic.config.ConfigDict.arbitrary_types_allowed
-    pylinac_version: str = __version__  #:
-    date_of_analysis: datetime = Field(default_factory=datetime.today)  #:
+    pylinac_version: str = Field(
+        default=__version__, serialization_alias="Pylinac version"
+    )  #:
+    date_of_analysis: datetime = Field(
+        default_factory=datetime.today, serialization_alias="Date of Analysis"
+    )  #:
 
 
 T = TypeVar("T")
@@ -58,7 +62,11 @@ class ResultsDataMixin(Generic[T]):
         pass
 
     def results_data(
-        self, as_dict: bool = False, as_json: bool = False
+        self,
+        as_dict: bool = False,
+        as_json: bool = False,
+        by_alias: bool = False,
+        exclude: set[str] | None = None,
     ) -> T | dict | str:
         """Present the results data and metadata as a dataclass, dict, or tuple.
         The default return type is a dataclass.
@@ -69,14 +77,18 @@ class ResultsDataMixin(Generic[T]):
             If True, return the results as a dictionary.
         as_json : bool
             If True, return the results as a JSON string. Cannot be True if as_dict is True.
+        by_alias : bool
+            If True, use the alias names of the dataclass fields. These are generally the more human-readable names.
+        exclude : set
+            A set of fields to exclude from the results data.
         """
         if as_dict and as_json:
             raise ValueError("Cannot return as both dict and JSON. Pick one.")
         data = self._generate_results_data()
         if as_dict:
-            return data.model_dump()
+            return data.model_dump(by_alias=by_alias, exclude=exclude)
         if as_json:
-            return data.model_dump_json()
+            return data.model_dump_json(by_alias=by_alias, exclude=exclude)
         return data
 
 

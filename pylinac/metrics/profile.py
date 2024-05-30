@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 import typing
 from abc import ABC, abstractmethod
-from functools import cached_property
 from typing import Any, Literal
 
 import numpy as np
@@ -32,6 +31,14 @@ class ProfileMetric(ABC):
     def __init__(self, color: str | None = None, linestyle: str | None = None):
         self.color = color
         self.linestyle = linestyle
+
+    @property
+    def full_name(self) -> str:
+        """The name of the metric as well as the unit if applicable"""
+        if self.unit:
+            return f"{self.name} ({self.unit})"
+        else:
+            return self.name
 
     def inject_profile(self, profile: ProfileBase) -> None:
         """Inject the profile into the metric class.
@@ -81,7 +88,7 @@ class FlatnessDifferenceMetric(ProfileMetric):
                 np.max(data) - np.min(data),
                 fill=False,
                 color=self.color,
-                label=self.label + " Bounding box",
+                label=self.name + " Bounding box",
             )
         )
         # plot the max and min values
@@ -129,7 +136,7 @@ class SymmetryPointDifferenceMetric(ProfileMetric):
     def _calc_point(lt: float, rt: float, cax: float) -> float:
         return 100 * (lt - rt) / cax
 
-    @cached_property
+    @property
     def symmetry_values(self) -> list[float]:
         field_values = self.profile.field_values(in_field_ratio=self.in_field_ratio)
         cax_value = self.profile.y_at_x(self.profile.center_idx)
@@ -193,8 +200,8 @@ class SymmetryPointDifferenceQuotientMetric(SymmetryPointDifferenceMetric):
         in_field_ratio: float = 0.8,
         color="magenta",
         linestyle="--",
-        max_sym_range: float = 2,
-        min_sym_range: float = 0,
+        max_sym_range: float = 105,
+        min_sym_range: float = 100,
     ):
         super().__init__(in_field_ratio, color, linestyle, max_sym_range, min_sym_range)
 
@@ -243,7 +250,7 @@ class SymmetryAreaMetric(ProfileMetric):
 
 
 class PenumbraLeftMetric(ProfileMetric):
-    unit = "%"
+    unit = "mm"
     name = "Left Penumbra"
     side = LEFT
 
@@ -283,6 +290,43 @@ class PenumbraLeftMetric(ProfileMetric):
 class PenumbraRightMetric(PenumbraLeftMetric):
     side = RIGHT
     name = "Right Penumbra"
+
+
+class CAXToLeftEdgeMetric(ProfileMetric):
+    """The CAX to left field edge distance in mm."""
+
+    name = "CAX to Left Beam Edge"
+    unit = "mm"
+
+    def __init__(self, color: str | None = "cyan", linestyle: str | None = "--"):
+        super().__init__(color=color, linestyle=linestyle)
+
+    def calculate(self) -> float:
+        """Calculate the distance from the CAX to the beam center on the left side."""
+        return (
+            self.profile.cax_index - self.profile.field_edge_idx(side=LEFT)
+        ) / self.profile.dpmm
+
+    def plot(self, axis: plt.Axes):
+        """Plot the CAX to beam center distance."""
+        axis.axvline(
+            self.profile.cax_index,
+            color=self.color,
+            linestyle=self.linestyle,
+            label="CAX",
+        )
+
+
+class CAXToRightEdgeMetric(CAXToLeftEdgeMetric):
+    """The CAX to right field edge distance in mm."""
+
+    name = "CAX to Right Beam Edge"
+
+    def calculate(self) -> float:
+        """Calculate the distance from the CAX to the beam center on the left side."""
+        return (
+            self.profile.field_edge_idx(side=RIGHT) - self.profile.cax_index
+        ) / self.profile.dpmm
 
 
 class TopDistanceMetric(ProfileMetric):
@@ -377,7 +421,7 @@ class SlopeMetric(ProfileMetric):
         left_indices = np.arange(outer_left_idx, inner_left_idx)
         right_indices = np.arange(inner_right_idx, outer_right_idx)
         left_values = self.profile.y_at_x(left_indices)
-        right_values = self.profile.y_at_x(np.arange(inner_right_idx, outer_right_idx))
+        right_values = self.profile.y_at_x(right_indices)
         raw_combined_values = []
         # by zipping we can avoid a potential length error if the left and right
         # values are not the same exact same length. This is possible from an asymmetrically-open field, either intentional or not.
@@ -400,7 +444,7 @@ class SlopeMetric(ProfileMetric):
     def plot(self, axis: plt.Axes):
         """Plot the fits of the slope angles."""
         left_plot_fit_params = np.polyfit(
-            self.left_indices,
+            self.left_indices[: len(self.raw_combined_values)],
             self.raw_combined_values,
             deg=1,
         )
@@ -412,7 +456,7 @@ class SlopeMetric(ProfileMetric):
             label=self.name,
         )
         right_plot_fit_params = np.polyfit(
-            self.right_indices,
+            self.right_indices[: len(self.raw_combined_values)],
             self.raw_combined_values[::-1],
             deg=1,
         )

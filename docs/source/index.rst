@@ -29,6 +29,7 @@
    winston_lutz
    winston_lutz_multi
    planar_imaging
+   field_profile_analysis
    field_analysis
    nuclear
 
