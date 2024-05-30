@@ -1051,7 +1051,7 @@ or ``zoom_factor``. These parameters can be set in the ``analyze`` method.
     )
 
 In contrast to the ``angle_override``, ``size_override``, and ``center_override`` parameters, the adjustments are applied
-**after** the analysis. I.e. use adjustments if you need to fine-tune the automatic analysis; use overrides if the
+**after** the phantom localization. I.e. use adjustments if you need to fine-tune the automatic analysis; use overrides if the
 detection is failing.
 
 Set the SSD of your phantom
