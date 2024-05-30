@@ -5,7 +5,7 @@ from typing import Sequence
 
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy.stats import stats
+from scipy import stats
 
 from .core import image
 from .core.array_utils import invert
