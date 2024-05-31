@@ -106,7 +106,7 @@ Then it extracts the profiles at these coordinates. This is helpful if you alway
     fa = FieldProfileAnalysis(...)
     fa.analyze(...)  # nothing special needed as it's the default
 
-    # You CANNOT specify a position. These values will be ignored
+    # Specifying a position here will be ignored
     fa.analyze(..., centering=Centering.BEAM_CENTER, position=(0.1, 0.4))
     # this is allowed but will result in the same result as above
 
