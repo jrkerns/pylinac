@@ -205,6 +205,7 @@ class PlanarPhantomMixin(CloudFileMixin):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         cls.instance = cls.create_instance()
         cls.preprocess(cls.instance)
         cls.instance.analyze(ssd=cls.ssd, invert=cls.invert)
@@ -223,7 +224,7 @@ class PlanarPhantomMixin(CloudFileMixin):
     @classmethod
     def tearDownClass(cls):
         plt.close("all")
-        del cls.instance
+        super().tearDownClass()
 
     def test_bad_inversion_recovers(self):
         instance = self.create_instance()
@@ -419,6 +420,89 @@ class LasVegasTestMixin(PlanarPhantomMixin):
 
     def test_angle(self):
         self.assertAlmostEqual(self.instance.phantom_angle, self.phantom_angle, delta=1)
+
+
+class FineTuneAdjustments(TestCase):
+    def test_x_y_adjustments(self):
+        instance = LasVegas.from_demo_image()
+        # test before change
+        instance.analyze()
+        self.assertAlmostEqual(
+            instance.results_data().phantom_center_x_y[0], 636.5, delta=0.1
+        )
+        self.assertAlmostEqual(
+            instance.results_data().phantom_center_x_y[1], 637, delta=0.1
+        )
+        # test after change
+        instance.analyze(x_adjustment=20, y_adjustment=-15)
+        expected_shift_x = 20 * instance.image.dpmm
+        expected_shift_y = -15 * instance.image.dpmm
+        self.assertAlmostEqual(
+            instance.results_data().phantom_center_x_y[0],
+            636.5 + expected_shift_x,
+            delta=0.1,
+        )
+        self.assertAlmostEqual(
+            instance.results_data().phantom_center_x_y[1],
+            637 + expected_shift_y,
+            delta=0.1,
+        )
+
+    def test_angle_adjustment(self):
+        instance = LasVegas.from_demo_image()
+        # test before change
+        instance.analyze()
+        self.assertAlmostEqual(instance.phantom_angle, 0, delta=1)
+        # test after change
+        instance.analyze(angle_adjustment=10)
+        self.assertAlmostEqual(instance.phantom_angle, 10, delta=1)
+        # negative angle
+        instance.analyze(angle_adjustment=-10)
+        self.assertAlmostEqual(instance.phantom_angle, -10, delta=1)
+
+    def test_scaling_factor(self):
+        instance = LasVegas.from_demo_image()
+        # test before change
+        instance.analyze()
+        roi1 = instance.results_data().low_contrast_rois[0]["visibility"]
+        self.assertAlmostEqual(roi1, 512, delta=10)
+        # when the ROI is smaller the only thing that **should** change (assuming everything else is the same)
+        # is the visibility; the contrast changes for this exact test a bit, but the fact that
+        # the visibility is *almost* half gives us confidence that the scaling is working
+        instance.analyze(roi_size_factor=0.5)
+        scaled_roi = instance.results_data().low_contrast_rois[0]["visibility"]
+        self.assertAlmostEqual(scaled_roi, 275, delta=10)
+
+    def test_zoom_factor(self):
+        instance = LasVegas.from_demo_image()
+        # test before change
+        instance.analyze()
+        self.assertAlmostEqual(instance.phantom_radius, 1009, delta=3)
+        self.assertAlmostEqual(instance.results_data().phantom_area, 19633, delta=10)
+        # test after change
+        instance.analyze(scaling_factor=0.5)
+        self.assertAlmostEqual(instance.phantom_radius, 504, delta=2)
+        # will be a 1/4 the size (1/2 in each dimension)
+        self.assertAlmostEqual(
+            instance.results_data().phantom_area, 19633 / 2**2, delta=10
+        )
+
+    def test_negative_zoom_fails(self):
+        instance = LasVegas.from_demo_image()
+        with self.assertRaises(ValueError):
+            instance.analyze(scaling_factor=-1)
+
+    def test_negative_scaling_fails(self):
+        instance = LasVegas.from_demo_image()
+        with self.assertRaises(ValueError):
+            instance.analyze(roi_size_factor=-1)
+
+    def test_override_plus_adjustment_fails(self):
+        instance = LasVegas.from_demo_image()
+        with self.assertRaises(ValueError):
+            instance.analyze(size_override=2000, x_adjustment=1)
+        with self.assertRaises(ValueError):
+            instance.analyze(angle_override=22, y_adjustment=1)
 
 
 class LasVegasDemo(LasVegasTestMixin, TestCase):
