@@ -6,7 +6,7 @@ Field Profile Analysis
 
 The modular field analysis is the newer implementation of the :ref:`field_analysis_module` concept.
 Colloquially, it is referred to as "v2" of the field analysis module.
-It leverages the new :ref:`profiles` framework to provide a more flexible
+It leverages the new :ref:`profiles` framework to provide a more flexible way
 to analyze fields.
 
 .. note::
@@ -123,7 +123,7 @@ This is helpful if you always want to be at the center of the image.
     fa = FieldProfileAnalysis(...)
     fa.analyze(..., centering=Centering.GEOMETRIC_CENTER)
 
-.. _edge:
+.. _edge-type:
 
 Edge detection
 ^^^^^^^^^^^^^^
@@ -200,7 +200,7 @@ The function is fitted to the edge data of the field on each side to return the 
 
     fa = FieldProfileAnalysis(..., edge_type=Edge.INFLECTION_HILL)
 
-    # you may also specify the hill window. This is the size of the window (as a ratio) to use to fit the field edge to the Hill function.
+    # you may also specify the Hill window. This is the size of the window (as a ratio) to use to fit the field edge to the Hill function.
     fa = FieldProfileAnalysis(..., edge_type=Edge.INFLECTION_HILL, hill_window_ratio=0.05)
     # i.e. use a 5% field width about the edges to fit the Hill function.
 
@@ -325,11 +325,11 @@ this updated module:
       :align: center
 
 * While not strictly a user benefit, the modularity of the metrics and the analysis itself
-  makes the codebase much cleaner and easier to maintain (v1 is ~1500 LOC vs v2 at ~300).
+  makes the codebase much cleaner and easier to maintain (v1 is ~1500 LOC vs v2 at ~400).
 
 
 API Documentation
------------------
+=================
 
 
 .. autoclass:: pylinac.field_profile_analysis.FieldProfileAnalysis
