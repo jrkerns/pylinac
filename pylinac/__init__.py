@@ -28,6 +28,7 @@ from .field_analysis import (
     Normalization,
     Protocol,
 )
+from .field_profile_analysis import FieldProfileAnalysis
 from .log_analyzer import Dynalog, MachineLogs, TrajectoryLog, load_log
 from .picketfence import PicketFence  # must be after log analyzer
 from .planar_imaging import (

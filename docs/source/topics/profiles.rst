@@ -140,7 +140,7 @@ Penumbra Right
 ^^^^^^^^^^^^^^
 
 :class:`~pylinac.core.profile.PenumbraRightMetric` This plugin calculates the right penumbra of the profile.
-The upper and lower bounds can be passed in as arguments. The default is 80/20.
+The upper and lower bounds can be passed in as arguments. The default is 80/20 [#]_.
 
 Example usage:
 
@@ -224,6 +224,8 @@ Example usage:
   When analyzing flat beams, the ``FWXMProfile`` class is appropriate and will give similar
   results to the other two classes.
 
+.. [#] `AAPM TG-45 Section F.6 <https://aapm.onlinelibrary.wiley.com/doi/epdf/10.1118/1.597398>`__
+
 Penumbra Left
 ^^^^^^^^^^^^^
 
@@ -236,7 +238,7 @@ Flatness (Difference)
 :class:`~pylinac.core.profile.FlatnessDifferenceMetric` This plugin calculates the flatness difference of the profile.
 The in-field ratio can be passed in as an argument. The default is 0.8.
 
-The flatness equation is:
+The flatness equation is [#]_ [#]_ [#]_ [#]_:
 
 .. math::
 
@@ -252,13 +254,18 @@ Example usage:
     profile = FWXMProfile(...)
     profile.compute(metrics=[FlatnessDifferenceMetric(in_field_ratio=0.8)])
 
+.. [#] `AAPM TG-45 Eqn 1 <https://aapm.onlinelibrary.wiley.com/doi/epdf/10.1118/1.597398>`__
+.. [#] `IAEA Radiation Oncology Physics Equation 6.64 <https://www-pub.iaea.org/MTCD/Publications/PDF/Pub1196_web.pdf>`__
+.. [#] `Hossain & Rhoades, Eqn 1 <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4814307/pdf/nihms-747225.pdf>`__
+.. [#] SNC calls this "Flatness calculation by variance"; Doselab calls this equation "Variance".
+
 Flatness (Ratio)
 ^^^^^^^^^^^^^^^^
 
 :class:`~pylinac.core.profile.FlatnessRatioMetric` This plugin calculates the flatness ratio of the profile.
 The in-field ratio can be passed in as an argument. The default is 0.8.
 
-The flatness equation is:
+The flatness equation is [#]_ [#]_ [#]_:
 
 .. math::
 
@@ -274,19 +281,23 @@ Example usage:
     profile = FWXMProfile(...)
     profile.compute(metrics=[FlatnessRatioMetric(in_field_ratio=0.8)])
 
+.. [#] `Bayatiani et al <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8086714/pdf/rpor-26-1-50.pdf>`__ Equation 2
+.. [#] `IPEM Report 81 p192 <https://www.ipem.ac.uk/resources/books/report-81-2nd-edition-physics-aspects-of-quality-control-in-radiotherapy/>`__
+.. [#] Doselab calls this equation "Ratio (IEC)"; SNC calls this "Flatness calculation by ratio".
+
 Symmetry (Point Difference)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 :class:`~pylinac.core.profile.SymmetryPointDifferenceMetric` This plugin calculates the symmetry point difference of the profile.
 The in-field ratio can be passed in as an argument. The default is 0.8.
 
-The symmetry point difference equation is:
+The symmetry point difference equation is [#]_ [#]_:
 
 .. math::
 
-    symmetry = 100 * \frac{max(L_{pt} - R_{pt})}{D_{CAX}} \in field
+    symmetry = 100 * \frac{max_{i}^{n}(L_{i} - R_{i})}{D_{CAX}} \in field
 
-where :math:`L_{pt}` and :math:`R_{pt}` are equidistant from the beam center.
+where :math:`L_{i}` and :math:`R_{i}` are equidistant from the beam center.
 Symmetry can be positive or negative. The :math:`max` refers to the
 point with the maximum difference between the left and right points. If the
 largest absolute value is negative, that is the value used.
@@ -303,20 +314,27 @@ Example usage:
     profile = FWXMProfile(...)
     profile.compute(metrics=[SymmetryPointDifferenceMetric(in_field_ratio=0.8)])
 
+.. [#] `Gao et al Eqn 1 <https://aapm.onlinelibrary.wiley.com/doi/epdf/10.1002/acm2.12315>`__
+.. [#] Doselab and SNC call this the "CAX point difference" however Doselab does not multiply by 100. Yet, at least in the case of Doselab, the example assumes the values are ~100. In Pylinac, we often assume values are ~1. In such a scenario, the resulting value is the same.
+
 Symmetry (Point Difference Quotient)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. warning::
+
+    We generally discourage this equation since it is not signed. All things being equal, a signed equation is better than not.
 
 :class:`~pylinac.core.profile.SymmetryPointDifferenceQuotientMetric` This plugin calculates the symmetry point difference of the profile
 defined as the Point Difference Quotient (aka IEC).
 The in-field ratio can be passed in as an argument. The default is 0.8.
 
-The symmetry point difference equation is:
+The symmetry point difference equation is [#]_ [#]_ [#]_:
 
 .. math::
 
-    symmetry = 100 * max(\frac{L_{pt}}{R_{pt}}, \frac{R_{pt}}{L_{pt}}) \in field
+    symmetry = 100 * max_{i}^{n}(\frac{L_{i}}{R_{i}}, \frac{R_{i}}{L_{i}}) \in field
 
-where :math:`L_{pt}` and :math:`R_{pt}` are equidistant from the beam center.
+where :math:`L_{i}` and :math:`R_{i}` are equidistant from the beam center.
 This value can range from 100 to :math:`\infty`. A perfect value is 100.
 
 Example usage:
@@ -326,19 +344,23 @@ Example usage:
     profile = FWXMProfile(...)
     profile.compute(metrics=[SymmetryPointDifferenceQuotientMetric(in_field_ratio=0.8)])
 
+.. [#] As far as I can tell, this is the definition of the IEC symmetry but I cannot be 100% sure as I don't have access to the document.
+.. [#] `Bayatiani et al <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8086714/pdf/rpor-26-1-50.pdf>`__ Equation 1
+.. [#] SNC calls this the "Point ratio symmetry"; Doselab calls this the "Point ratio (IEC)".
+
 Symmetry (Area)
 ^^^^^^^^^^^^^^^
 
 :class:`~pylinac.core.profile.SymmetryAreaMetric` This plugin calculates the symmetry area of the profile.
 The in-field ratio can be passed in as an argument. The default is 0.8.
 
-The symmetry area equation is:
+The symmetry area equation is [#]_ [#]_ [#]_:
 
 .. math::
 
-    symmetry = 100 * \frac{area_{left} - area_{right}}{area_{left} + area_{right}} \in field
+    symmetry = 100 * \frac{A_{left} - A_{right}}{A_{left} + A_{right}} \in field
 
-where :math:`area_{left}` and :math:`area_{right}` are the areas under the left and right sides of the profile, centered about
+where :math:`A_{left}` and :math:`A_{right}` are the areas under the left and right sides of the profile, centered about
 the beam center.
 
 The value is signed. A negative value means the right side is higher and vice versa.
@@ -350,6 +372,10 @@ Example usage:
 
     profile = FWXMProfile(...)
     profile.compute(metrics=[SymmetryAreaMetric(in_field_ratio=0.8)])
+
+.. [#] `IAEA Radiation Oncology Physics Equation 6.65 <https://www-pub.iaea.org/MTCD/Publications/PDF/Pub1196_web.pdf>`__
+.. [#] `NCS Report 33 Eqn 4 <https://radiationdosimetry.org/files/Prepublication_-_NCS_Report_33_Beam_parameters_V2020-07-29.pdf>`__
+.. [#] Both Doselab and SNC call this the "Area symmetry"; however, they both multiply by 200 for unknown reasons. The signs are also opposite since they do (right - left) vs here which is (left - right).
 
 Top Position
 ^^^^^^^^^^^^
@@ -413,6 +439,13 @@ Example usage:
   # plot the profile
   profile.plot()
 
+
+CAX to Field Edge
+^^^^^^^^^^^^^^^^^
+
+The :class:`~pylinac.metrics.profile.CAXToLeftEdgeMetric` and :class:`~pylinac.metrics.profile.CAXToRightEdgeMetric` plugins calculate the distance from the CAX to the beam field edges
+in mm.
+
 Dmax
 ^^^^
 
@@ -457,7 +490,7 @@ Ratio to Dmax
 Since the PDD is a ratio of the maximum dose, the dmax is also calculated using, by default, a polynomial
 fit. I.e. if you ask for a PDD at 10 cm, two polynomial fits are done: one around 10 cm and one around the maximum
 and the ratio * 100 is the returned PDD.
-To override this behavior, set ``normalize_to='max'``. Using ``max`` will simply normalize the depth value (still using a poly fit) to the maximum
+To override this behavior, set ``normalize_to='max'``. Using ``max`` will simply normalize the value at depth (still using a polynomial fit) to the maximum
 value of the profile.
 
 .. important::
@@ -493,6 +526,8 @@ by accessing the ``metric_values`` attribute of the profile:
   * Either 1 or multiple (as a list) metrics can be passed to the ``compute`` method.
   * There are metrics included in pylinac. See the :ref:`built-in <profile_builtin_plugins>` section.
 
+
+.. _writing-profile-plugins:
 
 Writing plugins
 ~~~~~~~~~~~~~~~
@@ -802,6 +837,14 @@ API
     :members:
 
 .. autoclass:: pylinac.metrics.profile.FlatnessDifferenceMetric
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.metrics.profile.CAXToLeftEdgeMetric
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.metrics.profile.CAXToRightEdgeMetric
     :inherited-members:
     :members:
 

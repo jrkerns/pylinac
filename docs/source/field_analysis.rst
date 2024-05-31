@@ -4,6 +4,11 @@
 Field Analysis
 ==============
 
+.. warning::
+
+    This module will be deprecated in favor of the newer method of :ref:`field-profile-analysis` at some point in the future.
+    This module will either be moved to a ``deprecated`` module in v4 or simply removed.
+
 Overview
 --------
 

@@ -350,7 +350,15 @@ class HighContrastDiskROI(DiskROI):
 class RectangleROI(Rectangle):
     """Class that represents a rectangular ROI."""
 
-    def __init__(self, array, width, height, angle, dist_from_center, phantom_center):
+    def __init__(
+        self,
+        array: np.ndarray,
+        width: float,
+        height: float,
+        angle: float,
+        dist_from_center: float,
+        phantom_center: Point,
+    ):
         y_shift = np.sin(np.deg2rad(angle)) * dist_from_center
         x_shift = np.cos(np.deg2rad(angle)) * dist_from_center
         center = Point(phantom_center.x + x_shift, phantom_center.y + y_shift)

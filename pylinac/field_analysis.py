@@ -110,6 +110,7 @@ def plot_symmetry_point_difference(
     """Plotting of the symmetry point difference."""
 
     def calc_sym(lt, rt, cax) -> float:
+        # TODO: remove the abs; unsure why it was added
         return 100 * abs(lt - rt) / cax
 
     _plot_sym_common(

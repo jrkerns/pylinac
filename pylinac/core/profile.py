@@ -397,6 +397,16 @@ class ProfileBase(ProfileMixin, ABC):
         return abs(right - left) / 2 + left
 
     @cached_property
+    def geometric_center_idx(self):
+        """The index of the geometric center of the profile"""
+        return self.x_at_x_idx(utils.geometric_center_idx(self.values))
+
+    @cached_property
+    def cax_index(self) -> float:
+        """The index of the CAX, which is assumed to be the center of the index"""
+        return self.x_at_x_idx((len(self.x_values) - 1) / 2)
+
+    @cached_property
     def field_width_px(self) -> float:
         """The field width of the profile in pixels"""
         left_idx = self.field_edge_idx(side=LEFT)
@@ -503,11 +513,38 @@ class ProfileBase(ProfileMixin, ABC):
         show_field_edges: bool = True,
         show_grid: bool = True,
         show_center: bool = True,
+        mirror: Literal["beam", "geometry"] | None = None,
     ) -> plt.Axes:
-        """Plot the profile along with relevant overlays to point out features."""
+        """Plot the profile along with relevant overlays to point out features.
+
+        Parameters
+        ----------
+        show : bool
+            Whether to show the plot.
+        axis : matplotlib.Axes, None
+            The axis to plot on. If None, a new figure is created.
+        show_field_edges : bool
+            Whether to show the beam field edges.
+        show_grid : bool
+            Whether to show the grid on the plt plot.
+        show_center : bool
+            Whether to show the center line of the beam
+        mirror : {'beam', 'geometry'}, None
+            Whether to mirror the profile. 'beam' mirrors the profile about the center of the beam. 'geometry' mirrors the profile about the geometric center of the array.
+            If None, no mirror is plotted.
+        """
         if axis is None:
             _, axis = plt.subplots()
         axis.plot(self.x_values, self.values, label="Data")
+        if mirror == "beam":
+            mirrored_x_values = np.flip(self.x_values) + 2 * (
+                self.center_idx - self.geometric_center_idx
+            )
+            axis.plot(mirrored_x_values, self.values, label="Beam-Mirrored Data")
+        elif mirror == "geometry":
+            mirrored_x_values = np.flip(self.x_values)
+            axis.plot(mirrored_x_values, self.values, label="Geometry-Mirrored Data")
+            axis.plot(self.x_values, self.values, label="Data")
         if show_field_edges:
             axis.axvline(self.field_edge_idx(side=LEFT), ls="--", label="Field Edges")
             axis.axvline(self.field_edge_idx(side=RIGHT), ls="--")
@@ -517,6 +554,18 @@ class ProfileBase(ProfileMixin, ABC):
             metric.plot(axis)
         axis.grid(show_grid)
         axis.legend()
+        axis.set_xlabel("Index")
+        axis.set_ylabel("Response")
+
+        # if this is a physical profile, plot the physical axis as well
+        if isinstance(self, PhysicalProfileMixin):
+
+            def physical(x):
+                return x / self.dpmm
+
+            sax = axis.secondary_xaxis("top", functions=(physical, physical))
+            sax.set_xlabel("Physical (mm)")
+
         if show:
             plt.show()
         return axis
@@ -549,7 +598,7 @@ class ProfileBase(ProfileMixin, ABC):
         for metric in metrics:
             metric.inject_profile(self)
             self.metrics.append(metric)
-            values[metric.name] = metric.calculate()
+            values[metric.full_name] = metric.calculate()
         # TODO: use |= when 3.9 is min version
         self.metric_values.update(values)
         if len(values) == 1:
