@@ -1,9 +1,19 @@
+import json
 import unittest
+from builtins import AttributeError
 from unittest import TestCase
 
 import numpy as np
 
-from pylinac import Interpolation, PicketFence
+from pylinac import (
+    CatPhan504,
+    FieldAnalysis,
+    Interpolation,
+    LasVegas,
+    PicketFence,
+    Starshot,
+    WinstonLutz,
+)
 from pylinac.core.scale import abs360, wrap360
 from pylinac.core.utilities import (
     OptionListMixin,
@@ -117,3 +127,25 @@ class TestResultsDataMixin(TestCase):
         pf.analyze()
         with self.assertRaises(ValueError):
             pf.results_data(as_dict=True, as_json=True)
+
+    def test_dict_is_json_compatible(self):
+        # not really necessary to test all classes since the method is from a a base class, but proves
+        # it's been implemented successfully
+        for analysis in (
+            PicketFence,
+            Starshot,
+            FieldAnalysis,
+            LasVegas,
+            CatPhan504,
+            WinstonLutz,
+        ):
+            try:
+                instance = analysis.from_demo_image()
+            except AttributeError:
+                instance = analysis.from_demo_images()
+            instance.analyze()
+            # shouldn't raise
+            result_str = json.dumps(instance.results_data(as_dict=True))
+            self.assertIsInstance(result_str, str)
+            # shouldn't raise
+            json.loads(result_str)
