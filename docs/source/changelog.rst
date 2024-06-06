@@ -54,6 +54,18 @@ Profiles & 1D Metrics
 * The ``PenumbraLeftMetric`` and ``PenumbraRightMetric`` had their unit's changed from % to mm. % was incorrect.
 * The ``SlopeMetric`` would sometimes fail to plot if an uneven number of points were calculated over.
 
+v 3.23.1
+--------
+
+Core
+^^^^
+
+* Attempting to dump the return value of ``.results_data()`` to json (i.e. ``json.dumps(<instance>.results_data(as_dict=True))``
+  would raise a JSON Serialization error. This was an unintended side-effect of the new export features introduced in v3.22.
+  This is often the way users of RadMachine would pass analysis results to other tests. While a Python dictionary is not
+  a guarantee of JSON compatibility, for the sake of ease of use and backwards-compatibility, we have fixed the results
+  such that JSON serialization should always work from ``as_dict=True``.
+
 v 3.23.0
 --------
 

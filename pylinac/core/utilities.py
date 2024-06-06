@@ -1,6 +1,7 @@
 """Utility functions for pylinac."""
 from __future__ import annotations
 
+import json
 import os
 import os.path as osp
 import struct
@@ -86,7 +87,7 @@ class ResultsDataMixin(Generic[T]):
             raise ValueError("Cannot return as both dict and JSON. Pick one.")
         data = self._generate_results_data()
         if as_dict:
-            return data.model_dump(by_alias=by_alias, exclude=exclude)
+            return json.loads(data.model_dump_json(by_alias=by_alias, exclude=exclude))
         if as_json:
             return data.model_dump_json(by_alias=by_alias, exclude=exclude)
         return data
