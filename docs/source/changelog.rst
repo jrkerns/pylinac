@@ -35,6 +35,8 @@ Field Analysis
 
 * There is a new module for performing field analysis that leverages the 1D metrics framework. This
   is an alternative and successor to the original field analysis module. You can read more here: :ref:`field-profile-analysis`.
+* Using the ``INFLECTION_HILL`` edge detection with ``FieldAnalysis`` where the penumbra does not have a "tail" can lead to
+  plotting errors. This is a visual error only and does not affect the numerical calculations.
 
 Profiles & 1D Metrics
 ^^^^^^^^^^^^^^^^^^^^^

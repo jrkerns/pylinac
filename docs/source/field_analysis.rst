@@ -265,6 +265,13 @@ can be tripped up by noise so it is not used.
 Inflection (Hill)
 #################
 
+.. warning::
+
+    The Hill method is prone to errors if the penumbra is not expressed well on both edges. E.g.
+    if using a device array with a full, open field where the penumbra sharply falls to 0 but does not
+    have a long "tail" of low values, the Hill function will not fit well as a tail is expected on both
+    edges.
+
 The inflection point via the Hill function is useful for both flat and FFF beams
 The fitting of the function is best for low-resolution data, and is thus the default for ``DeviceFieldAnalysis``.
 The Hill function, the sigmoid function, and 4-point non-linear regression belong to a family of logistic equations to fit a dual-curved value.
@@ -287,7 +294,18 @@ The function is fitted to the edge data of the field on each side to return the 
 
     This method is recommended for low spatial resolution images such as 2D device arrays, where there is very little data at the beam edges.
     While it can be used for EPID images as well, the fit can have small errors as compared to the direct data.
-    The fit, however, is much better than a linear or even spline interpolation at low resolutions.
+    The fit, however, can be better than a linear or even spline interpolation at low resolutions. However,
+    this should be combined with a resolution method like Linear interpolation. While Hill can sometimes
+    find a better fit for low-resolution data, the fit itself should have many data points to work with. I.e.
+    the call should look similar to:
+
+    .. code-block:: python
+
+      fa = DeviceFieldAnalysis(...)
+      fa.analyze(
+          ..., interpolation=Interpolation.LINEAR, edge_detection_method=Edge.INFLECTION_HILL
+      )
+
 
 .. code-block:: python
 
