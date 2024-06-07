@@ -18,6 +18,7 @@ from pylinac.core.image_generator import (
     RandomNoiseLayer,
 )
 from pylinac.vmat import VMATResult
+from tests_basic.core.test_utilities import ResultsDataBase
 from tests_basic.utils import (
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
@@ -128,6 +129,14 @@ class TestDRGSLoading(LoadingBase, TestCase):
 class TestDRMLCLoading(LoadingBase, TestCase):
     url = "drmlc.zip"
     klass = DRMLC
+
+
+class TestDRMLCResultsData(ResultsDataBase, TestCase):
+    model = DRMLC
+
+
+class TestDRGSResultsData(ResultsDataBase, TestCase):
+    model = DRGS
 
 
 class VMATMixin:
