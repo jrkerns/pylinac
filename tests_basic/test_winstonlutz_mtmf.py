@@ -16,6 +16,7 @@ from pylinac.core.image_generator import (
     generate_winstonlutz_multi_bb_multi_field,
 )
 from pylinac.winston_lutz import BBArrangement, BBConfig
+from tests_basic.core.test_utilities import ResultsDataBase
 from tests_basic.utils import CloudFileMixin
 
 TEST_DIR = "Winston-Lutz"
@@ -79,6 +80,13 @@ class TestWLMultiImage(TestCase):
     def test_no_gantry_coll_iso_size(self):
         with self.assertRaises(NotImplementedError):
             self.wl.gantry_coll_iso_size
+
+
+class TestMTMFWLResultsData(ResultsDataBase, TestCase):
+    def construct_analyzed_instance(self):
+        wl = WinstonLutzMultiTargetMultiField.from_demo_images()
+        wl.analyze(BBArrangement.DEMO)
+        return wl
 
 
 class WinstonLutzMultiTargetMultFieldMixin(CloudFileMixin):

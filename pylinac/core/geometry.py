@@ -153,7 +153,7 @@ class Point:
     def dict(self) -> dict:
         """Convert to dict. Shim until convert to dataclass"""
         return {
-            attr: getattr(self, attr)
+            attr: float(getattr(self, attr))
             for attr in self._attr_list
             if getattr(self, attr) is not None
         }
@@ -495,6 +495,20 @@ class Line:
             **kwargs,
         )
         return lines[0]
+
+    def dict(self) -> dict:
+        """Convert to dict. Shim until convert to dataclass"""
+        return {
+            "b": float(self.b),
+            "m": float(self.m),
+            "point1": self.point1.dict(),
+            "point2": self.point2.dict(),
+            "center": self.center.dict(),
+            "length": float(self.length),
+        }
+
+
+LineSerialized = Annotated[Line, PlainSerializer(to_json)]
 
 
 class Rectangle:

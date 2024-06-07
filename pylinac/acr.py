@@ -10,12 +10,12 @@ from pathlib import Path
 
 import numpy as np
 from matplotlib import pyplot as plt
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from scipy import ndimage
 
 from .core import pdf
 from .core.array_utils import find_nearest_idx
-from .core.geometry import Line, Point
+from .core.geometry import Line, LineSerialized, Point
 from .core.mtf import MTF
 from .core.profile import FWXMProfilePhysical
 from .core.roi import HighContrastDiskROI, RectangleROI
@@ -921,8 +921,9 @@ class MRGeometricDistortionModuleOutput(BaseModel):
 
     Use the following attributes as normal class attributes."""
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     offset: int  #:
-    profiles: dict  #:
+    profiles: dict[str, dict[str, float | LineSerialized]]  #:
     distances: dict  #:
 
 
