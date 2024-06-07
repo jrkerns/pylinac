@@ -94,7 +94,7 @@ class TestOptionMixin(TestCase):
         self.assertListEqual(MyOptions.options(), ["aPpLes", "Oranges"])
 
 
-class TestResultsDataBase:
+class ResultsDataBase:
     model: callable
 
     def construct_analyzed_instance(self):

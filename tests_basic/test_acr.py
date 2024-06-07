@@ -11,7 +11,7 @@ from pylinac import ACRMRILarge
 from pylinac.acr import ACRCT, ACRCTResult, ACRMRIResult
 from pylinac.core.geometry import Point
 from pylinac.core.io import TemporaryZipDirectory
-from tests_basic.core.test_utilities import TestResultsDataBase
+from tests_basic.core.test_utilities import ResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromZipTesterMixin,
@@ -220,7 +220,7 @@ class TestACRMRI(TestCase, FromZipTesterMixin, InitTesterMixin):
             ACRMRILarge(paths)
 
 
-class TestACRMRIResultData(TestResultsDataBase, TestCase):
+class TestACRMRIResultData(TestCase, ResultsDataBase):
     def construct_analyzed_instance(self):
         path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "GE 3T.zip"])
         mri = ACRMRILarge.from_zip(path)

@@ -34,7 +34,7 @@ from pylinac.planar_imaging import (
     StandardImagingQCkV,
     percent_integral_uniformity,
 )
-from tests_basic.core.test_utilities import TestResultsDataBase
+from tests_basic.core.test_utilities import ResultsDataBase
 from tests_basic.utils import CloudFileMixin, get_file_from_cloud_test_repo, save_file
 
 TEST_DIR = "planar_imaging"
@@ -1131,13 +1131,13 @@ class SNCFSQA10x10(SNCFSQAMixin, TestCase):
     field_bb_offset_x_mm = -0.5
 
 
-class TestLasVegasResultsData(TestResultsDataBase, TestCase):
+class TestLasVegasResultsData(ResultsDataBase, TestCase):
     model = LasVegas
 
 
-class TestSNCMVResultsData(TestResultsDataBase, TestCase):
+class TestSNCMVResultsData(ResultsDataBase, TestCase):
     model = SNCMV
 
 
-class TestIMTLRadResultsData(TestResultsDataBase, TestCase):
+class TestIMTLRadResultsData(ResultsDataBase, TestCase):
     model = IMTLRad

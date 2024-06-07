@@ -12,7 +12,7 @@ from pylinac import CatPhan503, CatPhan504, CatPhan600, CatPhan604
 from pylinac.core.geometry import Point
 from pylinac.core.io import TemporaryZipDirectory
 from pylinac.ct import CTP404CP503, CTP404CP504, CTP528CP503, CTP528CP504, CatphanResult
-from tests_basic.core.test_utilities import TestResultsDataBase
+from tests_basic.core.test_utilities import ResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,
@@ -54,7 +54,7 @@ class TestInstantiation(
             CatPhan504(paths)
 
 
-class TestCBCT504ResultsData(TestResultsDataBase, TestCase):
+class TestCBCT504ResultsData(TestCase, ResultsDataBase):
     model = CatPhan504
 
 

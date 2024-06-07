@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 from skimage.transform import rotate
 
 from pylinac.cheese import CIRS062M, TomoCheese, TomoCheeseResult
-from tests_basic.core.test_utilities import TestResultsDataBase
+from tests_basic.core.test_utilities import ResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,
@@ -35,7 +35,7 @@ class TestInstantiation(
     is_folder = True
 
 
-class TestResults(TestCase, TestResultsDataBase):
+class TestResults(TestCase, ResultsDataBase):
     model = TomoCheese
 
     @classmethod
