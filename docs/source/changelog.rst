@@ -2,6 +2,12 @@
 Changelog
 =========
 
+v 3.23.2
+--------
+
+* The hotfix of v3.32.1 broke ``ACRMRILarge`` and ``DRGS/DRMLC`` results data when calling ``results_data(as_dict=True)``.
+  This has been fixed.
+
 v 3.23.1
 --------
 
