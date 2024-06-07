@@ -5,15 +5,7 @@ from unittest import TestCase
 
 import numpy as np
 
-from pylinac import (
-    CatPhan504,
-    FieldAnalysis,
-    Interpolation,
-    LasVegas,
-    PicketFence,
-    Starshot,
-    WinstonLutz,
-)
+from pylinac import Interpolation
 from pylinac.core.scale import abs360, wrap360
 from pylinac.core.utilities import (
     OptionListMixin,
@@ -21,7 +13,6 @@ from pylinac.core.utilities import (
     is_iterable,
     simple_round,
 )
-from pylinac.picketfence import PFResult
 
 
 class TestUtilities(unittest.TestCase):
@@ -103,49 +94,24 @@ class TestOptionMixin(TestCase):
         self.assertListEqual(MyOptions.options(), ["aPpLes", "Oranges"])
 
 
-class TestResultsDataMixin(TestCase):
-    def test_results_normal(self):
-        pf = PicketFence.from_demo_image()
-        pf.analyze()
-        data = pf.results_data()
-        self.assertIsInstance(data, PFResult)
+class TestResultsDataBase:
+    model: callable
 
-    def test_results_dict(self):
-        pf = PicketFence.from_demo_image()
-        pf.analyze()
-        data = pf.results_data(as_dict=True)
-        self.assertIsInstance(data, dict)
+    def construct_analyzed_instance(self):
+        try:
+            instance = self.model.from_demo_image()
+        except AttributeError:
+            instance = self.model.from_demo_images()
+        instance.analyze()
+        return instance
 
-    def test_results_json(self):
-        pf = PicketFence.from_demo_image()
-        pf.analyze()
-        data = pf.results_data(as_json=True)
-        self.assertIsInstance(data, str)
+    def test_results(self):
+        instance = self.construct_analyzed_instance()
+        instance.results_data()
+        data_dict = instance.results_data(as_dict=True)
+        # ensure it's json serializable; shouldn't raise
+        json.dumps(data_dict)
 
-    def test_json_and_dict_not_allowed(self):
-        pf = PicketFence.from_demo_image()
-        pf.analyze()
-        with self.assertRaises(ValueError):
-            pf.results_data(as_dict=True, as_json=True)
-
-    def test_dict_is_json_compatible(self):
-        # not really necessary to test all classes since the method is from a a base class, but proves
-        # it's been implemented successfully
-        for analysis in (
-            PicketFence,
-            Starshot,
-            FieldAnalysis,
-            LasVegas,
-            CatPhan504,
-            WinstonLutz,
-        ):
-            try:
-                instance = analysis.from_demo_image()
-            except AttributeError:
-                instance = analysis.from_demo_images()
-            instance.analyze()
-            # shouldn't raise
-            result_str = json.dumps(instance.results_data(as_dict=True))
-            self.assertIsInstance(result_str, str)
-            # shouldn't raise
-            json.loads(result_str)
+        data_json = instance.results_data(as_json=True)
+        self.assertIsInstance(data_json, str)
+        json.loads(data_json)

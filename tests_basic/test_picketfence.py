@@ -22,6 +22,7 @@ from pylinac.core.image_generator import (
 from pylinac.core.io import TemporaryZipDirectory
 from pylinac.picketfence import MLC, MLCArrangement, Orientation, PFResult, PicketFence
 from tests_basic.core.test_profile_metrics import create_bb_image
+from tests_basic.core.test_utilities import TestResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,
@@ -119,6 +120,10 @@ class TestInstantiation(
         offset_manual_dpi = phan.results_data().offsets_from_cax_mm[0]
 
         self.assertEqual(offset, offset_manual_dpi)
+
+
+class TestResultsData(TestResultsDataBase, TestCase):
+    model = PicketFence
 
 
 class TestAnalyze(TestCase):

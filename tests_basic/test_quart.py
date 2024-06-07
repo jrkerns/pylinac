@@ -11,6 +11,7 @@ from pylinac import QuartDVT
 from pylinac.core.geometry import Point
 from pylinac.core.io import TemporaryZipDirectory
 from pylinac.quart import ACRYLIC, POLY, QuartDVTResult
+from tests_basic.core.test_utilities import TestResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromZipTesterMixin,
@@ -22,7 +23,8 @@ from tests_basic.utils import (
 TEST_DIR = ["CBCT", "Quart"]
 
 
-class TestQuartDVT(TestCase, FromZipTesterMixin, InitTesterMixin):
+class TestQuartDVT(TestCase, FromZipTesterMixin, InitTesterMixin, TestResultsDataBase):
+    model = QuartDVT
     klass = QuartDVT
     zip = [*TEST_DIR, "Head_Quart.zip"]
     init_file = [*TEST_DIR, "Head"]

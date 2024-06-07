@@ -25,6 +25,7 @@ from pylinac.field_analysis import (
     plot_symmetry_point_difference,
     symmetry_point_difference,
 )
+from tests_basic.core.test_utilities import TestResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
     get_file_from_cloud_test_repo,
@@ -238,6 +239,10 @@ class FieldAnalysisTests(TestCase):
         vert_manual = fa.results_data().field_size_vertical_mm
 
         self.assertEqual(vert_ref, vert_manual)
+
+
+class TestFAResultsData(TestResultsDataBase, TestCase):
+    model = FieldAnalysis
 
 
 class FieldAnalysisBase(CloudFileMixin):
