@@ -1771,3 +1771,119 @@ class PlanGenerator:
         self.ds.FractionGroupSequence[0].NumberOfBeams = (
             int(self.ds.FractionGroupSequence[0].NumberOfBeams) + 1
         )
+
+
+class DualStackPlanGenerator(PlanGenerator):
+    """A class to generate a plan with two beams stacked on top of each other such as the Halcyon. This
+    also assumes no jaws."""
+
+    def __init__(
+        self,
+        ds: Dataset,
+        plan_label: str,
+        plan_name: str,
+        x_width_mm: float = 280,
+        max_mlc_speed: float = 25,
+        max_gantry_speed: float = 4.8,
+        sacrificial_gap_mm: float = 5,
+        max_sacrificial_move_mm: float = 50,
+        max_overtravel_mm: float = 140,
+    ):
+        super().__init__(
+            ds,
+            plan_label,
+            plan_name,
+            x_width_mm,
+            max_mlc_speed,
+            max_gantry_speed,
+            sacrificial_gap_mm,
+            max_sacrificial_move_mm,
+            max_overtravel_mm,
+        )
+
+    @property
+    def leaf_config(self) -> list[float]:
+        raise ValueError(
+            "Dual Stacks have independent leaf configs. Use `distal_leaf_config` or `proximal_leaf_config`"
+        )
+
+    @property
+    def distal_leaf_config(self) -> list[float]:
+        return self._old_beam.BeamLimitingDeviceSequence[-2].LeafPositionBoundaries
+
+    @property
+    def proximal_leaf_config(self):
+        return self._old_beam.BeamLimitingDeviceSequence[-1].LeafPositionBoundaries
+
+    def _create_mlc(self) -> DualStackMLCShaper:
+        return DualStackMLCShaper(
+            distal_leaf_y_positions=self.distal_leaf_config,
+            proximal_leaf_y_positions=self.proximal_leaf_config,
+            max_x_mm=self.x_width / 2,
+            sacrifice_gap_mm=self.sacrificial_gap,
+            max_overtravel_mm=self.max_sacrificial_move,
+        )
+
+    def add_picketfence_beam(
+        self,
+        stack: STACK,
+        strip_width_mm: float = 3,
+        strip_positions_mm: tuple[float] = (-45, -30, -15, 0, 15, 30, 45),
+        dose_rate: int = 600,
+        energy: float = 6,
+        gantry_angle: float = 0,
+        couch_vrt: float = 0,
+        couch_lng: float = 1000,
+        couch_lat: float = 0,
+        mu: int = 200,
+        beam_name: str = "PF",
+    ):
+        """Add a picket fence beam to the plan. The beam will be delivered with the MLCs stacked on top of each other.
+
+        Parameters
+        ----------
+        stack: STACK
+            Which MLC stack to use for the beam. The other stack will be parked.
+        strip_width_mm : float
+            The width of the strips in mm.
+        strip_positions_mm : tuple
+            The positions of the strips in mm.
+        dose_rate : int
+            The dose rate of the beam.
+        energy : float
+            The energy of the beam.
+        gantry_angle : float
+            The gantry angle of the beam.
+        couch_vrt : float
+            The couch vertical position.
+        couch_lng : float
+            The couch longitudinal position.
+        couch_lat : float
+            The couch lateral position.
+        mu : int
+            The monitor units of the beam.
+        beam_name : str
+            The name of the beam.
+        """
+        # check MLC overtravel; machine may prevent delivery if exposing leaf tail
+        # max_dist_to_jaw = max(
+        #     max(abs(pos - x1), abs(pos + x2)) for pos in strip_positions_mm
+        # )
+        # if max_dist_to_jaw > self.max_overtravel_mm:
+        #     raise ValueError(
+        #         "Picket fence beam exceeds MLC overtravel limits. Lower padding, the number of pickets, or the picket spacing."
+        #     )
+        mlc = self._create_mlc()
+        # create initial starting point; start under the jaws
+        mlc.add_strip(
+            position_mm=strip_positions_mm[0] + 2,
+            strip_width_mm=strip_width_mm,
+            meterset_at_target=0,
+        )
+
+        # for strip in strip_positions_mm:
+        #     # starting control point
+        #     mlc.add_strip(
+        #         position_mm=strip,
+        #         strip_width_mm=strip_width_mm,
+        #         meterset_at
