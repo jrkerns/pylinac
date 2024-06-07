@@ -7,7 +7,6 @@ import numpy as np
 import numpy.testing
 import pydicom
 
-import tests_basic  # noqa; load env settings and filters
 from pylinac import Interpolation, Normalization
 from pylinac.core.image import DicomImage, load
 from pylinac.core.image_generator import (

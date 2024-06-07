@@ -15,7 +15,7 @@ from pydicom.uid import generate_uid
 
 from ..core.scale import wrap360
 from .fluence import plot_fluences
-from .mlc import MLCShaper
+from .mlc import STACK, DualStackMLCShaper, MLCShaper
 
 
 class GantryDirection(Enum):
@@ -114,6 +114,338 @@ class Beam:
             The MLC boundaries. These are the same thing as the LeafPositionBoundaries in the DICOM file.
         mlc_positions : list[list[float]]
             The MLC positions for each control point. This is the x-position of each leaf for each control point.
+        metersets : list[float]
+            The meter sets for each control point. The length must match the number of control points in mlc_positions.
+        fluence_mode : FluenceMode
+            The fluence mode of the beam.
+        """
+        if len(beam_name) > 16:
+            raise ValueError("Beam name must be less than or equal to 16 characters")
+
+        if beam_type == BeamType.STATIC and len(mlc_positions) != 1:
+            raise ValueError(
+                f"Static beam can only have one MLC position change ({len(mlc_positions)})"
+            )
+
+        if len(metersets) != len(mlc_positions):
+            raise ValueError(
+                f"The number of meter sets ({len(metersets)}) "
+                f"must match the number of MLC position changes ({len(mlc_positions)})"
+            )
+
+        if (
+            isinstance(gantry_angles, Iterable)
+            and gantry_direction == GantryDirection.NONE
+        ):
+            raise ValueError(
+                "Cannot specify multiple gantry angles without a gantry direction"
+            )
+
+        if isinstance(gantry_angles, Iterable) and beam_type == BeamType.STATIC:
+            raise ValueError("Cannot specify multiple gantry angles as a static beam")
+        self.plan_ds = plan_dataset
+        self.ds = self._create_basic_beam_info(
+            beam_name,
+            beam_type,
+            fluence_mode,
+            machine_name,
+            num_leaves=len(mlc_positions[0]),
+            mlc_boundaries=mlc_boundaries,
+        )
+        if not isinstance(
+            gantry_angles, Iterable
+        ):  # if it's just a single number (like for a static beam) set it to an array of that value
+            gantry_angles = [gantry_angles] * len(metersets)
+        self._append_initial_control_point(
+            energy,
+            dose_rate,
+            x1,
+            x2,
+            y1,
+            y2,
+            gantry_angles[0],
+            gantry_direction,
+            coll_angle,
+            couch_vrt,
+            couch_lat,
+            couch_lng,
+            couch_rot,
+            mlc_positions=mlc_positions[0],
+        )
+        for mlc_pos, meterset, gantry_angle in zip(
+            mlc_positions[1:], metersets[1:], gantry_angles[1:]
+        ):
+            if beam_type == BeamType.DYNAMIC:
+                self._append_secondary_dynamic_control_point(
+                    mlc_positions=mlc_pos,
+                    meterset=meterset,
+                    gantry_angle=gantry_angle,
+                    gantry_dir=gantry_direction,
+                )
+            else:
+                self._append_secondary_static_control_point(meterset=meterset)
+
+    def _create_basic_beam_info(
+        self,
+        beam_name: str,
+        beam_type: BeamType,
+        fluence_mode: FluenceMode,
+        machine_name: str,
+        num_leaves: int,
+        mlc_boundaries: list[float],
+    ) -> Dataset:
+        beam = Dataset()
+        beam.Manufacturer = "Radformation"
+        beam.ManufacturerModelName = "RadMachine"
+        beam.TreatmentMachineName = machine_name
+        beam.PrimaryDosimeterUnit = "MU"
+        beam.SourceAxisDistance = "1000.0"
+
+        # Primary Fluence Mode Sequence
+        primary_fluence_mode_sequence = Sequence()
+        beam.PrimaryFluenceModeSequence = primary_fluence_mode_sequence
+
+        primary_fluence_mode1 = Dataset()
+        if fluence_mode == FluenceMode.STANDARD:
+            primary_fluence_mode1.FluenceMode = "STANDARD"
+        elif fluence_mode == FluenceMode.FFF:
+            primary_fluence_mode1.FluenceMode = "NON_STANDARD"
+            primary_fluence_mode1.FluenceModeID = "FFF"
+        elif fluence_mode == FluenceMode.SRS:
+            primary_fluence_mode1.FluenceMode = "NON_STANDARD"
+            primary_fluence_mode1.FluenceModeID = "SRS"
+
+        primary_fluence_mode_sequence.append(primary_fluence_mode1)
+
+        # Beam Limiting Device Sequence
+        beam_limiting_device_sequence = Sequence()
+        beam.BeamLimitingDeviceSequence = beam_limiting_device_sequence
+
+        # Beam Limiting Device Sequence: Beam Limiting Device 1
+        beam_limiting_device1 = Dataset()
+        beam_limiting_device1.RTBeamLimitingDeviceType = "ASYMX"
+        beam_limiting_device1.NumberOfLeafJawPairs = "1"
+        beam_limiting_device_sequence.append(beam_limiting_device1)
+
+        # Beam Limiting Device Sequence: Beam Limiting Device 2
+        beam_limiting_device2 = Dataset()
+        # TODO: likely that Elekta will need tweaking for this
+        beam_limiting_device2.RTBeamLimitingDeviceType = "ASYMY"
+        beam_limiting_device2.NumberOfLeafJawPairs = "1"
+        beam_limiting_device_sequence.append(beam_limiting_device2)
+
+        # Beam Limiting Device Sequence: Beam Limiting Device 3
+        beam_limiting_device3 = Dataset()
+
+        beam_limiting_device3.RTBeamLimitingDeviceType = "MLCX"
+        beam_limiting_device3.NumberOfLeafJawPairs = int(num_leaves / 2)
+        beam_limiting_device3.LeafPositionBoundaries = mlc_boundaries
+
+        beam_limiting_device_sequence.append(beam_limiting_device3)
+
+        # beam numbers start at 0 and increment from there.
+        beam.BeamNumber = len(self.plan_ds.BeamSequence)
+        beam.BeamName = beam_name
+        beam.BeamType = beam_type.value
+        beam.RadiationType = "PHOTON"
+        beam.TreatmentDeliveryType = "TREATMENT"
+        beam.NumberOfWedges = "0"
+        beam.NumberOfCompensators = "0"
+        beam.NumberOfBoli = "0"
+        beam.NumberOfBlocks = "0"
+        beam.FinalCumulativeMetersetWeight = "1.0"
+        beam.NumberOfControlPoints = "0"
+
+        # Control Point Sequence
+        cp_sequence = Sequence()
+        beam.ControlPointSequence = cp_sequence
+        return beam
+
+    def _append_initial_control_point(
+        self,
+        energy: int,
+        dose_rate: int,
+        x1: float,
+        x2: float,
+        y1: float,
+        y2: float,
+        gantry_angle: float | list[float],
+        gantry_rot: GantryDirection,
+        coll_angle: float,
+        couch_vrt: float,
+        couch_lat: float,
+        couch_lng: float,
+        couch_rot: float,
+        mlc_positions: list[float],
+    ):
+        # Control Point Sequence: Control Point 0
+        cp0 = Dataset()
+        cp0.ControlPointIndex = "0"
+        cp0.NominalBeamEnergy = str(energy)
+        cp0.DoseRateSet = str(dose_rate)
+
+        # Beam Limiting Device Position Sequence
+        beam_limiting_device_position_sequence = Sequence()
+        cp0.BeamLimitingDevicePositionSequence = beam_limiting_device_position_sequence
+
+        # Beam Limiting Device Position Sequence: Beam Limiting Device Position 1
+        beam_limiting_device_position1 = Dataset()
+        beam_limiting_device_position1.RTBeamLimitingDeviceType = "ASYMX"
+        beam_limiting_device_position1.LeafJawPositions = [x1, x2]
+        beam_limiting_device_position_sequence.append(beam_limiting_device_position1)
+
+        # Beam Limiting Device Position Sequence: Beam Limiting Device Position 2
+        beam_limiting_device_position2 = Dataset()
+        beam_limiting_device_position2.RTBeamLimitingDeviceType = "ASYMY"
+        beam_limiting_device_position2.LeafJawPositions = [y1, y2]
+        beam_limiting_device_position_sequence.append(beam_limiting_device_position2)
+
+        # Beam Limiting Device Position Sequence: Beam Limiting Device Position 3
+        beam_limiting_device_position3 = Dataset()
+        beam_limiting_device_position3.RTBeamLimitingDeviceType = "MLCX"
+        beam_limiting_device_position3.LeafJawPositions = [
+            f"{m:6f}" for m in mlc_positions
+        ]  # convert to truncated string to fit VR limitations
+        beam_limiting_device_position_sequence.append(beam_limiting_device_position3)
+
+        cp0.GantryAngle = str(gantry_angle)
+        cp0.GantryRotationDirection = gantry_rot.value
+        cp0.BeamLimitingDeviceAngle = str(coll_angle)
+        cp0.BeamLimitingDeviceRotationDirection = "NONE"
+        cp0.PatientSupportAngle = str(couch_rot)
+        cp0.PatientSupportRotationDirection = "NONE"
+        cp0.TableTopEccentricAngle = "0.0"
+        cp0.TableTopEccentricRotationDirection = "NONE"
+        cp0.TableTopVerticalPosition = str(couch_vrt)
+        cp0.TableTopLongitudinalPosition = str(couch_lng)
+        cp0.TableTopLateralPosition = str(couch_lat)
+        cp0.IsocenterPosition = None
+        cp0.CumulativeMetersetWeight = "0.0"
+
+        # Referenced Dose Reference Sequence
+        refd_dose_ref_sequence = Sequence()
+        cp0.ReferencedDoseReferenceSequence = refd_dose_ref_sequence
+
+        # linked setup number and tolerance table
+        # we *could* hardcode it but this makes it more flexible to changes upstream
+        self.ds.ReferencedPatientSetupNumber = self.plan_ds.PatientSetupSequence[
+            0
+        ].PatientSetupNumber
+        self.ds.ReferencedToleranceTableNumber = self.plan_ds.ToleranceTableSequence[
+            0
+        ].ToleranceTableNumber
+
+        self.ds.NumberOfControlPoints = 1  # increment this
+        self.ds.ControlPointSequence.append(cp0)
+
+    def _append_secondary_static_control_point(self, meterset: float) -> None:
+        # Control Point Sequence: Control Point 1
+        cp1 = Dataset()
+        cp1.ControlPointIndex = len(self.ds.ControlPointSequence)
+
+        cp1.CumulativeMetersetWeight = (
+            f"{meterset:.5f}"  # convert to truncated string to fit VR limitations
+        )
+
+        self.ds.NumberOfControlPoints = int(self.ds.NumberOfControlPoints) + 1
+        self.ds.ControlPointSequence.append(cp1)
+
+    def _append_secondary_dynamic_control_point(
+        self,
+        mlc_positions: list[float],
+        meterset: float,
+        gantry_angle: float,
+        gantry_dir: GantryDirection,
+    ) -> None:
+        # Control Point Sequence: Control Point 1
+        cp1 = Dataset()
+        cp1.ControlPointIndex = len(self.ds.ControlPointSequence)
+
+        if gantry_dir != GantryDirection.NONE:
+            cp1.GantryAngle = gantry_angle
+            cp1.GantryRotationDirection = gantry_dir.value
+        cp1.CumulativeMetersetWeight = (
+            f"{meterset:.5f}"  # convert to truncated string to fit VR limitations
+        )
+
+        # Beam Limiting Device Position Sequence
+        beam_limiting_device_position_sequence = Sequence()
+        cp1.BeamLimitingDevicePositionSequence = beam_limiting_device_position_sequence
+
+        # Beam Limiting Device Position Sequence: Beam Limiting Device Position 1
+        beam_limiting_device_position1 = Dataset()
+        beam_limiting_device_position1.RTBeamLimitingDeviceType = "MLCX"
+        beam_limiting_device_position1.LeafJawPositions = [
+            f"{m:6f}" for m in mlc_positions
+        ]  # convert to truncated string to fit VR limitations
+        beam_limiting_device_position_sequence.append(beam_limiting_device_position1)
+
+        # Referenced Dose Reference Sequence
+        refd_dose_ref_sequence = Sequence()
+        cp1.ReferencedDoseReferenceSequence = refd_dose_ref_sequence
+
+        self.ds.NumberOfControlPoints = int(self.ds.NumberOfControlPoints) + 1
+        self.ds.ControlPointSequence.append(cp1)
+
+    def as_dicom(self) -> Dataset:
+        """Return the beam as a DICOM dataset that represents a BeamSequence item."""
+        return self.ds
+
+
+class DualStackBeam:
+    """Represents a DICOM beam dataset. Has methods for creating the dataset and adding control points.
+    Generally not created on its own but rather under the hood as part of a PlanGenerator object.
+
+    It contains enough independent logic steps that it's worth separating out from the PlanGenerator class.
+    """
+
+    ds: Dataset
+
+    def __init__(
+        self,
+        plan_dataset: Dataset,
+        beam_name: str,
+        beam_type: BeamType,
+        energy: float,
+        dose_rate: int,
+        machine_name: str,
+        gantry_angles: float | list[float],
+        gantry_direction: GantryDirection,
+        couch_vrt: float,
+        couch_lat: float,
+        couch_lng: float,
+        distal_mlc_boundaries: list[float],
+        proximal_mlc_boundaries: list[float],
+        distal_mlc_positions: list[list[float]],
+        proximal_mlc_positions: list[list[float]],
+        metersets: list[float],
+        fluence_mode: FluenceMode,
+    ):
+        """
+        Parameters
+        ----------
+        plan_dataset
+            The plan dataset. Used for dynamic links to other Sequences of the plan, such as Dose Reference and Tolerance Table.
+        beam_name : str
+            The name of the beam. Must be less than 16 characters.
+        beam_type : BeamType
+            The type of beam: dynamic or static.
+        energy : float
+            The energy of the beam.
+        dose_rate : int
+            The dose rate of the beam.
+        machine_name : str
+            The name of the machine.
+        gantry_angles : Union[float, list[float]]
+            The gantry angle(s) of the beam. If a single number, it's assumed to be a static beam. If multiple numbers, it's assumed to be a dynamic beam.
+        gantry_direction : GantryDirection
+            The direction of the gantry rotation. Only relevant if multiple gantry angles are specified.
+        couch_vrt : float
+            The couch vertical position.
+        couch_lat : float
+            The couch lateral position.
+        couch_lng : float
+            The couch longitudinal position.
         metersets : list[float]
             The meter sets for each control point. The length must match the number of control points in mlc_positions.
         fluence_mode : FluenceMode
@@ -530,7 +862,7 @@ class PlanGenerator:
         """The name of the machine."""
         return self._old_beam.TreatmentMachineName
 
-    def _create_mlc(self):
+    def _create_mlc(self) -> MLCShaper:
         """Utility to create MLC shaper instances."""
         return MLCShaper(
             leaf_y_positions=self.leaf_config,

@@ -327,9 +327,7 @@ class DataBankMixin:
 
         end = time.time() - start
         print(
-            "Processing of {} files took {:3.1f}s ({:3.2f}s/item). {} passed; {} failed.".format(
-                test_num, end, end / test_num, passes, len(fails)
-            )
+            f"Processing of {test_num} files took {end:3.1f}s ({end / test_num:3.2f}s/item). {passes} passed; {len(fails)} failed."
         )
         if len(fails) > 0:
             pprint.pprint(f"Failures: {fails}")
