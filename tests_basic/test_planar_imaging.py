@@ -34,6 +34,7 @@ from pylinac.planar_imaging import (
     StandardImagingQCkV,
     percent_integral_uniformity,
 )
+from tests_basic.core.test_utilities import ResultsDataBase
 from tests_basic.utils import CloudFileMixin, get_file_from_cloud_test_repo, save_file
 
 TEST_DIR = "planar_imaging"
@@ -460,7 +461,7 @@ class FineTuneAdjustments(TestCase):
         instance.analyze(angle_adjustment=-10)
         self.assertAlmostEqual(instance.phantom_angle, -10, delta=1)
 
-    def test_scaling_factor(self):
+    def test_roi_size_factor(self):
         instance = LasVegas.from_demo_image()
         # test before change
         instance.analyze()
@@ -473,7 +474,7 @@ class FineTuneAdjustments(TestCase):
         scaled_roi = instance.results_data().low_contrast_rois[0]["visibility"]
         self.assertAlmostEqual(scaled_roi, 275, delta=10)
 
-    def test_zoom_factor(self):
+    def test_scaling_factor(self):
         instance = LasVegas.from_demo_image()
         # test before change
         instance.analyze()
@@ -497,12 +498,30 @@ class FineTuneAdjustments(TestCase):
         with self.assertRaises(ValueError):
             instance.analyze(roi_size_factor=-1)
 
-    def test_override_plus_adjustment_fails(self):
+    def test_size_and_adjustment_okay(self):
+        instance = LasVegas.from_demo_image()
+        instance.analyze(size_override=2000, x_adjustment=1, y_adjustment=1)
+
+    def test_center_and_adjustment_not_okay(self):
         instance = LasVegas.from_demo_image()
         with self.assertRaises(ValueError):
-            instance.analyze(size_override=2000, x_adjustment=1)
+            instance.analyze(
+                x_adjustment=1, y_adjustment=1, center_override=(100, 1000)
+            )
+
+    def test_angle_adjustment_and_override_not_okay(self):
+        instance = LasVegas.from_demo_image()
         with self.assertRaises(ValueError):
-            instance.analyze(angle_override=22, y_adjustment=1)
+            instance.analyze(angle_override=22, angle_adjustment=1)
+
+    def test_size_override_and_scaling_factor_not_okay(self):
+        instance = LasVegas.from_demo_image()
+        with self.assertRaises(ValueError):
+            instance.analyze(size_override=2000, scaling_factor=2)
+
+    def test_size_and_angle_adjustment_okay(self):
+        instance = LasVegas.from_demo_image()
+        instance.analyze(size_override=2000, angle_adjustment=1)
 
 
 class LasVegasDemo(LasVegasTestMixin, TestCase):
@@ -1115,3 +1134,15 @@ class SNCFSQA10x10(SNCFSQAMixin, TestCase):
     field_epid_offset_y_mm = -0.1
     field_bb_offset_y_mm = -0.5
     field_bb_offset_x_mm = -0.5
+
+
+class TestLasVegasResultsData(ResultsDataBase, TestCase):
+    model = LasVegas
+
+
+class TestSNCMVResultsData(ResultsDataBase, TestCase):
+    model = SNCMV
+
+
+class TestIMTLRadResultsData(ResultsDataBase, TestCase):
+    model = IMTLRad

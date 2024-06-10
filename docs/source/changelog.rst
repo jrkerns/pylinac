@@ -37,6 +37,8 @@ Field Analysis
   is an alternative and successor to the original field analysis module. You can read more here: :ref:`field-profile-analysis`.
 * Using the ``INFLECTION_HILL`` edge detection with ``FieldAnalysis`` where the penumbra does not have a "tail" can lead to
   plotting errors. This is a visual error only and does not affect the numerical calculations.
+* Plotting a ``FieldAnalysis`` with the ``SIEMENS`` protocol would sometimes fail to plot due to a mismatch
+  in x and y values to plot.
 
 Profiles & 1D Metrics
 ^^^^^^^^^^^^^^^^^^^^^
@@ -55,6 +57,45 @@ Profiles & 1D Metrics
 * The ``SymmetryPointDifferenceQuotientMetric`` 's default max and min range has been adjusted to 100-105 to better reflect default values.
 * The ``PenumbraLeftMetric`` and ``PenumbraRightMetric`` had their unit's changed from % to mm. % was incorrect.
 * The ``SlopeMetric`` would sometimes fail to plot if an uneven number of points were calculated over.
+
+Winston Lutz
+^^^^^^^^^^^^
+
+* A new value was added to the ``results_data`` call: ``bb_shift_vector``. This is the cartesian shift to
+  move the BB to the radiation isocenter. This was already available as ``<wl>.bb_shift_vector``.
+* Documentation has been added discussing our interpretation of common QA publication requirements of isocenter
+  QA. See :ref:`interpreting-winston-lutz-results`.
+
+v 3.23.2
+--------
+
+* The hotfix of v3.32.1 broke ``ACRMRILarge`` and ``DRGS/DRMLC`` results data when calling ``results_data(as_dict=True)``.
+  This has been fixed.
+
+v 3.23.1
+--------
+
+Core
+^^^^
+
+* Attempting to dump the return value of ``.results_data()`` to json (i.e. ``json.dumps(<instance>.results_data(as_dict=True))``
+  would raise a JSON Serialization error. This was an unintended side-effect of the new export features introduced in v3.22.
+  This is often the way users of RadMachine would pass analysis results to other tests. While a Python dictionary is not
+  a guarantee of JSON compatibility, for the sake of ease of use and backwards-compatibility, we have fixed the results
+  such that JSON serialization should always work from ``as_dict=True``.
+
+
+v 3.23.1
+--------
+
+Core
+^^^^
+
+* Attempting to dump the return value of ``.results_data()`` to json (i.e. ``json.dumps(<instance>.results_data(as_dict=True))``
+  would raise a JSON Serialization error. This was an unintended side-effect of the new export features introduced in v3.22.
+  This is often the way users of RadMachine would pass analysis results to other tests. While a Python dictionary is not
+  a guarantee of JSON compatibility, for the sake of ease of use and backwards-compatibility, we have fixed the results
+  such that JSON serialization should always work from ``as_dict=True``.
 
 v 3.23.0
 --------
