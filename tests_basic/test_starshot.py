@@ -11,6 +11,7 @@ import numpy as np
 from pylinac import Starshot
 from pylinac.core.geometry import Point
 from pylinac.starshot import StarshotResults
+from tests_basic.core.test_utilities import ResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromURLTesterMixin,
@@ -73,6 +74,10 @@ class TestPlottingSaving(TestCase):
         save_file(self.star.save_analyzed_subimage)
         # save into buffer
         save_file(self.star.save_analyzed_subimage, as_file_object="b")
+
+
+class TestStarshotResultsData(ResultsDataBase, TestCase):
+    model = Starshot
 
 
 class StarMixin(CloudFileMixin):

@@ -367,11 +367,17 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult]):
         validators.is_positive(roi_size_factor)
         validators.is_positive(scaling_factor)
         # can't set overrides and adjustments
-        if any((angle_override, center_override, size_override)) and any(
-            (x_adjustment, y_adjustment, angle_adjustment, scaling_factor)
-        ):
+        if center_override and any((x_adjustment, y_adjustment)):
             raise ValueError(
                 "Cannot set both overrides and adjustments. Use one or the other."
+            )
+        if angle_adjustment and angle_override:
+            raise ValueError(
+                "Cannot set the angle override and angle adjustment simultaneously. Use one or the other."
+            )
+        if size_override and scaling_factor != 1:
+            raise ValueError(
+                "Cannot set the size override and scaling factor simultaneously. Use one or the other."
             )
         self.x_adjustment = x_adjustment
         self.y_adjustment = y_adjustment
