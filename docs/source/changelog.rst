@@ -35,6 +35,8 @@ Field Analysis
 
 * There is a new module for performing field analysis that leverages the 1D metrics framework. This
   is an alternative and successor to the original field analysis module. You can read more here: :ref:`field-profile-analysis`.
+* Plotting a ``FieldAnalysis`` with the ``SIEMENS`` protocol would sometimes fail to plot due to a mismatch
+  in x and y values to plot.
 
 Profiles & 1D Metrics
 ^^^^^^^^^^^^^^^^^^^^^
