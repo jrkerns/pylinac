@@ -577,14 +577,14 @@ on the subject we provide this information.
   We interpret this to mean: 1) set up a BB at what you believe is the mechanical isocenter (e.g. light field, lasers, etc).
   2) Perform a typical WL image dataset. 3) The ``bb_shift_vector`` is the value of interest as it's the
   vector from BB to the overall radiation isocenter.
-* **AAPM TG-198: 2.D.2.5**: TG-198 is an implementation guide of TG-142 and give explicit guidance. We
+* **AAPM TG-198: 2.D.2.5**: TG-198 is an implementation guide of TG-142 and gives explicit guidance. We
   do not recommend using starshots for iso size analysis, but it can be done. The WL procedure describes
   placing the BB at the mechanical isocenter via the surrogate of the lasers. The displacement from the determined
   radiation iso from the images to the BB/mechanical isocenter is the value of interest, that is ``bb_shift_vector``.
-* **MPPG9.a Table I - Monthly**: Fortunately, the guidance is very clear here and is the maximum of any
+* **MPPG 9.a Table I - Monthly**: Fortunately, the guidance is very clear here and is the maximum of any
   planar image from BB to field center. This is the ``max_2d_cax_to_bb_mm`` value.
-* **MPPG9.a Table I - Annual**: This one is less clear but we interpret it as the ``bb_shift_vector``. See also :ref:`winston-lutz-couch-shift-algorithm`.
-* **MPPG8.b Table 5 - M11, Table 8 MLC4**: This is very vague and does not provide any details on implementation other than
+* **MPPG 9.a Table I - Annual**: This one is less clear but we interpret it as the ``bb_shift_vector``. See also :ref:`winston-lutz-couch-shift-algorithm`.
+* **MPPG 8.b Table 5 - M11, Table 8 MLC4**: This is very vague and does not provide any details on implementation other than
   that it should be jaw-based and MLC-based respectively and should involve the gantry, couch, and collimator.
   However, they do add a footnote to reference MPPG 9.a (above).
 
