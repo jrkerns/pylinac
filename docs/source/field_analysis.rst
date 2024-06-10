@@ -295,7 +295,7 @@ The function is fitted to the edge data of the field on each side to return the 
     This method is recommended for low spatial resolution images such as 2D device arrays, where there is very little data at the beam edges.
     While it can be used for EPID images as well, the fit can have small errors as compared to the direct data.
     The fit, however, can be better than a linear or even spline interpolation at low resolutions. However,
-    this should be combined with a resolution method like Linear interpolation. While Hill can sometimes
+    this should be combined with a resolution method like linear interpolation. While Hill can sometimes
     find a better fit for low-resolution data, the fit itself should have many data points to work with. I.e.
     the call should look similar to:
 
