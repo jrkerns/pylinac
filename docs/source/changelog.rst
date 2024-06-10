@@ -56,6 +56,14 @@ Profiles & 1D Metrics
 * The ``PenumbraLeftMetric`` and ``PenumbraRightMetric`` had their unit's changed from % to mm. % was incorrect.
 * The ``SlopeMetric`` would sometimes fail to plot if an uneven number of points were calculated over.
 
+Winston Lutz
+^^^^^^^^^^^^
+
+* A new value was added to the ``results_data`` call: ``bb_shift_vector``. This is the cartesian shift to
+  move the BB to the radiation isocenter. This was already available as ``<wl>.bb_shift_vector``.
+* Documentation has been added discussing our interpretation of common QA publication requirements of isocenter
+  QA. See :ref:`interpreting-winston-lutz-results`.
+
 v 3.23.2
 --------
 

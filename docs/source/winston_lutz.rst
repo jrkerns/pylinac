@@ -9,6 +9,12 @@ Overview
 .. automodule:: pylinac.winston_lutz
     :no-members:
 
+
+.. warning::
+
+    Documentation often uses the term "field CAX" or "CAX" to refer to the **center of the radiation field**. This is something of a misnomer and
+    we apologize in advance. Due to backwards-compatibility reasons, the term continues to be used in the code and documentation.
+
 Running the Demo
 ----------------
 
@@ -517,6 +523,76 @@ Given the above terms, the following calculations are performed.
   For EPID, the displacement is calculated as the distance from image center to BB for all images with couch=0. If no
   images are given that rotate about the axis in question (e.g. cardinal gantry angles only) the isocenter size will default to 0.
 
+.. _interpreting-winston-lutz-results:
+
+Interpreting Results
+--------------------
+
+This explains the :class:`~pylinac.winston_lutz.WinstonLutzResult` class that is returned from the ``results_data`` method.
+This is also what is given in RadMachine image analysis results and is explained further here.
+
+* ``num_gantry_images``: The number of images that were taken at different gantry angles and all other axes were 0.
+* ``num_gantry_coll_images``: The number of images that were taken at different gantry and collimator angles and the couch was 0.
+* ``num_coll_images``: The number of images that were taken at different collimator angles and all other axes were 0.
+* ``num_couch_images``: The number of images that were taken at different couch angles and all other axes were 0.
+* ``num_total_images``: The total number of images analyzed.
+* ``max_2d_cax_to_bb_mm``: The maximum 2D distance from the field CAX to the BB across all images analyzed in mm.
+* ``median_2d_cax_to_bb_mm``: The median 2D distance from the field CAX to the BB across all images analyzed in mm.
+* ``mean_2d_cax_to_bb_mm``: The mean 2D distance from the field CAX to the BB across all images analyzed in mm.
+* ``max_2d_cax_to_epid_mm``: The maximum 2D distance from the field CAX to the EPID center across all images analyzed in mm.
+* ``median_2d_cax_to_epid_mm``: The median 2D distance from the field CAX to the EPID center across all images analyzed in mm.
+* ``mean_2d_cax_to_epid_mm``: The mean 2D distance from the field CAX to the EPID center across all images analyzed in mm.
+* ``gantry_3d_iso_diameter_mm``: The 3D isocenter diameter **of the gantry axis only** as determined by the gantry images in mm.
+  This uses backprojection lines of the field center to the source and minimizes a sphere that touches all the backprojection lines.
+
+  .. note::
+
+      This value is independent of the BB position.
+
+* ``max_gantry_rms_deviation_mm``: The maximum RMS value of the field CAX to BB for the gantry axis images in mm. This is an alternative to the max/mean/median calculations.
+* ``max_coll_rms_deviation_mm``: The maximum RMS deviation of the field CAX to BB for the collimator axis images in mm. This is an alternative to the max/mean/median calculations.
+* ``max_couch_rms_deviation_mm``: The maximum RMS value of the field CAX to BB for the couch axis images in mm. This is an alternative to the max/mean/median calculations.
+* ``max_epid_rms_deviation_mm``: The maximum RMS value of the field CAX to EPID center for the EPID images in mm. This is an alternative to the max/mean/median calculations.
+* ``gantry_coll_3d_iso_diameter_mm``: The 3D isocenter diameter **of the gantry and collimator axes** as determined by the gantry and collimator images in mm.
+  This uses backprojection lines of the field center to the source and minimizes a sphere that touches all the backprojection lines.
+
+  .. note::
+
+      This value is independent of the BB position.
+
+* ``coll_2d_iso_diameter_mm``: The 2D isocenter diameter **of the collimator axis only** as determined by the collimator images in mm.
+* ``couch_2d_iso_diameter_mm``: The 2D isocenter diameter **of the couch axis only** as determined by the couch images in mm.
+* ``bb_shift_vector``: The cartesian vector that would move the BB to the radiation isocenter. Each value is in mm. See also :ref:`wl_virtual_shift`, :ref:`winston-lutz-couch-shift-algorithm`
+
+Interpreting specific publications
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A common question is how the algorithm is to be matched to existing QA publications. Some
+publications only specify the test and tolerance and say nothing about implementation.
+We list the publications and also our interpretation of what they mean. We do not make
+recommendations about how something should be done, but given the number of questions
+on the subject we provide this information.
+
+* **AAPM TG-142 Table III, Mechanical**:. "Coincidence of radiation and mechanical isocenter".
+  We interpret this to mean: 1) set up a BB at what you believe is the mechanical isocenter (e.g. light field, lasers, etc).
+  2) Perform a typical WL image dataset. 3) The ``bb_shift_vector`` is the value of interest as it's the
+  vector from BB to the overall radiation isocenter.
+* **AAPM TG-198: 2.D.2.5**: TG-198 is an implementation guide of TG-142 and gives explicit guidance. We
+  do not recommend using starshots for iso size analysis, but it can be done. The WL procedure describes
+  placing the BB at the mechanical isocenter via the surrogate of the lasers. The displacement from the determined
+  radiation iso from the images to the BB/mechanical isocenter is the value of interest, that is ``bb_shift_vector``.
+* **MPPG 9.a Table I - Monthly**: Fortunately, the guidance is very clear here and is the maximum of any
+  planar image from BB to field center. This is the ``max_2d_cax_to_bb_mm`` value.
+* **MPPG 9.a Table I - Annual**: This one is less clear but we interpret it as the ``bb_shift_vector``. See also :ref:`winston-lutz-couch-shift-algorithm`.
+* **MPPG 8.b Table 5 - M11, Table 8 MLC4**: This is very vague and does not provide any details on implementation other than
+  that it should be jaw-based and MLC-based respectively and should involve the gantry, couch, and collimator.
+  However, they do add a footnote to reference MPPG 9.a (above).
+
+Finally, it is worth nothing that physicists often have strong feelings about how WL should be done and interpreted.
+While we agree that providing the best possible treatment to patients is paramount, there are many ways that this can be improved,
+beyond just WL. It is one piece of many to provide high-quality care. Spending inordinate amounts of time squabbling over a pixel
+or two is time poorly spent. Finally, we argue for an empirical approach, which is why the image generator was created. See: :ref:`benchmarking-wl`
+
 .. _wl-algorithm:
 
 Algorithm
@@ -527,6 +603,8 @@ Winkler found that the collimator and couch iso could be found using a minimum o
 of the field CAX points. They also found that the gantry isocenter could by found by "backprojecting"
 the field CAX as a line in 3D coordinate space, with the BB being the reference point. This method is used to find the
 gantry isocenter size.
+
+.. _winston-lutz-couch-shift-algorithm:
 
 Couch shift
 ^^^^^^^^^^^
@@ -568,8 +646,8 @@ Using the sentence after eqn 2 as a guide: "A couch angle of :math:`\phi` degree
 to a signed rotation around the :math:`Z_{C}` axis of the couch coordinate system."
 
 Just from this sentence it would appear :math:`Z_{C}` should be VERT. The only way this makes
-sense is if the couch coordinate system is from a HFS patient perspective where VERT is actually
-Superior-Inferior and AP is VERT. If this is true, everything falls into place.
+sense is if the couch coordinate system is from a HFS patient perspective; i.e. VERT=>In/Out, LAT=>Left/Right, -AP=>Up/Down.
+If this is true, everything falls into place.
 
 Finally, it is worth nothing that in the Varian "Standard" coordinate system (the one assumed by Low), couch vertical
 *increases* as the couch is lowered. This may explain the negative sign in the Z axis of equation 2, whereas
@@ -581,13 +659,14 @@ We thus can generate the following table for transforming the equations from Low
 +-----------------------+---+----------------+---+------------------------+---+-----------------+---+----------------------------+
 | Low Couch coordinates |   | Low Couch Axes |   | Low Gantry coordinates |   | Low Gantry axes |   | Pylinac Gantry coordinates |
 +=======================+===+================+===+========================+===+=================+===+============================+
-| Xc                    | = | VERT           | = | Xg                     | = | LONG            | = | -Y                         |
+| Xc                    | = | VERT           | = | Xg                     | = | LONG            | = | -Y (In/Out)                |
 +-----------------------+---+----------------+---+------------------------+---+-----------------+---+----------------------------+
-| Yc                    | = | LAT            | = | Yg                     | = | LAT             | = | X                          |
+| Yc                    | = | LAT            | = | Yg                     | = | LAT             | = | X (Left/Right)             |
 +-----------------------+---+----------------+---+------------------------+---+-----------------+---+----------------------------+
-| Zc                    | = | -AP            | = | Zg                     | = | VERT            | = | Z                          |
+| Zc                    | = | -AP            | = | Zg                     | = | VERT            | = | Z (Up/Down)                |
 +-----------------------+---+----------------+---+------------------------+---+-----------------+---+----------------------------+
 
+See :ref:`coordinate_space`.
 
 We can now address the implementation for the couch shift as follows:
 
@@ -662,7 +741,6 @@ The algorithm works like such:
 * The BB must be fully within the field of view.
 * The BB must be within 2.0cm of the real isocenter.
 * The images must be acquired with the EPID.
-* The linac scale should be IEC 61217.
 
 **Analysis**
 
@@ -696,6 +774,7 @@ The algorithm works like such:
 .. _Du et al: http://scitation.aip.org/content/aapm/journal/medphys/37/5/10.1118/1.3397452
 .. _Low et al: https://aapm.onlinelibrary.wiley.com/doi/abs/10.1118/1.597475
 
+.. _benchmarking-wl:
 
 Benchmarking the Algorithm
 --------------------------
