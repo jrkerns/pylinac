@@ -79,9 +79,17 @@ data to a file in the QuAAC format.
 
     star = Starshot.from_zip("myzip.zip")
     star.analyze()
-    performer = User(name='Michael Bluth', email='mbluth@sitwell.com')
-    equipment = Equipment(name='Halcyon 1', type='Linac', serial_number='1234', manufacturer="Varian", model='Halcyon')
-    star.to_quaac('star_quaac.yaml', format='yaml', performer=performer, primary_equipment=equipment)
+    performer = User(name="Michael Bluth", email="mbluth@sitwell.com")
+    equipment = Equipment(
+        name="Halcyon 1",
+        type="Linac",
+        serial_number="1234",
+        manufacturer="Varian",
+        model="Halcyon",
+    )
+    star.to_quaac(
+        "star_quaac.yaml", format="yaml", performer=performer, primary_equipment=equipment
+    )
 
 It is important to know that QuAAC can store binary data like plotted images and PDFs that pylinac might produce.
 This is not done by default due to the many options of publishing the PDF and plotting the images.
@@ -96,14 +104,28 @@ as attachments.
     star = Starshot.from_zip("myzip.zip")
     star.analyze()
     # save the images and PDFs
-    star.save_analyzed_image('starshot.png')
-    star.publish_pdf('starshot_report.pdf')
+    star.save_analyzed_image("starshot.png")
+    star.publish_pdf("starshot_report.pdf")
     # now dump to QuAAC
-    performer = User(name='Michael Bluth', email='mbluth@sitwell.com')
-    equipment = Equipment(name='Halcyon 1', type='Linac', serial_number='1234', manufacturer="Varian", model='Halcyon')
-    png_attachment = Attachment.from_file(path='starshot.png', name='Starshot Image')
-    pdf_attachment = Attachment.from_file(path='starshot_report.pdf', name='Starshot Report')
-    original_image = Attachment.from_file(path='myzip.zip', name='Raw Image')
-    star.to_quaac('star_quaac.yaml', format='yaml', performer=performer, primary_equipment=equipment, attachments=, attachments=[png_attachment, pdf_attachment, original_image])
+    performer = User(name="Michael Bluth", email="mbluth@sitwell.com")
+    equipment = Equipment(
+        name="Halcyon 1",
+        type="Linac",
+        serial_number="1234",
+        manufacturer="Varian",
+        model="Halcyon",
+    )
+    png_attachment = Attachment.from_file(path="starshot.png", name="Starshot Image")
+    pdf_attachment = Attachment.from_file(
+        path="starshot_report.pdf", name="Starshot Report"
+    )
+    original_image = Attachment.from_file(path="myzip.zip", name="Raw Image")
+    star.to_quaac(
+        "star_quaac.yaml",
+        format="yaml",
+        performer=performer,
+        primary_equipment=equipment,
+        attachments=[png_attachment, pdf_attachment, original_image],
+    )
 
 See more `here <https://quaac.readthedocs.io/en/latest/writing_quaac.html#writing-quaac-files>`__ for writing QuAAC files.
