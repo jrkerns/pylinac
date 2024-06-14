@@ -46,8 +46,7 @@ from .core.io import get_url, retrieve_demo_file
 from .core.mtf import MTF
 from .core.profile import CollapsedCircleProfile, FWXMProfilePhysical
 from .core.roi import DiskROI, HighContrastDiskROI, LowContrastDiskROI, bbox_center
-from .core.utilities import ResultBase, ResultsDataMixin
-from .core.utilities import QuaacDatum, QuaacMixin, ResultBase
+from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
 from .metrics.image import SizedDiskLocator
 
 

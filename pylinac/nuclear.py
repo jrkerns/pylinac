@@ -31,8 +31,7 @@ from pylinac.core.image import DicomImage, NMImageStack
 from pylinac.core.mtf import MomentMTF
 from pylinac.core.profile import find_peaks
 from pylinac.core.roi import DiskROI, HighContrastDiskROI, RectangleROI
-from pylinac.core.utilities import ResultsDataMixin
-from pylinac.core.utilities import QuaacDatum, QuaacMixin
+from pylinac.core.utilities import QuaacDatum, QuaacMixin, ResultsDataMixin
 from pylinac.metrics.image import WeightedCentroid
 
 
@@ -1317,8 +1316,8 @@ class QuadrantResolution(ResultsDataMixin[QuadrantResolutionResults], QuaacMixin
     def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
         data = self.results_data(as_dict=True)
         return {
-            f"Quadrant {quadrant} MTF": QuaacDatum(value=quadrant["mtf"], unit="")
-            for quadrant in data["quadrants"]
+            f"Quadrant {key} MTF": QuaacDatum(value=value["mtf"], unit="")
+            for key, value in data["quadrants"].items()
         }
 
     def plot(self, show: bool = True) -> (list[Figure], list[Axes]):

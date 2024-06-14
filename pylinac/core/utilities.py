@@ -10,9 +10,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import BinaryIO, Generic, Sequence, TypeVar
 from pathlib import Path
-from typing import BinaryIO, Literal, Sequence
+from typing import BinaryIO, Generic, Literal, Sequence, TypeVar
 
 import numpy as np
 import pydicom

@@ -25,8 +25,7 @@ from pylinac.field_analysis import (
     plot_symmetry_point_difference,
     symmetry_point_difference,
 )
-from tests_basic.core.test_utilities import QuaacTestBase
-from tests_basic.core.test_utilities import ResultsDataBase
+from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
     get_file_from_cloud_test_repo,

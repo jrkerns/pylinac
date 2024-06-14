@@ -28,9 +28,7 @@ from .core.image import DicomImage, ImageLike
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.pdf import PylinacCanvas
 from .core.profile import FWXMProfile
-from .core.utilities import ResultBase, ResultsDataMixin
-from .core.profile import InflectionDerivativeProfile
-from .core.utilities import QuaacDatum, QuaacMixin, ResultBase
+from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
 from .settings import get_dicom_cmap
 
 

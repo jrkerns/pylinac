@@ -37,8 +37,13 @@ from .core import image, pdf
 from .core.geometry import Line, Point, Rectangle
 from .core.io import get_url, retrieve_demo_file
 from .core.profile import FWXMProfilePhysical, MultiProfile
-from .core.utilities import ResultBase, ResultsDataMixin, convert_to_enum
-from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, convert_to_enum
+from .core.utilities import (
+    QuaacDatum,
+    QuaacMixin,
+    ResultBase,
+    ResultsDataMixin,
+    convert_to_enum,
+)
 from .log_analyzer import load_log
 from .metrics.image import SizedDiskLocator
 

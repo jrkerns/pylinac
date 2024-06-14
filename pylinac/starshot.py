@@ -35,8 +35,7 @@ from .core import image, pdf
 from .core.geometry import Circle, Line, Point
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.profile import CollapsedCircleProfile, FWXMProfile
-from .core.utilities import ResultBase, ResultsDataMixin
-from .core.utilities import QuaacDatum, QuaacMixin, ResultBase
+from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
 from .settings import get_dicom_cmap
 
 

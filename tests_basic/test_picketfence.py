@@ -22,8 +22,7 @@ from pylinac.core.image_generator import (
 from pylinac.core.io import TemporaryZipDirectory
 from pylinac.picketfence import MLC, MLCArrangement, Orientation, PFResult, PicketFence
 from tests_basic.core.test_profile_metrics import create_bb_image
-from tests_basic.core.test_utilities import QuaacTestBase
-from tests_basic.core.test_utilities import ResultsDataBase
+from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,

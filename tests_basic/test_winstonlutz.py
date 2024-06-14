@@ -35,8 +35,7 @@ from pylinac.winston_lutz import (
     solve_3d_position_from_2d_planes,
     solve_3d_shift_vector_from_2d_planes,
 )
-from tests_basic.core.test_utilities import QuaacTestBase
-from tests_basic.core.test_utilities import ResultsDataBase
+from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,

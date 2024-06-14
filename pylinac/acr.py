@@ -19,8 +19,7 @@ from .core.geometry import Line, LineSerialized, Point
 from .core.mtf import MTF
 from .core.profile import FWXMProfilePhysical
 from .core.roi import HighContrastDiskROI, RectangleROI
-from .core.utilities import ResultBase, ResultsDataMixin
-from .core.utilities import QuaacDatum, ResultBase
+from .core.utilities import QuaacDatum, ResultBase, ResultsDataMixin
 from .ct import (
     CatPhanBase,
     CatPhanModule,

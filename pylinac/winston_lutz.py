@@ -60,11 +60,11 @@ from .core.geometry import (
 from .core.image import DicomImageStack, is_image, tiff_to_dicom
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.scale import MachineScale, convert
-from .core.utilities import ResultBase, ResultsDataMixin, convert_to_enum, is_close
 from .core.utilities import (
     QuaacDatum,
     QuaacMixin,
     ResultBase,
+    ResultsDataMixin,
     convert_to_enum,
     is_close,
 )

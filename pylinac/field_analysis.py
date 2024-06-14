@@ -21,8 +21,13 @@ from .core.hill import Hill
 from .core.io import SNCProfiler, retrieve_demo_file
 from .core.profile import Edge, Interpolation, Normalization, SingleProfile
 from .core.roi import RectangleROI
-from .core.utilities import ResultBase, ResultsDataMixin, convert_to_enum
-from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, convert_to_enum
+from .core.utilities import (
+    QuaacDatum,
+    QuaacMixin,
+    ResultBase,
+    ResultsDataMixin,
+    convert_to_enum,
+)
 from .settings import get_dicom_cmap
 
 

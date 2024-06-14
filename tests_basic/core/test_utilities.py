@@ -1,7 +1,8 @@
-import tempfile
 import json
+import tempfile
 import unittest
 from builtins import AttributeError
+from pathlib import Path
 from unittest import TestCase
 
 import numpy as np
@@ -55,10 +56,12 @@ class TestQuaacMixin(TestCase):
         )
 
     def test_to_json(self):
-        with tempfile.NamedTemporaryFile(delete=False) as t:
-            self.instance.to_quaac(
-                t.name, format="json", performer=performer, primary_equipment=linac
-            )
+        p = Path(tempfile.gettempdir()) / "test.json"
+        if p.exists():
+            p.unlink()
+        self.instance.to_quaac(
+            p, format="json", performer=performer, primary_equipment=linac
+        )
 
     def test_add_attachment(self):
         with tempfile.NamedTemporaryFile(delete=False) as t:

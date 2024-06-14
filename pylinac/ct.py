@@ -50,8 +50,7 @@ from .core.nps import (
 )
 from .core.profile import CollapsedCircleProfile, FWXMProfile
 from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
-from .core.utilities import ResultBase, ResultsDataMixin
-from .core.utilities import QuaacDatum, QuaacMixin, ResultBase
+from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
 from .settings import get_dicom_cmap
 
 # The ramp angle ratio is from the Catphan manual ("Scan slice geometry" section)

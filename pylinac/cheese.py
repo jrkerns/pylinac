@@ -12,8 +12,7 @@ from .core import pdf
 from .core.profile import CollapsedCircleProfile
 from .core.roi import DiskROI
 from .core.scale import abs360
-from .core.utilities import ResultBase, ResultsDataMixin
-from .core.utilities import QuaacDatum, ResultBase
+from .core.utilities import QuaacDatum, ResultBase, ResultsDataMixin
 from .ct import CatPhanBase, CatPhanModule, Slice
 
 
