@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import copy
 import enum
-import typing
 import webbrowser
 from io import BytesIO
 from pathlib import Path
@@ -67,7 +66,7 @@ class VMATResult(ResultBase):
     max_deviation_percent: float  #:
     abs_mean_deviation: float  #:
     passed: bool  #:
-    segment_data: typing.Iterable[SegmentResult]  #:
+    segment_data: list[SegmentResult]  #:
     named_segment_data: dict[str, SegmentResult]  #:
 
 

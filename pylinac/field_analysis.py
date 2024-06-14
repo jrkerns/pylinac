@@ -111,6 +111,7 @@ def plot_symmetry_point_difference(
     """Plotting of the symmetry point difference."""
 
     def calc_sym(lt, rt, cax) -> float:
+        # TODO: remove the abs; unsure why it was added
         return 100 * abs(lt - rt) / cax
 
     _plot_sym_common(
@@ -231,16 +232,20 @@ def plot_symmetry_area(instance, profile: SingleProfile, axis: plt.Axes) -> None
     left_idx = data["left index (rounded)"]
     right_idx = data["right index (rounded)"]
 
+    left_range = range(left_idx, floor(cax_idx))
+    left_values = data["field values"][: ceil(cax_idx) - left_idx]
     axis.fill_between(
-        range(left_idx, floor(cax_idx)),
-        data["field values"][: floor(cax_idx) - left_idx],
+        left_range,
+        left_values[: len(left_range)],
         color="green",
         alpha=0.1,
         label="Left Area",
     )
+    right_range = range(ceil(cax_idx), right_idx)
+    right_values = data["field values"][ceil(cax_idx) - left_idx :]
     axis.fill_between(
-        range(ceil(cax_idx), right_idx),
-        data["field values"][ceil(cax_idx) - left_idx :],
+        right_range,
+        right_values[: len(right_range)],
         color="slateblue",
         alpha=0.1,
         label="Right Area",
@@ -1152,8 +1157,8 @@ class FieldAnalysis(ResultsDataMixin[FieldResult], QuaacMixin):
                 labels.append(label)
         if not self._from_device:
             if split_plots:
-                for ax in (vert_ax, horiz_ax):
-                    ax.legend(lines, labels, loc="center")
+                vert_ax.legend(v_lines, v_labels)
+                horiz_ax.legend(h_lines, h_labels)
             else:
                 legend_ax = plt.subplot2grid((2, 2), (1, 0))
                 legend_ax.legend(lines, labels, loc="center")

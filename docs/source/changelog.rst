@@ -2,6 +2,99 @@
 Changelog
 =========
 
+v 3.24.0
+--------
+
+CBCT
+^^^^
+
+* Some datasets were failing due to the proximity to the edge of the FOV. While we encourage an FOV that is 1cm+ larger than the
+  phantom to minimize edge artifacts and ensure the entire phantom is captured, we have reduced the required clearance
+  of the phantom to the edge by approximately half.
+
+Image Generator
+^^^^^^^^^^^^^^^
+
+* When saving a simulated image to DICOM, the user can now choose whether to invert the image array.
+  This can help simulate older or newer EPID types.
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* Planar phantom analyses now have new parameter options for fine-tuning the automatic analysis. See :ref:`fine-tuning-planar`.
+
+Core
+^^^^
+
+* Multiplying ``Point`` s together would not return a new point. It now performs both an in-place
+  and out-of-place multiplication. E.g. ``Point(1, 2) * 2`` will return a new point at (2, 4) and
+  also change the original point to (2, 4).
+
+Field Analysis
+^^^^^^^^^^^^^^
+
+* There is a new module for performing field analysis that leverages the 1D metrics framework. This
+  is an alternative and successor to the original field analysis module. You can read more here: :ref:`field-profile-analysis`.
+* Plotting a ``FieldAnalysis`` with the ``SIEMENS`` protocol would sometimes fail to plot due to a mismatch
+  in x and y values to plot.
+
+Profiles & 1D Metrics
+^^^^^^^^^^^^^^^^^^^^^
+
+* 1D Profile Metrics have two new methods: ``geometric_center_idx`` and ``cax_index`` that return the index
+  (interpolated) for their respective values.
+* The ``plot`` method for profiles now includes a ``mirror`` parameter. This will mirror the profile about the
+  geomtric center or beam center index. This is useful for visualizing the symmetry of the profile.
+* Physical profile plots now also plot the x-axis in physical values on a secondary axis.
+* 1D metrics now have a ``full_name`` property that concatenates the name of the metric and the unit if applicable.
+* Calculated metrics of a profile that are stored in the ``metric_values`` attribute are now saved using the full name
+  as described above. This means if you access metrics this way, you may need to update the lookup to include the unit.
+* Two new metrics have been added: ``CAXtoLeftBeamEdge`` and ``CAXToRightBeamEdge``. These metrics will calculate the distance
+  from the CAX to the left and right beam edges, respectively.
+* The ``FlatnessDifferenceMetric`` had a bug that would cause plotting to fail.
+* The ``SymmetryPointDifferenceQuotientMetric`` 's default max and min range has been adjusted to 100-105 to better reflect default values.
+* The ``PenumbraLeftMetric`` and ``PenumbraRightMetric`` had their unit's changed from % to mm. % was incorrect.
+* The ``SlopeMetric`` would sometimes fail to plot if an uneven number of points were calculated over.
+
+Winston Lutz
+^^^^^^^^^^^^
+
+* A new value was added to the ``results_data`` call: ``bb_shift_vector``. This is the cartesian shift to
+  move the BB to the radiation isocenter. This was already available as ``<wl>.bb_shift_vector``.
+* Documentation has been added discussing our interpretation of common QA publication requirements of isocenter
+  QA. See :ref:`interpreting-winston-lutz-results`.
+
+v 3.23.2
+--------
+
+* The hotfix of v3.32.1 broke ``ACRMRILarge`` and ``DRGS/DRMLC`` results data when calling ``results_data(as_dict=True)``.
+  This has been fixed.
+
+v 3.23.1
+--------
+
+Core
+^^^^
+
+* Attempting to dump the return value of ``.results_data()`` to json (i.e. ``json.dumps(<instance>.results_data(as_dict=True))``
+  would raise a JSON Serialization error. This was an unintended side-effect of the new export features introduced in v3.22.
+  This is often the way users of RadMachine would pass analysis results to other tests. While a Python dictionary is not
+  a guarantee of JSON compatibility, for the sake of ease of use and backwards-compatibility, we have fixed the results
+  such that JSON serialization should always work from ``as_dict=True``.
+
+
+v 3.23.1
+--------
+
+Core
+^^^^
+
+* Attempting to dump the return value of ``.results_data()`` to json (i.e. ``json.dumps(<instance>.results_data(as_dict=True))``
+  would raise a JSON Serialization error. This was an unintended side-effect of the new export features introduced in v3.22.
+  This is often the way users of RadMachine would pass analysis results to other tests. While a Python dictionary is not
+  a guarantee of JSON compatibility, for the sake of ease of use and backwards-compatibility, we have fixed the results
+  such that JSON serialization should always work from ``as_dict=True``.
+
 v 3.23.0
 --------
 

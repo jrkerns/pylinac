@@ -38,7 +38,7 @@ from skimage import exposure, feature, measure
 from skimage.measure._regionprops import RegionProperties
 
 from . import Normalization
-from .core import geometry, image, pdf
+from .core import geometry, image, pdf, validators
 from .core.contrast import Contrast
 from .core.decorators import lru_cache
 from .core.geometry import Circle, Point, Rectangle, Vector
@@ -156,6 +156,11 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
     phantom_bbox_size_mm2: float
     roi_match_condition: Literal["max", "closest"] = "max"
     mtf: MTF | None
+    x_adjustment: float
+    y_adjustment: float
+    angle_adjustment: float
+    roi_size_factor: float
+    scaling_factor: float
     _ssd: float
 
     def __init__(
@@ -286,6 +291,11 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         ssd: float | Literal["auto"] = "auto",
         low_contrast_method: str = Contrast.MICHELSON,
         visibility_threshold: float = 100,
+        x_adjustment: float = 0,
+        y_adjustment: float = 0,
+        angle_adjustment: float = 0,
+        roi_size_factor: float = 1,
+        scaling_factor: float = 1,
     ) -> None:
         """Analyze the phantom using the provided thresholds and settings.
 
@@ -323,6 +333,29 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             The equation to use for calculating low contrast.
         visibility_threshold
             The threshold for whether an ROI is "seen".
+        x_adjustment: float
+            A fine-tuning adjustment to the detected x-coordinate of the phantom center. This will move the
+            detected phantom position by this amount in the x-direction in mm. Positive values move the phantom to the right.
+
+            .. note::
+
+                This (along with the y-, scale-, and zoom-adjustment) is applied after the automatic detection in contrast to the center_override which is a **replacement** for
+                the automatic detection. The x, y, and angle adjustments cannot be used in conjunction with the angle, center, or size overrides.
+
+        y_adjustment: float
+            A fine-tuning adjustment to the detected y-coordinate of the phantom center. This will move the
+            detected phantom position by this amount in the y-direction in mm. Positive values move the phantom down.
+        angle_adjustment: float
+            A fine-tuning adjustment to the detected angle of the phantom. This will rotate the phantom by this amount in degrees.
+            Positive values rotate the phantom clockwise.
+        roi_size_factor: float
+            A fine-tuning adjustment to the ROI sizes of the phantom. This will scale the ROIs by this amount.
+            Positive values increase the ROI sizes. In contrast to the scaling adjustment, this
+            adjustment effectively makes the ROIs bigger or smaller, but does not adjust their position.
+        scaling_factor: float
+            A fine-tuning adjustment to the detected magnification of the phantom. This will zoom the ROIs and phantom outline by this amount.
+            In contrast to the roi size adjustment, the scaling adjustment effectively moves the phantom and ROIs
+            closer or further from the phantom center. I.e. this zooms the outline and ROI positions, but not ROI size.
         """
         self._angle_override = angle_override
         self._center_override = center_override
@@ -332,6 +365,27 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         self._low_contrast_method = low_contrast_method
         self.visibility_threshold = visibility_threshold
         self.mtf = None
+        # error checking
+        validators.is_positive(roi_size_factor)
+        validators.is_positive(scaling_factor)
+        # can't set overrides and adjustments
+        if center_override and any((x_adjustment, y_adjustment)):
+            raise ValueError(
+                "Cannot set both overrides and adjustments. Use one or the other."
+            )
+        if angle_adjustment and angle_override:
+            raise ValueError(
+                "Cannot set the angle override and angle adjustment simultaneously. Use one or the other."
+            )
+        if size_override and scaling_factor != 1:
+            raise ValueError(
+                "Cannot set the size override and scaling factor simultaneously. Use one or the other."
+            )
+        self.x_adjustment = x_adjustment
+        self.y_adjustment = y_adjustment
+        self.angle_adjustment = angle_adjustment
+        self.roi_size_factor = roi_size_factor
+        self.scaling_factor = scaling_factor
         self._ssd = ssd
         self._find_ssd()
         self._check_inversion()
@@ -362,7 +416,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             roi = LowContrastDiskROI(
                 self.image,
                 self.phantom_angle + stng["angle"],
-                self.phantom_radius * stng["roi radius"],
+                self.phantom_radius * stng["roi radius"] * self.roi_size_factor,
                 self.phantom_radius * stng["distance from center"],
                 self.phantom_center,
                 self._low_contrast_threshold,
@@ -382,7 +436,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             roi = LowContrastDiskROI(
                 self.image,
                 self.phantom_angle + stng["angle"],
-                self.phantom_radius * stng["roi radius"],
+                self.phantom_radius * stng["roi radius"] * self.roi_size_factor,
                 self.phantom_radius * stng["distance from center"],
                 self.phantom_center,
                 self._low_contrast_threshold,
@@ -398,7 +452,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             roi = HighContrastDiskROI(
                 self.image,
                 self.phantom_angle + stng["angle"],
-                self.phantom_radius * stng["roi radius"],
+                self.phantom_radius * stng["roi radius"] * self.roi_size_factor,
                 self.phantom_radius * stng["distance from center"],
                 self.phantom_center,
                 self._high_contrast_threshold,
@@ -807,10 +861,12 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
 
     @property
     def phantom_center(self) -> Point:
+        # convert the adjustment from mm to pixels
+        adjustment = Point(x=self.x_adjustment, y=self.y_adjustment) * self.image.dpmm
         return (
             Point(self._center_override)
             if self._center_override is not None
-            else self._phantom_center_calc()
+            else (self._phantom_center_calc() + adjustment).as_point()
         )
 
     @property
@@ -818,7 +874,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         return (
             self._size_override
             if self._size_override is not None
-            else self._phantom_radius_calc()
+            else self._phantom_radius_calc() * self.scaling_factor
         )
 
     @property
@@ -826,7 +882,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         return (
             self._angle_override
             if self._angle_override is not None
-            else self._phantom_angle_calc()
+            else self._phantom_angle_calc() + self.angle_adjustment
         )
 
     @property
@@ -835,10 +891,10 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         area_px = self._create_phantom_outline_object()[0].area
         return area_px / self.image.dpmm**2
 
-    def _phantom_center_calc(self):
+    def _phantom_center_calc(self) -> Point:
         return bbox_center(self.phantom_ski_region)
 
-    def _phantom_angle_calc(self):
+    def _phantom_angle_calc(self) -> float:
         pass
 
     def _phantom_radius_calc(self):

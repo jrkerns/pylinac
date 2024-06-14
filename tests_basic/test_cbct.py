@@ -12,6 +12,7 @@ from pylinac import CatPhan503, CatPhan504, CatPhan600, CatPhan604
 from pylinac.core.geometry import Point
 from pylinac.core.io import TemporaryZipDirectory
 from pylinac.ct import CTP404CP503, CTP404CP504, CTP528CP503, CTP528CP504, CatphanResult
+from tests_basic.core.test_utilities import ResultsDataBase
 from tests_basic.core.test_utilities import QuaacTestBase
 from tests_basic.utils import (
     CloudFileMixin,
@@ -52,6 +53,10 @@ class TestInstantiation(
             paths = [osp.join(zfolder, f) for f in os.listdir(zfolder)]
             paths = [io.BytesIO(open(p, "rb").read()) for p in paths]
             CatPhan504(paths)
+
+
+class TestCBCT504ResultsData(TestCase, ResultsDataBase):
+    model = CatPhan504
 
 
 class TestGeneral(TestCase):
@@ -1610,3 +1615,22 @@ class CatPhan604NegativeSliceOverlap(CatPhan604Mixin, TestCase):
     unif_values = {"Center": 24, "Left": 23, "Right": 22, "Top": 23, "Bottom": 21}
     mtf_values = {50: 0.40}
     lowcon_visible = 6
+
+
+class CatPhan504NearEdge(CatPhan504Mixin, TestCase):
+    file_name = "phantom_edge.zip"
+    expected_roll = 1.4
+    origin_slice = 41
+    hu_values = {
+        "Poly": -41,
+        "Acrylic": 120,
+        "Delrin": 322,
+        "Air": -1010,
+        "Teflon": 905,
+        "PMP": -189,
+        "LDPE": -98,
+    }
+    unif_values = {"Center": 12, "Left": 10, "Right": 9, "Top": 9, "Bottom": 11}
+    mtf_values = {50: 0.33}
+    lowcon_visible = 4
+    slice_thickness = 3

@@ -12,6 +12,7 @@ from pylinac.acr import ACRCT, ACRCTResult, ACRMRIResult
 from pylinac.core.geometry import Point
 from pylinac.core.io import TemporaryZipDirectory
 from tests_basic.core.test_utilities import QuaacTestBase
+from tests_basic.core.test_utilities import ResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromZipTesterMixin,
@@ -229,6 +230,14 @@ class TestACRMRI(TestCase, FromZipTesterMixin, InitTesterMixin):
             paths = [Path(zfolder, f) for f in os.listdir(zfolder)]
             paths = [io.BytesIO(open(p, "rb").read()) for p in paths]
             ACRMRILarge(paths)
+
+
+class TestACRMRIResultData(TestCase, ResultsDataBase):
+    def construct_analyzed_instance(self):
+        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "GE 3T.zip"])
+        mri = ACRMRILarge.from_zip(path)
+        mri.analyze()
+        return mri
 
 
 class TestMRGeneral(TestCase):

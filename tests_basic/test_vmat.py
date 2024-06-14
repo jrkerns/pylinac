@@ -18,6 +18,7 @@ from pylinac.core.image_generator import (
     RandomNoiseLayer,
 )
 from pylinac.vmat import VMATResult
+from tests_basic.core.test_utilities import ResultsDataBase
 from tests_basic.core.test_utilities import QuaacTestBase
 from tests_basic.utils import (
     FromDemoImageTesterMixin,
@@ -143,6 +144,14 @@ class TestDRMLCQuaac(QuaacTestBase, TestCase):
         t = DRMLC.from_demo_images()
         t.analyze()
         return t
+
+
+class TestDRMLCResultsData(ResultsDataBase, TestCase):
+    model = DRMLC
+
+
+class TestDRGSResultsData(ResultsDataBase, TestCase):
+    model = DRGS
 
 
 class VMATMixin:

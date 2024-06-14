@@ -36,6 +36,7 @@ from pylinac.winston_lutz import (
     solve_3d_shift_vector_from_2d_planes,
 )
 from tests_basic.core.test_utilities import QuaacTestBase
+from tests_basic.core.test_utilities import ResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,
@@ -725,6 +726,10 @@ class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
         path = get_file_from_cloud_test_repo([TEST_DIR, "AQA.zip"])
         with self.assertRaises(ValueError):
             WinstonLutz.from_zip(path, dpi=100, sid=1000)
+
+
+class TestWLResultsData(ResultsDataBase, TestCase):
+    model = WinstonLutz
 
 
 class GeneralTests(TestCase):

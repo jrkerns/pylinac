@@ -418,6 +418,7 @@ class WinstonLutzResult(ResultBase):
     max_coll_rms_deviation_mm: float  #:
     couch_2d_iso_diameter_mm: float  #:
     max_couch_rms_deviation_mm: float  #:
+    bb_shift_vector: VectorSerialized  #:
     image_details: list[WinstonLutz2DResult]  #:
     keyed_image_details: dict[str, WinstonLutz2DResult]  #:
 
@@ -1552,7 +1553,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             # get BB positions
             xs = [img.bb.x for img in images[1:]]
             ys = [img.bb.y for img in images[1:]]
-            marker = "ro"
+            marker = "co"
         ax.plot(xs, ys, marker, ms=8)
         # set labels
         ax.set_title(axis.value + " wobble")
@@ -1961,6 +1962,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
                 self.axis_rms_deviation(axis=(Axis.COUCH, Axis.REFERENCE))
             ),
             max_epid_rms_deviation_mm=max(self.axis_rms_deviation(axis=Axis.EPID)),
+            bb_shift_vector=self.bb_shift_vector,
             image_details=individual_image_data,
             keyed_image_details=self._generate_keyed_images(individual_image_data),
         )

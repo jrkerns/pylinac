@@ -153,7 +153,7 @@ class Point:
     def dict(self) -> dict:
         """Convert to dict. Shim until convert to dataclass"""
         return {
-            attr: getattr(self, attr)
+            attr: float(getattr(self, attr))
             for attr in self._attr_list
             if getattr(self, attr) is not None
         }
@@ -161,13 +161,13 @@ class Point:
     def __repr__(self) -> str:
         return f"Point(x={self.x:3.2f}, y={self.y:3.2f}, z={self.z:3.2f})"
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Point | Vector) -> bool:
         # if all attrs equal, points considered equal
         return all(
             getattr(self, attr) == getattr(other, attr) for attr in self._attr_list
         )
 
-    def __add__(self, other) -> Vector:
+    def __add__(self, other: Point | Vector) -> Vector:
         p = Vector()
         for attr in self._attr_list:
             try:
@@ -187,12 +187,13 @@ class Point:
             setattr(p, attr, diff)
         return p
 
-    def __mul__(self, other: int | float) -> None:
+    def __mul__(self, other: int | float) -> Point:
         for attr in self._attr_list:
             try:
                 self.__dict__[attr] *= other
             except TypeError:
                 pass
+        return self
 
     def __truediv__(self, other: int | float) -> Point:
         for attr in self._attr_list:
@@ -316,6 +317,9 @@ class Vector:
     def as_scalar(self) -> float:
         """Return the scalar equivalent of the vector."""
         return math.sqrt(self.x**2 + self.y**2 + self.z**2)
+
+    def as_point(self) -> Point:
+        return Point(self.x, self.y, self.z)
 
     def dict(self) -> dict:
         """Convert to a dict. Shim until converting to dataclass"""
@@ -491,6 +495,20 @@ class Line:
             **kwargs,
         )
         return lines[0]
+
+    def dict(self) -> dict:
+        """Convert to dict. Shim until convert to dataclass"""
+        return {
+            "b": float(self.b),
+            "m": float(self.m),
+            "point1": self.point1.dict(),
+            "point2": self.point2.dict(),
+            "center": self.center.dict(),
+            "length": float(self.length),
+        }
+
+
+LineSerialized = Annotated[Line, PlainSerializer(to_json)]
 
 
 class Rectangle:
