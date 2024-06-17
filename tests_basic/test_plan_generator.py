@@ -400,7 +400,7 @@ class TestPlanPrefabs(TestCase):
             .ControlPointSequence[0]
             .BeamLimitingDevicePositionSequence[-1]
             .LeafJawPositions[0],
-            -49.5,
+            -53.5,
         )
 
     def test_picket_fence_too_wide(self):

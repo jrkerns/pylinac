@@ -434,4 +434,6 @@ API Documentation
 
 .. autoclass:: pylinac.plan_generator.dicom.Beam
 
+.. autoclass:: pylinac.plan_generator.dicom.HalcyonBeam
+
 .. autoclass:: pylinac.plan_generator.mlc.MLCShaper
