@@ -41,8 +41,8 @@ class MLCShaper:
         self.sacrifice_gap = sacrifice_gap_mm  # mm gap
         self.sacrifice_max_move_mm = sacrifice_max_move_mm  # mm
         self.max_overtravel_mm = max_overtravel_mm  # mm
-        self.control_points = []
-        self.metersets = []
+        self.control_points: list[list[float]] = []
+        self.metersets: list[float] = []
 
     @property
     def centers(self) -> list[float]:
@@ -204,6 +204,18 @@ class MLCShaper:
             if end_meterset != start_meterset:
                 self.control_points.append(positions)
                 self.metersets.append(end_meterset)
+
+    def park(self, meterset: float = 0) -> None:
+        """Park the MLC leaves"""
+        self.add_rectangle(
+            left_position=-self.max_x,
+            right_position=self.max_x,
+            x_outfield_position=-200,  # irrelevant
+            top_position=max(self.leaf_y_positions),
+            bottom_position=min(self.leaf_y_positions),
+            outer_strip_width=1,  # irrelevant
+            meterset_at_target=meterset,
+        )
 
     def add_strip(
         self,
@@ -382,58 +394,3 @@ def split_sacrifice_travel(distance: float, max_travel: float) -> list[float]:
     if distance > 0:
         result.append(distance)
     return result
-
-
-class STACK:
-    DISTAL = "distal"
-    PROXIMAL = "proximal"
-
-
-class DualStackMLCShaper(MLCShaper):
-    def __init__(
-        self,
-        proximal_leaf_y_positions: list[float],
-        distal_leaf_y_positions: list[float],
-        max_x_mm: float,
-        sacrifice_gap_mm: float = 5,
-        sacrifice_max_move_mm: float = 50,
-        max_overtravel_mm: float = 140,
-    ):
-        self.proximal_leaf_y_positions = proximal_leaf_y_positions
-        self.distal_leaf_y_positions = distal_leaf_y_positions
-        self.max_x = max_x_mm  # mm
-        self.sacrifice_gap = sacrifice_gap_mm  # mm gap
-        self.sacrifice_max_move_mm = sacrifice_max_move_mm  # mm
-        self.max_overtravel_mm = max_overtravel_mm  # mm
-        self.control_points = []
-        self.metersets = []
-
-    @property
-    def proximal_centers(self) -> list[float]:
-        """The center positions of the MLC leaves"""
-        centers = []
-        for leaf_start, leaf_end in zip(
-            self.proximal_leaf_y_positions[:-1], self.proximal_leaf_y_positions[1:]
-        ):
-            centers.append(float(np.mean([leaf_start, leaf_end])))
-        return centers
-
-    @property
-    def distal_centers(self) -> list[float]:
-        """The center positions of the MLC leaves"""
-        centers = []
-        for leaf_start, leaf_end in zip(
-            self.distal_leaf_y_positions[:-1], self.distal_leaf_y_positions[1:]
-        ):
-            centers.append(float(np.mean([leaf_start, leaf_end])))
-        return centers
-
-    @property
-    def proximal_num_leaves(self) -> int:
-        """The number of leaves in the MLC"""
-        return int((len(self.proximal_leaf_y_positions) - 1) * 2)
-
-    @property
-    def distal_num_leaves(self) -> int:
-        """The number of leaves in the MLC"""
-        return int((len(self.distal_leaf_y_positions) - 1) * 2)

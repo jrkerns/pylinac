@@ -2,7 +2,65 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle
+from py_linq import Enumerable
 from pydicom import Dataset
+
+
+def get_scaled_leaf_boundaries(boundaries: list[float], scale: float) -> np.ndarray:
+    """Get the MLC boundaries scaled to the resolution.
+
+    Parameters
+    ----------
+    boundaries: list[float]
+        The MLC boundaries.
+    scale : float
+        The resolution scale.
+
+    Returns
+    -------
+    np.ndarray
+        The MLC boundaries scaled to the resolution.
+    """
+    return np.asarray(boundaries, dtype=float) * scale
+
+
+def get_mlc_y_extent(ds: Dataset, scale: float) -> int:
+    """Get the **fluence** extent of the MLC boundaries in the y direction. I.e. the height of the fluence map.
+    Can account for multiple MLC stacks. Assumes the first beam contains the MLCs.
+    E.g. if the MLCs have a range of -100 to 100 and scale of 2, the extent will be 200*2=400.
+    """
+    extent = 0
+    for device in ds.BeamSequence[0].BeamLimitingDeviceSequence:
+        if "MLC" in device.get("RTBeamLimitingDeviceType"):
+            mlc_bounds = device.get("LeafPositionBoundaries")
+            if mlc_bounds:
+                extent = max(
+                    extent, get_scaled_leaf_boundaries(mlc_bounds, scale).ptp()
+                )
+    return int(extent)
+
+
+def get_absolute_scaled_leaf_boundaries(
+    ds: Dataset, boundaries: list[float], scale: float
+) -> np.ndarray:
+    """Get the MLC boundaries scaled to the resolution and offset to start at 0. Used to
+    get the boundaries of the MLCs in the fluence map (vs physical which might be negative).
+    E.g. if the MLC boundaries go (-100, -90, ... 100), the result will be (0, 20, ... 400) if the scale is 2.
+
+    Parameters
+    ----------
+    ds : pydicom.Dataset
+        The RT Plan dataset.
+    scale : float
+        The resolution scale.
+
+    Returns
+    -------
+    np.ndarray
+        The MLC boundaries scaled to the resolution and offset by the given amount.
+    """
+    extent = get_mlc_y_extent(ds, scale)
+    return (get_scaled_leaf_boundaries(boundaries, scale) + extent / 2).astype(int)
 
 
 def generate_fluences(
@@ -34,20 +92,10 @@ def generate_fluences(
     # zoom factor
     z = 1 / resolution_mm
     # Get the MLC extent
-    # if no MLCs, abort
-    mlc_bounds_um = (
-        rt_plan.BeamSequence[0]
-        .BeamLimitingDeviceSequence[-1]
-        .get("LeafPositionBoundaries")
-    )
-    if not mlc_bounds_um:
-        return np.zeros((1, 10, 10))
-    mlc_bounds_um = np.asarray(mlc_bounds_um, dtype=float) * z
-    y_offset_um = np.abs(mlc_bounds_um.min())
-    mlc_bounds_um += np.abs(y_offset_um)
     num_beams = len(rt_plan.BeamSequence)
+    extent = get_mlc_y_extent(rt_plan, z)
     fluences = np.zeros(
-        (num_beams, (int(mlc_bounds_um[-1] - mlc_bounds_um[0])), (int(width_mm * z))),
+        (num_beams, extent, int(width_mm * z)),
         dtype=dtype,
     )
     # iterate through each beam
@@ -65,45 +113,52 @@ def generate_fluences(
             < 3
         ):
             continue
-        running_meterset = 0
-        # Fill the fluence matrix
-        for cp_idx, cp in enumerate(beam.ControlPointSequence):
-            if (
-                not cp.get("BeamLimitingDevicePositionSequence")
-                and cp.CumulativeMetersetWeight == 1
-            ):
-                # shortcut for a simple 2-element fluence. the end position is the same as the start
-                # position, so we can set this control point to the same as the last one and set the
-                # meterset to 1
-                cp = beam.ControlPointSequence[cp_idx - 1]
-                cp.CumulativeMetersetWeight = 1
-            left_leaves = (
-                np.asarray(
-                    cp.BeamLimitingDevicePositionSequence[-1].LeafJawPositions[
-                        : int(len(mlc_bounds_um) - 1)
-                    ]
+        # For each MLC stack stated in the Beam limiting sequence, construct the fluence
+        mlc_stacks = (
+            Enumerable(beam.BeamLimitingDeviceSequence)
+            .where(lambda c: "MLC" in c.RTBeamLimitingDeviceType)
+            .to_list()
+        )
+        stack_fluences = []
+        for stack in mlc_stacks:
+            running_meterset = 0
+            stack_fluence = np.zeros_like(fluences[0])
+            for cp_idx, cp in enumerate(beam.ControlPointSequence):
+                # for each MLC stack in the CP
+                mlc_cp = (
+                    Enumerable(cp.BeamLimitingDevicePositionSequence)
+                    .where(
+                        lambda cp: cp.RTBeamLimitingDeviceType
+                        == stack.RTBeamLimitingDeviceType
+                    )
+                    .single()
                 )
-                * z
-                + width_mm * z / 2
-            ).astype(int)
-            left_leaves[left_leaves < 0] = 0
-            right_leaves = (
-                np.asarray(
-                    cp.BeamLimitingDevicePositionSequence[-1].LeafJawPositions[
-                        int(len(mlc_bounds_um) - 1) :
-                    ]
+                mid_leaf_index = len(mlc_cp.LeafJawPositions) // 2
+                left_leaves = (
+                    np.asarray(mlc_cp.LeafJawPositions[:mid_leaf_index]) * z
+                    + width_mm * z / 2
+                ).astype(int)
+                left_leaves[left_leaves < 0] = 0
+                right_leaves = (
+                    np.asarray(mlc_cp.LeafJawPositions[mid_leaf_index:]) * z
+                    + width_mm * z / 2
+                ).astype(int)
+                right_leaves[right_leaves < 0] = 0
+                mu_delta = int((cp.CumulativeMetersetWeight - running_meterset) * 1000)
+                boundaries = get_absolute_scaled_leaf_boundaries(
+                    rt_plan, stack.LeafPositionBoundaries, z
                 )
-                * z
-                + width_mm * z / 2
-            ).astype(int)
-            right_leaves[right_leaves < 0] = 0
-            mu_delta = int((cp.CumulativeMetersetWeight - running_meterset) * 1000)
-            for idx in range(len(mlc_bounds_um) - 1):
-                leaf_bounds_um = mlc_bounds_um[idx : idx + 2].astype(int)
-                for px in np.arange(leaf_bounds_um[0], leaf_bounds_um[1]):
-                    s = slice(left_leaves[idx], right_leaves[idx])
-                    fluences[beam_idx, px, s] += mu_delta
-            running_meterset = cp.CumulativeMetersetWeight
+                for leaf_num in range(len(left_leaves)):
+                    width_slice = slice(left_leaves[leaf_num], right_leaves[leaf_num])
+                    height_slice = slice(boundaries[leaf_num], boundaries[leaf_num + 1])
+                    stack_fluence[height_slice, width_slice] += mu_delta
+                running_meterset = cp.CumulativeMetersetWeight
+            stack_fluences.append(stack_fluence)
+        if len(stack_fluences) == 1:
+            fluences[beam_idx] += stack_fluences[0]
+        else:
+            # for multiple MLC stacks, take the minimum fluence across each one.
+            fluences[beam_idx] += np.minimum(*stack_fluences)
     return fluences
 
 

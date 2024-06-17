@@ -219,6 +219,10 @@ use the sacrificial movements. Although it might be simpler to scale the ROIs af
 software, having an image where the dose is constant across all ROIs is more intuitive, but comes at the expense of
 these sacrificial movements.
 
+.. image:: images/sacrifice.gif
+    :width: 600
+    :align: center
+
 Fields
 ------
 
@@ -387,10 +391,46 @@ The MLCs are not moving during beam-on.
     The two variables are intertwined. This test isolates those variables so that *just*
     the gantry speed can be tested.
 
+.. _halcyon-plan-generator:
+
+Halcyon
+--------
+
+The Halcyon plan generator is a subclass of the PlanGenerator. It is specially made to handle
+plans for the Halcyon machine. The Halcyon machine has a double stack of MLCs, which complicate matters.
+
+Currently, only picket fence fields are supported but more will be added in the future to
+match the normal plan generator.
+
+Picket Fence
+^^^^^^^^^^^^
+
+Adding a picket fence field can be done like so:
+
+.. code-block:: python
+
+    from pylinac.plan_generator.dicom import HalcyonPlanGenerator, STACK
+
+    path = r"path/to/my/rtplan.dcm"
+    pg = HalcyonPlanGenerator.from_rt_plan_file(path, plan_label="MyQA", plan_name="QA")
+    pg.add_picketfence_beam(
+        stack=STACK.DISTAL,
+        strip_width=3,
+        strip_positions=(-50, -25, 25, 50),  # 4 pickets
+        mu=100,
+        beam_name="PF 3mm",
+        gantry_angle=90,
+        collimator_angle=0,
+    )
+
 API Documentation
 ------------------
 
 .. autoclass:: pylinac.plan_generator.dicom.PlanGenerator
+
+.. autoclass:: pylinac.plan_generator.dicom.HalcyonPlanGenerator
+
+.. autoclass:: pylinac.plan_generator.dicom.STACK
 
 .. autoclass:: pylinac.plan_generator.dicom.Beam
 
