@@ -2,8 +2,14 @@
 Changelog
 =========
 
-v 3.24.0
+v 3.24.1
 --------
+
+.. note::
+
+    Version 3.24.0 was accidentally released on pypi before the intended release date. PYPI does not allow
+    versions to be re-uploaded. v 3.24.0 was yanked and the official first release of the 3.24.x line is v3.24.1.
+    There is no 3.24.0.
 
 CBCT
 ^^^^
