@@ -15,6 +15,8 @@ The ``image`` module within pylinac is quite powerful and flexible to do arbitra
 for use in custom algorithms. For example, images can be loaded easily, filters applied, cropped,
 rotated, and more with straightforward methods.
 
+.. _how-image-data-is-loaded:
+
 How data is loaded
 ^^^^^^^^^^^^^^^^^^
 
@@ -77,6 +79,7 @@ a few extras. We need to load it specifically:
     my_linac_dcm.cax()  # a Point instance. E.g. (x=550, y=550)
     my_linac_dcm.dpmm()  # the dots/mm at isocenter. Will account for the SID.
 
+.. _tiff-to-dicom:
 
 TIFF to DICOM
 ^^^^^^^^^^^^^

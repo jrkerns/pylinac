@@ -46,6 +46,7 @@
    :hidden:
    :caption: Topics
 
+   topics/cookbook
    topics/exporting_results
    topics/images
    topics/xim
