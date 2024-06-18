@@ -318,6 +318,40 @@ dictionary with the filenames as keys and a tuple of ints for the gantry, coll, 
 
     The filenames should be local to the directory. In the above example the full paths would be ``path/to/wl/dir/file1.dcm``, and ``path/to/wl/dir/file2.dcm``.
 
+.. _setting-wl-reference-values:
+
+Setting Reference Axis Values
+------------------------------
+
+It is possible to set reference axis values to angles other than zero. E.g. if the intended collimator angle
+of reference is 45 degrees to average the collimator rotation of a VMAT plan.
+In addition to changing reference values, the "snap" tolerance, to which axis angles will "snap"
+if near the reference value. See :ref:`wl_image_types`. This can be helpful for scenarios
+where you forgot to set the couch axes to 0 from a previous CBCT shift.
+
+To change the reference values and set a snap tolerance of 5 degrees:
+
+.. code-block:: python
+
+    wl = WinstonLutz(...)
+    wl.analyze(
+        ...,
+        snap_tolerance=5,
+        gantry_reference=45,
+        collimator_reference=0,
+        couch_reference=0,
+    )
+
+In the above scenario, images with gantry ranges of 40-50 degrees, collimator 355-5, and couch 5 will
+be considered "Reference" images.
+
+This can also be helpful if you have a very old linac and or use a coordinate space such as Varian Standard where
+gantry 180 is pointing to the floor, in which case you can set the gantry reference to 180.
+
+.. note::
+
+  The snap tolerance does not actually change the axis values, just the variable Axis type.
+
 Changing BB detection size
 --------------------------
 
@@ -498,12 +532,16 @@ used for determining whether to use the image for the given calculation. Image t
 analysis to a given axis if needed. E.g. for gantry iso size, as opposed to overall iso size, only the gantry should be moving
 so that no other variables influence it's calculation.
 
-* **Reference**: This is when all axes are at value 0 (gantry=coll=couch=0).
-* **Gantry**: This is when all axes but gantry are at value 0, e.g. gantry=45, coll=0, couch=0.
-* **Collimator**: This is when all axes but collimator are at value 0.
-* **Couch**: This is when all axes but the couch are at value 0.
-* **GB Combo**: This is when either the gantry or collimator are non-zero but the couch is 0.
-* **GBP Combo**: This is where the couch is kicked and the gantry and/or collimator are rotated.
+.. note::
+
+    Reference value defaults are 0, but this can be changed. See :ref:`setting-wl-reference-values`.
+
+* **Reference**: This is when all axes are at the reference value (default 0; e.g. gantry=coll=couch=0).
+* **Gantry**: This is when all axes but gantry are at the reference value; e.g. gantry=45, coll=0, couch=0.
+* **Collimator**: This is when all axes but collimator are at the reference value.
+* **Couch**: This is when all axes but the couch are at the reference value.
+* **GB Combo**: This is when either the gantry or collimator are non-zero but the couch is at the reference value.
+* **GBP Combo**: This is where the couch is kicked and the gantry and/or collimator are rotated away from reference.
 
 **Analysis definitions**
 Given the above terms, the following calculations are performed.
