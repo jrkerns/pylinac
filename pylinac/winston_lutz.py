@@ -60,7 +60,12 @@ from .core.geometry import (
 from .core.image import DicomImageStack, is_image, tiff_to_dicom
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.scale import MachineScale, convert
-from .core.utilities import ResultBase, ResultsDataMixin, convert_to_enum, is_close
+from .core.utilities import (
+    ResultBase,
+    ResultsDataMixin,
+    convert_to_enum,
+    is_close_degrees,
+)
 from .metrics.features import (
     is_right_circumference,
     is_right_size_bb,
@@ -489,6 +494,10 @@ class WLBaseImage(image.LinacDicomImage):
     arrangement_matches: dict[
         str, BBFieldMatch
     ]  # a field CAX and BB matched to their respective nominal locations
+    _gantry_reference: float
+    _collimator_reference: float
+    _couch_reference: float
+    _snap_tolerance: float
 
     def __init__(
         self,
@@ -517,6 +526,10 @@ class WLBaseImage(image.LinacDicomImage):
         is_open_field: bool = False,
         is_low_density: bool = False,
         shift_vector: Vector | None = None,
+        snap_tolerance: float = 3,
+        gantry_reference: float = 0,
+        collimator_reference: float = 0,
+        couch_reference: float = 0,
     ) -> (tuple[Point], tuple[Point]):
         """Analyze the image for BBs and field CAXs.
 
@@ -530,7 +543,19 @@ class WLBaseImage(image.LinacDicomImage):
             Whether the BBs are low density (e.g. kV images).
         shift_vector : Vector, optional
             A vector to shift the detected BBs by. Useful for images that are not perfectly aligned.
+
+        See Also
+        --------
+
+        :meth:`~pylinac.winston_lutz.WinstonLutz.analyze`
+
         """
+        if snap_tolerance < 0:
+            raise ValueError("Snap tolerance must be >= 0")
+        self._snap_tolerance = snap_tolerance
+        self._gantry_reference = gantry_reference
+        self._collimator_reference = collimator_reference
+        self._couch_reference = couch_reference
         self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
         self._clean_edges()
         self.ground()
@@ -769,9 +794,17 @@ class WLBaseImage(image.LinacDicomImage):
         * Couch : All axes but couch at 0.
         * Combo : More than one axis is not at 0.
         """
-        G0 = is_close(self.gantry_angle, [0, 360])
-        B0 = is_close(self.collimator_angle, [0, 360])
-        P0 = is_close(self.couch_angle, [0, 360])
+        G0 = is_close_degrees(
+            self.gantry_angle, self._gantry_reference, delta=self._snap_tolerance
+        )
+        B0 = is_close_degrees(
+            self.collimator_angle,
+            self._collimator_reference,
+            delta=self._snap_tolerance,
+        )
+        P0 = is_close_degrees(
+            self.couch_angle, self._couch_reference, delta=self._snap_tolerance
+        )
         if G0 and B0 and not P0:
             return Axis.COUCH
         elif G0 and P0 and not B0:
@@ -833,6 +866,10 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
         low_density_bb: bool = False,
         open_field: bool = False,
         shift_vector: Vector | None = None,
+        snap_tolerance: float = 3,
+        gantry_reference: float = 0,
+        collimator_reference: float = 0,
+        couch_reference: float = 0,
     ) -> None:
         """Analyze the image. See WinstonLutz.analyze for parameter details."""
         bb_config = BBArrangement.ISO
@@ -842,6 +879,10 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
             is_open_field=open_field,
             is_low_density=low_density_bb,
             shift_vector=shift_vector,
+            snap_tolerance=snap_tolerance,
+            gantry_reference=gantry_reference,
+            collimator_reference=collimator_reference,
+            couch_reference=couch_reference,
         )
         self.bb_arrangement = bb_config
         # these are set for the deprecated properties of the 2D analysis specifically where 1 field and 1 bb are expected.
@@ -883,34 +924,6 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
         self.plot(show=False)
         plt.tight_layout()
         plt.savefig(filename, **kwargs)
-
-    @property
-    def variable_axis(self) -> Axis:
-        """The axis that is varying.
-
-        There are five types of images:
-
-        * Reference : All axes are at 0.
-        * Gantry: All axes but gantry at 0.
-        * Collimator : All axes but collimator at 0.
-        * Couch : All axes but couch at 0.
-        * Combo : More than one axis is not at 0.
-        """
-        G0 = is_close(self.gantry_angle, [0, 360])
-        B0 = is_close(self.collimator_angle, [0, 360])
-        P0 = is_close(self.couch_angle, [0, 360])
-        if G0 and B0 and not P0:
-            return Axis.COUCH
-        elif G0 and P0 and not B0:
-            return Axis.COLLIMATOR
-        elif P0 and B0 and not G0:
-            return Axis.GANTRY
-        elif P0 and B0 and G0:
-            return Axis.REFERENCE
-        elif P0:
-            return Axis.GB_COMBO
-        else:
-            return Axis.GBP_COMBO
 
     def _generate_results_data(self) -> WinstonLutz2DResult:
         """Present the results data and metadata as a dataclass or dict.
@@ -1209,6 +1222,10 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
         low_density_bb: bool = False,
         open_field: bool = False,
         apply_virtual_shift: bool = False,
+        snap_tolerance: float = 3,
+        gantry_reference: float = 0,
+        collimator_reference: float = 0,
+        couch_reference: float = 0,
     ) -> None:
         """Analyze the WL images.
 
@@ -1226,13 +1243,32 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
             less interest than simply the imaging iso vs the BB.
         apply_virtual_shift
             If True, applies a virtual shift to the BBs based on the shift necessary to place the BB at the radiation isocenter.
+        snap_tolerance
+            The tolerance of the axes values that will "snap" to the reference values. I.e. if the snap tolerance is 3 and the gantry is within 3 degrees of 0, it will snap to 0.
+            This is helpful, e.g., when you've forgotten to reset the couch to 0 after a CBCT.
+        gantry_reference
+            The reference value for the gantry. This is when pylinac will consider the image to be a reference image. E.g.
+            some customers take all images with collimator=45 and want that to be considered the reference. This is used in
+            combination with the snap_tolerance. I.e. a gantry of 43 with snap tolerance of 3 and reference of 45 will snap to 45.
+        collimator_reference
+            The reference value for the collimator. See `gantry_reference`.
+        couch_reference
+            The reference value for the couch. See `gantry_reference`.
         """
         self.machine_scale = machine_scale
         if self.is_from_cbct:
             low_density_bb = True
             open_field = True
         for img in self.images:
-            img.analyze(bb_size_mm, low_density_bb, open_field)
+            img.analyze(
+                bb_size_mm=bb_size_mm,
+                low_density_bb=low_density_bb,
+                open_field=open_field,
+                snap_tolerance=snap_tolerance,
+                gantry_reference=gantry_reference,
+                collimator_reference=collimator_reference,
+                couch_reference=couch_reference,
+            )
         # we need to construct the BB representation to get the shift vector
         bb_config = BBArrangement.ISO[0]
         bb_config.bb_size_mm = bb_size_mm
@@ -1245,7 +1281,16 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
             shift = self.bb_shift_vector
             self._virtual_shift = self.bb_shift_instructions()
             for img in self.images:
-                img.analyze(bb_size_mm, low_density_bb, open_field, shift_vector=shift)
+                img.analyze(
+                    bb_size_mm=bb_size_mm,
+                    low_density_bb=low_density_bb,
+                    open_field=open_field,
+                    shift_vector=shift,
+                    snap_tolerance=snap_tolerance,
+                    gantry_reference=gantry_reference,
+                    collimator_reference=collimator_reference,
+                    couch_reference=couch_reference,
+                )
 
         # in the vanilla WL case, the BB can only be represented by non-couch-kick images
         # the ray trace cannot handle the kick currently

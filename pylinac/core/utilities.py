@@ -16,6 +16,7 @@ import pydicom
 from pydantic import BaseModel, ConfigDict, Field
 
 from .. import __version__
+from .scale import wrap360
 
 
 def convert_to_enum(value: str | Enum | None, enum: type[Enum]) -> Enum:
@@ -148,6 +149,27 @@ def is_close(val: float, target: float | Sequence, delta: float = 1):
         if target - delta < val < target + delta:
             return True
     return False
+
+
+def is_close_degrees(angle1: float, angle2: float, delta: float = 1) -> bool:
+    """A sister function to is_close that takes into account the circular nature of degrees.
+
+    Parameters
+    ----------
+    angle1 : float
+        The first angle in degrees.
+    angle2 : float
+        The second angle in degrees.
+    delta : float
+        The maximum difference allowed between the angles in degrees
+    """
+    if delta < 0:
+        raise ValueError("Delta must be positive")
+    angle1 = wrap360(angle1)
+    angle2 = wrap360(angle2)
+    simple_diff = abs(angle1 - angle2)
+    other_side_of_circle = 360 - simple_diff
+    return min(simple_diff, other_side_of_circle) <= delta
 
 
 def simple_round(number: float | int, decimals: int | None = 0) -> float | int:
