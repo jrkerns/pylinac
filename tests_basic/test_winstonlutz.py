@@ -1224,6 +1224,10 @@ class Synthetic1mmLeftNoCouch(SyntheticWLMixin, TestCase):
         (180, 0, 0),
         (270, 0, 0),
     )
+    offset_mm_left = 1
+    cax2bb_max_distance = 1
+    cax2bb_mean_distance = 0.5
+    cax2bb_median_distance = 0.5
 
 
 class Synthetic1mmLeft(SyntheticWLMixin, TestCase):
