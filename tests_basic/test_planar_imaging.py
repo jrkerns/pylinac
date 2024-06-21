@@ -34,7 +34,7 @@ from pylinac.planar_imaging import (
     StandardImagingQCkV,
     percent_integral_uniformity,
 )
-from tests_basic.core.test_utilities import ResultsDataBase
+from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
 from tests_basic.utils import CloudFileMixin, get_file_from_cloud_test_repo, save_file
 
 TEST_DIR = "planar_imaging"
@@ -192,7 +192,7 @@ class GeneralTests(TestCase):
         self.assertAlmostEqual(phan.results_data().phantom_area, 17760.9, delta=0.3)
 
 
-class PlanarPhantomMixin(CloudFileMixin):
+class PlanarPhantomMixin(QuaacTestBase, CloudFileMixin):
     klass: Callable
     dir_path = ["planar_imaging"]
     mtf_50 = None
@@ -217,6 +217,9 @@ class PlanarPhantomMixin(CloudFileMixin):
             return cls.klass.from_demo_image()
         else:
             return cls.klass(cls.get_filename())
+
+    def quaac_instance(self):
+        return self.instance
 
     @classmethod
     def preprocess(cls, instance):

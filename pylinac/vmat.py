@@ -28,7 +28,7 @@ from .core.image import DicomImage, ImageLike
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.pdf import PylinacCanvas
 from .core.profile import FWXMProfile
-from .core.utilities import ResultBase, ResultsDataMixin
+from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
 from .settings import get_dicom_cmap
 
 
@@ -138,7 +138,7 @@ class Segment(Rectangle):
         return "blue" if self.passed else "red"
 
 
-class VMATBase(ResultsDataMixin[VMATResult]):
+class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
     _url_suffix: str
     _result_header: str
     _result_short_header: str
@@ -290,6 +290,28 @@ class VMATBase(ResultsDataMixin[VMATResult]):
 
         string += f"Max Deviation: {self.max_r_deviation:2.3}%\nAbsolute Mean Deviation: {self.avg_abs_r_deviation:2.3}%"
         return string
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        results_data = self.results_data(as_dict=True)
+        data = {
+            "Max Deviation": QuaacDatum(
+                value=results_data["max_deviation_percent"],
+                unit="%",
+            ),
+            "Absolute Mean Deviation": QuaacDatum(
+                value=results_data["abs_mean_deviation"],
+                unit="%",
+            ),
+        }
+        for segment, segment_data in results_data["named_segment_data"].items():
+            data[f"{segment} Rcorr"] = QuaacDatum(
+                value=segment_data["r_corr"],
+            )
+            data[f"{segment} Rdev"] = QuaacDatum(
+                value=segment_data["r_dev"],
+                unit="%",
+            )
+        return data
 
     def _generate_results_data(self) -> VMATResult:
         """Present the results data and metadata as a dataclass or dict.

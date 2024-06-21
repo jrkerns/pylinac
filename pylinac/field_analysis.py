@@ -21,7 +21,13 @@ from .core.hill import Hill
 from .core.io import SNCProfiler, retrieve_demo_file
 from .core.profile import Edge, Interpolation, Normalization, SingleProfile
 from .core.roi import RectangleROI
-from .core.utilities import ResultBase, ResultsDataMixin, convert_to_enum
+from .core.utilities import (
+    QuaacDatum,
+    QuaacMixin,
+    ResultBase,
+    ResultsDataMixin,
+    convert_to_enum,
+)
 from .settings import get_dicom_cmap
 
 
@@ -335,7 +341,7 @@ class FieldResult(DeviceResult):
     central_roi_min: float = 0  #:
 
 
-class FieldAnalysis(ResultsDataMixin[FieldResult]):
+class FieldAnalysis(ResultsDataMixin[FieldResult], QuaacMixin):
     """Class for analyzing the various parameters of a radiation image, most commonly an open image from a linac."""
 
     def __init__(
@@ -876,6 +882,90 @@ class FieldAnalysis(ResultsDataMixin[FieldResult]):
             central_roi_min=self.central_roi.min,
             central_roi_std=self.central_roi.std,
         )
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        """Return the data points for the QUAAC analysis."""
+        return {
+            "Flatness": QuaacDatum(
+                value=self._extra_results["flatness_horizontal"],
+                unit="%",
+                description=f"Flatness via the {self._protocol.name} protocol",
+            ),
+            "Symmetry": QuaacDatum(
+                value=self._extra_results["symmetry_horizontal"],
+                unit="%",
+            ),
+            "Top Penumbra": QuaacDatum(
+                value=self._results["top_penumbra_mm"],
+                unit="mm",
+                description="The width of the penumbra at the top of the field.",
+            ),
+            "Bottom Penumbra": QuaacDatum(
+                value=self._results["bottom_penumbra_mm"],
+                unit="mm",
+                description="The width of the penumbra at the bottom of the field.",
+            ),
+            "Left Penumbra": QuaacDatum(
+                value=self._results["left_penumbra_mm"],
+                unit="mm",
+                description="The width of the penumbra at the left of the field.",
+            ),
+            "Right Penumbra": QuaacDatum(
+                value=self._results["right_penumbra_mm"],
+                unit="mm",
+                description="The width of the penumbra at the right of the field.",
+            ),
+            "Field Size Vertical": QuaacDatum(
+                value=self._results["field_size_vertical_mm"],
+                unit="mm",
+                description="The vertical field size.",
+            ),
+            "Field Size Horizontal": QuaacDatum(
+                value=self._results["field_size_horizontal_mm"],
+                unit="mm",
+                description="The horizontal field size.",
+            ),
+            "Beam Center to Top": QuaacDatum(
+                value=self._results["beam_center_to_top_mm"],
+                unit="mm",
+                description="The distance from the beam center to the top of the field.",
+            ),
+            "Beam Center to Bottom": QuaacDatum(
+                value=self._results["beam_center_to_bottom_mm"],
+                unit="mm",
+                description="The distance from the beam center to the bottom of the field.",
+            ),
+            "Beam Center to Left": QuaacDatum(
+                value=self._results["beam_center_to_left_mm"],
+                unit="mm",
+                description="The distance from the beam center to the left of the field.",
+            ),
+            "Beam Center to Right": QuaacDatum(
+                value=self._results["beam_center_to_right_mm"],
+                unit="mm",
+                description="The distance from the beam center to the right of the field.",
+            ),
+            "CAX to Top": QuaacDatum(
+                value=self._results["cax_to_top_mm"],
+                unit="mm",
+                description="The distance from the CAX to the top of the field.",
+            ),
+            "CAX to Bottom": QuaacDatum(
+                value=self._results["cax_to_bottom_mm"],
+                unit="mm",
+                description="The distance from the CAX to the bottom of the field.",
+            ),
+            "CAX to Left": QuaacDatum(
+                value=self._results["cax_to_left_mm"],
+                unit="mm",
+                description="The distance from the CAX to the left of the field.",
+            ),
+            "CAX to Right": QuaacDatum(
+                value=self._results["cax_to_right_mm"],
+                unit="mm",
+                description="The distance from the CAX to the right of the field.",
+            ),
+        }
 
     def _get_vert_values(
         self, vert_position: float, vert_width: float

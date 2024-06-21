@@ -50,7 +50,7 @@ from .core.nps import (
 )
 from .core.profile import CollapsedCircleProfile, FWXMProfile
 from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
-from .core.utilities import ResultBase, ResultsDataMixin
+from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
 from .settings import get_dicom_cmap
 
 # The ramp angle ratio is from the Catphan manual ("Scan slice geometry" section)
@@ -1551,7 +1551,7 @@ class CTP515CP600(CTP515):
     }
 
 
-class CatPhanBase(ResultsDataMixin[CatphanResult]):
+class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
     """A class for loading and analyzing CT DICOM files of a CatPhan 504 & CatPhan 503. Can be from a CBCT or CT scanner
     Analyzes: Uniformity (CTP486), High-Contrast Spatial Resolution (CTP528), Image Scaling & HU Linearity (CTP404).
     """
@@ -2313,6 +2313,68 @@ class CatPhanBase(ResultsDataMixin[CatphanResult]):
         else:
             result = results
         return result
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        results_data = self.results_data(as_dict=True)
+        data = {
+            "Phantom Roll": QuaacDatum(
+                value=results_data["catphan_roll_deg"],
+                unit="degrees",
+            )
+        }
+        for material, roi in results_data["ctp404"]["hu_rois"].items():
+            data[f"{material} HU"] = QuaacDatum(
+                value=roi["value"], unit="HU", reference_value=roi["nominal_value"]
+            )
+        ctp404_keys = (
+            ("avg_line_distance_mm", "Geometric Line Average", "mm"),
+            ("measured_slice_thickness_mm", "Measured Slice Thickness", "mm"),
+            ("low_contrast_visibility", "Low Contrast Visibility", ""),
+        )
+        for key, desc, unit in ctp404_keys:
+            data[desc] = QuaacDatum(
+                value=results_data["ctp404"][key],
+                unit=unit,
+            )
+        if results_data["ctp486"] is not None:
+            ctp486_keys = (
+                ("uniformity_index", "Uniformity Index", ""),
+                ("integral_non_uniformity", "Integral Non-Uniformity", ""),
+            )
+            for key, desc, unit in ctp486_keys:
+                data[desc] = QuaacDatum(
+                    value=results_data["ctp486"][key],
+                    unit=unit,
+                )
+            for location, roi in results_data["ctp486"]["rois"].items():
+                data[f"{location} Uniformity"] = QuaacDatum(
+                    value=roi["value"], unit="HU", reference_value=roi["nominal_value"]
+                )
+        if results_data["ctp528"] is not None:
+            for percent, mtf in results_data["ctp528"]["mtf_lp_mm"].items():
+                data[f"MTF {percent}%"] = QuaacDatum(
+                    value=mtf,
+                    unit="lp/mm",
+                )
+        if results_data["ctp515"] is not None:
+            for diameter, roi in results_data["ctp515"]["roi_results"].items():
+                data[f"Low Contrast {diameter}mm visibility"] = QuaacDatum(
+                    value=roi["visibility"],
+                    unit="",
+                )
+                data[f"Low Contrast {diameter}mm CNR"] = QuaacDatum(
+                    value=roi["cnr"],
+                    unit="",
+                )
+                data[f"Low Contrast {diameter}mm SNR"] = QuaacDatum(
+                    value=roi["signal to noise"],
+                    unit="",
+                )
+                data[f"Low Contrast {diameter}mm Contrast"] = QuaacDatum(
+                    value=roi["contrast"],
+                    unit="",
+                )
+        return data
 
     def _generate_results_data(self) -> CatphanResult:
         """Present the results data and metadata as a dataclass or dict.
