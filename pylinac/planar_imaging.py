@@ -411,7 +411,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult]):
         """Sample the low-contrast sample regions for calculating contrast values."""
         lc_rois = []
         for stng in self.low_contrast_roi_settings.values():
-            roi = LowContrastDiskROI(
+            roi = LowContrastDiskROI.from_phantom_center(
                 self.image,
                 self.phantom_angle + stng["angle"],
                 self.phantom_radius * stng["roi radius"] * self.roi_size_factor,
@@ -431,7 +431,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult]):
         """Sample the low-contrast background regions for calculating contrast values."""
         bg_rois = []
         for stng in self.low_contrast_background_roi_settings.values():
-            roi = LowContrastDiskROI(
+            roi = LowContrastDiskROI.from_phantom_center(
                 self.image,
                 self.phantom_angle + stng["angle"],
                 self.phantom_radius * stng["roi radius"] * self.roi_size_factor,

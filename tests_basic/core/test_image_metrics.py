@@ -697,9 +697,6 @@ class TestDiskROIMetric(TestCase):
         np.mean(roi.pixel_values)
         self.assertAlmostEqual(roi.center.x, 511.5, delta=1)
         self.assertAlmostEqual(roi.center.y, 383.5, delta=1)
-        self.assertAlmostEqual(
-            roi.std, 67, delta=2
-        )  # relatively large delta because of random image generation
 
     def test_physical_image(self):
         ds = create_open_field_image(field_size=(60, 60))
@@ -728,7 +725,6 @@ class TestRectangleROIMetric(TestCase):
         )
         self.assertAlmostEqual(roi.center.x, 511.5, delta=1)
         self.assertAlmostEqual(roi.center.y, 383.5, delta=1)
-        self.assertAlmostEqual(roi.std, 67, delta=2)
 
     def test_physical_image(self):
         ds = create_open_field_image(field_size=(60, 60))

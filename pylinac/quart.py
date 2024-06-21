@@ -145,7 +145,7 @@ class QuartHUModule(CTP404CP504):
         """We invert the thickness ROIs because they are air gaps, not high-density wires"""
         self.thickness_image.invert()
         for name, setting in self.thickness_roi_settings.items():
-            self.thickness_rois[name] = ThicknessROI(
+            self.thickness_rois[name] = ThicknessROI.from_phantom_center(
                 self.thickness_image,
                 setting["width_pixels"],
                 setting["height_pixels"],

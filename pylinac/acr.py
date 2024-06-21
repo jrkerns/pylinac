@@ -629,7 +629,7 @@ class MRSlice1Module(CatPhanModule):
         # thickness
         for name, setting in self.thickness_roi_settings.items():
             # angle is +90 because pointing right is 0, and these rois move downward, not rightward
-            self.thickness_rois[name] = ThicknessROI(
+            self.thickness_rois[name] = ThicknessROI.from_phantom_center(
                 self.image,
                 setting["width_pixels"],
                 setting["height_pixels"],
@@ -650,7 +650,7 @@ class MRSlice1Module(CatPhanModule):
         # slice position
         for name, setting in self.position_roi_settings.items():
             # angle is +90 because pointing right is 0, and these rois move downward, not rightward
-            self.position_rois[name] = ThicknessROI(
+            self.position_rois[name] = ThicknessROI.from_phantom_center(
                 self.image,
                 setting["width_pixels"],
                 setting["height_pixels"],
