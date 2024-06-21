@@ -105,7 +105,7 @@ class TestEdgeCases(TestCase):
         # this will result in an infinite SNR; should be handled by numpy.
         # potentially need to address later to handle better; unsure
         homogeneous_array = np.ones((10, 10))
-        disk = LowContrastDiskROI(
+        disk = LowContrastDiskROI.from_phantom_center(
             array=homogeneous_array,
             angle=0,
             roi_radius=2,
@@ -118,7 +118,7 @@ class TestEdgeCases(TestCase):
         # this will result in an infinite SNR; should be handled by numpy.
         # potentially need to address later to handle better; unsure
         homogeneous_array = np.ones((10, 10))
-        disk = LowContrastDiskROI(
+        disk = LowContrastDiskROI.from_phantom_center(
             array=homogeneous_array,
             angle=0,
             roi_radius=2,
