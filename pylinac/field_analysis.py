@@ -1287,9 +1287,13 @@ class FieldAnalysis(ResultsDataMixin[FieldResult], QuaacMixin):
         sec_y.plot(physical_distance, self.vert_profile.values, markers)
         sec_y.set_xlabel("mm")
 
+        # we need to ensure the xlims are the same after plotting the penumbra
+        # Hill profiles can sometimes extend beyond the field edge
+        orig_xlim = axis.get_xlim()
         # plot basic parameters on profile
         self._plot_penumbra(self.vert_profile, axis)
         self._plot_field_edges(self.vert_profile, axis)
+        axis.set_xlim(orig_xlim)
         if self._is_FFF:
             self._plot_top(self.vert_profile, axis)
             self._plot_infield_slope(self.vert_profile, axis)
@@ -1327,9 +1331,13 @@ class FieldAnalysis(ResultsDataMixin[FieldResult], QuaacMixin):
         sec_y.plot(physical_distance, self.horiz_profile.values, markers)
         sec_y.set_xlabel("mm")
 
+        # we need to ensure the xlims are the same after plotting the penumbra
+        # Hill profiles can sometimes extend beyond the field edge
+        orig_xlim = axis.get_xlim()
         # plot basic parameters on profile
         self._plot_penumbra(self.horiz_profile, axis)
         self._plot_field_edges(self.horiz_profile, axis)
+        axis.set_xlim(orig_xlim)
         if self._is_FFF:
             self._plot_top(self.horiz_profile, axis)
             self._plot_infield_slope(self.horiz_profile, axis)

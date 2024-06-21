@@ -2,8 +2,23 @@
 Changelog
 =========
 
-v 3.24.0
+v 3.25.0
 --------
+
+Winston Lutz
+^^^^^^^^^^^^
+
+* Reference axis values and tolerance-matching values for WL analysis can now be passed. See :ref:`setting-wl-reference-values`.
+
+
+v 3.24.1
+--------
+
+.. note::
+
+    Version 3.24.0 was accidentally released on pypi before the intended release date. PYPI does not allow
+    versions to be re-uploaded. v 3.24.0 was yanked and the official first release of the 3.24.x line is v3.24.1.
+    There is no 3.24.0.
 
 CBCT
 ^^^^
@@ -35,6 +50,8 @@ Field Analysis
 
 * There is a new module for performing field analysis that leverages the 1D metrics framework. This
   is an alternative and successor to the original field analysis module. You can read more here: :ref:`field-profile-analysis`.
+* Using the ``INFLECTION_HILL`` edge detection with ``FieldAnalysis`` where the penumbra does not have a "tail" can lead to
+  plotting errors. This is a visual error only and does not affect the numerical calculations.
 * Plotting a ``FieldAnalysis`` with the ``SIEMENS`` protocol would sometimes fail to plot due to a mismatch
   in x and y values to plot.
 

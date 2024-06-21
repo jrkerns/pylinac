@@ -48,6 +48,10 @@ from tests_basic.utils import (
 TEST_DIR = "Winston-Lutz"
 
 
+def create_wl_dataset():
+    generate_winstonlutz()
+
+
 def apply_rotation_to_points(
     points: list[Point], angle: float | Sequence[float], axis: str
 ) -> list[Point]:
@@ -934,6 +938,10 @@ class WinstonLutzMixin(CloudFileMixin):
     print_results = False
     use_filenames = False
     apply_virtual_shift = False
+    snap_tolerance = 3
+    gantry_reference = 0
+    collimator_reference = 0
+    couch_reference = 0
 
     @classmethod
     def new_instance(cls) -> WinstonLutz:
@@ -965,6 +973,10 @@ class WinstonLutzMixin(CloudFileMixin):
             low_density_bb=cls.low_density_bb,
             open_field=cls.open_field,
             apply_virtual_shift=cls.apply_virtual_shift,
+            snap_tolerance=cls.snap_tolerance,
+            gantry_reference=cls.gantry_reference,
+            collimator_reference=cls.collimator_reference,
+            couch_reference=cls.couch_reference,
         )
         if cls.print_results:
             print(cls.wl.results())
@@ -1156,6 +1168,60 @@ class SyntheticWLMixin(WinstonLutzMixin):
         self.assertAlmostEqual(self.wl.bb.nominal_bb_position.x, 0, delta=0.01)
         self.assertAlmostEqual(self.wl.bb.nominal_bb_position.y, 0, delta=0.01)
         self.assertAlmostEqual(self.wl.bb.nominal_bb_position.z, 0, delta=0.01)
+
+
+class SyntheticLargeSnapCouch(SyntheticWLMixin, TestCase):
+    """This should produce the same result as if the couch was at zero since the snap will
+    set catch at zero"""
+
+    images_axes = (
+        (0, 0, 2.5),
+        (90, 0, 2.5),
+        (180, 0, 2.5),
+        (270, 0, 2.5),
+    )
+    axis_of_rotation = {
+        0: Axis.REFERENCE,
+        1: Axis.GANTRY,
+        2: Axis.GANTRY,
+        3: Axis.GANTRY,
+    }
+
+
+class SyntheticTooLargeSnapCouch(SyntheticWLMixin, TestCase):
+    """This should produce the same result as if the couch was at zero since the snap will
+    set catch at zero"""
+
+    images_axes = (
+        (0, 0, 5),
+        (90, 0, 5),
+        (180, 0, 5),
+        (270, 0, 5),
+    )
+    axis_of_rotation = {
+        0: Axis.COUCH,
+        1: Axis.GBP_COMBO,
+        2: Axis.GBP_COMBO,
+        3: Axis.GBP_COMBO,
+    }
+
+
+class TestReferenceValues(SyntheticWLMixin, TestCase):
+    gantry_reference = 45
+    collimator_reference = 15
+    couch_reference = 30
+    images_axes = (
+        (0, 15, 30),
+        (45, 15, 30),
+        (135, 15, 5),
+        (180, 0, 30),
+    )
+    axis_of_rotation = {
+        0: Axis.GANTRY,
+        1: Axis.REFERENCE,
+        2: Axis.GBP_COMBO,
+        3: Axis.GB_COMBO,
+    }
 
 
 class Synthetic1mmLeftNoCouch(SyntheticWLMixin, TestCase):
