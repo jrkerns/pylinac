@@ -10,9 +10,34 @@ from pylinac.core.scale import abs360, wrap360
 from pylinac.core.utilities import (
     OptionListMixin,
     convert_to_enum,
+    is_close_degrees,
     is_iterable,
     simple_round,
 )
+
+
+class TestIsClose(unittest.TestCase):
+    def test_is_close_degrees_simple(self):
+        self.assertTrue(is_close_degrees(0, 0))
+        self.assertTrue(is_close_degrees(0, 360))
+        self.assertTrue(is_close_degrees(360, 0))
+        self.assertTrue(is_close_degrees(0, 1))
+        self.assertTrue(is_close_degrees(0, 359))
+        self.assertTrue(is_close_degrees(73, 73.2))
+        self.assertTrue(is_close_degrees(-90, 270))
+
+    def test_is_close_degrees_not_close(self):
+        self.assertFalse(is_close_degrees(0, 180))
+        self.assertFalse(is_close_degrees(0, 90))
+        self.assertFalse(is_close_degrees(0, 270))
+        self.assertFalse(is_close_degrees(90, -90))
+
+    def test_delta(self):
+        self.assertTrue(is_close_degrees(0, 4, delta=5))
+        self.assertTrue(is_close_degrees(0, 356, delta=5))
+        self.assertTrue(is_close_degrees(95, 110, delta=15))
+        with self.assertRaises(ValueError):
+            is_close_degrees(0, 1, delta=-1)
 
 
 class TestUtilities(unittest.TestCase):

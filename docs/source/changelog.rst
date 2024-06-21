@@ -2,6 +2,15 @@
 Changelog
 =========
 
+v 3.25.0
+--------
+
+Winston Lutz
+^^^^^^^^^^^^
+
+* Reference axis values and tolerance-matching values for WL analysis can now be passed. See :ref:`setting-wl-reference-values`.
+
+
 v 3.24.1
 --------
 
