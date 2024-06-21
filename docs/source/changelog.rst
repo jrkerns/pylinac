@@ -2,18 +2,26 @@
 Changelog
 =========
 
+Legend
+------
+
+* :bdg-success:`Feature` denotes a new feature or ability.
+* :bdg-warning:`Fixed` denotes a bug fix.
+* :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
+* :bdg-danger:`Change` denotes a change that may break existing code.
+
 v 3.25.0
 --------
 
 Winston Lutz
 ^^^^^^^^^^^^
 
-* Reference axis values and tolerance-matching values for WL analysis can now be passed. See :ref:`setting-wl-reference-values`.
+* :bdg-success:`Feature` Reference axis values and tolerance-matching values for WL analysis can now be passed. See :ref:`setting-wl-reference-values`.
 
 Core
 ^^^^
 
-* Pylinac now supports QuAAC integration. QuAAC is an interoperability standard we created to attempt to
+* :bdg-success:`Feature` Pylinac now supports QuAAC integration. QuAAC is an interoperability standard we created to attempt to
   standardize how QA information is stored and to be vendor-neutral. You can read more about the QuAAC standard `here <https://quaac.readthedocs.io/en/latest/index.html>`__.
   How to dump pylinac results to QuAAC format can be read in :ref:`exporting-to-quaac`.
 
@@ -30,62 +38,62 @@ v 3.24.1
 CBCT
 ^^^^
 
-* Some datasets were failing due to the proximity to the edge of the FOV. While we encourage an FOV that is 1cm+ larger than the
+* :bdg-warning:`Fixed` Some datasets were failing due to the proximity to the edge of the FOV. While we encourage an FOV that is 1cm+ larger than the
   phantom to minimize edge artifacts and ensure the entire phantom is captured, we have reduced the required clearance
   of the phantom to the edge by approximately half.
 
 Image Generator
 ^^^^^^^^^^^^^^^
 
-* When saving a simulated image to DICOM, the user can now choose whether to invert the image array.
+* :bdg-success:`Feature` When saving a simulated image to DICOM, the user can now choose whether to invert the image array.
   This can help simulate older or newer EPID types.
 
 Planar Imaging
 ^^^^^^^^^^^^^^
 
-* Planar phantom analyses now have new parameter options for fine-tuning the automatic analysis. See :ref:`fine-tuning-planar`.
+* :bdg-success:`Feature` Planar phantom analyses now have new parameter options for fine-tuning the automatic analysis. See :ref:`fine-tuning-planar`.
 
 Core
 ^^^^
 
-* Multiplying ``Point`` s together would not return a new point. It now performs both an in-place
+* :bdg-primary:`Refactor` Multiplying ``Point`` s together would not return a new point. It now performs both an in-place
   and out-of-place multiplication. E.g. ``Point(1, 2) * 2`` will return a new point at (2, 4) and
   also change the original point to (2, 4).
 
 Field Analysis
 ^^^^^^^^^^^^^^
 
-* There is a new module for performing field analysis that leverages the 1D metrics framework. This
+* :bdg-success:`Feature` There is a new module for performing field analysis that leverages the 1D metrics framework. This
   is an alternative and successor to the original field analysis module. You can read more here: :ref:`field-profile-analysis`.
-* Using the ``INFLECTION_HILL`` edge detection with ``FieldAnalysis`` where the penumbra does not have a "tail" can lead to
+* :bdg-warning:`Fixed` Using the ``INFLECTION_HILL`` edge detection with ``FieldAnalysis`` where the penumbra does not have a "tail" can lead to
   plotting errors. This is a visual error only and does not affect the numerical calculations.
-* Plotting a ``FieldAnalysis`` with the ``SIEMENS`` protocol would sometimes fail to plot due to a mismatch
+* :bdg-warning:`Fixed` Plotting a ``FieldAnalysis`` with the ``SIEMENS`` protocol would sometimes fail to plot due to a mismatch
   in x and y values to plot.
 
 Profiles & 1D Metrics
 ^^^^^^^^^^^^^^^^^^^^^
 
-* 1D Profile Metrics have two new methods: ``geometric_center_idx`` and ``cax_index`` that return the index
+* :bdg-success:`Feature` 1D Profile Metrics have two new methods: ``geometric_center_idx`` and ``cax_index`` that return the index
   (interpolated) for their respective values.
-* The ``plot`` method for profiles now includes a ``mirror`` parameter. This will mirror the profile about the
-  geomtric center or beam center index. This is useful for visualizing the symmetry of the profile.
-* Physical profile plots now also plot the x-axis in physical values on a secondary axis.
-* 1D metrics now have a ``full_name`` property that concatenates the name of the metric and the unit if applicable.
-* Calculated metrics of a profile that are stored in the ``metric_values`` attribute are now saved using the full name
+* :bdg-success:`Feature` The ``plot`` method for profiles now includes a ``mirror`` parameter. This will mirror the profile about the
+  geometric center or beam center index. This is useful for visualizing the symmetry of the profile.
+* :bdg-success:`Feature` Physical profile plots now also plot the x-axis in physical values on a secondary axis.
+* :bdg-success:`Feature` 1D metrics now have a ``full_name`` property that concatenates the name of the metric and the unit if applicable.
+* ;bdg-danger:`Change` Calculated metrics of a profile that are stored in the ``metric_values`` attribute are now saved using the full name
   as described above. This means if you access metrics this way, you may need to update the lookup to include the unit.
-* Two new metrics have been added: ``CAXtoLeftBeamEdge`` and ``CAXToRightBeamEdge``. These metrics will calculate the distance
+* :bdg-success:`Feature` Two new metrics have been added: ``CAXtoLeftBeamEdge`` and ``CAXToRightBeamEdge``. These metrics will calculate the distance
   from the CAX to the left and right beam edges, respectively.
-* The ``FlatnessDifferenceMetric`` had a bug that would cause plotting to fail.
-* The ``SymmetryPointDifferenceQuotientMetric`` 's default max and min range has been adjusted to 100-105 to better reflect default values.
-* The ``PenumbraLeftMetric`` and ``PenumbraRightMetric`` had their unit's changed from % to mm. % was incorrect.
-* The ``SlopeMetric`` would sometimes fail to plot if an uneven number of points were calculated over.
+* :bdg-warning:`Fixed` The ``FlatnessDifferenceMetric`` had a bug that would cause plotting to fail.
+* :bdg-warning:`Fixed` The ``SymmetryPointDifferenceQuotientMetric`` 's default max and min range has been adjusted to 100-105 to better reflect default values.
+* :bdg-warning:`Fixed` The ``PenumbraLeftMetric`` and ``PenumbraRightMetric`` had their unit's changed from % to mm. % was incorrect.
+* :bdg-warning:`Fixed` The ``SlopeMetric`` would sometimes fail to plot if an uneven number of points were calculated over.
 
 Winston Lutz
 ^^^^^^^^^^^^
 
-* A new value was added to the ``results_data`` call: ``bb_shift_vector``. This is the cartesian shift to
+* :bdg-success:`Feature` A new value was added to the ``results_data`` call: ``bb_shift_vector``. This is the cartesian shift to
   move the BB to the radiation isocenter. This was already available as ``<wl>.bb_shift_vector``.
-* Documentation has been added discussing our interpretation of common QA publication requirements of isocenter
+* :bdg-success:`Feature` Documentation has been added discussing our interpretation of common QA publication requirements of isocenter
   QA. See :ref:`interpreting-winston-lutz-results`.
 
 v 3.23.2

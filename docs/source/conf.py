@@ -46,6 +46,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "matplotlib.sphinxext.plot_directive",
     "sphinx_copybutton",
+    "sphinx_design",
 ]
 
 # put mock objects here

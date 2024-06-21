@@ -53,6 +53,7 @@ dev = [
     "furo",
     "google-cloud-storage",
     "sphinx",
+    "sphinx-design",
     "sphinx-autobuild",
     "sphinx-copybutton",
     "pre-commit",
@@ -60,6 +61,7 @@ dev = [
 ]
 docs = [
     "sphinx",
+    "sphinx-design",
     "sphinx-copybutton",
     "furo",
 ]
