@@ -325,8 +325,8 @@ Setting Reference Axis Values
 
 It is possible to set reference axis values to angles other than zero. E.g. if the intended collimator angle
 of reference is 45 degrees to average the collimator rotation of a VMAT plan.
-In addition to changing reference values, the "snap" tolerance, to which axis angles will "snap"
-if near the reference value. See :ref:`wl_image_types`. This can be helpful for scenarios
+In addition to changing reference values, the "snap" tolerance can also be passed which will allow axis angles to "snap"
+if the axis value is within the snap tolerance. See :ref:`wl_image_types`. This can be helpful for scenarios
 where you forgot to set the couch axes to 0 from a previous CBCT shift.
 
 To change the reference values and set a snap tolerance of 5 degrees:
@@ -338,11 +338,11 @@ To change the reference values and set a snap tolerance of 5 degrees:
         ...,
         snap_tolerance=5,
         gantry_reference=45,
-        collimator_reference=0,
+        collimator_reference=10,
         couch_reference=0,
     )
 
-In the above scenario, images with gantry ranges of 40-50 degrees, collimator 355-5, and couch 5 will
+In the above scenario, images with gantry ranges of 40-50 degrees, collimator 5-15, and couch 355-5 will
 be considered "Reference" images.
 
 This can also be helpful if you have a very old linac and or use a coordinate space such as Varian Standard where
