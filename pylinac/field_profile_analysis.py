@@ -304,9 +304,7 @@ class FieldProfileAnalysis(ResultsDataMixin[FieldProfileResult]):
             array=self.image.array,
             width=right - left,
             height=bottom - top,
-            angle=0,
-            dist_from_center=0,
-            phantom_center=Point(x, y),
+            center=Point(x, y),
         )
         x_values = x_box.mean(axis=0)
         y_values = y_box.mean(axis=1)

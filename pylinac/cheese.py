@@ -73,7 +73,7 @@ class CheeseModule(CatPhanModule):
     def _setup_rois(self) -> None:
         # unlike its super, we use simple disk ROIs as we're not doing complicated things.
         for name, setting in self.roi_settings.items():
-            self.rois[name] = DiskROI(
+            self.rois[name] = DiskROI.from_phantom_center(
                 self.image,
                 setting["angle_corrected"],
                 setting["radius_pixels"],

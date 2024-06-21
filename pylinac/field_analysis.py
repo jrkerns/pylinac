@@ -657,9 +657,7 @@ class FieldAnalysis(ResultsDataMixin[FieldResult]):
                 array=self.image.array,
                 width=width,
                 height=height,
-                phantom_center=center,
-                angle=0,
-                dist_from_center=0,
+                center=center,
             )
 
         # calculate common field info

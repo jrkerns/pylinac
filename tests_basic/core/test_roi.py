@@ -6,18 +6,40 @@ from pylinac.core.geometry import Point
 from pylinac.core.roi import LowContrastDiskROI, RectangleROI
 
 
+class TestDiskROI(TestCase):
+    def test_array_size(self):
+        disk = LowContrastDiskROI(
+            np.ones((500, 500)),
+            radius=20,
+            center=Point(250, 250),
+        )
+        # it's a 1D array
+        self.assertEqual(disk.pixel_values.shape[0], 1245)
+
+    def test_from_phantom_center(self):
+        disk = LowContrastDiskROI.from_phantom_center(
+            np.ones((500, 500)),
+            roi_radius=20,
+            angle=0,
+            dist_from_center=10,
+            phantom_center=Point(250, 250),
+        )
+        self.assertEqual(disk.center.x, 260)
+        self.assertEqual(disk.center.y, 250)
+
+
 class TestRectangleROI(TestCase):
     def test_array_shape(self):
         rect = RectangleROI(
             np.ones((500, 500)),
             width=20,
             height=50,
-            angle=0,
-            dist_from_center=0,
-            phantom_center=Point(250, 250),
+            center=Point(250, 250),
         )
         self.assertEqual(rect.pixel_array.shape[0], 50)  # rows
         self.assertEqual(rect.pixel_array.shape[1], 20)  # cols
+        self.assertEqual(rect.center.x, 250)
+        self.assertEqual(rect.center.y, 250)
 
     def test_less_than_2x2_roi_not_allowed(self):
         with self.assertRaises(ValueError):
@@ -25,35 +47,44 @@ class TestRectangleROI(TestCase):
                 np.ones((500, 500)),
                 width=0,
                 height=50,
-                angle=0,
-                dist_from_center=0,
-                phantom_center=Point(250, 250),
+                center=Point(250, 250),
             )
         with self.assertRaises(ValueError):
             RectangleROI(
                 np.ones((500, 500)),
                 width=50,
                 height=1,
-                angle=0,
-                dist_from_center=0,
-                phantom_center=Point(250, 250),
+                center=Point(250, 250),
             )
+
+    def test_from_phantom_center(self):
+        rect = RectangleROI.from_phantom_center(
+            np.ones((500, 500)),
+            width=20,
+            height=50,
+            angle=0,
+            dist_from_center=10,
+            phantom_center=Point(250, 250),
+        )
+        self.assertEqual(rect.pixel_array.shape[0], 50)  # rows
+        self.assertEqual(rect.pixel_array.shape[1], 20)  # cols
+        # center is shifted by 10 in x (angle=0)
+        self.assertEqual(rect.center.x, 260)
+        self.assertEqual(rect.center.y, 250)
 
 
 class TestRectangleStats(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        np.random.seed(12345)
+        np.random.seed(12345)  # noqa: NPY002
 
-        cls.random_array = np.random.rand(500, 500)
+        cls.random_array = np.random.rand(500, 500)  # noqa: NPY002
 
         cls.random_rect = RectangleROI(
             cls.random_array,
             width=500,
             height=500,
-            angle=0,
-            dist_from_center=0,
-            phantom_center=Point(250, 250),
+            center=Point(250, 250),
         )
 
     def test_mean(self):

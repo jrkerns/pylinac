@@ -988,7 +988,7 @@ class CTP486(CatPhanModule):
         super()._setup_rois()
         self.nps_rois = {}
         for name, setting in self.roi_settings.items():
-            self.nps_rois[name] = RectangleROI(
+            self.nps_rois[name] = RectangleROI.from_phantom_center(
                 array=self.image,
                 width=setting["radius_pixels"] * 2,
                 height=setting["radius_pixels"] * 2,

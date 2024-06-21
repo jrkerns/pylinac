@@ -447,7 +447,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult]):
         """Sample the high-contrast line pair regions."""
         hc_rois = []
         for stng in self.high_contrast_roi_settings.values():
-            roi = HighContrastDiskROI(
+            roi = HighContrastDiskROI.from_phantom_center(
                 self.image,
                 self.phantom_angle + stng["angle"],
                 self.phantom_radius * stng["roi radius"] * self.roi_size_factor,
@@ -1792,12 +1792,10 @@ class IBAPrimusA(ImagePhantomBase):
         """The center region (crosshair) should be less intense than an area adjacent to it."""
         crosshair_disk = DiskROI(
             self.image.array,
-            angle=0,
-            roi_radius=self.phantom_radius / 2,
-            dist_from_center=0,
-            phantom_center=self.phantom_center,
+            radius=self.phantom_radius / 2,
+            center=self.phantom_center,
         )
-        adjacent_disk = DiskROI(
+        adjacent_disk = DiskROI.from_phantom_center(
             self.image.array,
             angle=0,
             roi_radius=self.phantom_radius / 2,
@@ -2457,7 +2455,7 @@ class LeedsTOR(ImagePhantomBase):
         # do the same as the base method but centered on the high-res block
         hc_rois = []
         for stng in self.high_contrast_roi_settings.values():
-            roi = HighContrastDiskROI(
+            roi = HighContrastDiskROI.from_phantom_center(
                 self.image,
                 self.phantom_angle + stng["angle"],
                 self.phantom_radius * stng["roi radius"],

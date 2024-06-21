@@ -1016,9 +1016,7 @@ class FourBarResolution(ResultsDataMixin[FourBarResolutionResults]):
             self.stack.frames[0],
             width=width_px,
             height=height_px,
-            angle=0,
-            dist_from_center=0,
-            phantom_center=center,
+            center=center,
         )
         v_array = self.y_prof.pixel_array.mean(axis=-1)
         self.y_axis = DoubleGaussianProfile(
@@ -1028,9 +1026,7 @@ class FourBarResolution(ResultsDataMixin[FourBarResolutionResults]):
             self.stack.frames[0],
             width=height_px,
             height=width_px,
-            angle=0,
-            dist_from_center=0,
-            phantom_center=center,
+            center=center,
         )
         h_array = self.x_prof.pixel_array.mean(axis=0)
         self.x_axis = DoubleGaussianProfile(
@@ -1135,7 +1131,7 @@ class QuadrantResolution(ResultsDataMixin[QuadrantResolutionResults]):
         )
         angles = (45, -45, -135, 135)
         for angle, spacing in zip(angles, bar_widths):
-            roi = HighContrastDiskROI(
+            roi = HighContrastDiskROI.from_phantom_center(
                 self.stack.frames[0],
                 angle=angle,
                 roi_radius=roi_diameter_mm,
@@ -1397,10 +1393,8 @@ class TomographicROI:
         """Plot the ROI to the axis."""
         d = DiskROI(
             array=self.sphere_array,
-            angle=0,
-            roi_radius=self.radius,
-            dist_from_center=0,
-            phantom_center=Point(self.x, self.y),
+            radius=self.radius,
+            center=Point(self.x, self.y),
         )
         d.plot2axes(axes=axis, edgecolor="r", text=str(self.number))
 

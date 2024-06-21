@@ -13,10 +13,13 @@ from pylinac.core.image_generator.layers import (
     GaussianFilterLayer,
     Layer,
 )
+from pylinac.core.roi import DiskROI, RectangleROI
 from pylinac.metrics.image import (
+    DiskROIMetric,
     GlobalFieldLocator,
     GlobalSizedDiskLocator,
     GlobalSizedFieldLocator,
+    RectangleROIMetric,
     SizedDiskLocator,
 )
 from pylinac.metrics.utils import deduplicate_points_and_boundaries
@@ -679,3 +682,65 @@ class TestGlobalFieldLocator(TestCase):
             )
         )
         self.assertEqual(len(fields), 2)
+
+
+class TestDiskROIMetric(TestCase):
+    def test_perfect_image(self):
+        ds = create_open_field_image(field_size=(60, 60))
+        img = DicomImage.from_dataset(ds)
+        roi: DiskROI = img.compute(
+            metrics=DiskROIMetric(
+                radius=20,
+                center=Point(511.5, 383.5),
+            )
+        )
+        np.mean(roi.pixel_values)
+        self.assertAlmostEqual(roi.center.x, 511.5, delta=1)
+        self.assertAlmostEqual(roi.center.y, 383.5, delta=1)
+        self.assertAlmostEqual(
+            roi.std, 67, delta=2
+        )  # relatively large delta because of random image generation
+
+    def test_physical_image(self):
+        ds = create_open_field_image(field_size=(60, 60))
+        img = DicomImage.from_dataset(ds)
+        roi: DiskROI = img.compute(
+            metrics=DiskROIMetric.from_physical(
+                radius_mm=20,
+                center_mm=Point(100, 80),
+            )
+        )
+        self.assertAlmostEqual(roi.center.x, img.dpmm * 100, delta=1)
+        self.assertAlmostEqual(roi.center.y, img.dpmm * 80, delta=1)
+        self.assertAlmostEqual(roi.radius, img.dpmm * 20, delta=1)
+
+
+class TestRectangleROIMetric(TestCase):
+    def test_perfect_image(self):
+        ds = create_open_field_image(field_size=(60, 60))
+        img = DicomImage.from_dataset(ds)
+        roi: RectangleROI = img.compute(
+            metrics=RectangleROIMetric(
+                width=20,
+                height=30,
+                center=Point(511.5, 383.5),
+            )
+        )
+        self.assertAlmostEqual(roi.center.x, 511.5, delta=1)
+        self.assertAlmostEqual(roi.center.y, 383.5, delta=1)
+        self.assertAlmostEqual(roi.std, 67, delta=2)
+
+    def test_physical_image(self):
+        ds = create_open_field_image(field_size=(60, 60))
+        img = DicomImage.from_dataset(ds)
+        roi: RectangleROI = img.compute(
+            metrics=RectangleROIMetric.from_physical(
+                width_mm=20,
+                height_mm=30,
+                center_mm=Point(100, 80),
+            )
+        )
+        self.assertAlmostEqual(roi.center.x, img.dpmm * 100, delta=1)
+        self.assertAlmostEqual(roi.center.y, img.dpmm * 80, delta=1)
+        self.assertAlmostEqual(roi.width, img.dpmm * 20, delta=1)
+        self.assertAlmostEqual(roi.height, img.dpmm * 30, delta=1)

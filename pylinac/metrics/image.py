@@ -12,6 +12,7 @@ from skimage.measure._regionprops import RegionProperties
 
 from ..core.array_utils import invert
 from ..core.geometry import Point
+from ..core.roi import DiskROI, RectangleROI
 from ..metrics.features import (
     is_right_area_square,
     is_right_circumference,
@@ -83,6 +84,173 @@ class MetricBase(ABC):
         block other metrics from plotting their own separate metrics.
         """
         pass
+
+
+class DiskROIMetric(MetricBase):
+    roi: DiskROI
+    _from_physical: bool = False
+
+    @classmethod
+    def from_physical(
+        cls,
+        radius_mm: float,
+        center_mm: Point,
+        name: str = "Disk ROI Metric",
+        edgecolor: str = "b",
+        **kwargs,
+    ):
+        """Create a disk ROI metric using physical dimensions.
+
+        Parameters
+        ----------
+        radius_mm : float
+            The radius of the ROI in mm.
+        center_mm : Point
+            The center of the disk ROI. Position in mm
+        name : str
+            The name of the metric.
+        edgecolor : str
+            The color of the edge of the disk ROI.
+        kwargs
+            Additional keyword arguments eventually passed to the plotting function.
+        """
+        instance = cls(radius_mm, center_mm, name, edgecolor, **kwargs)
+        instance._from_physical = True
+        return instance
+
+    def __init__(
+        self,
+        radius: float,
+        center: Point,
+        name: str = "Disk ROI Metric",
+        edgecolor: str = "b",
+        **kwargs,
+    ):
+        """Samples a disk ROI from an image. Returns a DiskROI object.
+
+        Parameters
+        ----------
+        radius : float
+            The radius of the ROI in pixels.
+        center : Point
+            The center of the disk ROI. Position in pixels.
+        name : str
+            The name of the metric.
+        edgecolor : str
+            The color of the edge of the disk ROI.
+        kwargs
+            Additional keyword arguments eventually passed to the plotting function.
+        """
+        self.radius = radius
+        self.center = center
+        self.name = name
+        self.edge_color = edgecolor
+        self.kwargs = kwargs
+
+    def calculate(self) -> DiskROI:
+        """Sample the disk ROI in the image."""
+        if self._from_physical:
+            self.radius *= self.image.dpmm
+            self.center *= self.image.dpmm
+        self.roi = DiskROI(
+            array=self.image.array, center=self.center, radius=self.radius
+        )
+        return self.roi
+
+    def plot(self, axis: plt.Axes, **kwargs) -> None:
+        """Plot the disk ROI."""
+        edgecolor = kwargs.pop("edgecolor", self.edge_color)
+        kw = {**self.kwargs, **kwargs}
+        self.roi.plot2axes(axis, edgecolor=edgecolor, **kw)
+
+
+class RectangleROIMetric(MetricBase):
+    roi: RectangleROI
+    _from_physical: bool = False
+
+    @classmethod
+    def from_physical(
+        cls,
+        width_mm: float,
+        height_mm: float,
+        center_mm: Point,
+        name: str = "Rectangle ROI Metric",
+        edgecolor: str = "b",
+        **kwargs,
+    ):
+        """Create a rectangle ROI metric using physical dimensions.
+
+        Parameters
+        ----------
+        width_mm : float
+            The width of the ROI in mm
+        height_mm : float
+            The height of the ROI in mm
+        center_mm : Point
+            The center of the disk ROI. Position in mm.
+        name : str
+            The name of the metric.
+        edgecolor : str
+            The color of the edge of the disk ROI.
+        kwargs
+            Additional keyword arguments eventually passed to the plotting function.
+        """
+        instance = cls(width_mm, height_mm, center_mm, name, edgecolor, **kwargs)
+        instance._from_physical = True
+        return instance
+
+    def __init__(
+        self,
+        width: float,
+        height: float,
+        center: Point,
+        name: str = "Rectangle ROI Metric",
+        edgecolor: str = "b",
+        **kwargs,
+    ):
+        """Samples a disk ROI from an image. Returns a RectangleROI object.
+
+        Parameters
+        ----------
+        width : float
+            The width of the ROI in pixels.
+        height : float
+            The height of the ROI in pixels.
+        center : Point
+            The center of the disk ROI.
+        name : str
+            The name of the metric.
+        edgecolor : str
+            The color of the edge of the disk ROI.
+        kwargs
+            Additional keyword arguments eventually passed to the plotting function.
+        """
+        self.height = height
+        self.width = width
+        self.center = center
+        self.name = name
+        self.edge_color = edgecolor
+        self.kwargs = kwargs
+
+    def calculate(self) -> RectangleROI:
+        """Sample the disk ROI in the image."""
+        if self._from_physical:
+            self.width *= self.image.dpmm
+            self.height *= self.image.dpmm
+            self.center *= self.image.dpmm
+        self.roi = RectangleROI(
+            array=self.image.array,
+            center=self.center,
+            width=self.width,
+            height=self.height,
+        )
+        return self.roi
+
+    def plot(self, axis: plt.Axes, **kwargs) -> None:
+        """Plot the disk ROI."""
+        edgecolor = kwargs.pop("edgecolor", self.edge_color)
+        kw = {**self.kwargs, **kwargs}
+        self.roi.plot2axes(axis, edgecolor=edgecolor, **kw)
 
 
 class GlobalSizedDiskLocator(MetricBase):
