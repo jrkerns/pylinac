@@ -10,6 +10,13 @@ Winston Lutz
 
 * Reference axis values and tolerance-matching values for WL analysis can now be passed. See :ref:`setting-wl-reference-values`.
 
+Core
+^^^^
+
+* Pylinac now supports QuAAC integration. QuAAC is an interoperability standard we created to attempt to
+  standardize how QA information is stored and to be vendor-neutral. You can read more about the QuAAC standard `here <https://quaac.readthedocs.io/en/latest/index.html>`__.
+  How to dump pylinac results to QuAAC format can be read in :ref:`exporting-to-quaac`.
+
 
 v 3.24.1
 --------

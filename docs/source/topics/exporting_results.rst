@@ -61,6 +61,8 @@ This string can be saved to a file or otherwise passed around.
     with open("my_starshot.json", "w") as f:
         f.write(json_str)
 
+.. _exporting-to-quaac:
+
 Exporting to QuAAC
 ------------------
 
@@ -93,7 +95,7 @@ data to a file in the QuAAC format.
 
 It is important to know that QuAAC can store binary data like plotted images and PDFs that pylinac might produce.
 This is not done by default due to the many options of publishing the PDF and plotting the images.
-However, this can be done by separately saving the images and PDFs and then adding them to the QuAAC file.
+However, this can be done by separately saving the images and PDFs and then adding them to the QuAAC file
 as attachments.
 
 .. code-block:: python
