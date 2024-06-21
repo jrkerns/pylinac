@@ -61,6 +61,8 @@ from .core.image import DicomImageStack, is_image, tiff_to_dicom
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.scale import MachineScale, convert
 from .core.utilities import (
+    QuaacDatum,
+    QuaacMixin,
     ResultBase,
     ResultsDataMixin,
     convert_to_enum,
@@ -942,7 +944,7 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
         )
 
 
-class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
+class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
     """Class for performing a Winston-Lutz test of the radiation isocenter."""
 
     images: list[WinstonLutz2D]  #:
@@ -2091,6 +2093,54 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
         """Return whether or not the set of WL images contains images pertaining to a given axis"""
         return any(True for image in self.images if image.variable_axis in (axis,))
 
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        if not self._is_analyzed:
+            raise ValueError("The set is not analyzed. Use .analyze() first.")
+        result_data = self.results_data()
+        dataset = {
+            "Max 2D CAX->BB": QuaacDatum(
+                value=result_data.max_2d_cax_to_bb_mm,
+                unit="mm",
+                description="The maximum 2D distance of any image from the CAX to the BB.",
+            ),
+            "Median 2D CAX->BB": QuaacDatum(
+                value=result_data.median_2d_cax_to_bb_mm,
+                unit="mm",
+                description="The median 2D distance of any image from the CAX to the BB.",
+            ),
+            "Max 2D CAX->EPID": QuaacDatum(
+                value=result_data.max_2d_cax_to_epid_mm,
+                unit="mm",
+                description="The maximum 2D distance of any image from the CAX to the EPID.",
+            ),
+            "Median 2D CAX->EPID": QuaacDatum(
+                value=result_data.median_2d_cax_to_epid_mm,
+                unit="mm",
+                description="The median 2D distance of any image from the CAX to the EPID.",
+            ),
+            "Gantry-only 3D Isocenter Diameter": QuaacDatum(
+                value=result_data.gantry_3d_iso_diameter_mm,
+                unit="mm",
+                description="The diameter of the 3D isocenter sphere when considering the gantry-only images.",
+            ),
+            "Gantry+Collimator 3D Isocenter Diameter": QuaacDatum(
+                value=result_data.gantry_coll_3d_iso_diameter_mm,
+                unit="mm",
+                description="The diameter of the 3D isocenter sphere when considering the gantry and collimator images.",
+            ),
+            "Collimator 2D Isocenter Diameter": QuaacDatum(
+                value=result_data.coll_2d_iso_diameter_mm,
+                unit="mm",
+                description="The diameter of the 2D isocenter circle when considering the collimator images.",
+            ),
+            "Couch 2D Isocenter Diameter": QuaacDatum(
+                value=result_data.couch_2d_iso_diameter_mm,
+                unit="mm",
+                description="The diameter of the 2D isocenter circle when considering the couch images.",
+            ),
+        }
+        return dataset
+
 
 class WinstonLutzMultiTargetMultiFieldImage(WLBaseImage):
     """A 2D image of a WL delivery, but where multiple BBs are in use."""
@@ -2326,6 +2376,45 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         z_dir = "UP" if translation.z > 0 else "DOWN"
         move = f"{x_dir} {abs(translation.x):2.2f}mm; {y_dir} {abs(translation.y):2.2f}mm; {z_dir} {abs(translation.z):2.2f}mm; Rotation {yaw:2.2f}°; Pitch {pitch:2.2f}°; Roll {roll:2.2f}°"
         return move
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        """Generate the Quaac datapoints for MTMF Winston-Lutz analysis"""
+        if not self._is_analyzed:
+            raise ValueError("The set is not analyzed. Use .analyze() first.")
+        result_data = self.results_data()
+        dataset = {
+            "Max 2D CAX->BB": QuaacDatum(
+                value=result_data.max_2d_field_to_bb_mm,
+                unit="mm",
+                description="The maximum 2D distance of any image from the CAX to the BB.",
+            ),
+            "Median 2D CAX->BB": QuaacDatum(
+                value=result_data.median_2d_field_to_bb_mm,
+                unit="mm",
+                description="The median 2D distance of any image from the CAX to the BB.",
+            ),
+            "Mean 2D CAX->BB": QuaacDatum(
+                value=result_data.mean_2d_field_to_bb_mm,
+                unit="mm",
+                description="The mean 2D distance of any image from the CAX to the BB.",
+            ),
+            "BB Shift (Yaw)": QuaacDatum(
+                value=result_data.bb_shift_yaw,
+                unit="degrees",
+                description="The ideal yaw rotation to place the BB at the isocenter.",
+            ),
+            "BB Shift (Pitch)": QuaacDatum(
+                value=result_data.bb_shift_pitch,
+                unit="degrees",
+                description="The ideal pitch rotation to place the BB at the isocenter.",
+            ),
+            "BB Shift (Roll)": QuaacDatum(
+                value=result_data.bb_shift_roll,
+                unit="degrees",
+                description="The ideal roll rotation to place the BB at the isocenter.",
+            ),
+        }
+        return dataset
 
     def _couch_rotation_error(self) -> dict[str, dict[str, float]]:
         """Calculate the couch rotation error in degrees for reference and couch-kicked images.
