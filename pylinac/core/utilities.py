@@ -7,15 +7,19 @@ import os.path as osp
 import struct
 from abc import abstractmethod
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import BinaryIO, Generic, Sequence, TypeVar
+from pathlib import Path
+from typing import BinaryIO, Generic, Literal, Sequence, TypeVar
 
 import numpy as np
 import pydicom
 from pydantic import BaseModel, ConfigDict, Field
+from quaac import Attachment, DataPoint, Document, Equipment, User
 
-from .. import __version__
+from .. import __version__, version
+from .scale import wrap360
 
 
 def convert_to_enum(value: str | Enum | None, enum: type[Enum]) -> Enum:
@@ -150,6 +154,27 @@ def is_close(val: float, target: float | Sequence, delta: float = 1):
     return False
 
 
+def is_close_degrees(angle1: float, angle2: float, delta: float = 1) -> bool:
+    """A sister function to is_close that takes into account the circular nature of degrees.
+
+    Parameters
+    ----------
+    angle1 : float
+        The first angle in degrees.
+    angle2 : float
+        The second angle in degrees.
+    delta : float
+        The maximum difference allowed between the angles in degrees
+    """
+    if delta < 0:
+        raise ValueError("Delta must be positive")
+    angle1 = wrap360(angle1)
+    angle2 = wrap360(angle2)
+    simple_diff = abs(angle1 - angle2)
+    other_side_of_circle = 360 - simple_diff
+    return min(simple_diff, other_side_of_circle) <= delta
+
+
 def simple_round(number: float | int, decimals: int | None = 0) -> float | int:
     """Round a number to the given number of decimals. Fixes small floating number errors. If decimals is None, no rounding is performed"""
     if decimals is None:
@@ -232,3 +257,80 @@ def decode_binary(
     if cursor_shift:
         f.seek(cursor_shift, 1)
     return output
+
+
+@dataclass  # dataclasses can have default values; typed dicts cannot
+class QuaacDatum:
+    """Individual data point to be saved to a QuAAC file."""
+
+    value: str | float | int
+    unit: str = ""
+    description: str = ""
+    reference_value: str | float | int | None = None
+
+
+class QuaacMixin:
+    """A mixin for pylinac analysis classes to save results to a QuAAC file."""
+
+    @abstractmethod
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        """Return the data points to be saved to the QuAAC file. The tuple is in the format of
+        (name, value, unit, description)."""
+        raise NotImplementedError
+
+    def to_quaac(
+        self,
+        path: str | Path,
+        performer: User,
+        primary_equipment: Equipment,
+        format: Literal["json", "yaml"] = "yaml",
+        attachments: list[Attachment] | None = None,
+        overwrite: bool = False,
+        **kwargs,
+    ) -> None:
+        """Write an analysis to a QuAAC file. This will include the items
+        from results_data() and the PDF report.
+
+        Parameters
+        ----------
+        path : str, Path
+            The file to write the results to.
+        performer : User
+            The user who performed the analysis.
+        primary_equipment : Equipment
+            The equipment used in the analysis.
+        format : {'json', 'yaml'}
+            The format to write the file in.
+        attachments : list of Attachment
+            Additional attachments to include in the QuAAC file.
+        overwrite : bool
+            Whether to overwrite the file if it already exists.
+        kwargs
+            Additional keyword arguments to pass to the Document instantiation.
+        """
+        attachments = attachments or []
+        if Path(path).exists() and not overwrite:
+            raise FileExistsError(
+                f"{path} already exists. Pass 'overwrite=True' to overwrite."
+            )
+        datapoints = []
+        data_values = self._quaac_datapoints()
+        for name, datum in data_values.items():
+            dp = DataPoint(
+                performer=performer,
+                perform_datetime=datetime.now(),
+                primary_equipment=primary_equipment,
+                name=name,
+                measurement_value=datum.value,
+                measurement_unit=datum.unit,
+                description=datum.description,
+                reference_value=datum.reference_value,
+                attachments=attachments,
+                parameters={"pylinac version": version.__version__},
+            )
+            datapoints.append(dp)
+        d = Document(datapoints=datapoints, **kwargs)
+        if format == "json":
+            d.to_json_file(path)
+        elif format == "yaml":
+            d.to_yaml_file(path)
