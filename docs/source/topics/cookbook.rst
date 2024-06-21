@@ -32,24 +32,27 @@ This will return only DICOM files from a directory, assuming there are other fil
 .. code-block:: python
    :caption: Looking for DICOM files **only** at the root directory
 
+   import glob
    from pathlib import Path
+
    from pylinac.core.io import is_dicom
 
-   dicom_files = [f for f in Path("my_directory").iterdir() if f.is_file() and is_dicom(f)]
+   dicom_files = [
+       f for f in glob.glob("my_directory") if Path(f).is_file() and is_dicom(f)
+   ]
 
 .. code-block:: python
    :caption: Looking for DICOM files in this and all subdirectories
 
-    import os
+    import glob
     from pathlib import Path
     from pylinac.core.io import is_dicom
 
-    dicoms = []
-    for dirpath, _, filenames in os.walk("my_directory"):
-        for f in filenames:
-            full_path = Path(dirpath) / f
-            if is_dicom(full_path):
-                dicoms.append(full_path)
+    dicom_files = [
+        f
+        for f in glob.glob("my_directory/**", recursive=True)
+        if Path(f).is_file() and is_dicom(f)
+    ]
 
 See :func:`~pylinac.core.io.is_dicom` for more information.
 
@@ -60,12 +63,15 @@ This will find DICOM files that are images specifically. E.g. pulling out RT ima
 
 .. code-block:: python
 
-   from pathlib import Path
-   from pylinac.core.io import is_dicom_image
+    import glob
+    from pathlib import Path
+    from pylinac.core.io import is_dicom_image
 
-   dicom_image_files = [
-       f for f in Path("my_directory").iterdir() if f.is_file() and is_dicom_image(f)
-   ]
+    dicom_image_files = [
+        f
+        for f in glob.glob("my_directory/**", recursive=True)
+        if Path(f).is_file() and is_dicom_image(f)
+    ]
 
 See :func:`~pylinac.core.io.is_dicom_image` for more information.
 
