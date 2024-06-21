@@ -12,7 +12,7 @@ from .core import pdf
 from .core.profile import CollapsedCircleProfile
 from .core.roi import DiskROI
 from .core.scale import abs360
-from .core.utilities import ResultBase, ResultsDataMixin
+from .core.utilities import QuaacDatum, ResultBase, ResultsDataMixin
 from .ct import CatPhanBase, CatPhanModule, Slice
 
 
@@ -339,6 +339,20 @@ class CheesePhantomBase(CatPhanBase, ResultsDataMixin[CheeseResult]):
         plt.tight_layout()
         if show:
             plt.show()
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        results_data = self.results_data(as_dict=True)
+        data = {}
+        data["Phantom roll"] = QuaacDatum(
+            value=results_data["phantom_roll"],
+            unit="degrees",
+        )
+        for roi_num, roi_data in results_data["rois"].items():
+            data[f"ROI {roi_num}"] = QuaacDatum(
+                value=roi_data["median"],
+                unit="HU",
+            )
+        return data
 
     def publish_pdf(
         self,

@@ -35,7 +35,7 @@ from pylinac.winston_lutz import (
     solve_3d_position_from_2d_planes,
     solve_3d_shift_vector_from_2d_planes,
 )
-from tests_basic.core.test_utilities import ResultsDataBase
+from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,
@@ -863,6 +863,13 @@ class TestPublishPDF(TestCase):
     def test_publish_w_metadata_and_notes(self):
         with tempfile.TemporaryFile() as t:
             self.wl.publish_pdf(t, notes="stuff", metadata={"Unit": "TB1"})
+
+
+class TestQuaac(QuaacTestBase, TestCase):
+    def quaac_instance(self):
+        wl = WinstonLutz.from_demo_images()
+        wl.analyze()
+        return wl
 
 
 class TestPlottingSaving(TestCase):
