@@ -225,7 +225,7 @@ where contrast is an option from the :ref:`low contrast methods <low_contrast_to
 .. note::
      What is meant by "noise" is unclear in the literature. Technically, it was meant to be the detective quantum efficiency (DQE) which correlates
      to the number of photons counted.
-     For simplicity and ease of understanding, the standard deviation, aka noise, of the ROI works as a simple inverse surrogate.
+     For simplicity and ease of understanding, the inverse of the standard deviation, aka noise, of the ROI works as a simple surrogate.
      I.e.
 
      .. math:: \sqrt{DQE(I)}\approx\sqrt{N}\approx\frac{1}{stdev_{I}}
@@ -235,6 +235,8 @@ where contrast is an option from the :ref:`low contrast methods <low_contrast_to
     algorithm means that the ROIs must be smaller to allow a small localization tolerance in the algorithm. Thus, visibility is a very specific
     number that depends on the size of the **sampling** ROI.
 
+.. _cnr:
+
 Contrast-to-noise ratio
 ^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -242,6 +244,6 @@ The contrast to noise ratio (CNR) is defined as follows:
 
 .. math:: CNR(I) = \frac{Contrast(I)}{noise(I)} = \frac{Contrast(I)}{stdev(I)}
 
-where contrast is an option from the low contrast methods.
+where contrast is an option from the low contrast methods above: :ref:`low_contrast_topic`.
 If you prefer the `classic definition <https://en.wikipedia.org/wiki/Contrast-to-noise_ratio>`__ of CNR
 then use the "Difference" algorithm.

@@ -265,14 +265,40 @@ E.g. to use 90/10 for the penumbra distance instead of 80/20:
 
 Each metric has its own parameters that can be customized. See the metric's documentation for more information.
 
-Accessing results
-=================
+Interpreting results
+====================
 
 Results from the analysis can be printed as a simple string using :meth:`~pylinac.field_profile_analysis.FieldProfileAnalysis.results`.
 The ideal method is to access the results using the :meth:`~pylinac.field_profile_analysis.FieldProfileAnalysis.results_data` method, which
 can return a JSON string, a dictionary, or a :class:`~pylinac.field_profile_analysis.FieldResult` that can be used to access the results.
 
 See also :ref:`exporting-results`.
+
+
+The outcome from analyzing the phantom available in RadMachine or from
+``results_data`` is:
+
+* ``normalization``: The normalization method used.
+* ``centering``: The centering method used.
+* ``edge_type``: The edge detection method used.
+* ``center``: The center ROI of the field with the following items:
+
+  * ``mean``: The mean pixel value of the center ROI.
+  * ``stdev``: The standard deviation of the pixel values in the center ROI.
+  * ``min``: The minimum pixel value in the center ROI.
+  * ``max``: The maximum pixel value in the center ROI.
+
+* ``x_metrics``: The metrics computed from the X/crossplane profile.
+  The items included depend on the metrics given to the analysis. See: :ref:`profile_builtin_plugins`. The
+  key will be the name of the metric and the value will be what's returned from
+  the ``calculate`` method of the metric. In addition, the following items
+  are always given:
+
+  * ``Field Width (mm)``: The width of the field in mm.
+  * ``values``: A list of pixel values of the profile that the metrics were calculated from.
+
+* ``y_metrics``: The metrics computed from the Y/inplane profile.
+  The items and logic are the same as for the ``x_metrics``.
 
 .. _using-custom-field-analysis-plugins:
 

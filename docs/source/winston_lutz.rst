@@ -601,6 +601,18 @@ This is also what is given in RadMachine image analysis results and is explained
 * ``coll_2d_iso_diameter_mm``: The 2D isocenter diameter **of the collimator axis only** as determined by the collimator images in mm.
 * ``couch_2d_iso_diameter_mm``: The 2D isocenter diameter **of the couch axis only** as determined by the couch images in mm.
 * ``bb_shift_vector``: The cartesian vector that would move the BB to the radiation isocenter. Each value is in mm. See also :ref:`wl_virtual_shift`, :ref:`winston-lutz-couch-shift-algorithm`
+* ``image_details``: A list of the individual image results. Each item has the following:
+
+  * ``variable_axis``: The axis that varied in the image. See :ref:`wl_image_types`.
+  * ``bb_location``: The location of the BB in the image as a Point in pixels.
+  * ``cax2epid_vector``: The vector (in cartesian coordinates) from the field CAX to the EPID center in mm.
+  * ``cax2epid_distance``: The distance from the field CAX to the EPID center in mm.
+  * ``cax2bb_vector``: The vector (in cartesian coordinates) from the field CAX to the BB in mm.
+  * ``field_cax``: The location of the field CAX in the image as a Point in pixels.
+* ``keyed_image_details``: A **dictionary** of the individual image results. This is the same as ``image_details`` but keyed by the images
+  using the axes values as the key. E.g. ``G0B45P0``. This can be used to identify individual
+  images vs those in ``image_details``.
+
 
 Interpreting specific publications
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

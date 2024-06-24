@@ -731,6 +731,63 @@ notekeeping.
   :ref:`analysis_definitions`). For symmetry calculations that operate around the CAX, the CAX must first be determined, which is
   the center of the FWHM of the profile.
 
+Interpreting Results
+--------------------
+
+The field analysis result is slightly different if analyzing a device array vs
+a 2D image (EPID/DICOM). In both cases the following is given:
+
+* ``protocol``: The protocol used for the analysis. See: :ref:`analysis_definitions`.
+* ``protocol_results``: This is a dictionary that contains the results of the protocol calculations. The keys are the protocol names.
+  Generally, they are ``symmetry_horizontal``, ``symmetry_vertical``, ``flatness_horizontal``, and ``flatness_vertical``.
+  The values themselves are the calculated values for that specific protocol equation.
+* ``centering_method``: The method used to determine the center of the field. See :ref:`centering`.
+* ``normalization_method``: The method used to normalize the field. See :ref:`normalization`.
+* ``interpolation_method``: The method used to interpolate the field. See :ref:`interpolation`.
+* ``edge_detection_method``: The method used to detect the field edges. See :ref:`edge`.
+* ``top_penumbra_mm``: The penumbra width at the top of the field.
+* ``bottom_penumbra_mm``: The penumbra width at the bottom of the field.
+* ``left_penumbra_mm``: The penumbra width at the left of the field.
+* ``right_penumbra_mm``: The penumbra width at the right of the field.
+* ``geometric_center_index_x_y``: The geometric center of the field in pixel coordinates.
+* ``beam_center_index_x_y``: The beam center of the field in pixel coordinates.
+* ``field_size_vertical_mm``: The vertical field size in mm.
+* ``field_size_horizontal_mm``: The horizontal field size in mm.
+* ``beam_center_to_top_mm``: The distance from the beam center to the top edge of the field.
+* ``beam_center_to_bottom_mm``: The distance from the beam center to the bottom edge of the field.
+* ``beam_center_to_left_mm``: The distance from the beam center to the left edge of the field.
+* ``beam_center_to_right_mm``: The distance from the beam center to the right edge of the field.
+* ``cax_to_top_mm``: The distance from the CAX to the top edge of the field.
+* ``cax_to_bottom_mm``: The distance from the CAX to the bottom edge of the field.
+* ``cax_to_left_mm``: The distance from the CAX to the left edge of the field.
+* ``cax_to_right_mm``: The distance from the CAX to the right edge of the field.
+* ``top_position_index_x_y``: The top position of the field in pixel coordinates.
+* ``top_horizontal_distance_from_cax_mm``: The horizontal distance from the top position to the image center.
+
+  .. note::
+    This says CAX, and by this we mean the CAX of the machine, regardless of field size/position.
+
+* ``top_vertical_distance_from_cax_mm``: The vertical distance from the top position to the image center.
+* ``top_horizontal_distance_from_beam_center_mm``: The horizontal distance from the top position to the beam center.
+* ``top_vertical_distance_from_beam_center_mm``: The vertical distance from the top position to the beam center.
+* ``left_slope_percent_mm``: The slope of the left side of the in-field region in percent per mm.
+* ``right_slope_percent_mm``: The slope of the right side of the in-field region in percent per mm.
+* ``top_slope_percent_mm``: The slope of the top side of the in-field region in percent per mm.
+* ``bottom_slope_percent_mm``: The slope of the bottom side of the in-field region in percent per mm.
+* ``top_penumbra_percent_mm``: The penumbra width at the top of the field in percent per mm.
+* ``bottom_penumbra_percent_mm``: The penumbra width at the bottom of the field in percent per mm.
+* ``left_penumbra_percent_mm``: The penumbra width at the left of the field in percent per mm.
+* ``right_penumbra_percent_mm``: The penumbra width at the right of the field in percent per mm.
+
+If analyzing a 2D image (EPID/DICOM) the following is also given.
+The ROI in this case is where the finite profile areas overlap. E.g.
+if ``vert_width`` and ``horiz_width`` are 0.1, there is a central 10% of the field that is used for the following ROI:
+
+* ``central_roi_mean``: The mean pixel value of the central region of interest.
+* ``central_roi_std``: The standard deviation of the pixel values of the central region of interest.
+* ``central_roi_max``: The maximum pixel value of the central region of interest.
+* ``central_roi_min``: The minimum pixel value of the central region of interest.
+
 API Documentation
 -----------------
 

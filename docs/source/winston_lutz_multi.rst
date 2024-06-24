@@ -388,6 +388,34 @@ This algorithm is performed for each BB and image combination:
 * **Evaluate against the field position** -- Once the measured BB and field positions are known, both the scalar distance and vector
   from the field position to the measured BB position is determined.
 
+Interpreting Results
+--------------------
+
+The results in RadMachine and those from calling ``results_data`` are as follows:
+
+* ``num_total_images``: The total number of images analyzed.
+* ``max_2d_field_to_bb_mm``: The maximum 2D distance from any BB to its field center.
+* ``median_2d_field_to_bb_mm``: The median 2D distance from any BB to its field center.
+* ``mean_2d_field_to_bb_mm``: The mean 2D distance from any BB to its field center.
+* ``bb_arrangement``: A list of the nominal locations of the BBs. Each BB arrangement
+  has the following items:
+
+    * ``name``: The name of the BB.
+    * ``offset_left_mm``: The offset in the left-right direction from isocenter. See: :ref:`coordinate_space`.
+    * ``offset_up_mm``: The offset in the up-down direction from isocenter.
+    * ``offset_in_mm``: The offset in the in-out direction from isocenter.
+    * ``bb_size_mm``: The size of the BB in mm.
+    * ``rad_size_mm``: The size of the radiation field in mm.
+
+
+* ``bb_maxes``: A dictionary of the maximum 2D distances of each BB to its field center. The
+  key is the BB name as defined in the arrangement.
+* ``bb_shift_vector``: The vector (in 3D cartesian space) to move the phantom to align with the isocenter in mm.
+* ``bb_shift_yaw``: The yaw rotation in degrees needed to align the phantom with the radiation isocenter.
+* ``bb_shift_pitch``: The pitch rotation needed in degrees to align the phantom with the radiation isocenter.
+* ``bb_shift_roll``: The roll rotation needed in degrees to align the phantom with the radiation isocenter.
+
+
 Benchmarking the Algorithm
 --------------------------
 
