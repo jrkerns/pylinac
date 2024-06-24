@@ -21,6 +21,8 @@ Winston Lutz
 Core
 ^^^^
 
+* A cookbook section has been added to the documentation: :ref:`cookbook`. Although not too many
+  cases are covered yet, this will be a place for various use-cases and how to accomplish them.
 * :bdg-success:`Feature` Pylinac now supports QuAAC integration. QuAAC is an interoperability standard we created to attempt to
   standardize how QA information is stored and to be vendor-neutral. You can read more about the QuAAC standard `here <https://quaac.readthedocs.io/en/latest/index.html>`__.
   How to dump pylinac results to QuAAC format can be read in :ref:`exporting-to-quaac`.
