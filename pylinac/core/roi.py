@@ -458,8 +458,6 @@ class HighContrastDiskROI(DiskROI):
             The ROI center location.
         contrast_threshold : float, int
             The threshold for considering a bubble to be "seen".
-        contrast_threshold : float, int
-            The threshold for considering a bubble to be "seen".
         """
         super().__init__(array=array, radius=radius, center=center)
         self.contrast_threshold = contrast_threshold
