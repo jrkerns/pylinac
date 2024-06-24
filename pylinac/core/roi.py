@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import typing
 from functools import cached_property
 
 import matplotlib.pyplot as plt
@@ -10,7 +11,9 @@ from skimage.measure._regionprops import _RegionProperties
 from .contrast import Contrast, contrast, michelson, ratio, rms, visibility, weber
 from .decorators import lru_cache
 from .geometry import Circle, Point, Rectangle
-from .image import ArrayImage
+
+if typing.TYPE_CHECKING:
+    from .image import ArrayImage
 
 
 def bbox_center(region: _RegionProperties) -> Point:
@@ -32,10 +35,11 @@ def bbox_center(region: _RegionProperties) -> Point:
 
 
 class DiskROI(Circle):
-    """An class representing a disk-shaped Region of Interest."""
+    """A class representing a disk-shaped Region of Interest."""
 
-    def __init__(
-        self,
+    @classmethod
+    def from_phantom_center(
+        cls,
         array: np.ndarray,
         angle: float,
         roi_radius: float,
@@ -55,9 +59,32 @@ class DiskROI(Circle):
             The distance of the ROI from the phantom center.
         phantom_center : tuple
             The location of the phantom center.
+
+        Notes
+        -----
+        Parameter names are different from the regular class constructor
+        due to historical reasons and semi-backwards compatibility.
         """
-        center = self._get_shifted_center(angle, dist_from_center, phantom_center)
-        super().__init__(center_point=center, radius=roi_radius)
+        center = cls._get_shifted_center(angle, dist_from_center, phantom_center)
+        return cls(array=array, center=center, radius=roi_radius)
+
+    def __init__(
+        self,
+        array: np.ndarray,
+        radius: float,
+        center: Point,
+    ):
+        """
+        Parameters
+        ----------
+        array : ndarray
+            The 2D array representing the image the disk is on.
+        radius : float
+            The radius of the ROI in pixels
+        center : Point
+            The center of the Disk ROI.
+        """
+        super().__init__(center_point=center, radius=radius)
         self._array = array
 
     @staticmethod
@@ -139,8 +166,9 @@ class LowContrastDiskROI(DiskROI):
     cnr_threshold: float | None
     contrast_reference: float | None
 
-    def __init__(
-        self,
+    @classmethod
+    def from_phantom_center(
+        cls,
         array: np.ndarray | ArrayImage,
         angle: float,
         roi_radius: float,
@@ -155,10 +183,76 @@ class LowContrastDiskROI(DiskROI):
         """
         Parameters
         ----------
+        array : ndarray
+            The 2D array representing the image the disk is on.
+        angle : int, float
+            The angle of the ROI in degrees from the phantom center.
+        roi_radius : int, float
+            The radius of the ROI from the center of the phantom.
+        dist_from_center : int, float
+            The distance of the ROI from the phantom center.
+        phantom_center : tuple
+            The location of the phantom center.
         contrast_threshold : float, int
             The threshold for considering a bubble to be "seen".
+        contrast_reference : float, int
+            The reference contrast value.
+        cnr_threshold : float, int
+            The threshold for the CNR constant.
+        contrast_method : str
+            The method to calculate contrast.
+        visibility_threshold : float, int
+            The threshold for the visibility. If not provided, no visibility is calculated.
+
+        Notes
+        -----
+        Parameter names are different from the regular class constructor
+        due to historical reasons and semi-backwards compatibility.
         """
-        super().__init__(array, angle, roi_radius, dist_from_center, phantom_center)
+        center = cls._get_shifted_center(angle, dist_from_center, phantom_center)
+        return cls(
+            array=array,
+            radius=roi_radius,
+            center=center,
+            contrast_threshold=contrast_threshold,
+            contrast_reference=contrast_reference,
+            cnr_threshold=cnr_threshold,
+            contrast_method=contrast_method,
+            visibility_threshold=visibility_threshold,
+        )
+
+    def __init__(
+        self,
+        array: np.ndarray | ArrayImage,
+        radius: float,
+        center: Point,
+        contrast_threshold: float | None = None,
+        contrast_reference: float | None = None,
+        cnr_threshold: float | None = None,
+        contrast_method: str = Contrast.MICHELSON,
+        visibility_threshold: float = 0.1,
+    ):
+        """
+        Parameters
+        ----------
+        array : ndarray
+            The 2D array representing the image the disk is on.
+        radius : int, float
+            The radius of the ROI.
+        center : Point
+            The ROI center location.
+        contrast_threshold : float, int
+            The threshold for considering a bubble to be "seen".
+        contrast_reference : float, int
+            The reference contrast value.
+        cnr_threshold : float, int
+            The threshold for the CNR constant.
+        contrast_method : str
+            The method to calculate contrast.
+        visibility_threshold : float, int
+            The threshold for the visibility to be considered passing.
+        """
+        super().__init__(array, radius, center=center)
         self.contrast_threshold = contrast_threshold
         self.cnr_threshold = cnr_threshold
         self.contrast_reference = contrast_reference
@@ -307,8 +401,9 @@ class HighContrastDiskROI(DiskROI):
 
     contrast_threshold: float | None
 
-    def __init__(
-        self,
+    @classmethod
+    def from_phantom_center(
+        cls,
         array: np.ndarray,
         angle: float,
         roi_radius: float,
@@ -319,10 +414,52 @@ class HighContrastDiskROI(DiskROI):
         """
         Parameters
         ----------
+        array : ndarray
+            The 2D array representing the image the disk is on.
+        angle : int, float
+            The angle of the ROI in degrees from the phantom center.
+        roi_radius : int, float
+            The radius of the ROI from the center of the phantom.
+        dist_from_center : int, float
+            The distance of the ROI from the phantom center.
+        phantom_center : tuple
+            The location of the phantom center.
+        contrast_threshold : float, int
+            The threshold for considering a bubble to be "seen".
+
+        Notes
+        -----
+        Parameter names are different from the regular class constructor
+        due to historical reasons and semi-backwards compatibility.
+        """
+        center = cls._get_shifted_center(angle, dist_from_center, phantom_center)
+        return cls(
+            array=array,
+            radius=roi_radius,
+            center=center,
+            contrast_threshold=contrast_threshold,
+        )
+
+    def __init__(
+        self,
+        array: np.ndarray,
+        radius: float,
+        center: Point,
+        contrast_threshold: float,
+    ):
+        """
+        Parameters
+        ----------
+        array : ndarray
+            The 2D array representing the image the disk is on.
+        radius : int, float
+            The radius of the ROI.
+        center : Point
+            The ROI center location.
         contrast_threshold : float, int
             The threshold for considering a bubble to be "seen".
         """
-        super().__init__(array, angle, roi_radius, dist_from_center, phantom_center)
+        super().__init__(array=array, radius=radius, center=center)
         self.contrast_threshold = contrast_threshold
 
     def __repr__(self):
@@ -350,8 +487,9 @@ class HighContrastDiskROI(DiskROI):
 class RectangleROI(Rectangle):
     """Class that represents a rectangular ROI."""
 
-    def __init__(
-        self,
+    @classmethod
+    def from_phantom_center(
+        cls,
         array: np.ndarray,
         width: float,
         height: float,
@@ -359,9 +497,51 @@ class RectangleROI(Rectangle):
         dist_from_center: float,
         phantom_center: Point,
     ):
+        """
+        Parameters
+        ----------
+        array : ndarray
+            The 2D array representing the image the disk is on.
+        width : float
+            The width of the ROI in pixels.
+        height : float
+            The height of the ROI in pixels.
+        angle : float
+            The angle of the ROI in degrees from the phantom center.
+        dist_from_center : float
+            The distance of the ROI from the phantom center.
+        phantom_center : tuple
+            The location of the phantom center.
+
+        Notes
+        -----
+        Parameter names are different from the regular class constructor
+        due to historical reasons and semi-backwards compatibility.
+        """
         y_shift = np.sin(np.deg2rad(angle)) * dist_from_center
         x_shift = np.cos(np.deg2rad(angle)) * dist_from_center
         center = Point(phantom_center.x + x_shift, phantom_center.y + y_shift)
+        return cls(array=array, width=width, height=height, center=center)
+
+    def __init__(
+        self,
+        array: np.ndarray,
+        width: float,
+        height: float,
+        center: Point,
+    ):
+        """
+        Parameters
+        ----------
+        array : ndarray
+            The 2D array representing the image the disk is on.
+        width : float
+            The width of the ROI in pixels.
+        height : float
+            The height of the ROI in pixels.
+        center : Point
+            The location of the ROI center.
+        """
         # the ROI must be 'real', i.e. >= 2x2 matrix
         if width < 2:
             raise ValueError(f"The width must be >= 2. Given {width}")

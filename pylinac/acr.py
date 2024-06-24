@@ -160,7 +160,7 @@ class SpatialResolutionModule(CatPhanModule):
 
     def _setup_rois(self) -> None:
         for name, setting in self.roi_settings.items():
-            self.rois[name] = HighContrastDiskROI(
+            self.rois[name] = HighContrastDiskROI.from_phantom_center(
                 self.image,
                 setting["angle_corrected"],
                 setting["radius_pixels"],
@@ -587,7 +587,7 @@ class MRSlice11PositionModule(CatPhanModule):
     def _setup_rois(self) -> None:
         for name, setting in self.roi_settings.items():
             # angle is +90 because pointing right is 0, and these rois move downward, not rightward
-            self.rois[name] = RectangleROI(
+            self.rois[name] = RectangleROI.from_phantom_center(
                 self.image,
                 setting["width_pixels"],
                 setting["height_pixels"],
@@ -664,7 +664,7 @@ class MRSlice1Module(CatPhanModule):
         # thickness
         for name, setting in self.thickness_roi_settings.items():
             # angle is +90 because pointing right is 0, and these rois move downward, not rightward
-            self.thickness_rois[name] = ThicknessROI(
+            self.thickness_rois[name] = ThicknessROI.from_phantom_center(
                 self.image,
                 setting["width_pixels"],
                 setting["height_pixels"],
@@ -674,7 +674,7 @@ class MRSlice1Module(CatPhanModule):
             )
         # spatial res
         for name, setting in self.roi_settings.items():
-            self.rois[name] = HighContrastDiskROI(
+            self.rois[name] = HighContrastDiskROI.from_phantom_center(
                 self.image,
                 setting["angle_corrected"],
                 setting["radius_pixels"],
@@ -685,7 +685,7 @@ class MRSlice1Module(CatPhanModule):
         # slice position
         for name, setting in self.position_roi_settings.items():
             # angle is +90 because pointing right is 0, and these rois move downward, not rightward
-            self.position_rois[name] = ThicknessROI(
+            self.position_rois[name] = ThicknessROI.from_phantom_center(
                 self.image,
                 setting["width_pixels"],
                 setting["height_pixels"],
@@ -789,7 +789,7 @@ class MRUniformityModule(CatPhanModule):
     def _setup_rois(self) -> None:
         super()._setup_rois()
         for name, roi in self.ghost_roi_settings.items():
-            self.ghost_rois[name] = RectangleROI(
+            self.ghost_rois[name] = RectangleROI.from_phantom_center(
                 self.image,
                 roi["width_pixels"],
                 roi["height_pixels"],

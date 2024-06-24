@@ -184,7 +184,8 @@ class HUDiskROI(DiskROI):
         tolerance
             The roi pixel value tolerance.
         """
-        super().__init__(array, angle, roi_radius, dist_from_center, phantom_center)
+        new_center = self._get_shifted_center(angle, dist_from_center, phantom_center)
+        super().__init__(array, roi_radius, new_center)
         self.nominal_val = nominal_value
         self.tolerance = tolerance
 
@@ -650,7 +651,7 @@ class CTP404CP504(CatPhanModule):
 
     def _setup_thickness_rois(self) -> None:
         for name, setting in self.thickness_roi_settings.items():
-            self.thickness_rois[name] = ThicknessROI(
+            self.thickness_rois[name] = ThicknessROI.from_phantom_center(
                 self.thickness_image,
                 setting["width_pixels"],
                 setting["height_pixels"],
@@ -988,7 +989,7 @@ class CTP486(CatPhanModule):
         super()._setup_rois()
         self.nps_rois = {}
         for name, setting in self.roi_settings.items():
-            self.nps_rois[name] = RectangleROI(
+            self.nps_rois[name] = RectangleROI.from_phantom_center(
                 array=self.image,
                 width=setting["radius_pixels"] * 2,
                 height=setting["radius_pixels"] * 2,
@@ -1444,14 +1445,18 @@ class CTP515(CatPhanModule):
     def _setup_rois(self):
         # create both background rois dynamically, then create the actual sample ROI as normal
         for name, setting in self.roi_settings.items():
-            self.background_rois[name + "-outer"] = LowContrastDiskROI(
+            self.background_rois[
+                name + "-outer"
+            ] = LowContrastDiskROI.from_phantom_center(
                 self.image,
                 setting["angle_corrected"],
                 self.background_roi_radius_mm / self.mm_per_pixel,
                 setting["distance_pixels"] * (2 - self.background_roi_dist_ratio),
                 self.phan_center,
             )
-            self.background_rois[name + "-inner"] = LowContrastDiskROI(
+            self.background_rois[
+                name + "-inner"
+            ] = LowContrastDiskROI.from_phantom_center(
                 self.image,
                 setting["angle_corrected"],
                 self.background_roi_radius_mm / self.mm_per_pixel,
@@ -1467,7 +1472,7 @@ class CTP515(CatPhanModule):
                 )
             )
 
-            self.rois[name] = LowContrastDiskROI(
+            self.rois[name] = LowContrastDiskROI.from_phantom_center(
                 self.image,
                 setting["angle_corrected"],
                 setting["radius_pixels"],
@@ -2536,7 +2541,7 @@ class CatPhan604(CatPhanBase):
             # make a slice and add the wire ROIs to it.
             troi = {}
             for name, setting in ctp.thickness_roi_settings.items():
-                troi[name] = ThicknessROI(
+                troi[name] = ThicknessROI.from_phantom_center(
                     slice.image,
                     setting["width_pixels"],
                     setting["height_pixels"],

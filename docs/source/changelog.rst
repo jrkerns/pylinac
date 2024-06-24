@@ -18,6 +18,14 @@ Winston Lutz
 
 * :bdg-success:`Feature` Reference axis values and tolerance-matching values for WL analysis can now be passed. See :ref:`setting-wl-reference-values`.
 
+Metrics
+^^^^^^^
+
+* A new class of metrics has been added: Samplers. These are classes that sample an ROI of an image,
+  in contrast to the existing class of metrics that find image features. To start,
+  two finder-class metrics have been added: :class:`~pylinac.metrics.image.DiskROIMetric`
+  and :class:`~pylinac.metrics.image.RectangleROIMetric`.
+
 Core
 ^^^^
 
@@ -26,7 +34,23 @@ Core
 * :bdg-success:`Feature` Pylinac now supports QuAAC integration. QuAAC is an interoperability standard we created to attempt to
   standardize how QA information is stored and to be vendor-neutral. You can read more about the QuAAC standard `here <https://quaac.readthedocs.io/en/latest/index.html>`__.
   How to dump pylinac results to QuAAC format can be read in :ref:`exporting-to-quaac`.
+* :class:`~pylinac.core.roi.DiskROI` has been refactored. The constructor signature has changed to be more generic for
+  other external usages.
+  Historically, these were only used internally and in the context of an ROI within a phantom. Unless you are using these
+  classes directly no change is needed. If using these classes, a new class method has been added that has the same
+  signature as the original constructor ``from_phantom_center``. I.e. to retain the old behavior:
 
+  .. code-block:: python
+
+    # old
+    d = DiskROI(array, angle, roi_radius, dist_from_center, phantom_center)
+
+    # new
+    d = DiskROI.from_phantom_center(
+        array, angle, roi_radius, dist_from_center, phantom_center
+    )
+
+  The ``DiskROI`` 's new constructor signature is a much simpler ``array, radius, center``.
 
 v 3.24.1
 --------
