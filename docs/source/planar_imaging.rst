@@ -911,7 +911,7 @@ The results from phantoms that are meant to measure image quality, contrast, etc
   * ``signal to noise``: The signal-to-noise ratio of the ROI.
 
 Light/Rad
-^^^^^^^^
+^^^^^^^^^
 
 Light/radiation coincidence phantoms are used to ensure that the light field and radiation field are aligned.
 The results from these analyses are:
