@@ -222,8 +222,8 @@ The outcome from analyzing the phantom available in RadMachine or from
 * ``num_images``: The number of images in the passed dataset.
 * ``ct_module``: The results of the CT module with the following items:
 
-  * ``offset``: The offset of the phantom in mm from the origin slice.
-  * ``roi_distance_from_center_mm``: The distance of the ROIs from the center of the phantom in mm.
+  * ``offset``: The offset of the module slice in mm from the origin slice (z-direction).
+  * ``roi_distance_from_center_mm``: The distance of the ROIs from the center of the phantom in mm in the image plane.
   * ``roi_radius_mm``: The radius of the ROIs in mm.
   * ``rois``: A dictionary of the analyzed ROIs. The key is the name of the material
     and the value is the mean HU value. E.g. ``'Air': -987.1``.
@@ -328,7 +328,7 @@ The outcome from analyzing the phantom available in RadMachine or from
 
   * ``offset``: The offset of the phantom in mm from the origin slice.
   * ``bar_difference_mm``: The difference in bar positions in mm.
-  * ``slice_shift_mm``: The measure shift in slice position compared to nominal.
+  * ``slice_shift_mm``: The measured shift in slice position compared to nominal.
   * ``measured_slice_thickness_mm``: The measured slice thickness in mm.
   * ``row_mtf_50``: The MTF at 50% for the row-based ROIs.
   * ``col_mtf_50``: The MTF at 50% for the column-based ROIs.
