@@ -51,7 +51,6 @@ from .core.nps import (
 from .core.profile import CollapsedCircleProfile, FWXMProfile
 from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
-from .settings import get_dicom_cmap
 
 # The ramp angle ratio is from the Catphan manual ("Scan slice geometry" section)
 # and represents the fact that the wire is at an oblique angle (23°), making it appear
@@ -467,12 +466,7 @@ class CatPhanModule(Slice):
 
     def plot(self, axis: plt.Axes):
         """Plot the image along with ROIs to an axis"""
-        axis.imshow(
-            self.image.array,
-            cmap=get_dicom_cmap(),
-            vmin=self.window_min,
-            vmax=self.window_max,
-        )
+        self.image.plot(ax=axis, show=False, vmin=self.window_min, vmax=self.window_max)
         self.plot_rois(axis)
         axis.autoscale(tight=True)
         axis.set_title(self.common_name)

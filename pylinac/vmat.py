@@ -29,7 +29,6 @@ from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.pdf import PylinacCanvas
 from .core.profile import FWXMProfile
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
-from .settings import get_dicom_cmap
 
 
 class ImageType(enum.Enum):
@@ -470,7 +469,7 @@ class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
                 img = self.dmlc_image
             elif subimage == ImageType.OPEN:
                 img = self.open_image
-            ax.imshow(img, cmap=get_dicom_cmap())
+            img.plot(ax=ax, show=False)
             self._draw_segments(ax, show_text)
             plt.sca(ax)
             plt.axis("off")

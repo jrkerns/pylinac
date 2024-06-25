@@ -14,6 +14,7 @@ import pydicom
 from numpy.testing import assert_array_almost_equal
 from pydicom.uid import UID
 
+from pylinac import settings
 from pylinac.core import image
 from pylinac.core.geometry import Point
 from pylinac.core.image import (
@@ -399,6 +400,15 @@ class TestBaseImage(TestCase):
 
     def test_plot(self):
         self.img.plot()  # shouldn't raise
+
+    def test_cmap_from_settings(self):
+        # test the DICOM_COLORMAP setting is respected
+        orig_cmap = settings.DICOM_COLORMAP
+        ax = self.img.plot()
+        self.assertEqual(ax.get_images()[0].get_cmap().name, orig_cmap)
+        settings.DICOM_COLORMAP = "viridis"
+        ax = self.img.plot()
+        self.assertEqual(ax.get_images()[0].get_cmap().name, "viridis")
 
     def test_roll(self):
         orig_val = self.arr[0, 0]

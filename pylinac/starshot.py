@@ -36,7 +36,6 @@ from .core.geometry import Circle, Line, Point
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.profile import CollapsedCircleProfile, FWXMProfile
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
-from .settings import get_dicom_cmap
 
 
 class StarshotResults(ResultBase):
@@ -458,7 +457,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         if ax is None:
             fig, ax = plt.subplots(**plt_kwargs)
         # show analyzed image
-        ax.imshow(self.image.array, cmap=get_dicom_cmap())
+        self.image.plot(ax=ax, show=False)
         self.lines.plot(ax)
         self.wobble.plot2axes(ax, edgecolor="green")
         self.circle_profile.plot2axes(ax, edgecolor="green")
