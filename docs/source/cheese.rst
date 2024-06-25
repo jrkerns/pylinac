@@ -281,6 +281,29 @@ Analysis
 * **Measure HU values of each plug** -- Based on the nominal spacing and roll compensation (if applied),
   each plug area is sampled for the median and standard deviation values.
 
+Interpreting Results
+^^^^^^^^^^^^^^^^^^^^
+
+The outcome from analyzing the phantom available in RadMachine or from
+``results_data`` is:
+
+* ``origin_slice``: The slice index that was used for the ROI analysis.
+* ``num_images``: The number of images that were in the passed dataset.
+* ``phantom_roll``: The roll of the phantom in degrees.
+* ``rois``: A dictionary of ROIs. The key is the ROI number and the value
+  of each key contains:
+
+  * ``center_x``: The x-coordinate of the center of the ROI in pixels.
+  * ``center_y``: The y-coordinate of the center of the ROI in pixels.
+  * ``diameter``: The diameter of the ROI in pixels.
+  * ``median``: The median HU value of the ROI.
+  * ``std``: The standard deviation of the HU values of the ROI.
+
+* ``roi_<n>``: This is the same thing as an individual result from ``rois``, but the name itself has
+  the ROI number appended. I.e. ``rois['11'] == roi_11``. It is redundant information and is the older implementation
+  of providing ROI data. Some "cheese" analyses may not have this set of keys. It
+  is deprecated due to the variable number of ROIs that can be analyzed.
+
 API Documentation
 -----------------
 

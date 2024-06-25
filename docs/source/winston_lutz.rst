@@ -600,7 +600,19 @@ This is also what is given in RadMachine image analysis results and is explained
 
 * ``coll_2d_iso_diameter_mm``: The 2D isocenter diameter **of the collimator axis only** as determined by the collimator images in mm.
 * ``couch_2d_iso_diameter_mm``: The 2D isocenter diameter **of the couch axis only** as determined by the couch images in mm.
-* ``bb_shift_vector``: The cartesian vector that would move the BB to the radiation isocenter. Each value is in mm. See also :ref:`wl_virtual_shift`, :ref:`winston-lutz-couch-shift-algorithm`
+* ``bb_shift_vector``: The Cartesian vector that would move the BB to the radiation isocenter. Each value is in mm. See also :ref:`wl_virtual_shift`, :ref:`winston-lutz-couch-shift-algorithm`
+* ``image_details``: A list of the individual image results. Each item has the following:
+
+  * ``variable_axis``: The axis that varied in the image. See :ref:`wl_image_types`.
+  * ``bb_location``: The location of the BB in the image as a Point in pixels.
+  * ``cax2epid_vector``: The vector (in Cartesian coordinates) from the field CAX to the EPID center in mm.
+  * ``cax2epid_distance``: The distance from the field CAX to the EPID center in mm.
+  * ``cax2bb_vector``: The vector (in Cartesian coordinates) from the field CAX to the BB in mm.
+  * ``field_cax``: The location of the field CAX in the image as a Point in pixels.
+* ``keyed_image_details``: A **dictionary** of the individual image results. This is the same as ``image_details`` but keyed by the images
+  using the axes values as the key. E.g. ``G0B45P0``. This can be used to identify individual
+  images vs those in ``image_details``.
+
 
 Interpreting specific publications
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -894,7 +906,7 @@ Let's now offset the BB by 1mm to the left:
         generate_winstonlutz,
     )
 
-    wl_dir = 'wl_dir'
+    wl_dir = 'wl_dir_offset'
     generate_winstonlutz(
         AS1200Image(1000),
         FilteredFieldLayer,
@@ -951,7 +963,7 @@ We can simulate gantry tilt, where at 0 and 180 the gantry tilts forward and bac
         generate_winstonlutz,
     )
 
-    wl_dir = 'wl_dir'
+    wl_dir = 'wl_dir_tilt'
     generate_winstonlutz(
         AS1200Image(1000),
         FilteredFieldLayer,
@@ -1009,7 +1021,7 @@ We can simulate gantry sag, where at 90 and 270 the gantry tilts towards the flo
         generate_winstonlutz,
     )
 
-    wl_dir = 'wldir'
+    wl_dir = 'wldir_sag'
     generate_winstonlutz(
         AS1200Image(1000),
         FilteredFieldLayer,
@@ -1063,7 +1075,7 @@ values. We offset the BB to the left by 2mm for visualization purposes:
         generate_winstonlutz,
     )
 
-    wl_dir = 'wl_dir'
+    wl_dir = 'wl_dir_offset_multi'
     generate_winstonlutz(
         AS1200Image(1000),
         FilteredFieldLayer,
@@ -1120,7 +1132,7 @@ We can also look at simulated cone WL images. Here we use the 17.5mm cone:
         generate_winstonlutz, generate_winstonlutz_cone, FilterFreeConeLayer,
     )
 
-    wl_dir = 'wl_dir'
+    wl_dir = 'wl_dir_cone'
     generate_winstonlutz_cone(
         AS1200Image(1000),
         FilterFreeConeLayer,
@@ -1152,7 +1164,7 @@ Simulate a low-density BB surrounded by higher-density material:
         generate_winstonlutz,
     )
 
-    wl_dir = 'wl_dir'
+    wl_dir = 'wl_dir_low'
     generate_winstonlutz(
         AS1200Image(1000),
         FilteredFieldLayer,

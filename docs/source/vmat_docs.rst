@@ -177,14 +177,16 @@ Continuing from above:
     data_dict["test_type"]
     ...
 
+.. _vmat-algorithm:
+
 Algorithm
 ---------
 
 The VMAT analysis algorithm is based on the Varian RapidArc QA Test Procedures for C-Series and Truebeam. Two tests
 (besides Picket Fence, which has its own module) are specified. Each test takes 10x0.5cm samples, each corresponding to
 a distinct section of radiation. A corrected reading of each segment is made, defined as:
-:math:`M_{corr}(x) = \frac{M_{DRGS}(x)}{M_{open}(x)} * 100`. The reading deviation of each segment is calculated as:
-:math:`M_{deviation}(x) = \frac{M_{corr}(x)}{\bar{M_{corr}}} * 100 - 100`, where :math:`\bar{M_{corr}}` is the average of all segments.
+:math:`R_{corr}(x) = \frac{R_{DRGS}(x)}{R_{open}(x)} * 100`. The reading deviation of each segment is calculated as:
+:math:`R_{deviation}(x) = \frac{R_{corr}(x)}{\bar{R_{corr}}} * 100 - 100`, where :math:`\bar{R_{corr}}` is the average of all segments.
 
 The algorithm works like such:
 
@@ -227,6 +229,31 @@ The algorithm works like such:
 
 * **Test if segments pass tolerance** -- Each segment is checked to see if it was within the specified tolerance. If any samples
   fail, the whole test is considered failing.
+
+.. _interpreting-vmat-results:
+
+Interpreting Results
+--------------------
+
+This section explains what is returned in the ``results_data`` object.
+This is also the same information that is given in the RadMachine results
+section.
+
+* ``pylinac_version`` -- The version of Pylinac that was used to perform the analysis.
+* ``date_of_analysis`` -- The date the analysis was performed.
+* ``test_type`` -- The type of test that was performed as a string.
+* ``tolerance_percent`` -- The tolerance used to determine if the test passed or failed.
+* ``passed`` -- A boolean indicating if the test passed or failed.
+* ``abs_mean_deviation`` -- The average absolute deviation of all segments.
+* ``max_deviation_percent`` -- The maximum deviation of any segment.
+* ``segment_data`` -- A list of :class:`~pylinac.vmat.SegmentResult` instances. Each instance contains the following attributes:
+
+  * ``passed`` -- A boolean indicating if the segment passed or failed.
+  * ``x_position_mm`` -- The position of the segment ROI in mm from CAX.
+  * ``r_corr`` -- :math:`R_{corr}` as defined :ref:`above <vmat-algorithm>`.
+  * ``r_dev`` -- :math:`R_{deviation}` as defined :ref:`above <vmat-algorithm>`.
+  * ``stdev`` -- The standard deviation of the segment of the ratioed images (DMLC / Open); i.e. :math:`\sigma \left( \frac{R_{DRGS}(x)}{R_{open}(x)} \right)`
+  * ``center_x_y`` -- The center of the segment in pixel coordinates.
 
 Benchmarking the Algorithm
 --------------------------

@@ -167,6 +167,21 @@ Algorithm
   tolerance. If the image carried a pixel/mm conversion ratio, the tolerance and result are in mm, otherwise they
   will be in pixels.
 
+.. _interpreting-starshot-results:
+
+Interpreting Results
+--------------------
+
+This section explains what is returned in the ``results_data`` object.
+This is also the same information that is given in the RadMachine results
+section.
+
+* ``tolerance_mm`` -- The tolerance used for the analysis in mm.
+* ``circle_radius_mm`` -- The radius of the minimum circle that touches all the star lines in mm.
+* ``circle_diameter_mm`` -- The diameter of the minimum circle that touches all the star lines in mm.
+* ``circle_center_x_y`` -- The center position of the minimum circle in pixels.
+* ``passed`` -- Whether the analysis passed or failed.
+
 Troubleshooting
 ---------------
 

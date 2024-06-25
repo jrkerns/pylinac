@@ -883,6 +883,52 @@ The algorithm works like such:
 * **Comparing centroids** -- The irradiated field centroid is compared to the EPID/image center as well as the the BB centroid.
   The field size is also reported.
 
+Interpreting Results
+--------------------
+
+Phantoms
+^^^^^^^^
+
+The results from phantoms that are meant to measure image quality, contrast, etc, are:
+
+* ``median_contrast``: The median contrast of the low contrast ROIs. See :ref:`low_contrast_topic` and :ref:`cnr` for more.
+* ``median_cnr``: The median contrast-to-noise ratio of the low contrast ROIs.
+* ``num_contrast_rois_seen``: The number of low contrast ROIs that had a visibility
+  score above the passed threshold. See :ref:`visibility` for more.
+* ``phantom_center_x_y``: The center of the phantom in the image in pixels.
+* ``phantom_area``: The area of the phantom in pixels.
+* ``mtf_lp_mm``: The 80%, 50%, and 30% MTF values in lp/mm. For more values see: :ref:`calculate-specific-mtf`.
+* ``percent_integral_uniformity``: The percent integral uniformity of the image.
+* ``low_contrast_rois``: A dictionary of the individual low contrast ROIs. The dictionary keys
+  are the ROI number, starting at 0. Each ROI has the following information:
+
+  * ``contrast method``: The method used to calculate the contrast. See :ref:`low_contrast_topic`.
+  * ``contrast``: The contrast value of the ROI.
+  * ``visibility``: The visibility score of the ROI.
+  * ``visibility threshold``: The threshold used to determine visibility.
+  * ``cnr``: The contrast-to-noise ratio of the ROI.
+  * ``passed visibility``: Whether the ROI passed the visibility threshold.
+  * ``signal to noise``: The signal-to-noise ratio of the ROI.
+
+Light/Rad
+^^^^^^^^^
+
+Light/radiation coincidence phantoms are used to ensure that the light field and radiation field are aligned.
+The results from these analyses are:
+
+* ``field_size_x_mm``: The size of the field in the x-direction/crossplane in mm.
+* ``field_size_y_mm``: The size of the field in the y-direction/inplane in mm.
+* ``field_epid_offset_x_mm``: The offset of the field center from the EPID/image center in the x-direction/crossplane in mm.
+* ``field_epid_offset_y_mm``: The offset of the field center from the EPID/image center in the y-direction/inplane in mm.
+* ``field_bb_offset_x_mm``: The offset of the field center from the BB center in the x-direction/crossplane in mm.
+* ``field_bb_offset_y_mm``: The offset of the field center from the BB center in the y-direction/inplane in mm.
+
+.. note::
+
+    Some phantoms have multiple BBs. When we speak of the BB center when multiple BBs are present,
+    we are referring to the centroid of all BBs.
+
+
 .. _creating_a_custom_phantom:
 
 Creating a custom phantom
@@ -1127,6 +1173,8 @@ To use the true min and max, set the percentiles to 0 and 100 respectively:
    This equation was chosen because it is common and understood, but it does come with pitfalls.
    It is not designed to handle negative values or 0. The calculated result may be misleading if these
    conditions exist.
+
+.. _calculate-specific-mtf:
 
 Calculate a specific MTF
 ^^^^^^^^^^^^^^^^^^^^^^^^
