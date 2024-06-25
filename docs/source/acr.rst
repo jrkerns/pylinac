@@ -210,6 +210,33 @@ Continuing from above:
     data_dict["ct_module"]["roi_radius_mm"]
     ...
 
+Interpreting CT Results
+-----------------------
+
+The outcome from analyzing the phantom available in RadMachine or from
+``results_data`` is:
+
+* ``phantom_model``: The model of the phantom used.
+* ``phantom_roll_deg``: The roll of the phantom in degrees.
+* ``origin_slice``: The slice number of the "origin" slice; for ACR this is Module 1.
+* ``num_images``: The number of images in the passed dataset.
+* ``ct_module``: The results of the CT module with the following items:
+
+  * ``offset``: The offset of the module slice in mm from the origin slice (z-direction).
+  * ``roi_distance_from_center_mm``: The distance of the ROIs from the center of the phantom in mm in the image plane.
+  * ``roi_radius_mm``: The radius of the ROIs in mm.
+  * ``rois``: A dictionary of the analyzed ROIs. The key is the name of the material
+    and the value is the mean HU value. E.g. ``'Air': -987.1``.
+  * ``roi_settings``: A dictionary of the ROI settings. The keys are the material names,
+    each with the following items:
+
+    * ``angle``: The angle of the ROI in degrees.
+    * ``distance``: The distance of the ROI from the center of the phantom in mm.
+    * ``radius``: The radius of the ROI in mm.
+    * ``distance_pixels``: The distance of the ROI from the center of the phantom in pixels.
+    * ``radius_pixels``: The radius of the ROI in pixels.
+    * ``angle_corrected``: The angle of the ROI corrected for phantom roll in degrees.
+
 MRI Algorithm
 -------------
 
@@ -287,6 +314,120 @@ low-contrast visibility test.
 
   .. math:: PSG = ghosting_{ratio} * 100
 
+Interpreting MRI Results
+------------------------
+
+The outcome from analyzing the phantom available in RadMachine or from
+``results_data`` is:
+
+* ``phantom_model``: The model of the phantom used.
+* ``phantom_roll_deg``: The roll of the phantom in degrees.
+* ``origin_slice``: The slice number of the "origin" slice; for ACR this is Slice 1.
+* ``num_images``: The number of images in the passed dataset.
+* ``slice1``: A dictionary of data for the "Slice 1" module with the following items:
+
+  * ``offset``: The offset of the phantom in mm from the origin slice.
+  * ``bar_difference_mm``: The difference in bar positions in mm.
+  * ``slice_shift_mm``: The measured shift in slice position compared to nominal.
+  * ``measured_slice_thickness_mm``: The measured slice thickness in mm.
+  * ``row_mtf_50``: The MTF at 50% for the row-based ROIs.
+  * ``col_mtf_50``: The MTF at 50% for the column-based ROIs.
+  * ``rois``: A dictionary of the analyzed MTF ROIs. The key is the name of the
+    ROI; e.g. ``Row 1.1`` and the key is a dictionary of the following items:
+
+    * ``name``: The name of the ROI.
+    * ``value``: The mean HU value of the ROI.
+    * ``stdev``: The standard deviation of the ROI.
+
+  * ``roi_settings``: A dictionary of the ROI settings. The keys are the ROI names,
+    each with the following items:
+
+    * ``angle``: The angle of the ROI in degrees.
+    * ``distance``: The distance of the ROI from the center of the phantom in mm.
+    * ``radius``: The radius of the ROI in mm.
+    * ``distance_pixels``: The distance of the ROI from the center of the phantom in pixels.
+    * ``radius_pixels``: The radius of the ROI in pixels.
+    * ``angle_corrected``: The angle of the ROI corrected for phantom roll in degrees.
+
+* ``slice11``: A dictionary of results from the analysis of "Slice 11" with the '
+  following items:
+
+  * ``offset``: The offset of the phantom in mm from the origin slice.
+  * ``bar_difference_mm``: The difference in bar positions in mm.
+  * ``slice_shift_mm``: The measure shift in slice position compared to nominal.
+  * ``rois``: A dictionary of results of the left and right bar ROIs. The key
+    is the name of the bar and the results are a dictionary with the following items:
+
+    * ``name``: The name of the ROI.
+    * ``value``: The mean HU value of the ROI.
+    * ``stdev``: The standard deviation of the ROI.
+
+    * ``roi_settings``: A dictionary of the ROI settings. The keys are the ROI names,
+      each with the following items:
+
+      * ``angle``: The angle of the ROI in degrees.
+      * ``distance``: The distance of the ROI from the center of the phantom in mm.
+      * ``radius``: The radius of the ROI in mm.
+      * ``distance_pixels``: The distance of the ROI from the center of the phantom in pixels.
+      * ``radius_pixels``: The radius of the ROI in pixels.
+      * ``angle_corrected``: The angle of the ROI corrected for phantom roll in degrees.
+
+* ``uniformity_module``: A dictionary of results from the uniformity module with the following items:
+
+  * ``offset``: The offset of the phantom in mm from the origin slice.
+  * ``ghosting_ratio``: The ghosting ratio.
+  * ``piu``: The percent integral uniformity.
+  * ``piu_passed``: Whether the PIU passed the test.
+  * ``psg``: The percent signal ghosting.
+  * ``rois``: A dictionary of the analyzed ROIs. The key is the name of
+    the ROI region with the following items:
+
+    * ``name``: The name of the ROI.
+    * ``value``: The mean HU value of the ROI.
+    * ``stdev``: The standard deviation of the ROI.
+    * ``difference``: The difference in HU value from the nominal value.
+    * ``nominal_value``: The nominal HU value of the ROI.
+    * ``passed``: Whether the ROI passed the test.
+
+  * ``roi_settings``: A dictionary of the ROI settings. The keys are the ROI names,
+    each with the following items:
+
+    * ``angle``: The angle of the ROI in degrees.
+    * ``distance``: The distance of the ROI from the center of the phantom in mm.
+    * ``radius``: The radius of the ROI in mm.
+    * ``distance_pixels``: The distance of the ROI from the center of the phantom in pixels.
+    * ``radius_pixels``: The radius of the ROI in pixels.
+    * ``angle_corrected``: The angle of the ROI corrected for phantom roll in degrees.
+
+  * ``ghost_rois``: A dictionary of the analyzed ghosting ROIs. The key is the name of
+    the ROI region with the following items:
+
+    * ``name``: The name of the ROI.
+    * ``value``: The mean HU value of the ROI.
+    * ``stdev``: The standard deviation of the ROI.
+
+* ``ghost_roi_settings``: A dictionary of the ghosting ROI settings. The keys are the ROI names,
+  each with the following items:
+
+  * ``angle``: The angle of the ROI in degrees.
+  * ``distance``: The distance of the ROI from the center of the phantom in mm.
+  * ``radius``: The radius of the ROI in mm.
+  * ``distance_pixels``: The distance of the ROI from the center of the phantom in pixels.
+  * ``radius_pixels``: The radius of the ROI in pixels.
+  * ``angle_corrected``: The angle of the ROI corrected for phantom roll in degrees.
+
+* ``geometric_distortion_module``: A dictionary with the following items:
+
+  * ``offset``: The offset of the phantom in mm from the origin slice.
+  * ``profiles``: A dictionary of the profiles used to measure the geometric distortion.
+    The key is the name of the profile and the value is a dictionary with the following items:
+
+    * ``width_mm``: The FWHM of the profile in mm.
+    * ``line``: A dictionary representing the line to be plotted.
+
+  * ``distances``: A dictionary of the lines measuring the ROI size. The
+    key is the name of the line direction and the value is a string of the
+    line length.
 
 API Documentation
 -----------------

@@ -118,6 +118,8 @@ Algorithm
 The Quart algorithm is nearly the same as the :ref:`CBCT Algorithm <cbct-algorithm>`. The
 image loading and localization use the same type of logic.
 
+.. _quart-high-res:
+
 High-Resolution
 ^^^^^^^^^^^^^^^
 
@@ -158,6 +160,79 @@ The signal to noise is defined as:
 
 where :math:`\sigma` is the standard deviation of the Polystyrene ROI pixel values.
 The poly ROI was chosen by us to match the selection for the CNR equation.
+
+Interpreting Results
+--------------------
+
+The outcome from analyzing the phantom available in RadMachine or from
+``results_data`` is:
+
+* ``phantom_model``: The model of the phantom, e.g. "Quart DVT".
+* ``phantom_roll_deg``: The roll of the phantom in degrees.
+* ``origin_slice``: The slice number of the origin image.
+* ``num_images``: The number of images given in the dataset.
+* ``hu_module``: A dictionary of the HU module results with the following
+  items:
+
+  * ``offset``: The offset of the module slice in mm from the origin slice.
+  * ``measured_slice_thickness_mm``: The measured slice thickness in mm.
+  * ``signal_to_noise``: The signal to noise ratio.
+  * ``contrast_to_noise``: The contrast to noise ratio.
+  * ``roi_settings``: A dictionary of the ROI settings. The keys are the HU material such as ``Acrylic`` with the following
+    items:
+
+    * ``value``: The mean value of the ROI in HU.
+    * ``angle``: The angle of the ROI in degrees.
+    * ``distance``: The distance of the ROI from the center of the phantom in mm.
+    * ``radius``: The radius of the ROI in mm.
+    * ``distance_pixels``: The distance of the ROI from the center of the phantom in pixels.
+    * ``radius_pixels``: The radius of the ROI in pixels.
+    * ``angle_corrected``: The angle of the ROI corrected for phantom roll in degrees.
+
+  * ``rois``: A dictionary of ROI results where the key is the name of the material. Each material
+    has the following items:
+
+    * ``name``: The name of the material.
+    * ``value``: The mean value of the ROI in HU.
+    * ``stdev``: The standard deviation of the ROI in HU.
+    * ``difference``: The difference in HU from the Acrylic ROI.
+    * ``nominal_value``: The nominal value of the material in HU.
+    * ``passed``: A boolean indicating if the material HU was within tolerance.
+
+* ``uniformity_module``: A dictionary of the uniformity module results with the following
+  items:
+
+  * ``offset``: The offset of the module slice in mm from the origin slice.
+  * ``passed``: A boolean indicating if the module passed.
+  * ``rois``: A dictionary of ROI results where the key is the name of the material. Each material
+    has the following items:
+
+    * ``name``: The name of the material.
+    * ``value``: The mean value of the ROI in HU.
+    * ``stdev``: The standard deviation of the ROI in HU.
+    * ``difference``: The difference in HU from the Acrylic ROI.
+    * ``nominal_value``: The nominal value of the material in HU.
+    * ``passed``: A boolean indicating if the material HU was within tolerance.
+
+  * ``roi_settings``: A dictionary of the ROI settings. The keys are the HU material such as ``Acrylic`` with the following
+    items:
+
+    * ``value``: The mean value of the ROI in HU.
+    * ``angle``: The angle of the ROI in degrees.
+    * ``distance``: The distance of the ROI from the center of the phantom in mm.
+    * ``radius``: The radius of the ROI in mm.
+    * ``distance_pixels``: The distance of the ROI from the center of the phantom in pixels.
+    * ``radius_pixels``: The radius of the ROI in pixels.
+    * ``angle_corrected``: The angle of the ROI corrected for phantom roll in degrees.
+
+* ``geometric_module``: A dictionary containing the following items:
+
+  * ``offset``: The offset of the module slice in mm from the origin slice.
+  * ``high_contrast_distances``: A dictionary of the high contrast distances in mm. See: :ref:`quart-high-res`.
+    The key is the region of the line and the value is the distance in mm.
+  * ``distances``: A dictionary of the phantom size itself in horizontal and vertical dimensions in mm.
+    The keys are ``horizontal mm`` and ``vertical mm``.
+
 
 API Documentation
 ------------------
