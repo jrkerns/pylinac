@@ -160,6 +160,8 @@ The minimum needed to get going is to:
 
       pf.publish_pdf("mypf.pdf")
 
+.. _picketfence-individual-leaves:
+
 Analyzing individual leaves
 ---------------------------
 
@@ -725,6 +727,58 @@ Generated file: :download:`erroneous_leaves.dcm <files/erroneous_leaves.dcm>`.
     print(pf.results())
     print(pf.results_data())
     pf.plot_analyzed_image()
+
+Analysis Parameters
+-------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`~pylinac.picketfence.PicketFence.analyze` for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **MLC**: One of the MLC options: **Millennium**, **HD Millennium**, **Halcyon Distal**, **Halcyon Proximal**, **Agility**, **BMOD**, or **MLCi**.
+      * **Individual leaf analysis (vs pair)**: Whether to analyze leaves individually (each tip) or as a set (combined, center of the picket). See :ref:`picketfence-individual-leaves`.
+      * **Tolerance**: The tolerance in mm between an MLC pair center or leaf position and the
+        picket fit line.
+      * **Parse filename**: If checked, the filename will be searched for keywords that describe the gantry and/or collimator angle.
+        For example, if the file name was "PF_gantry45.dcm" the gantry would be interpreted as being at 45 degrees. See :ref:`passing-in-axis-values`.
+      * **Nominal gap**: The expected gap of the pickets in mm. Only used when separate leaves is True. Due to the DLG and EPID
+        scattering, this value will have to be determined by you with a known good delivery.
+
+        .. note:: This is only required for individual leaf analysis.
+
+      * **Number of pickets**: The number of pickets in the image. A helper parameter to limit the total number of pickets,
+        only needed if analysis is catching more pickets than there really are.
+      * **Picket orientation**: If None (default), the orientation is automatically determined. If for some reason the determined
+        orientation is not correct, you can pass it directly using this parameter.
+      * **Leaf analysis ratio**: The ratio of the leaf width to the nominal gap. This is used to determine the expected leaf width.
+      * :bdg-info:`Advanced` **Picket spacing**: If None (default), the spacing between pickets is determined automatically.
+        If given, it should be an int or float specifying the number of **PIXELS** apart the pickets are.
+      * :bdg-info:`Advanced` **Normalized kiss height threshold**: The threshold that the MLC peak needs to be above to be considered a picket (vs background).
+        Lower if not all leaves are being caught. Note that for FFF beams this would very likely need to be lowered.
+      * **MLC leaf detection ratio**: The threshold of pixel value standard deviation within the analysis window of the MLC leaf to be considered a full leaf.
+        This is how pylinac removes MLCs that are eclipsed by the jaw. This also is how to
+        omit or catch leaves at the edge of the field. Raise to catch more edge leaves.
+      * :bdg-info:`Advanced` **MLC picket peak detection**: Either 'peak_heights' or 'prominences'. This is the method for determining the peaks. Usually not needed
+        unless the wrong number of pickets have been detected.
+      * :bdg-info:`Advanced` **Normalized picket height threshold**: The required height of the picket (not individual MLCs) to be considered a peak.
+        Pylinac takes a mean of the image axis perpendicular to the leaf motion to get an initial guess of the peak
+        locations and also to determine picket spacing. Changing this can be useful for wide-gap tests where
+        the shape of the beam horns can form two or more local maximums in the picket area. Increase if for wide-gap
+        images that are catching too many pickets. Consider lowering for FFF beams if there are analysis issues.
+      * :bdg-info:`Advanced` **MLC kiss FWXM height**: For each MLC kiss, the profile is a curve from low to high to low. The FWXM (0-100) is the height to use to measure
+        to determine the center of the curve, which is the surrogate for MLC kiss position. I.e. for each MLC kiss,
+        what height of the picket should you use to actually determine the center location? It is unusual to change this.
+        If you have something in the way (we've seen crazy examples with a BB in the way) you may want to increase this.
+      * :bdg-info:`Advanced` **MLC sag adjustment**: The amount of shift in mm to apply to the image to correct for EPID sag.
+        For Up-Down picket images, positive moves the image down, negative up.
+        For Left-Right picket images, positive moves the image left, negative right.
 
 Algorithm
 ---------
