@@ -854,6 +854,47 @@ The FSQA phantom should be placed on the couch at 100cm SSD.
 * Keep the phantom away from a couch edge or any rails.
 * Keep the phantom as close to 0 degrees rotation as possible.
 
+Analysis Parameters
+-------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See the ``analyze`` method of the class. E.g. :meth:`pylinac.planar_imaging.LasVegas.analyze`.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **Source-to-Phantom distance**: The distance in mm from the phantom to the source.
+      * **Normalized high contrast threshold**: The rMTF minimum value for a region to be considered passing.
+      * **Angle override**: The angle in degrees to override the automatic angle determination.
+      * **Contrast definition**: The method to use to calculate contrast. See :ref:`contrast`.
+      * **Contrast threshold**: The minimum contrast value for a region to be considered passing.
+
+Analysis Parameters (Light/Rad)
+-------------------------------
+
+These are the analysis parameters for Light/Rad phantoms.
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`pylinac.planar_imaging.IMTLRad.analyze` and similar classes for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **FWXM height**: The percent height of the maximum to use as the field width.
+      * **BB edge distance threshold**: The threshold in mm to determine if the BB is near the edge of the image. If the BB-to-field-edge is less than this threshold,
+        a different, more robust algorithm is used to determine the BB position but
+        results in higher uncertainty when in a flat region (i.e. away from the field edge).
+
 Algorithm
 ^^^^^^^^^
 

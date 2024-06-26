@@ -643,6 +643,46 @@ While we agree that providing the best possible treatment to patients is paramou
 beyond just WL. It is one piece of many to provide high-quality care. Spending inordinate amounts of time squabbling over a pixel
 or two is time poorly spent. Finally, we argue for an empirical approach, which is why the image generator was created. See: :ref:`benchmarking-wl`
 
+Analysis Parameters
+-------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`~pylinac.winston_lutz.WinstonLutz.analyze` for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **BB size**: The size of the BB in mm.
+      * **Use Filenames**: Whether to use the filenames to determine the axis values. See :ref:`passing-in-axis-values`.
+      * **Low-Density BB**: Whether the BB is lower density than the surrounding material. E.g. an air pocket vs a tungsten BB.
+      * **Omit field determination**: If checked, sets the field center to the EPID center under the assumption the field is not the focus of interest or is too wide to be calculated.
+        This is often helpful for kV WL analysis where the blades are wide open and even then the blade edge is of less interest than simply the imaging iso vs the BB.
+
+        .. note::
+
+          For kV WL, you will generally need to check this and also check the low-density BB flag.
+
+      * **Coordinate system**: The coordinate system of the machine. This is used to determine the shift instructions. See :ref:`passing-a-coordinate-system`.
+      * **Pixels/inch**: The resolution of the images in pixels per inch. This is used to convert the pixel distances to mm.
+
+        .. note::
+
+          Only needed for TIFF/non-DICOM images and only if the resolution is not in the TIFF tags.
+
+      * **Source-to-image distance**: The source-to-image distance in mm.
+
+        .. note::
+
+          Only needed for TIFF/non-DICOM images.
+
+      * **Is a CBCT scan?**: Whether the images are from a CBCT scan. If checked, will create 4 DRRs at gantry 0, 90, 180, 270.
+      * **Apply virtual shift of BB to optimal isocenter**: If checked, will virtually shift the BB to the optimal isocenter position and reanalyze the images. See :ref:`wl_virtual_shift`.
+
 .. _wl-algorithm:
 
 Algorithm

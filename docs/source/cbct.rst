@@ -391,6 +391,57 @@ As an example, let's override the angles of the ROIs for CTP404.
 .. warning:: If you overload the ``roi_settings`` or ``modules`` attributes, you are responsible for filling it out completely.
              I.e. when you overload it's not partial. In the above example if you want other CTP modules you **must** populate them.
 
+Analysis Parameters
+-------------------
+
+This applies to the 503, 504, 600, and 604. Model-specific parameters are called out.
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`~pylinac.ct.CatPhan604.analyze` for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **HU Tolerance**: The tolerance for the HU linearity of the inserts.
+      * **Scaling Tolerance**: The tolerance for the scaling of the phantom in mm. Uses the geometric nodes of the CTP404 module.
+      * **Slice Thickness tolerance**: The tolerance for the slice thickness in mm. Uses the ramped wire.
+      * **Slice thickness straddle**: The number of slices to combine when measuring slice thickness.If blank, will combine thin slices automatically.
+        Combining slices gives a more robust evaluation of the measurement in noisy/thin-slice images.
+      * **Minimum low contrast ROIs**: The minimum number of low contrast ROIs that must be "seen" to pass.
+      * **Air HU**: The reference HU value of the air ROI.
+      * **PMP HU**: The reference HU value of the PMP ROI.
+      * **LDPE HU**: The reference HU value of the LDPE ROI.
+      * **Poly HU**: The reference HU value of the Polystyrene ROI.
+      * **Acrylic HU**: The reference HU value of the Acrylic ROI.
+      * **Delrin HU**: The reference HU value of the Delrin ROI.
+      * **Teflon HU**: The reference HU value of the Teflon ROI.
+      * **Water Vial**: The reference HU value of the water vial ROI.
+
+        .. note::
+
+            Only applicable for the CatPhan 600
+
+      * **Bone 20%**: The reference HU value of the 20% bone ROI.
+
+        .. note::
+
+            Only applicable for the CatPhan 604
+
+     * **Bone 50%**: The reference HU value of the 50% bone ROI.
+
+        .. note::
+
+            Only applicable for the CatPhan 604
+
+      * **Contrast definition**: The method used to calculate the contrast of the low contrast ROIs. See :ref:`contrast`.
+      * **Low contrast detection threshold**: The threshold used to determine if a low contrast ROI was "seen". See :ref:`visibility`.
+
+
 .. _cbct-algorithm:
 
 Algorithm
