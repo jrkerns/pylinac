@@ -628,6 +628,7 @@ The easiest way to demonstrate this is through the Device demo, which is an FFF 
     fa.analyze(protocol=Protocol.VARIAN, is_FFF=True)
     fa.plot_analyzed_image()
 
+.. _field_analysis_top_metric:
 
 "Top" metric
 ^^^^^^^^^^^^
@@ -644,6 +645,8 @@ When printing results for an FFF beam there will be a section like so::
     'Top' horizontal distance from CAX: 0.6mm
     'Top' vertical distance from beam center: 1.7mm
     'Top' horizontal distance from beam center: 0.3mm
+
+.. _field_analysis_slope_metric:
 
 Field slope
 ^^^^^^^^^^^
@@ -704,6 +707,68 @@ we would access that custom protocol data as:
     data.protocol_results["my flatness_horizontal"]
 
 because the protocol name was ``my flatness``.
+
+Analysis Parameters
+-------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`~pylinac.field_analysis.FieldAnalysis.analyze` for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **Protocol**: The protocol to use for the analysis. See :ref:`analysis_definitions`.
+      * **Centering method**: The method used to determine the center of the field. See :ref:`centering`.
+      * **is FFF beam**: Whether the beam is a Flattening Filter Free beam. If so, the "Top" metric is calculated. See :ref:`fff_fields`.
+      * **Normalized vertical position**: The distance ratio of the image to sample. E.g. at the default of 0.5 the profile is extracted
+        in the middle of the image. 0.0 is at the left edge of the image and 1.0 is at the right edge of the image.
+
+        .. note::
+
+            This is only used when centering is set to "MANUAL".
+
+      * **Normalized horizontal position**: The distance ratio of the image to sample. E.g. at the default of 0.5 the profile is extracted
+        in the middle of the image. 0.0 is at the top edge of the image and 1.0 is at the bottom edge of the image.
+
+        .. note::
+
+            This is only used when centering is set to "MANUAL".
+
+      * **Normalized vertical width**: The width of the vertical profile to take. 0 is a single pixel, 1 is the entire image. The resulting
+        profile will be the mean of the pixels within the specified width.
+      * **Normalized horizontal width**: The width of the horizontal profile to take. 0 is a single pixel, 1 is the entire image. The resulting
+        profile will be the mean of the pixels within the specified width.
+      * **In-field ratio**: The ratio of the field width to use for protocol analyses. E.g. 0.8 means the central 80% of the field is used for flatness and symmetry.
+      * **Slope exclusion ratio**: This is the ratio of the field to use to 1) calculate the "top" metric for an FFF beam (:ref:`field_analysis_top_metric`) and 2) exclude from the
+        "slope" calculation of each side of the field (:ref:`field_analysis_slope_metric`).
+      * **Lower penumbra**: The lower penumbra value in % to use for the field edge.
+      * **Upper penumbra**: The upper penumbra value in % to use for the field edge.
+      * **Interpolation**: Interpolation technique to use. See :ref:`Interpolation`. Interpolation is usually only helpful
+        for low-resolution data.
+      * **Interpolation resolution**: The resolution that the interpolation will scale to.
+        E.g. if the native dpmm is 2 and the resolution is set to 0.1mm the data will be interpolated to have a new dpmm of 10 (1/0.1).
+      * **Ground the profile**: If True, the lowest value of the profile will be set to 0.
+      * **Normalization method**: The method used to normalize the field. See :ref:`normalization`.
+      * **Edge detection method**: The method used to detect the field edges. See :ref:`edge`.
+      * **Edge smoothing ratio**:
+
+        .. note:: Only applies to Inflection Derivative and Inflection Hill Edge detection methods.
+
+        The ratio of the length of the values to use as the sigma for a Gaussian filter applied before searching for
+        the inflection. E.g. 0.005 with a profile of 1000 points will result in a sigma of 5.
+        This helps make the inflection point detection more robust to noise. Increase for noisy data.
+      * **Hill window ratio**:
+
+        .. note:: Only applies to Inflection Hill Edge detection methods.
+
+        The ratio of the field size to use as the window to fit the Hill function. E.g. 0.2 will using a window
+        centered about each edge with a width of 20% the size of the field width.
+
 
 Algorithm
 ---------
