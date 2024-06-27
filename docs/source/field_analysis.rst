@@ -864,11 +864,9 @@ These are the classes a typical user may interface with.
 .. autoclass:: pylinac.field_analysis.FieldAnalysis
     :members:
 
-.. autoclass:: pylinac.field_analysis.FieldResult
-    :members:
+.. autopydantic_model:: pylinac.field_analysis.FieldResult
 
-.. autoclass:: pylinac.field_analysis.DeviceResult
-    :members:
+.. autopydantic_model:: pylinac.field_analysis.DeviceResult
 
 .. autoclass:: pylinac.field_analysis.Device
     :members:

@@ -470,36 +470,26 @@ API Documentation
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.acr.ACRCTResult
-    :members:
+.. autopydantic_model:: pylinac.acr.ACRCTResult
 
-.. autoclass:: pylinac.acr.CTModuleOutput
-    :members:
+.. autopydantic_model:: pylinac.acr.CTModuleOutput
 
-.. autoclass:: pylinac.acr.UniformityModuleOutput
-    :members:
+.. autopydantic_model:: pylinac.acr.UniformityModuleOutput
 
-.. autoclass:: pylinac.acr.SpatialResolutionModuleOutput
-    :members:
+.. autopydantic_model:: pylinac.acr.SpatialResolutionModuleOutput
 
-.. autoclass:: pylinac.acr.LowContrastModuleOutput
-    :members:
+.. autopydantic_model:: pylinac.acr.LowContrastModuleOutput
 
 .. autoclass:: pylinac.acr.ACRMRILarge
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.acr.ACRMRIResult
-    :members:
+.. autopydantic_model:: pylinac.acr.ACRMRIResult
 
-.. autoclass:: pylinac.acr.MRSlice11ModuleOutput
-    :members:
+.. autopydantic_model:: pylinac.acr.MRSlice11ModuleOutput
 
-.. autoclass:: pylinac.acr.MRSlice1ModuleOutput
-    :members:
+.. autopydantic_model::: pylinac.acr.MRSlice1ModuleOutput
 
-.. autoclass:: pylinac.acr.MRUniformityModuleOutput
-    :members:
+.. autopydantic_model:: pylinac.acr.MRUniformityModuleOutput
 
-.. autoclass:: pylinac.acr.MRGeometricDistortionModuleOutput
-    :members:
+.. autopydantic_model:: pylinac.acr.MRGeometricDistortionModuleOutput

@@ -1228,10 +1228,9 @@ API Documentation
 .. autoclass:: pylinac.winston_lutz.WinstonLutz
     :members:
 
-.. autoclass:: pylinac.winston_lutz.WinstonLutzResult
-
+.. autopydantic_model:: pylinac.winston_lutz.WinstonLutzResult
 
 .. autoclass:: pylinac.winston_lutz.WinstonLutz2D
     :members:
 
-.. autoclass:: pylinac.winston_lutz.WinstonLutz2DResult
+.. autopydantic_model:: pylinac.winston_lutz.WinstonLutz2DResult

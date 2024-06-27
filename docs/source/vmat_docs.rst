@@ -574,11 +574,10 @@ These are the classes a typical user may interface with.
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.vmat.VMATResult
-    :members:
 
-.. autoclass:: pylinac.vmat.SegmentResult
-    :members:
+.. autopydantic_model:: pylinac.vmat.VMATResult
+
+.. autopydantic_model:: pylinac.vmat.SegmentResult
 
 
 Supporting Classes

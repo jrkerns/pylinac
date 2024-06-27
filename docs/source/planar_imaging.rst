@@ -1400,3 +1400,5 @@ API Documentation
 
 .. autoclass:: pylinac.planar_imaging.SNCFSQA
     :inherited-members:
+
+.. autopydantic_model:: pylinac.planar_imaging.PlanarResult

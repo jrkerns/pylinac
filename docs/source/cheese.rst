@@ -342,11 +342,9 @@ API Documentation
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.cheese.CheeseResult
-    :members:
+.. autopydantic_model:: pylinac.cheese.CheeseResult
 
-.. autoclass:: pylinac.cheese.TomoCheeseResult
-    :members:
+.. autopydantic_model:: pylinac.cheese.TomoCheeseResult
 
 .. autoclass:: pylinac.cheese.CheesePhantomBase
     :inherited-members:

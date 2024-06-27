@@ -362,4 +362,4 @@ API Documentation
     :members:
     :inherited-members:
 
-.. autoclass:: pylinac.field_profile_analysis.FieldProfileResult
+.. autopydantic_model:: pylinac.field_profile_analysis.FieldProfileResult

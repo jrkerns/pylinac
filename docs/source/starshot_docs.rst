@@ -351,8 +351,7 @@ API Documentation
 .. autoclass:: pylinac.starshot.Starshot
     :members:
 
-.. autoclass:: pylinac.starshot.StarshotResults
-    :members:
+.. autopydantic_model:: pylinac.starshot.StarshotResults
 
 .. autoclass:: pylinac.starshot.StarProfile
     :members:

@@ -928,8 +928,8 @@ These are the classes a typical user may interface with.
 .. autoclass:: pylinac.picketfence.MLC
     :members:
 
-.. autoclass:: pylinac.picketfence.PFResult
-    :members:
+.. autopydantic_model:: pylinac.picketfence.PFResult
+
 
 Supporting Classes
 ^^^^^^^^^^^^^^^^^^
