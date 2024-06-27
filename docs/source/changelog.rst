@@ -23,6 +23,8 @@ Picket Fence
 
 * :bdg-success:`Feature` The picket fence plot can now explicitly list the pickets and any failed leaves with the new
   parameter ``show_text`` in the ``plot_analyzed_image`` and ``save_analyzed_image`` methods. For backwards compatibility, the default is False.
+* :bdg-warning:`Fixed` The leaf overlay ``overlay=True`` when plotting analyzed images with a Left/Right orientation would
+  not display correctly.
 
 Metrics
 ^^^^^^^
