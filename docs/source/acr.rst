@@ -210,6 +210,22 @@ Continuing from above:
     data_dict["ct_module"]["roi_radius_mm"]
     ...
 
+CT Analysis Parameters
+----------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`pylinac.acr.ACRCT.analyze` for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      There are currently no analysis parameters for the ACR CT phantom.
+
 Interpreting CT Results
 -----------------------
 
@@ -313,6 +329,23 @@ low-contrast visibility test.
   where all values are the median pixel values of their respective ROI. The percent-signal ghosting (PSG) is:
 
   .. math:: PSG = ghosting_{ratio} * 100
+
+MRI Analysis Parameters
+-----------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`pylinac.acr.ACRMRILarge.analyze` for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **Echo Number**: The echo sequence to analyze; uses the `Echo Numbers <https://dicom.innolitics.com/ciods/mr-image/mr-image/00180086>`__ DICOM tag. Only relevant if more than one echo sequence
+        is present in the dataset. If multiple echos are detected, the default is to analyze the first echo sequence.
 
 Interpreting MRI Results
 ------------------------

@@ -346,6 +346,23 @@ Pass it to the algorithm like so:
     wl.analyze(bb_arrangement=my_special_phantom_bbs)
     ...
 
+Analysis Parameters
+-------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`~pylinac.winston_lutz.WinstonLutzMultiTargetMultiField.analyze` for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      There are no specific parameters for the MTWL algorithm in RadMachine. RadMachine's analysis
+      is specifically for the SNC MultiMet phantom, which has known BB positions and field sizes and placements.
+
 Algorithm
 ---------
 

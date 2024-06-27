@@ -177,6 +177,27 @@ Continuing from above:
     data_dict["test_type"]
     ...
 
+Analysis Parameters
+-------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`pylinac.vmat.DRMLC.analyze` and :meth:`pylinac.vmat.DRGS.analyze` for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **Number of ROIs**: The number of ROIs to analyze. By default, the DRGS test is 7 and the DRMLC is 4.
+      * **ROI spacing**: The spacing between the ROIs in mm.
+      * **Tolerance**: The tolerance in % allowed deviation from the average ratioed response.
+      * **Use raw pixels**: Whether to use the raw pixel values or the tag-corrected values. See :ref:`vmat-other-programs` and :ref:`vmat-doselab`.
+      * **ROI segment width**: The width of the ROI segments in mm. By default, 5mm.
+      * **ROI segment height**: The height of the ROI segments in mm. By default, 100mm.
+
 .. _vmat-algorithm:
 
 Algorithm
@@ -390,6 +411,7 @@ with an output of::
     Max Deviation: 2.12%
     Absolute Mean Deviation: 1.13%
 
+.. _vmat-other-programs:
 
 Comparing to other programs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^

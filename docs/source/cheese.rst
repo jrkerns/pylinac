@@ -234,6 +234,24 @@ creating new classes is relatively easy. The following steps show how this can b
         swiss.analyze()
         swiss.plot_analyzed_image()
 
+Analysis Parameters
+-------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`pylinac.cheese.TomoCheese.analyze` for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **ROI <N> Density**: The density of the plug in the ROI. This is used to plot the HU-to-density curve.
+        The number of inputs depend on the phantom. All densities are optional. If at least one
+        density is provided, a density-to-HU curve will be plotted. Not all densities need to be provided. I.e.
+        any subset of the ROI densities can be provided.
 
 Algorithm
 ---------

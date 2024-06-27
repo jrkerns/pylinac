@@ -112,6 +112,25 @@ Continuing from above:
     data_dict["hu_module"]["roi_radius_mm"]
     ...
 
+Analysis Parameters
+-------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`pylinac.quart.QuartDVT.analyze` for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **HU Tolerance**: The tolerance in HU for the phantom materials.
+      * **Scaling tolerance**: The tolerance in mm for the scaling of the phantom.
+      * **Slice thickness tolerance**: The tolerance in mm for the slice thickness.
+      * **CNR Ratio**: The required minimum ratio for the contrast-to-noise to be considered passing.
+
 Algorithm
 ---------
 
