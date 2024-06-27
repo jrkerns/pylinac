@@ -29,6 +29,7 @@ from typing import BinaryIO, Iterable, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.axes import Axes
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from py_linq import Enumerable
 
@@ -855,6 +856,7 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
         leaf_error_subplot: bool = True,
         show: bool = True,
         figure_size: str | tuple = "auto",
+        show_text: bool = False,
         barplot_kwargs: dict | None = None,
     ) -> None:
         """Plot the analyzed image.
@@ -875,6 +877,10 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
         figure_size
             Either 'auto' or a tuple. If auto, the figure size is set depending on the orientation. If a tuple, this is the
             figure size to use.
+        show_text
+            Whether to show the text on the image.
+        barplot_kwargs
+            Keyword arguments to pass to the bar plot. Only used if leaf_error_subplot is True.
         """
         if not self._is_analyzed:
             raise RuntimeError("The image must be analyzed first. Use .analyze().")
@@ -900,15 +906,15 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
             self._add_leaf_error_subplot(axtop, barplot_kwargs)
 
         if guard_rails:
-            for picket in self.pickets:
-                picket.add_guards_to_axes(ax.axes)
+            for idx, picket in enumerate(self.pickets):
+                picket.add_guards_to_axes(ax.axes, show_text=show_text, idx=idx)
         if mlc_peaks:
             for mlc_meas in self.mlc_meas:
                 mlc_meas.plot2axes(ax.axes, width=1.5)
 
         if overlay:
             for mlc_meas in self.mlc_meas:
-                mlc_meas.plot_overlay2axes(ax.axes)
+                mlc_meas.plot_overlay2axes(ax.axes, show_text)
 
         # plot CAX
         ax.plot(
@@ -1010,6 +1016,7 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
         mlc_peaks: bool = True,
         overlay: bool = True,
         leaf_error_subplot: bool = False,
+        show_text: bool = False,
         **kwargs,
     ) -> None:
         """Save the analyzed figure to a file. See :meth:`~pylinac.picketfence.PicketFence.plot_analyzed_image()` for
@@ -1020,6 +1027,7 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
             mlc_peaks,
             overlay,
             leaf_error_subplot=leaf_error_subplot,
+            show_text=show_text,
             show=False,
         )
         plt.savefig(filename, **kwargs)
@@ -1497,7 +1505,7 @@ class MLCValue:
             lines.append(line)
         return lines
 
-    def plot_overlay2axes(self, axes) -> None:
+    def plot_overlay2axes(self, axes: Axes, show_text: bool) -> None:
         """Create a rectangle overlay with the width of the error. I.e. it stretches from the picket fit to the MLC position. Gives more visual size to the"""
         # calculate height (based on leaf analysis ratio)
         upper_point = (
@@ -1508,12 +1516,13 @@ class MLCValue:
         )
         height = abs(upper_point - lower_point) * 0.8
 
-        for idx, line in enumerate(self.marker_lines):
+        for idx, (line, leaf) in enumerate(zip(self.marker_lines, self.full_leaf_nums)):
             width = abs(self.error[idx]) * self._image.dpmm
-            y = line.center.y
-            x = self.position[idx] - (self.error[idx] * self._image.dpmm) / 2
 
+            text = leaf if show_text else None
             if self._orientation == Orientation.UP_DOWN:
+                y = line.center.y
+                x = self.position[idx] - (self.error[idx] * self._image.dpmm) / 2
                 r = Rectangle(width, height, center=(x, y))
                 # if any of the values are over tolerance, show another larger rectangle to draw the eye
                 if not self.passed[idx] or not self.passed_action[idx]:
@@ -1522,12 +1531,17 @@ class MLCValue:
                     )
                     re.plot2axes(
                         axes,
-                        edgecolor="none",
+                        edgecolor="r",
                         fill=True,
                         alpha=0.5,
                         facecolor=self.bg_color[idx],
+                        text=text,
+                        ha="right",
+                        fontsize="x-small",
                     )
             else:
+                x = line.center.x
+                y = self.position[idx] - (self.error[idx] * self._image.dpmm) / 2
                 r = Rectangle(height, width, center=(x, y))
                 if not self.passed[idx] or not self.passed_action[idx]:
                     re = Rectangle(
@@ -1535,10 +1549,15 @@ class MLCValue:
                     )
                     re.plot2axes(
                         axes,
-                        edgecolor="none",
+                        edgecolor="r",
                         fill=True,
                         alpha=0.5,
                         facecolor=self.bg_color[idx],
+                        text=text,
+                        ha="center",
+                        va="bottom",
+                        fontsize="x-small",
+                        text_rotation=90,
                     )
             r.plot2axes(
                 axes, edgecolor="none", fill=True, alpha=1, facecolor=self.bg_color[idx]
@@ -1646,7 +1665,9 @@ class Picket:
             other_fit[-1] += self._nominal_gap * mag_factor / 2 * self.image.dpmm
             return [np.poly1d(r_fit), np.poly1d(other_fit)]
 
-    def add_guards_to_axes(self, axis: plt.Axes, color: str = "g") -> None:
+    def add_guards_to_axes(
+        self, axis: plt.Axes, idx: int, color: str = "g", show_text: bool = False
+    ) -> None:
         """Plot guard rails to the axis."""
         if self.orientation == Orientation.UP_DOWN:
             length = self.image.shape[0]
@@ -1658,7 +1679,25 @@ class Picket:
         for left, right in zip(left_y_data, right_y_data):
             if self.orientation == Orientation.UP_DOWN:
                 axis.plot(left(x_data), x_data, color=color)
-                axis.plot(right(x_data), x_data, color=color)
+                line = axis.plot(right(x_data), x_data, color=color)
             else:
                 axis.plot(x_data, left(x_data), color=color)
-                axis.plot(x_data, right(x_data), color=color)
+                line = axis.plot(x_data, right(x_data), color=color)
+        if show_text:
+            if self.orientation == Orientation.UP_DOWN:
+                axis.annotate(
+                    text=f"Picket {idx}",
+                    xy=(0.5, 0.05),
+                    xycoords=line[0],
+                    color="g",
+                    rotation=90,
+                    fontsize="x-small",
+                )
+            else:
+                axis.annotate(
+                    text=f"Picket {idx}",
+                    xy=(0.05, 0.5),
+                    xycoords=line[0],
+                    color="g",
+                    fontsize="x-small",
+                )

@@ -18,6 +18,12 @@ Winston Lutz
 
 * :bdg-success:`Feature` Reference axis values and tolerance-matching values for WL analysis can now be passed. See :ref:`setting-wl-reference-values`.
 
+Picket Fence
+^^^^^^^^^^^^
+
+* :bdg-success:`Feature` The picket fence plot can now explicitly list the pickets and any failed leaves with the new
+  parameter ``show_text`` in the ``plot_analyzed_image`` and ``save_analyzed_image`` methods. For backwards compatibility, the default is False.
+
 Metrics
 ^^^^^^^
 
