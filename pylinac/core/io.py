@@ -304,7 +304,7 @@ class SNCProfiler:
         """
 
         def drop_cax_sides(vals: np.ndarray) -> np.ndarray:
-            x_prof_x_vals = np.arange(start=1, stop=len(x_prof_vals) + 3)
+            x_prof_x_vals = np.arange(start=1, stop=len(vals) + 3)
             half_idx = math.ceil(len(x_prof_x_vals) / 2) - 1
             return np.delete(x_prof_x_vals, [half_idx - 1, half_idx + 1])
 
