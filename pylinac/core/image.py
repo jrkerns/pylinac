@@ -528,7 +528,8 @@ class BaseImage:
             fig, ax = plt.subplots()
         if clear_fig:
             plt.clf()
-        ax.imshow(self.array, cmap=get_dicom_cmap(), **kwargs)
+        cmap = kwargs.pop("cmap", get_dicom_cmap())
+        ax.imshow(self.array, cmap=cmap, **kwargs)
         # plot the metrics
         if show_metrics:
             for metric in self.metrics:

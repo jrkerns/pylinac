@@ -28,7 +28,6 @@ from .core.utilities import (
     ResultsDataMixin,
     convert_to_enum,
 )
-from .settings import get_dicom_cmap
 
 
 def flatness_dose_difference(
@@ -1230,7 +1229,7 @@ class FieldAnalysis(ResultsDataMixin[FieldResult], QuaacMixin):
         """Plot the image and profile extraction overlay"""
         if axis is None:
             fig, axis = plt.subplots()
-        axis.imshow(self.image.array, cmap=get_dicom_cmap())
+        self.image.plot(show=False, ax=axis)
 
         # vertical line/rect
         width = abs(self._left_v_index - self._right_v_index)
