@@ -413,25 +413,6 @@ class WinstonLutzResult(ResultBase):
 
     Use the following attributes as normal class attributes."""
 
-    num_gantry_images: int = Field(
-        description="The number of images that were taken at different gantry angles and all other axes were at reference.",
-        title="Number of gantry-axis images",
-    )
-    num_gantry_coll_images: int = Field(
-        description="The number of images that were taken at different gantry and collimator angles and the couch was at reference.",
-        title="Number of gantry+collimator axis images",
-    )
-    num_coll_images: int = Field(
-        description="The number of images that were taken at different collimator angles and all other axes were at reference.",
-        title="Number of collimator-axis images",
-    )
-    num_couch_images: int = Field(
-        description="The number of images that were taken at different couch angles and all other axes were at reference.",
-        title="Number of couch-axis images",
-    )
-    num_total_images: int = Field(
-        description="The total number of images analyzed.", title="Number of images"
-    )
     max_2d_cax_to_bb_mm: float = Field(
         description="The maximum 2D distance from the field CAX to the BB across all images analyzed in mm.",
         title="Max scalar in-plane distance from BB to CAX (mm)",
@@ -460,29 +441,48 @@ class WinstonLutzResult(ResultBase):
         description="The 3D isocenter diameter **of the gantry axis only** as determined by the gantry images in mm. This uses backprojection lines of the field center to the source and minimizes a sphere that touches all the backprojection lines.",
         title="Gantry-isolated 3D isocenter diameter (mm)",
     )
+    coll_2d_iso_diameter_mm: float = Field(
+        description="The 2D isocenter diameter **of the collimator axis only** as determined by the collimator images in mm.",
+        title="Collimator-isolated 2D isocenter diameter (mm)",
+    )
+    couch_2d_iso_diameter_mm: float = Field(
+        description="The 2D isocenter diameter **of the couch axis only** as determined by the couch images in mm.",
+        title="Couch-isolated 2D isocenter diameter (mm)",
+    )
+    gantry_coll_3d_iso_diameter_mm: float = Field(
+        description="The 3D isocenter diameter **of the gantry and collimator axes** as determined by the gantry and collimator images in mm.",
+        title="Gantry & Collimator combined 3D isocenter diameter (mm)",
+    )
+    num_total_images: int = Field(
+        description="The total number of images analyzed.", title="Number of images"
+    )
+    num_gantry_images: int = Field(
+        description="The number of images that were taken at different gantry angles and all other axes were at reference.",
+        title="Number of gantry-axis images",
+    )
+    num_coll_images: int = Field(
+        description="The number of images that were taken at different collimator angles and all other axes were at reference.",
+        title="Number of collimator-axis images",
+    )
+    num_couch_images: int = Field(
+        description="The number of images that were taken at different couch angles and all other axes were at reference.",
+        title="Number of couch-axis images",
+    )
+    num_gantry_coll_images: int = Field(
+        description="The number of images that were taken at different gantry and collimator angles and the couch was at reference.",
+        title="Number of gantry+collimator axis images",
+    )
     max_gantry_rms_deviation_mm: float = Field(
         description="The maximum RMS value of the field CAX to BB for the gantry axis images in mm. This is an alternative to the max/mean/median calculations."
     )
     max_epid_rms_deviation_mm: float = Field(
         description="The maximum RMS value of the field CAX to EPID center for the EPID images in mm. This is an alternative to the max/mean/median calculations."
     )
-    gantry_coll_3d_iso_diameter_mm: float = Field(
-        description="The 3D isocenter diameter **of the gantry and collimator axes** as determined by the gantry and collimator images in mm.",
-        title="Gantry & Collimator combined 3D isocenter diameter (mm)",
-    )
-    coll_2d_iso_diameter_mm: float = Field(
-        description="The 2D isocenter diameter **of the collimator axis only** as determined by the collimator images in mm.",
-        title="Collimator-isolated 2D isocenter diameter (mm)",
-    )
     max_coll_rms_deviation_mm: float = Field(
         description="The maximum RMS deviation of the field CAX to BB for the collimator axis images in mm. This is an alternative to the max/mean/median calculations."
     )
     max_couch_rms_deviation_mm: float = Field(
         description="The maximum RMS value of the field CAX to BB for the couch axis images in mm. This is an alternative to the max/mean/median calculations. This uses backprojection lines of the field center to the source and minimizes a sphere that touches all the backprojection lines."
-    )
-    couch_2d_iso_diameter_mm: float = Field(
-        description="The 2D isocenter diameter **of the couch axis only** as determined by the couch images in mm.",
-        title="Couch-isolated 2D isocenter diameter (mm)",
     )
     bb_shift_vector: VectorSerialized = Field(
         description="The Cartesian vector that would move the BB to the radiation isocenter. Each value is in mm."

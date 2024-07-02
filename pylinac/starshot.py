@@ -51,7 +51,7 @@ class StarshotResults(ResultBase):
         description="The tolerance used for the analysis in mm."
     )
     circle_diameter_mm: float = Field(
-        description="The radius of the minimum circle that touches all the star lines in mm.",
+        description="The diameter of the minimum circle that touches all the star lines in mm.",
         title="Diameter of fitted circle (mm)",
     )
     circle_radius_mm: float = Field(

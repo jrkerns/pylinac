@@ -48,11 +48,15 @@ class ResultBase(BaseModel):
         arbitrary_types_allowed=True
     )  # https://docs.pydantic.dev/latest/api/config/#pydantic.config.ConfigDict.arbitrary_types_allowed
     pylinac_version: str = Field(
-        default=__version__, serialization_alias="Pylinac version"
-    )  #:
+        default=__version__,
+        title="Pylinac version",
+        description="The version of Pylinac used for the analysis.",
+    )
     date_of_analysis: datetime = Field(
-        default_factory=datetime.today, serialization_alias="Date of Analysis"
-    )  #:
+        default_factory=datetime.today,
+        title="Date of Analysis",
+        description="The date the analysis was performed.",
+    )
 
 
 T = TypeVar("T")
