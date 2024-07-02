@@ -639,8 +639,7 @@ API Documentation
 .. autoclass:: pylinac.winston_lutz.WinstonLutzMultiTargetMultiFieldImage
     :members:
 
-.. autoclass:: pylinac.winston_lutz.WinstonLutzMultiTargetMultiFieldResult
-    :members:
+.. autopydantic_model:: pylinac.winston_lutz.WinstonLutzMultiTargetMultiFieldResult
 
 .. autoclass:: pylinac.winston_lutz.BBConfig
     :members:

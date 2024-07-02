@@ -674,23 +674,17 @@ These are the classes a typical user may interface with.
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.ct.CatphanResult
-    :members:
+.. autopydantic_model:: pylinac.ct.CatphanResult
 
-.. autoclass:: pylinac.ct.CTP404Result
-    :members:
+.. autopydantic_model:: pylinac.ct.CTP404Result
 
-.. autoclass:: pylinac.ct.CTP528Result
-    :members:
+.. autopydantic_model:: pylinac.ct.CTP528Result
 
-.. autoclass:: pylinac.ct.CTP515Result
-    :members:
+.. autopydantic_model:: pylinac.ct.CTP515Result
 
-.. autoclass:: pylinac.ct.CTP486Result
-    :members:
+.. autopydantic_model:: pylinac.ct.CTP486Result
 
-.. autoclass:: pylinac.ct.ROIResult
-    :members:
+.. autopydantic_model:: pylinac.ct.ROIResult
 
 
 Module classes (CTP404, etc)
