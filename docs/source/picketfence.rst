@@ -136,7 +136,7 @@ The minimum needed to get going is to:
       # print results to the console
       print(pf.results())
       # view analyzed image
-      pf.plot_analyzed_image()
+      pf.plot_analyzed_image(show_text=True)
 
   which results in:
 
@@ -146,7 +146,7 @@ The minimum needed to get going is to:
       from pylinac import PicketFence
       pf = PicketFence.from_demo_image()
       pf.analyze(tolerance=0.15, action_tolerance=0.03)
-      pf.plot_analyzed_image()
+      pf.plot_analyzed_image(show_text=True)
 
   The plot is also able to be saved to PNG:
 
