@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import scipy.ndimage
 from matplotlib import pyplot as plt
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from scipy.interpolate import interp1d
 
 from .core import pdf
@@ -40,12 +40,21 @@ class QuartHUModuleOutput(BaseModel):
 
     Use the following attributes as normal class attributes."""
 
-    offset: int
-    roi_settings: dict
-    rois: dict
-    measured_slice_thickness_mm: float
-    signal_to_noise: float
-    contrast_to_noise: float
+    offset: int = Field(
+        description="The offset of the module slice in mm from the origin slice."
+    )
+    roi_settings: dict = Field(description="A dictionary of the ROI settings.")
+    rois: dict = Field(description="A dictionary of ROI results.")
+    measured_slice_thickness_mm: float = Field(
+        description="The measured slice thickness in mm.",
+        title="Measured Slice Thickness (mm)",
+    )
+    signal_to_noise: float = Field(
+        description="The signal to noise ratio.", title="SNR (Poly)"
+    )
+    contrast_to_noise: float = Field(
+        description="The contrast to noise ratio.", title="CNR (Poly/Acrylic)"
+    )
 
 
 class QuartGeometryModuleOutput(BaseModel):
@@ -54,12 +63,21 @@ class QuartGeometryModuleOutput(BaseModel):
 
     Use the following attributes as normal class attributes."""
 
-    offset: int
-    roi_settings: dict
-    rois: dict
-    distances: dict
-    high_contrast_distances: dict
-    mean_high_contrast_distance: float
+    offset: int = Field(
+        description="The offset of the module slice in mm from the origin slice."
+    )
+    roi_settings: dict = Field(description="A dictionary of the ROI settings.")
+    rois: dict = Field(description="A dictionary of ROI results.")
+    distances: dict = Field(
+        description="A dictionary of the phantom size itself in horizontal and vertical dimensions in mm."
+    )
+    high_contrast_distances: dict = Field(
+        description="A dictionary of the high contrast distances in mm. The key is the region of the line and the value is the distance in mm."
+    )
+    mean_high_contrast_distance: float = Field(
+        description="The mean of the high contrast distances in mm. Four edges are measured and averaged. The absolute distance from -700HU to -200HU is measured.",
+        title="Mean Distance -700->-200HU (mm)",
+    )
 
 
 class QuartUniformityModuleOutput(BaseModel):
@@ -68,10 +86,12 @@ class QuartUniformityModuleOutput(BaseModel):
 
     Use the following attributes as normal class attributes."""
 
-    offset: int
-    roi_settings: dict
-    rois: dict
-    passed: bool
+    offset: int = Field(
+        description="The offset of the module slice in mm from the origin slice."
+    )
+    roi_settings: dict = Field(description="A dictionary of the ROI settings.")
+    rois: dict = Field(description="A dictionary of ROI results.")
+    passed: bool = Field(description="A boolean indicating if the module passed.")
 
 
 class QuartDVTResult(ResultBase):
@@ -80,13 +100,24 @@ class QuartDVTResult(ResultBase):
 
     Use the following attributes as normal class attributes."""
 
-    phantom_model: str  #:
-    phantom_roll_deg: float  #:
-    origin_slice: int  #:
-    num_images: int  #:
-    hu_module: QuartHUModuleOutput  #:
-    uniformity_module: QuartUniformityModuleOutput  #:
-    geometric_module: QuartGeometryModuleOutput  #:
+    phantom_model: str = Field(
+        description="The model of the phantom, e.g. 'Quart DVT'."
+    )
+    phantom_roll_deg: float = Field(
+        description="The roll of the phantom in degrees.",
+        title="Quart roll (\N{DEGREE SIGN})",
+    )
+    origin_slice: int = Field(description="The slice number of the origin image.")
+    num_images: int = Field(description="The number of images given in the dataset.")
+    hu_module: QuartHUModuleOutput = Field(
+        description="The HU module output.", title="HU module"
+    )
+    uniformity_module: QuartUniformityModuleOutput = Field(
+        description="The Uniformity module output.", title="Uniformity module"
+    )
+    geometric_module: QuartGeometryModuleOutput = Field(
+        description="The Geometric module output.", title="Geometry module"
+    )
 
 
 class QuartHUModule(CTP404CP504):

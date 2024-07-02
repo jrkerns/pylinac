@@ -511,7 +511,7 @@ Analysis
   correspond to the HU material regions. The median pixel value of the ROI is the stated HU value. Nominal HU values
   are taken as the mean of the range given in the manual(s):
 
-  .. note:: As of v3.16, these can be overriden: :ref:`custom-hu-values`.
+  .. note:: As of v3.16, these can be overridden: :ref:`custom-hu-values`.
 
   .. image:: images/catphan_densities.png
 
@@ -591,7 +591,7 @@ The results of a CatPhan analysis in RadMachine or from ``results_data`` are:
     * ``stdev``: The pixel value standard deviation of the ROI.
     * ``difference``: The difference between the measured and nominal values.
 
-* ``ctp528``: A dictionary of results for the CTP528 (spatial resolution) module with the
+* ``ctp528``: The results of the CTP528 (spatial resolution) module with the
   following items:
 
   * ``start_angle_radians``: The angle where the circular profile started.
@@ -608,11 +608,11 @@ The results of a CatPhan analysis in RadMachine or from ``results_data`` are:
     * ``gap size (cm)``: The size of the gap between the bars in cm.
     * ``lp/mm``: The number of line **pairs** per mm.
 
-* ``ctp515``: A dictionary of results for the CTP515 (Low contrast) module with the following items:
+* ``ctp515``: The results of the CTP515 (Low contrast) module with the following items:
 
   * ``cnr_threshold``: The contrast-to-noise ratio threshold used to determine if a low contrast ROI was "seen".
   * ``num_rois_seen``: The number of ROIs that were above the threshold; ie. "seen".
-  * ``roi_settings``: A dictionary of the settings used for each low contrast ROI. The key names are ``n``
+  * ``roi_settings``: The settings used for each low contrast ROI. The key names are ``n``
     where ``<n>`` is the size of the ROI. The values are a dictionary with the following keys:
 
     * ``angle``: The angle of the ROI in degrees.
@@ -622,7 +622,7 @@ The results of a CatPhan analysis in RadMachine or from ``results_data`` are:
     * ``angle_corrected``: The angle of the ROI corrected for phantom roll.
     * ``radius_pixels``: The radius of the ROI in pixels.
 
-  * ``roi_results``: A dictionary of the low contrast ROIs and their values. The keys will be the size
+  * ``roi_results``: Results of the low contrast ROIs and their values. The keys will be the size
     of the ROI such as ``'9'``. The values for each ROI will be a dictionary with the following keys:
 
     * ``contrast method``: The method used to calculate the contrast. See :ref:`contrast`.

@@ -38,7 +38,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import art3d
 from py_linq import Enumerable
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from scipy import ndimage, optimize
 from scipy.ndimage import zoom
 from scipy.spatial.transform import Rotation
@@ -384,13 +384,27 @@ class Axis(enum.Enum):
 
 
 class WinstonLutz2DResult(ResultBase):
-    variable_axis: str  #:
-    bb_location: PointSerialized  #:
-    cax2epid_vector: VectorSerialized  #:
-    cax2epid_distance: float  #:
-    cax2bb_distance: float  #:
-    cax2bb_vector: VectorSerialized  #:
-    field_cax: PointSerialized  #:
+    variable_axis: str = Field(description="The axis that varied in the image.")
+    bb_location: PointSerialized = Field(
+        description="The location of the BB in the image as a Point in pixels."
+    )
+    cax2epid_vector: VectorSerialized = Field(
+        description="The vector (in Cartesian coordinates) from the field CAX to the EPID center in mm."
+    )
+    cax2epid_distance: float = Field(
+        description="The distance from the field CAX to the EPID center in mm.",
+        title="Scalar distance from CAX to EPID center (mm)",
+    )
+    cax2bb_vector: VectorSerialized = Field(
+        description="The vector (in Cartesian coordinates) from the field CAX to the BB in mm."
+    )
+    cax2bb_distance: float = Field(
+        description="The scalar distance from the field CAX to the BB in mm.",
+        title="Scalar distance from CAX to BB (mm)",
+    )
+    field_cax: PointSerialized = Field(
+        description="The location of the field CAX in the image as a Point in pixels."
+    )
 
 
 class WinstonLutzResult(ResultBase):
@@ -399,28 +413,86 @@ class WinstonLutzResult(ResultBase):
 
     Use the following attributes as normal class attributes."""
 
-    num_gantry_images: int  #:
-    num_gantry_coll_images: int  #:
-    num_coll_images: int  #:
-    num_couch_images: int  #:
-    num_total_images: int  #:
-    max_2d_cax_to_bb_mm: float  #:
-    median_2d_cax_to_bb_mm: float  #:
-    mean_2d_cax_to_bb_mm: float  #:
-    max_2d_cax_to_epid_mm: float  #:
-    median_2d_cax_to_epid_mm: float  #:
-    mean_2d_cax_to_epid_mm: float  #:
-    gantry_3d_iso_diameter_mm: float  #:
-    max_gantry_rms_deviation_mm: float  #:
-    max_epid_rms_deviation_mm: float  #:
-    gantry_coll_3d_iso_diameter_mm: float  #:
-    coll_2d_iso_diameter_mm: float  #:
-    max_coll_rms_deviation_mm: float  #:
-    couch_2d_iso_diameter_mm: float  #:
-    max_couch_rms_deviation_mm: float  #:
-    bb_shift_vector: VectorSerialized  #:
-    image_details: list[WinstonLutz2DResult]  #:
-    keyed_image_details: dict[str, WinstonLutz2DResult]  #:
+    num_gantry_images: int = Field(
+        description="The number of images that were taken at different gantry angles and all other axes were at reference.",
+        title="Number of gantry-axis images",
+    )
+    num_gantry_coll_images: int = Field(
+        description="The number of images that were taken at different gantry and collimator angles and the couch was at reference.",
+        title="Number of gantry+collimator axis images",
+    )
+    num_coll_images: int = Field(
+        description="The number of images that were taken at different collimator angles and all other axes were at reference.",
+        title="Number of collimator-axis images",
+    )
+    num_couch_images: int = Field(
+        description="The number of images that were taken at different couch angles and all other axes were at reference.",
+        title="Number of couch-axis images",
+    )
+    num_total_images: int = Field(
+        description="The total number of images analyzed.", title="Number of images"
+    )
+    max_2d_cax_to_bb_mm: float = Field(
+        description="The maximum 2D distance from the field CAX to the BB across all images analyzed in mm.",
+        title="Max scalar in-plane distance from BB to CAX (mm)",
+    )
+    median_2d_cax_to_bb_mm: float = Field(
+        description="The median 2D distance from the field CAX to the BB across all images analyzed in mm.",
+        title="Median absolute scalar in-plane distance from BB to CAX (mm)",
+    )
+    mean_2d_cax_to_bb_mm: float = Field(
+        description="The mean 2D distance from the field CAX to the BB across all images analyzed in mm.",
+        title="Mean absolute scalar in-plane distance from BB to CAX (mm)",
+    )
+    max_2d_cax_to_epid_mm: float = Field(
+        description="The maximum 2D distance from the field CAX to the EPID center across all images analyzed in mm.",
+        title="Max scalar in-plane distance from EPID to CAX (mm)",
+    )
+    median_2d_cax_to_epid_mm: float = Field(
+        description="The median 2D distance from the field CAX to the EPID center across all images analyzed in mm.",
+        title="Median absolute scalar in-plane distance from EPID to CAX (mm)",
+    )
+    mean_2d_cax_to_epid_mm: float = Field(
+        description="The mean 2D distance from the field CAX to the EPID center across all images analyzed in mm.",
+        title="Mean absolute scalar in-plane distance from EPID to CAX (mm)",
+    )
+    gantry_3d_iso_diameter_mm: float = Field(
+        description="The 3D isocenter diameter **of the gantry axis only** as determined by the gantry images in mm. This uses backprojection lines of the field center to the source and minimizes a sphere that touches all the backprojection lines.",
+        title="Gantry-isolated 3D isocenter diameter (mm)",
+    )
+    max_gantry_rms_deviation_mm: float = Field(
+        description="The maximum RMS value of the field CAX to BB for the gantry axis images in mm. This is an alternative to the max/mean/median calculations."
+    )
+    max_epid_rms_deviation_mm: float = Field(
+        description="The maximum RMS value of the field CAX to EPID center for the EPID images in mm. This is an alternative to the max/mean/median calculations."
+    )
+    gantry_coll_3d_iso_diameter_mm: float = Field(
+        description="The 3D isocenter diameter **of the gantry and collimator axes** as determined by the gantry and collimator images in mm.",
+        title="Gantry & Collimator combined 3D isocenter diameter (mm)",
+    )
+    coll_2d_iso_diameter_mm: float = Field(
+        description="The 2D isocenter diameter **of the collimator axis only** as determined by the collimator images in mm.",
+        title="Collimator-isolated 2D isocenter diameter (mm)",
+    )
+    max_coll_rms_deviation_mm: float = Field(
+        description="The maximum RMS deviation of the field CAX to BB for the collimator axis images in mm. This is an alternative to the max/mean/median calculations."
+    )
+    max_couch_rms_deviation_mm: float = Field(
+        description="The maximum RMS value of the field CAX to BB for the couch axis images in mm. This is an alternative to the max/mean/median calculations. This uses backprojection lines of the field center to the source and minimizes a sphere that touches all the backprojection lines."
+    )
+    couch_2d_iso_diameter_mm: float = Field(
+        description="The 2D isocenter diameter **of the couch axis only** as determined by the couch images in mm.",
+        title="Couch-isolated 2D isocenter diameter (mm)",
+    )
+    bb_shift_vector: VectorSerialized = Field(
+        description="The Cartesian vector that would move the BB to the radiation isocenter. Each value is in mm."
+    )
+    image_details: list[WinstonLutz2DResult] = Field(
+        description="A list of the individual image results.",
+    )
+    keyed_image_details: dict[str, WinstonLutz2DResult] = Field(
+        description="A **dictionary** of the individual image results. This is the same as ``image_details`` but keyed by the images using the axes values as the key. E.g. ``G0B45P0``. This can be used to identify individual images vs those in ``image_details``."
+    )
 
 
 class WinstonLutzMultiTargetMultiFieldResult(ResultBase):
@@ -429,16 +501,40 @@ class WinstonLutzMultiTargetMultiFieldResult(ResultBase):
 
     Use the following attributes as normal class attributes."""
 
-    num_total_images: int  #:
-    max_2d_field_to_bb_mm: float  #:
-    median_2d_field_to_bb_mm: float  #:
-    mean_2d_field_to_bb_mm: float  #:
-    bb_arrangement: tuple[BBConfig, ...]  #:
-    bb_maxes: dict[str, float]  #:
-    bb_shift_vector: VectorSerialized  #:
-    bb_shift_yaw: float  #:
-    bb_shift_pitch: float  #:
-    bb_shift_roll: float  #:
+    num_total_images: int = Field(
+        description="The total number of images analyzed.",
+        title="Number of images considered",
+    )
+    max_2d_field_to_bb_mm: float = Field(
+        description="The maximum 2D distance from any BB to its field center.",
+        title="Max field center -> BB distance (mm)",
+    )
+    median_2d_field_to_bb_mm: float = Field(
+        description="The median 2D distance from any BB to its field center.",
+        title="Median field center -> BB distance (mm)",
+    )
+    mean_2d_field_to_bb_mm: float = Field(
+        description="The mean 2D distance from any BB to its field center.",
+        title="Mean field center -> BB distance (mm)",
+    )
+    bb_arrangement: tuple[BBConfig, ...] = Field(
+        description="A list of expected arrangements of the BBs"
+    )
+    bb_maxes: dict[str, float] = Field(
+        description="A dictionary of the maximum 2D distances of each BB to its field center. The key is the BB name as defined in the arrangement."
+    )
+    bb_shift_vector: VectorSerialized = Field(
+        description="The vector (in 3D cartesian space) to move the phantom to align with the isocenter in mm."
+    )
+    bb_shift_yaw: float = Field(
+        description="The yaw rotation in degrees needed to align the phantom with the radiation isocenter."
+    )
+    bb_shift_pitch: float = Field(
+        description="The pitch rotation needed in degrees to align the phantom with the radiation isocenter."
+    )
+    bb_shift_roll: float = Field(
+        description="The roll rotation needed in degrees to align the phantom with the radiation isocenter."
+    )
 
 
 def is_near_center(region: RegionProperties, *args, **kwargs) -> bool:

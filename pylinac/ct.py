@@ -31,7 +31,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from py_linq import Enumerable
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from scipy import ndimage
 from skimage import draw, filters, measure, segmentation
 from skimage.measure._regionprops import RegionProperties
@@ -77,12 +77,14 @@ class ROIResult(BaseModel):
 
     Use the following attributes as normal class attributes."""
 
-    name: str  #:
-    value: float  #:
-    stdev: float  #:
-    difference: float | None  #:
-    nominal_value: float | None  #:
-    passed: bool | None  #:
+    name: str = Field(description="The region the ROI was sampled from.")
+    value: float = Field(description="The measured HU value.")
+    stdev: float = Field(description="The pixel value standard deviation of the ROI.")
+    difference: float | None = Field(
+        description="The difference between the measured and nominal values."
+    )
+    nominal_value: float | None = Field(description="The nominal HU value.")
+    passed: bool | None = Field(description=" Whether the ROI passed.")
 
 
 class CTP404Result(BaseModel):
@@ -91,19 +93,40 @@ class CTP404Result(BaseModel):
 
     Use the following attributes as normal class attributes."""
 
-    offset: int  #:
-    low_contrast_visibility: float  #:
-    thickness_passed: bool  #:
-    measured_slice_thickness_mm: float  #:
-    thickness_num_slices_combined: int  #:
-
-    geometry_passed: bool  #:
-    avg_line_distance_mm: float  #:
-    line_distances_mm: list[float]  #:
-
-    hu_linearity_passed: bool  #:
-    hu_tolerance: float  #:
-    hu_rois: dict  #:
+    offset: int = Field(
+        description="The offset of the module from the origin slice in mm."
+    )
+    low_contrast_visibility: float = Field(
+        description="The low contrast visibility score.",
+        title="Low Contrast Visibility",
+    )
+    thickness_passed: bool = Field(description="Whether the slice thickness passed.")
+    measured_slice_thickness_mm: float = Field(
+        description="The measured slice thickness in mm.",
+        title="Measured Slice Thickness (mm)",
+    )
+    thickness_num_slices_combined: int = Field(
+        description="The number of slices combined when measuring slice thickness."
+    )
+    geometry_passed: bool = Field(
+        description="Whether the geometry test passed, using the 4 nodes."
+    )
+    avg_line_distance_mm: float = Field(
+        description="The average distance between the 4 nodes in mm.",
+        title="Average Line Distance (mm)",
+    )
+    line_distances_mm: list[float] = Field(
+        description="A list of the individual distances between nodes."
+    )
+    hu_linearity_passed: bool = Field(
+        description="Whether all the HU ROIs were within tolerance."
+    )
+    hu_tolerance: float = Field(
+        description="The tolerance used for the HU linearity test."
+    )
+    hu_rois: dict[str, ROIResult] = Field(
+        description="A dictionary of the HU ROIs and their values. The keys will be the material name such as ``Acrylic``."
+    )
 
 
 class CTP486Result(BaseModel):
@@ -112,12 +135,24 @@ class CTP486Result(BaseModel):
 
     Use the following attributes as normal class attributes."""
 
-    uniformity_index: float  #:
-    integral_non_uniformity: float  #:
-    nps_avg_power: float
-    nps_max_freq: float
-    passed: bool  #:
-    rois: dict  #:
+    uniformity_index: float = Field(
+        description="The uniformity index as defined in Equation 2 of Elstrom et al",
+        title="Uniformity Index",
+    )
+    integral_non_uniformity: float = Field(
+        description="The integral non-uniformity as defined in Equation 1 of Elstrom et al",
+        title="Integral Non-Uniformity",
+    )
+    nps_avg_power: float = Field(
+        description="The average power of the noise power spectrum."
+    )
+    nps_max_freq: float = Field(
+        description="The most populous frequency of the noise power spectrum."
+    )
+    passed: bool = Field(description="Whether the uniformity test passed.")
+    rois: dict[str, ROIResult] = Field(
+        description="A dictionary of the uniformity ROIs and their values. The keys will be the region name such as ``Top``."
+    )
 
 
 class CTP515Result(BaseModel):
@@ -126,10 +161,19 @@ class CTP515Result(BaseModel):
 
     Use the following attributes as normal class attributes."""
 
-    cnr_threshold: float  #:
-    num_rois_seen: int  #:
-    roi_settings: dict  #:
-    roi_results: dict  #:
+    cnr_threshold: float = Field(
+        description="The contrast-to-noise ratio threshold used to determine if a low contrast ROI was 'seen'."
+    )
+    num_rois_seen: int = Field(
+        description="The number of ROIs that were above the threshold; ie. 'seen'.",
+        title="Number of low-contrast ROIs detected",
+    )
+    roi_settings: dict = Field(
+        description="The settings used for each low contrast ROI. The key names are ``n`` where ``<n>`` is the size of the ROI."
+    )
+    roi_results: dict = Field(
+        description="esults of the low contrast ROIs and their values. The keys will be the size of the ROI such as ``'9'``."
+    )
 
 
 class CTP528Result(BaseModel):
@@ -138,9 +182,15 @@ class CTP528Result(BaseModel):
 
     Use the following attributes as normal class attributes."""
 
-    start_angle_radians: float  #:
-    mtf_lp_mm: dict  #:
-    roi_settings: dict  #:
+    start_angle_radians: float = Field(
+        description="The angle where the circular profile started."
+    )
+    mtf_lp_mm: dict = Field(
+        description="A dictionary from 10% to 90% resolution in steps of 10 of the MTF in lp/mm. E.g. ``'20': 0.748``."
+    )
+    roi_settings: dict[str, dict[str, int | float]] = Field(
+        description="A dictionary of the settings used for each MTF ROI. The key names are ``region_<n>`` where ``<n>`` is the region number."
+    )
 
 
 class CatphanResult(ResultBase):
@@ -149,14 +199,34 @@ class CatphanResult(ResultBase):
 
     Use the following attributes as normal class attributes."""
 
-    catphan_model: str  #:
-    catphan_roll_deg: float  #:
-    origin_slice: int  #:
-    num_images: int  #:
-    ctp404: CTP404Result  #:
-    ctp486: CTP486Result | None = None  #:
-    ctp528: CTP528Result | None = None  #:
-    ctp515: CTP515Result | None = None  #:
+    catphan_model: str = Field(description="The model of CatPhan that was analyzed.")
+    catphan_roll_deg: float = Field(
+        description="The roll of the phantom in degrees.",
+        title="Phantom Roll (\N{DEGREE SIGN})",
+    )
+    origin_slice: int = Field(
+        description="The 'origin' slice number. For CatPhan, this is the center of the HU module."
+    )
+    num_images: int = Field(description="The number of images in the passed dataset.")
+    ctp404: CTP404Result = Field(
+        description="The results of the CTP404 (HU linearity, spacing) module.",
+        title="CTP404 (HU Linearity)",
+    )
+    ctp486: CTP486Result | None = Field(
+        description="The results of the CTP486 module (HU uniformity) module.",
+        title="CTP486 (HU Uniformity)",
+        default=None,
+    )
+    ctp528: CTP528Result | None = Field(
+        description="The results of the CTP528 (spatial resolution) module.",
+        title="CTP528 (Spatial Resolution)",
+        default=None,
+    )
+    ctp515: CTP515Result | None = Field(
+        description="The results of the CTP515 (Low contrast) module.",
+        default=None,
+        title="CTP515 (Low Contrast)",
+    )
 
 
 class HUDiskROI(DiskROI):

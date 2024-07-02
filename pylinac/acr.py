@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 from matplotlib import pyplot as plt
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from scipy import ndimage
 
 from .core import pdf
@@ -57,15 +57,22 @@ class CTModule(CatPhanModule):
 
 class CTModuleOutput(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
-    It is a dataclass under the hood and thus comes with all the dunder magic.
 
     Use the following attributes as normal class attributes."""
 
-    offset: int
-    roi_distance_from_center_mm: int
-    roi_radius_mm: int
-    roi_settings: dict
-    rois: dict
+    offset: float = Field(
+        description="The offset of the module slice in mm from the origin slice (z-direction)."
+    )
+    roi_distance_from_center_mm: float = Field(
+        description="The distance of the ROIs from the center of the phantom in mm in the image plane."
+    )
+    roi_radius_mm: float = Field(description="The radius of the ROIs in mm.")
+    roi_settings: dict = Field(
+        description="The ROI settings. The keys are the material names."
+    )
+    rois: dict[str, float] = Field(
+        description="The analyzed ROIs. The key is the name of the material and the value is the mean HU value. E.g. ``'Air': -987.1``."
+    )
 
 
 class UniformityModule(CatPhanModule):
@@ -90,11 +97,12 @@ class UniformityModule(CatPhanModule):
 
 class UniformityModuleOutput(CTModuleOutput):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
-    It is a dataclass under the hood and thus comes with all the dunder magic.
 
     Use the following attributes as normal class attributes."""
 
-    center_roi_stdev: float  #:
+    center_roi_stdev: float = Field(
+        description="The standard deviation of the center ROI."
+    )
 
 
 class SpatialResolutionModule(CatPhanModule):
@@ -184,11 +192,12 @@ class SpatialResolutionModule(CatPhanModule):
 
 class SpatialResolutionModuleOutput(CTModuleOutput):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
-    It is a dataclass under the hood and thus comes with all the dunder magic.
 
     Use the following attributes as normal class attributes."""
 
-    lpmm_to_rmtf: dict  #:
+    lpmm_to_rmtf: dict = Field(
+        description="Line pair to relative modulation transfer mapping. The keys are the line pair values and the values are the relative modulation transfer values."
+    )
 
 
 class LowContrastModule(CatPhanModule):
@@ -224,23 +233,36 @@ class LowContrastModuleOutput(CTModuleOutput):
 
     Use the following attributes as normal class attributes."""
 
-    cnr: float  #:
+    cnr: float = Field(
+        description="The contrast-to-noise ratio.", title="Contrast to Noise Ratio"
+    )
 
 
 class ACRCTResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
-    It is a dataclass under the hood and thus comes with all the dunder magic.
 
     Use the following attributes as normal class attributes."""
 
-    phantom_model: str  #:
-    phantom_roll_deg: float  #:
-    origin_slice: int  #:
-    num_images: int  #:
-    ct_module: CTModuleOutput  #:
-    uniformity_module: UniformityModuleOutput  #:
-    low_contrast_module: LowContrastModuleOutput  #:
-    spatial_resolution_module: SpatialResolutionModuleOutput  #:
+    phantom_model: str = Field(description="The model of the phantom used.")
+    phantom_roll_deg: float = Field(
+        description="The roll of the phantom in degrees.",
+        title="Phantom roll (\N{DEGREE SIGN})",
+    )
+    origin_slice: int = Field(
+        description="The slice number of the 'origin' slice; for ACR this is Module 1."
+    )
+    num_images: int = Field(description="The number of images in the passed dataset.")
+    ct_module: CTModuleOutput = Field(description="The results of the CT module.")
+    uniformity_module: UniformityModuleOutput = Field(
+        description="The results of the Uniformity module."
+    )
+    low_contrast_module: LowContrastModuleOutput = Field(
+        description="The results of the Low Contrast module.",
+        title="Low Contrast Resolution",
+    )
+    spatial_resolution_module: SpatialResolutionModuleOutput = Field(
+        description="The results of the Spatial Resolution module."
+    )
 
 
 class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
@@ -623,15 +645,26 @@ class MRSlice11PositionModule(CatPhanModule):
 
 class MRSlice11ModuleOutput(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
-    It is a dataclass under the hood and thus comes with all the dunder magic.
 
     Use the following attributes as normal class attributes."""
 
-    offset: int  #:
-    roi_settings: dict  #:
-    rois: dict  #:
-    bar_difference_mm: float  #:
-    slice_shift_mm: float  #:
+    offset: int = Field(
+        description="The offset of the phantom in mm from the origin slice."
+    )
+    roi_settings: dict = Field(
+        description="The ROI settings. The keys are the ROI names."
+    )
+    rois: dict = Field(
+        description="The results of the left and right bar ROIs. The key is the name of the bar"
+    )
+    bar_difference_mm: float = Field(
+        description="The difference in bar positions in mm.",
+        title="Bar Difference (mm)",
+    )
+    slice_shift_mm: float = Field(
+        description="The measure shift in slice position compared to nominal.",
+        title="Slice Shift (mm)",
+    )
 
 
 class MRSlice1Module(CatPhanModule):
@@ -746,18 +779,37 @@ class MRSlice1Module(CatPhanModule):
 
 class MRSlice1ModuleOutput(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
-    It is a dataclass under the hood and thus comes with all the dunder magic.
 
     Use the following attributes as normal class attributes."""
 
-    offset: int  #:
-    roi_settings: dict  #:
-    rois: dict  #:
-    bar_difference_mm: float  #:
-    slice_shift_mm: float  #:
-    measured_slice_thickness_mm: float  #:
-    row_mtf_50: float  #:
-    col_mtf_50: float  #:
+    offset: int = Field(
+        description="The offset of the phantom in mm from the origin slice."
+    )
+    roi_settings: dict = Field(
+        description="A dictionary of the ROI settings. The keys are the ROI names."
+    )
+    rois: dict = Field(
+        description=" A dictionary of the analyzed MTF ROIs. The key is the name of the ROI; e.g. ``Row 1.1``."
+    )
+    bar_difference_mm: float = Field(
+        description="The difference in bar positions in mm.",
+        title="Bar Difference (mm)",
+    )
+    slice_shift_mm: float = Field(
+        description="The measured shift in slice position compared to nominal."
+    )
+    measured_slice_thickness_mm: float = Field(
+        description="The measured slice thickness in mm.",
+        title="Measured Slice Thickness (mm)",
+    )
+    row_mtf_50: float = Field(
+        description="The MTF at 50% for the row-based ROIs.",
+        title="Row-wise 50% MTF (lp/mm)",
+    )
+    col_mtf_50: float = Field(
+        description="The MTF at 50% for the column-based ROIs.",
+        title="Column-wise 50% MTF (lp/mm)",
+    )
 
 
 class MRUniformityModule(CatPhanModule):
@@ -842,19 +894,33 @@ class MRUniformityModule(CatPhanModule):
 
 class MRUniformityModuleOutput(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
-    It is a dataclass under the hood and thus comes with all the dunder magic.
 
     Use the following attributes as normal class attributes."""
 
-    offset: int  #:
-    roi_settings: dict  #:
-    rois: dict  #:
-    ghost_roi_settings: dict  #:
-    ghost_rois: dict  #:
-    psg: float  #:
-    ghosting_ratio: float  #:
-    piu_passed: bool  #:
-    piu: float  #:
+    offset: int = Field(
+        description="The offset of the phantom in mm from the origin slice."
+    )
+    roi_settings: dict = Field(
+        description="A dictionary of the ROI settings. The keys are the ROI names."
+    )
+    rois: dict = Field(description="A dictionary of the analyzed ROIs.")
+    ghost_roi_settings: dict = Field(
+        description="A dictionary of the ghost ROI settings. The keys are the ROI names."
+    )
+    ghost_rois: dict = Field(description="A dictionary of the ghost ROIs.")
+    psg: float = Field(
+        description="The percent signal ghosting.", title="Percent Signal Ghosting"
+    )
+    ghosting_ratio: float = Field(
+        description="The ghosting ratio.", title="Ghosting Ratio"
+    )
+    piu_passed: bool = Field(
+        description="Whether the percent integral uniformity passed the test."
+    )
+    piu: float = Field(
+        description="The percent integral uniformity.",
+        title="Percent Integral Uniformity",
+    )
 
 
 class GeometricDistortionModule(CatPhanModule):
@@ -952,30 +1018,47 @@ class GeometricDistortionModule(CatPhanModule):
 
 class MRGeometricDistortionModuleOutput(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
-    It is a dataclass under the hood and thus comes with all the dunder magic.
 
     Use the following attributes as normal class attributes."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    offset: int  #:
-    profiles: dict[str, dict[str, float | LineSerialized]]  #:
-    distances: dict  #:
+    offset: int = Field(
+        description="The offset of the phantom in mm from the origin slice."
+    )
+    profiles: dict[str, dict[str, float | LineSerialized]] = Field(
+        description="A dictionary of the profiles used to measure the geometric distortion. The key is the name of the profile.",
+        title="Profile widths (mm)",
+    )
+    distances: dict = Field(
+        description="The lines measuring the ROI size. The key is the name of the line direction and the value is a string of the line length.",
+        title="Distance measurements (mm)",
+    )
 
 
 class ACRMRIResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
-    It is a dataclass under the hood and thus comes with all the dunder magic.
 
     Use the following attributes as normal class attributes."""
 
-    phantom_model: str  #:
-    phantom_roll_deg: float  #:
-    origin_slice: int  #:
-    num_images: int  #:
-    slice1: MRSlice1ModuleOutput  #:
-    slice11: MRSlice11ModuleOutput  #:
-    uniformity_module: MRUniformityModuleOutput  #:
-    geometric_distortion_module: MRGeometricDistortionModuleOutput  #:
+    phantom_model: str = Field(description="The model of the phantom used.")
+    phantom_roll_deg: float = Field(description="The roll of the phantom in degrees.")
+    origin_slice: int = Field(
+        description="The slice number of the 'origin' slice; for ACR this is Slice 1."
+    )
+    num_images: int = Field(description="The number of images in the passed dataset.")
+    slice1: MRSlice1ModuleOutput = Field(
+        description="The results for the 'Slice 1' module", title="Slice 1 Module"
+    )
+    slice11: MRSlice11ModuleOutput = Field(
+        description="The results for the 'Slice 11' module", title="Slice 11 Module"
+    )
+    uniformity_module: MRUniformityModuleOutput = Field(
+        description="Results from the uniformity module", title="Uniformity Module"
+    )
+    geometric_distortion_module: MRGeometricDistortionModuleOutput = Field(
+        description="Results from the geometric distortion module",
+        title="Geometric Distortion Module",
+    )
 
 
 class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):

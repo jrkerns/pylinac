@@ -247,10 +247,11 @@ The outcome from analyzing the phantom available in RadMachine or from
 * ``geometric_module``: A dictionary containing the following items:
 
   * ``offset``: The offset of the module slice in mm from the origin slice.
-  * ``high_contrast_distances``: A dictionary of the high contrast distances in mm. See: :ref:`quart-high-res`.
-    The key is the region of the line and the value is the distance in mm.
   * ``distances``: A dictionary of the phantom size itself in horizontal and vertical dimensions in mm.
     The keys are ``horizontal mm`` and ``vertical mm``.
+  * ``high_contrast_distances``: A dictionary of the high contrast distances in mm. See: :ref:`quart-high-res`.
+    The key is the region of the line and the value is the distance in mm.
+  * ``mean_high_contrast_distance``: The mean of the high contrast distances in mm.
 
 
 API Documentation

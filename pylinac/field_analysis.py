@@ -12,6 +12,7 @@ from typing import BinaryIO, Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
+from pydantic import Field
 
 from . import Centering
 from .core import image, pdf
@@ -285,41 +286,124 @@ class Protocol(Enum):
 
 
 class DeviceResult(ResultBase):
-    protocol: str  #:
-    protocol_results: dict  #:
-    centering_method: str | None  #:
-    normalization_method: str | None  #:
-    interpolation_method: str | None  #:
-    edge_detection_method: str  #:
-    top_penumbra_mm: float  #:
-    bottom_penumbra_mm: float  #:
-    left_penumbra_mm: float  #:
-    right_penumbra_mm: float  #:
-    geometric_center_index_x_y: tuple[float, float]  #:
-    beam_center_index_x_y: tuple[float, float]  #:
-    field_size_vertical_mm: float  #:
-    field_size_horizontal_mm: float  #:
-    beam_center_to_top_mm: float  #:
-    beam_center_to_bottom_mm: float  #:
-    beam_center_to_left_mm: float  #:
-    beam_center_to_right_mm: float  #:
-    cax_to_top_mm: float  #:
-    cax_to_bottom_mm: float  #:
-    cax_to_left_mm: float  #:
-    cax_to_right_mm: float  #:
-    top_position_index_x_y: tuple[float, float]  #:
-    top_horizontal_distance_from_cax_mm: float  #:
-    top_vertical_distance_from_cax_mm: float  #:
-    top_horizontal_distance_from_beam_center_mm: float  #:
-    top_vertical_distance_from_beam_center_mm: float  #:
-    left_slope_percent_mm: float  #:
-    right_slope_percent_mm: float  #:
-    top_slope_percent_mm: float  #:
-    bottom_slope_percent_mm: float  #:
-    top_penumbra_percent_mm: float = 0  #:
-    bottom_penumbra_percent_mm: float = 0  #:
-    left_penumbra_percent_mm: float = 0  #:
-    right_penumbra_percent_mm: float = 0  #:
+    protocol: str = Field(description="The protocol used for the analysis.")
+    protocol_results: dict = Field(
+        description="""This is a dictionary that contains the results of the protocol calculations. The keys are the protocol names.
+      Generally, they are ``symmetry_horizontal``, ``symmetry_vertical``, ``flatness_horizontal``, and ``flatness_vertical``.
+      The values themselves are the calculated values for that specific protocol equation."""
+    )
+    centering_method: str | None = Field(
+        description="The method used to determine the center of the field."
+    )
+    normalization_method: str | None = Field(
+        description="The method used to normalize the field."
+    )
+    interpolation_method: str | None = Field(
+        description="The method used to interpolate the field."
+    )
+    edge_detection_method: str = Field(
+        description="The method used to detect the field edges."
+    )
+    top_penumbra_mm: float = Field(
+        description="The penumbra width at the top of the field."
+    )
+    bottom_penumbra_mm: float = Field(
+        description="The penumbra width at the bottom of the field."
+    )
+    left_penumbra_mm: float = Field(
+        description="The penumbra width at the left of the field."
+    )
+    right_penumbra_mm: float = Field(
+        description="The penumbra width at the right of the field."
+    )
+    geometric_center_index_x_y: tuple[float, float] = Field(
+        description="The geometric center of the field in pixel coordinates."
+    )
+    beam_center_index_x_y: tuple[float, float] = Field(
+        description="The beam center of the field in pixel coordinates."
+    )
+    field_size_vertical_mm: float = Field(
+        description="The vertical field size in mm.", title="Vertical field size (mm)"
+    )
+    field_size_horizontal_mm: float = Field(
+        description="The horizontal field size in mm.",
+        title="Horizontal field size (mm)",
+    )
+    beam_center_to_top_mm: float = Field(
+        description="The distance from the beam center to the top edge of the field.",
+        title="Distance from beam center to top (mm)",
+    )
+    beam_center_to_bottom_mm: float = Field(
+        description="The distance from the beam center to the bottom edge of the field.",
+        title="Distance from beam center to bottom (mm)",
+    )
+    beam_center_to_left_mm: float = Field(
+        description="The distance from the beam center to the left edge of the field.",
+        title="Distance from beam center to left (mm)",
+    )
+    beam_center_to_right_mm: float = Field(
+        description="The distance from the beam center to the right edge of the field.",
+        title="Distance from beam center to right (mm)",
+    )
+    cax_to_top_mm: float = Field(
+        description="The distance from the CAX to the top edge of the field.",
+        title="Distance from CAX to top (mm)",
+    )
+    cax_to_bottom_mm: float = Field(
+        description="The distance from the CAX to the bottom edge of the field.",
+        title="Distance from CAX to bottom (mm)",
+    )
+    cax_to_left_mm: float = Field(
+        description="The distance from the CAX to the left edge of the field.",
+        title="Distance from CAX to left (mm)",
+    )
+    cax_to_right_mm: float = Field(
+        description="The distance from the CAX to the right edge of the field.",
+        title="Distance from CAX to right (mm)",
+    )
+    top_position_index_x_y: tuple[float, float] = Field(
+        description="The top position of the field in pixel coordinates."
+    )
+    top_horizontal_distance_from_cax_mm: float = Field(
+        description="The horizontal distance from the top position to the image center."
+    )
+    top_vertical_distance_from_cax_mm: float = Field(
+        description="The vertical distance from the top position to the image center."
+    )
+    top_horizontal_distance_from_beam_center_mm: float = Field(
+        description="The horizontal distance from the top position to the beam center."
+    )
+    top_vertical_distance_from_beam_center_mm: float = Field(
+        description="The vertical distance from the top position to the beam center."
+    )
+    left_slope_percent_mm: float = Field(
+        description="The slope of the left side of the in-field region in percent per mm."
+    )
+    right_slope_percent_mm: float = Field(
+        description="The slope of the right side of the in-field region in percent per mm."
+    )
+    top_slope_percent_mm: float = Field(
+        description="The slope of the top side of the in-field region in percent per mm."
+    )
+    bottom_slope_percent_mm: float = Field(
+        description="The slope of the bottom side of the in-field region in percent per mm."
+    )
+    top_penumbra_percent_mm: float = Field(
+        description="The penumbra width at the top of the field in percent per mm.",
+        default=0,
+    )
+    bottom_penumbra_percent_mm: float = Field(
+        description="The penumbra width at the bottom of the field in percent per mm.",
+        default=0,
+    )
+    left_penumbra_percent_mm: float = Field(
+        description="The penumbra width at the left of the field in percent per mm.",
+        default=0,
+    )
+    right_penumbra_percent_mm: float = Field(
+        description="The penumbra width at the right of the field in percent per mm.",
+        default=0,
+    )
 
 
 class FieldResult(DeviceResult):
@@ -335,10 +419,21 @@ class FieldResult(DeviceResult):
     E.g. a protocol item of ``symmetry`` will result in ``symmetry_vertical`` and ``symmetry_horizontal``.
     """
 
-    central_roi_mean: float = 0  #:
-    central_roi_max: float = 0  #:
-    central_roi_std: float = 0  #:
-    central_roi_min: float = 0  #:
+    central_roi_mean: float = Field(
+        description="The mean pixel value of the central region of interest.", default=0
+    )
+    central_roi_max: float = Field(
+        description="The maximum pixel value of the central region of interest.",
+        default=0,
+    )
+    central_roi_std: float = Field(
+        description="The standard deviation of the pixel values of the central region of interest.",
+        default=0,
+    )
+    central_roi_min: float = Field(
+        description="The minimum pixel value of the central region of interest.",
+        default=0,
+    )
 
 
 class FieldAnalysis(ResultsDataMixin[FieldResult], QuaacMixin):

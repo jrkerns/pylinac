@@ -19,7 +19,7 @@ from typing import BinaryIO, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from . import Normalization
 from .core import image
@@ -45,12 +45,22 @@ class SegmentResult(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    passed: bool  #:
-    x_position_mm: float  #:
-    r_corr: float  #:
-    r_dev: float  #:
-    center_x_y: PointSerialized  #:
-    stdev: float  #:
+    passed: bool = Field(
+        description="A boolean indicating if the segment passed or failed."
+    )
+    x_position_mm: float = Field(
+        description="The position of the segment ROI in mm from CAX."
+    )
+    r_corr: float = Field(
+        description="R corrected (ratio)", title="R corrected (ratio)"
+    )
+    r_dev: float = Field(description="R deviation (%)", title="R deviation (%)")
+    center_x_y: PointSerialized = Field(
+        description="The center of the segment in pixel coordinates."
+    )
+    stdev: float = Field(
+        description="The standard deviation of the segment of the ratioed images (DMLC / Open)"
+    )
 
 
 class VMATResult(ResultBase):
@@ -59,13 +69,26 @@ class VMATResult(ResultBase):
 
     Use the following attributes as normal class attributes."""
 
-    test_type: str  #:
-    tolerance_percent: float  #:
-    max_deviation_percent: float  #:
-    abs_mean_deviation: float  #:
-    passed: bool  #:
-    segment_data: list[SegmentResult]  #:
-    named_segment_data: dict[str, SegmentResult]  #:
+    test_type: str = Field(
+        description="The type of test that was performed as a string."
+    )
+    tolerance_percent: float = Field(
+        description=" The tolerance used to determine if the test passed or failed."
+    )
+    max_deviation_percent: float = Field(
+        description="The maximum deviation of any segment.", title="Max Deviation (%)"
+    )
+    abs_mean_deviation: float = Field(
+        description="The average absolute deviation of all segments.",
+        title="Absolute Mean Deviation (%)",
+    )
+    passed: bool = Field(
+        description="A boolean indicating if the test passed or failed."
+    )
+    segment_data: list[SegmentResult] = Field(description="Individual segment data.")
+    named_segment_data: dict[str, SegmentResult] = Field(
+        description="Named individual segment data."
+    )
 
 
 class Segment(Rectangle):
