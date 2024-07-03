@@ -398,7 +398,7 @@ Interpreting MRI Results
       :sync: pylinac
 
       The outcome from analyzing the phantom and calling ``.results_data()`` is a :class:`~pylinac.acr.ACRMRIResult` instance.
-      See the API documentation for details and also :ref:`exporting_results`.
+      See the API documentation for details and also :ref:`exporting-results`.
 
    .. tab-item:: RadMachine
       :sync: radmachine
