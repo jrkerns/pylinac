@@ -172,7 +172,7 @@ class CTP515Result(BaseModel):
         description="The settings used for each low contrast ROI. The key names are ``n`` where ``<n>`` is the size of the ROI."
     )
     roi_results: dict = Field(
-        description="esults of the low contrast ROIs and their values. The keys will be the size of the ROI such as ``'9'``."
+        description="Results of the low contrast ROIs and their values. The keys will be the size of the ROI such as ``'9'``."
     )
 
 

@@ -509,13 +509,13 @@ class WinstonLutzMultiTargetMultiFieldResult(ResultBase):
         description="The maximum 2D distance from any BB to its field center.",
         title="Max field center -> BB distance (mm)",
     )
-    median_2d_field_to_bb_mm: float = Field(
-        description="The median 2D distance from any BB to its field center.",
-        title="Median field center -> BB distance (mm)",
-    )
     mean_2d_field_to_bb_mm: float = Field(
         description="The mean 2D distance from any BB to its field center.",
         title="Mean field center -> BB distance (mm)",
+    )
+    median_2d_field_to_bb_mm: float = Field(
+        description="The median 2D distance from any BB to its field center.",
+        title="Median field center -> BB distance (mm)",
     )
     bb_arrangement: tuple[BBConfig, ...] = Field(
         description="A list of expected arrangements of the BBs"

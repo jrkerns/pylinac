@@ -57,9 +57,7 @@ class PlanarResult(ResultBase):
 
     Use the following attributes as normal class attributes."""
 
-    analysis_type: str = Field(
-        description="The median contrast of the low contrast ROIs. See :ref:`low_contrast_topic` and :ref:`cnr` for more."
-    )
+    analysis_type: str = Field(description="Phantom name")
     median_contrast: float = Field(
         description="The median contrast of the low contrast ROIs.",
         title="Median Contrast",

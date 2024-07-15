@@ -252,16 +252,20 @@ class ACRCTResult(ResultBase):
         description="The slice number of the 'origin' slice; for ACR this is Module 1."
     )
     num_images: int = Field(description="The number of images in the passed dataset.")
-    ct_module: CTModuleOutput = Field(description="The results of the CT module.")
+    ct_module: CTModuleOutput = Field(
+        description="The results of the CT module.", title="CT Module"
+    )
     uniformity_module: UniformityModuleOutput = Field(
-        description="The results of the Uniformity module."
+        description="The results of the Uniformity module.",
+        title="HU Uniformity",
     )
     low_contrast_module: LowContrastModuleOutput = Field(
         description="The results of the Low Contrast module.",
         title="Low Contrast Resolution",
     )
     spatial_resolution_module: SpatialResolutionModuleOutput = Field(
-        description="The results of the Spatial Resolution module."
+        description="The results of the Spatial Resolution module.",
+        title="Spatial Resolution",
     )
 
 
@@ -796,7 +800,8 @@ class MRSlice1ModuleOutput(BaseModel):
         title="Bar Difference (mm)",
     )
     slice_shift_mm: float = Field(
-        description="The measured shift in slice position compared to nominal."
+        description="The measured shift in slice position compared to nominal.",
+        title="Slice Shift (mm)",
     )
     measured_slice_thickness_mm: float = Field(
         description="The measured slice thickness in mm.",
