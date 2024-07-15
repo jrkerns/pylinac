@@ -69,7 +69,7 @@ Exporting to QuAAC
 .. note::
 
    `QuAAC <https://quaac.readthedocs.io/en/latest/index.html>`__ is a new standard we designed to allow for interoperable data exchange between vendors and clinics.
-   It is in in the early stages of development and is not yet widely adopted.
+   It is in the early stages of development and is not yet widely adopted.
 
 To save results from an analysis to the QuAAC format, use the ``to_quaac()`` method. This will save the
 data to a file in the QuAAC format.
