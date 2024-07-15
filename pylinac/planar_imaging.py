@@ -33,6 +33,7 @@ from typing import BinaryIO, Callable, Literal
 import matplotlib.pyplot as plt
 import numpy as np
 from py_linq import Enumerable
+from pydantic import Field
 from scipy.ndimage import median_filter
 from skimage import exposure, feature, measure
 from skimage.measure._regionprops import RegionProperties
@@ -56,15 +57,37 @@ class PlanarResult(ResultBase):
 
     Use the following attributes as normal class attributes."""
 
-    analysis_type: str  #:
-    median_contrast: float  #:
-    median_cnr: float  #:
-    num_contrast_rois_seen: int  #:
-    phantom_center_x_y: tuple[float, float]  #:
-    low_contrast_rois: list[dict]  #:
-    phantom_area: float  #: The area of the phantom in pixels^2
-    mtf_lp_mm: tuple[float, float, float] | None = None  #:
-    percent_integral_uniformity: float | None = None  #:
+    analysis_type: str = Field(description="Phantom name")
+    median_contrast: float = Field(
+        description="The median contrast of the low contrast ROIs.",
+        title="Median Contrast",
+    )
+    median_cnr: float = Field(
+        description="The median contrast-to-noise ratio of the low contrast ROIs.",
+        title="Median CNR",
+    )
+    num_contrast_rois_seen: int = Field(
+        description="The number of low contrast ROIs that had a visibility score above the passed threshold.",
+        title="Number of Low Contrast ROIs detected",
+    )
+    phantom_center_x_y: tuple[float, float] = Field(
+        description="The center of the phantom in the image in pixels."
+    )
+    low_contrast_rois: list[dict] = Field(
+        description="A dictionary of the individual low contrast ROIs. The dictionary keys are the ROI number, starting at 0"
+    )
+    phantom_area: float = Field(
+        description="The area of the phantom in mm^2. This is an approximation. It calculates the area of a perfect, similar shape (circle, square) that fits the phantom.",
+        title="Phantom Area (mm^2)",
+    )
+    mtf_lp_mm: tuple[float, float, float] | None = Field(
+        description="The 80%, 50%, and 30% MTF values in lp/mm.", default=None
+    )
+    percent_integral_uniformity: float | None = Field(
+        description="The percent integral uniformity of the image.",
+        default=None,
+        title="Percent Integral Uniformity",
+    )
 
 
 def _middle_of_bbox_region(region: RegionProperties) -> tuple:
@@ -918,12 +941,30 @@ class LightRadResult(ResultBase):
 
     Use the following attributes as normal class attributes."""
 
-    field_size_x_mm: float  #:
-    field_size_y_mm: float  #:
-    field_epid_offset_x_mm: float  #:
-    field_epid_offset_y_mm: float  #:
-    field_bb_offset_x_mm: float  #:
-    field_bb_offset_y_mm: float  #:
+    field_size_x_mm: float = Field(
+        description="The size of the field in the x-direction/crossplane in mm.",
+        title="Field Size X (mm)",
+    )
+    field_size_y_mm: float = Field(
+        description="The size of the field in the y-direction/inplane in mm.",
+        title="Field Size Y (mm)",
+    )
+    field_epid_offset_x_mm: float = Field(
+        description="The offset of the field center from the EPID/image center in the x-direction/crossplane in mm.",
+        title="Field->EPID X offset (mm)",
+    )
+    field_epid_offset_y_mm: float = Field(
+        description="The offset of the field center from the EPID/image center in the y-direction/inplane in mm.",
+        title="Field->EPID Y offset (mm)",
+    )
+    field_bb_offset_x_mm: float = Field(
+        description="The offset of the field center from the BB center in the x-direction/crossplane in mm.",
+        title="Field->BB X offset (mm)",
+    )
+    field_bb_offset_y_mm: float = Field(
+        description="The offset of the field center from the BB center in the y-direction/inplane in mm.",
+        title="Field->BB Y offset (mm)",
+    )
 
 
 class StandardImagingFC2(ImagePhantomBase):

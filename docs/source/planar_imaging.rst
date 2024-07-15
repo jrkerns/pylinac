@@ -937,7 +937,7 @@ The results from phantoms that are meant to measure image quality, contrast, etc
 * ``num_contrast_rois_seen``: The number of low contrast ROIs that had a visibility
   score above the passed threshold. See :ref:`visibility` for more.
 * ``phantom_center_x_y``: The center of the phantom in the image in pixels.
-* ``phantom_area``: The area of the phantom in pixels.
+* ``phantom_area``: The area of the phantom in pixels^2.
 * ``mtf_lp_mm``: The 80%, 50%, and 30% MTF values in lp/mm. For more values see: :ref:`calculate-specific-mtf`.
 * ``percent_integral_uniformity``: The percent integral uniformity of the image.
 * ``low_contrast_rois``: A dictionary of the individual low contrast ROIs. The dictionary keys

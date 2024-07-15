@@ -35,12 +35,38 @@ from .metrics.profile import (
 
 
 class FieldProfileResult(ResultBase):
-    x_metrics: dict = Field(serialization_alias="X Metrics")  #:
-    y_metrics: dict = Field(serialization_alias="Y Metrics")  #:
-    center: dict = Field(serialization_alias="Center ROI")  #:
-    normalization: str = Field(serialization_alias="Normalization")  #:
-    edge_type: str = Field(serialization_alias="Edge Type")  #:
-    centering: str = Field(serialization_alias="Centering")  #:
+    x_metrics: dict = Field(
+        title="X Metrics",
+        description="""
+      The metrics computed from the X/crossplane profile.
+      The items included depend on the metrics given to the analysis. See: :ref:`profile_builtin_plugins`. The
+      key will be the name of the metric and the value will be what's returned from
+      the ``calculate`` method of the metric. In addition, the following items
+      are always given:
+
+      * ``Field Width (mm)``: The width of the field in mm.
+      * ``values``: A list of pixel values of the profile that the metrics were calculated from.""",
+    )
+    y_metrics: dict = Field(
+        title="Y Metrics",
+        description="""
+      The metrics computed from the X/crossplane profile.
+      The items included depend on the metrics given to the analysis. See: :ref:`profile_builtin_plugins`. The
+      key will be the name of the metric and the value will be what's returned from
+      the ``calculate`` method of the metric. In addition, the following items
+      are always given:
+
+      * ``Field Width (mm)``: The width of the field in mm.
+      * ``values``: A list of pixel values of the profile that the metrics were calculated from.""",
+    )
+    center: dict = Field(title="Center ROI", description="The center ROI of the field")
+    normalization: str = Field(
+        title="Normalization", description="The normalization method used."
+    )
+    edge_type: str = Field(
+        title="Edge Type", description="The edge detection method used."
+    )
+    centering: str = Field(title="Centering", description="The centering method used.")
 
 
 DEFAULT_METRICS = (

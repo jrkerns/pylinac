@@ -32,6 +32,7 @@ import numpy as np
 from matplotlib.axes import Axes
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from py_linq import Enumerable
+from pydantic import Field
 
 from . import Normalization
 from .core import image, pdf
@@ -135,22 +136,62 @@ class PFResult(ResultBase):
 
     Use the following attributes as normal class attributes."""
 
-    tolerance_mm: float  #:
-    action_tolerance_mm: float | None  #:
-    percent_leaves_passing: float  #:
-    number_of_pickets: int  #:
-    absolute_median_error_mm: float  #:
-    max_error_mm: float  #:
-    max_error_picket: int  #:
-    max_error_leaf: str | int  #:
-    mean_picket_spacing_mm: float  #:
-    offsets_from_cax_mm: list[float]  #:
-    passed: bool  #:
-    failed_leaves: list[str] | list[int]  #:
-    mlc_skew: float  #:
-    picket_widths: dict[str, dict[str, float]]  #:
-    mlc_positions_by_leaf: dict[str, list[float]]  #:
-    mlc_errors_by_leaf: dict[str, list[float]]  #:
+    tolerance_mm: float = Field(
+        description="This is the tolerance in mm used for the analysis."
+    )
+    action_tolerance_mm: float | None = Field(
+        description="The tolerance used to determine if the picket is failing and requires action in mm."
+    )
+    percent_leaves_passing: float = Field(
+        description="The percentage of leaves that pass the tolerance.",
+        title="Leaves Passing (%)",
+    )
+    number_of_pickets: int = Field(
+        description="The number of pickets found in the image.",
+        title="Number of Pickets",
+    )
+    absolute_median_error_mm: float = Field(
+        description="The median of the absolute errors across all MLC leaves from the ideal picket line in mm.",
+        title="Absolute Median Error (mm)",
+    )
+    max_error_mm: float = Field(
+        description="The maximum error across all MLC leaves from the ideal picket line in mm.",
+        title="Maximum Error (mm)",
+    )
+    max_error_picket: int = Field(
+        description="The picket number that had the maximum error. This is 0-index based, meaning the 0th picket is the left/topmost."
+    )
+    max_error_leaf: str | int = Field(
+        description="The leaf number that had the maximum error."
+    )
+    mean_picket_spacing_mm: float = Field(
+        description="The mean spacing between pickets in mm.",
+        title="Mean Picket Spacing (mm)",
+    )
+    offsets_from_cax_mm: list[float] = Field(
+        description="The offsets of each picket from the central axis in mm.",
+        title="Offsets from CAX (mm)",
+    )
+    passed: bool = Field(
+        description="Whether all the MLC positions were within tolerance."
+    )
+    failed_leaves: list[str] | list[int] = Field(
+        description="A list of leaf numbers that failed. If using ``separate_leaves=False``, this will be the leaf pairs (10, 22, etc). If using ``separate_leaves=True`` this will be the bank-specific leaves; A10, B22, A22, etc.",
+        title="Failing Leaves",
+    )
+    mlc_skew: float = Field(
+        description="The skew of the MLC stack in degrees. This is the angle of the MLCs from the nearest cardinal direction.",
+        title="MLC Skew (\N{DEGREE SIGN})",
+    )
+    picket_widths: dict[str, dict[str, float]] = Field(
+        description="The widths of the pickets in mm."
+    )
+    mlc_positions_by_leaf: dict[str, list[float]] = Field(
+        description="A dictionary where the key is the leaf number and the value is a list of positions in mm **from the left or top of the image**."
+    )
+    mlc_errors_by_leaf: dict[str, list[float]] = Field(
+        description="A dictionary where the key is the leaf number and the value is a list of errors in mm."
+    )
 
 
 class PFDicomImage(image.LinacDicomImage):

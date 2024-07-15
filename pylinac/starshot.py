@@ -29,6 +29,7 @@ from typing import BinaryIO
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
+from pydantic import Field
 from scipy import optimize
 
 from .core import image, pdf
@@ -45,11 +46,22 @@ class StarshotResults(ResultBase):
     Use the following attributes as normal class attributes.
     """
 
-    tolerance_mm: float  #:
-    circle_diameter_mm: float  #:
-    circle_radius_mm: float  #:
-    passed: bool  #:
-    circle_center_x_y: tuple[float, float]  #:
+    tolerance_mm: float = Field(
+        description="The tolerance used for the analysis in mm."
+    )
+    circle_diameter_mm: float = Field(
+        description="The diameter of the minimum circle that touches all the star lines in mm.",
+        title="Diameter of fitted circle (mm)",
+    )
+    circle_radius_mm: float = Field(
+        description="The diameter of the minimum circle that touches all the star lines in mm.",
+        title="Radius of fitted circle (mm)",
+    )
+    circle_center_x_y: tuple[float, float] = Field(
+        description="The center position of the minimum circle in pixels.",
+        title="Circle center pixel (X, Y)",
+    )
+    passed: bool = Field(description="Whether the analysis passed or failed.")
 
 
 class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):

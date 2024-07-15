@@ -569,10 +569,10 @@ Interpreting Results
 This explains the :class:`~pylinac.winston_lutz.WinstonLutzResult` class that is returned from the ``results_data`` method.
 This is also what is given in RadMachine image analysis results and is explained further here.
 
-* ``num_gantry_images``: The number of images that were taken at different gantry angles and all other axes were 0.
-* ``num_gantry_coll_images``: The number of images that were taken at different gantry and collimator angles and the couch was 0.
-* ``num_coll_images``: The number of images that were taken at different collimator angles and all other axes were 0.
-* ``num_couch_images``: The number of images that were taken at different couch angles and all other axes were 0.
+* ``num_gantry_images``: The number of images that were taken at different gantry angles and all other axes were at reference.
+* ``num_gantry_coll_images``: The number of images that were taken at different gantry and collimator angles and the couch was at reference.
+* ``num_coll_images``: The number of images that were taken at different collimator angles and all other axes were at reference.
+* ``num_couch_images``: The number of images that were taken at different couch angles and all other axes were at reference.
 * ``num_total_images``: The total number of images analyzed.
 * ``max_2d_cax_to_bb_mm``: The maximum 2D distance from the field CAX to the BB across all images analyzed in mm.
 * ``median_2d_cax_to_bb_mm``: The median 2D distance from the field CAX to the BB across all images analyzed in mm.
@@ -588,17 +588,17 @@ This is also what is given in RadMachine image analysis results and is explained
       This value is independent of the BB position.
 
 * ``max_gantry_rms_deviation_mm``: The maximum RMS value of the field CAX to BB for the gantry axis images in mm. This is an alternative to the max/mean/median calculations.
-* ``max_coll_rms_deviation_mm``: The maximum RMS deviation of the field CAX to BB for the collimator axis images in mm. This is an alternative to the max/mean/median calculations.
-* ``max_couch_rms_deviation_mm``: The maximum RMS value of the field CAX to BB for the couch axis images in mm. This is an alternative to the max/mean/median calculations.
 * ``max_epid_rms_deviation_mm``: The maximum RMS value of the field CAX to EPID center for the EPID images in mm. This is an alternative to the max/mean/median calculations.
 * ``gantry_coll_3d_iso_diameter_mm``: The 3D isocenter diameter **of the gantry and collimator axes** as determined by the gantry and collimator images in mm.
+* ``coll_2d_iso_diameter_mm``: The 2D isocenter diameter **of the collimator axis only** as determined by the collimator images in mm.
+* ``max_coll_rms_deviation_mm``: The maximum RMS deviation of the field CAX to BB for the collimator axis images in mm. This is an alternative to the max/mean/median calculations.
+* ``max_couch_rms_deviation_mm``: The maximum RMS value of the field CAX to BB for the couch axis images in mm. This is an alternative to the max/mean/median calculations.
   This uses backprojection lines of the field center to the source and minimizes a sphere that touches all the backprojection lines.
 
   .. note::
 
       This value is independent of the BB position.
 
-* ``coll_2d_iso_diameter_mm``: The 2D isocenter diameter **of the collimator axis only** as determined by the collimator images in mm.
 * ``couch_2d_iso_diameter_mm``: The 2D isocenter diameter **of the couch axis only** as determined by the couch images in mm.
 * ``bb_shift_vector``: The Cartesian vector that would move the BB to the radiation isocenter. Each value is in mm. See also :ref:`wl_virtual_shift`, :ref:`winston-lutz-couch-shift-algorithm`
 * ``image_details``: A list of the individual image results. Each item has the following:
@@ -608,6 +608,7 @@ This is also what is given in RadMachine image analysis results and is explained
   * ``cax2epid_vector``: The vector (in Cartesian coordinates) from the field CAX to the EPID center in mm.
   * ``cax2epid_distance``: The distance from the field CAX to the EPID center in mm.
   * ``cax2bb_vector``: The vector (in Cartesian coordinates) from the field CAX to the BB in mm.
+  * ``cax2bb_distance``: The scalar distance from the field CAX to the BB in mm.
   * ``field_cax``: The location of the field CAX in the image as a Point in pixels.
 * ``keyed_image_details``: A **dictionary** of the individual image results. This is the same as ``image_details`` but keyed by the images
   using the axes values as the key. E.g. ``G0B45P0``. This can be used to identify individual
