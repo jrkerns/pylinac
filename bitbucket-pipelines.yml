@@ -322,6 +322,5 @@ pipelines:
     release*:
       - step: *push-to-github
     master:
-      - step: *set-up-env
       - step: *push-to-github
       - step: *update-dev-kraken
