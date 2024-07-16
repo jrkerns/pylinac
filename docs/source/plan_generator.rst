@@ -53,6 +53,11 @@ Use DICOM Import/Export to export the plan to a file.
 Typical Use
 -----------
 
+.. note::
+
+    There is a `Google Colab notebook <https://colab.research.google.com/drive/19tHHXUt1sZ2AgkEm3ZPLCxpkQjpeA5fK?usp=sharing>`__ you can also use to generate plans without needing a local
+    setup.
+
 Once a DICOM plan is generated and downloaded, it can be passed to the Plan Generator.
 The plan generator can then add QA fields into the plan.
 
@@ -114,6 +119,43 @@ it still needs to be plan approved, scheduled, etc. Also, when delivering the pl
 you will have to add imaging on the fly to capture images. Depending on how
 you set the y-jaws and the size of your ROIs, you may need to adjust the EPID
 distance.
+
+Pre-Generated Plans
+-------------------
+
+If you're too "busy" to generate your own plans, you can use the following generated plans.
+
+.. note::
+
+  These plans are not customized to your machine or institution like they would
+  be if you used the plan generator itself. On a Varian machine you will need to
+  perform a machine override authorization every time.
+
+These plans contain a picket fence at each cardinal gantry angle, a Winston-Lutz batch, dose rate constancy, MLC speed tests, and gantry speed tests.
+
+.. tab-set::
+   :sync-group: mlc-type
+
+   .. tab-item:: Millennium
+      :sync: millennium
+
+      * `6 MV <https://storage.googleapis.com/pylinac_demo_files/rtplans/R1_6MV_M120_prefab.dcm>`__
+      * `6 MV FFF <https://storage.googleapis.com/pylinac_demo_files/rtplans/R1_6MVFFF_M120_prefab.dcm>`__
+      * `10 MV <https://storage.googleapis.com/pylinac_demo_files/rtplans/R1_10MV_M120_prefab.dcm>`__
+      * `10 MV FFF <https://storage.googleapis.com/pylinac_demo_files/rtplans/R1_10MVFFF_M120_prefab.dcm>`__
+      * `15 MV <https://storage.googleapis.com/pylinac_demo_files/rtplans/R1_15MV_M120_prefab.dcm>`__
+      * `18 MV <https://storage.googleapis.com/pylinac_demo_files/rtplans/R1_18MV_M120_prefab.dcm>`__
+
+   .. tab-item:: HD Millennium
+      :sync: hd-millennium
+
+      * `6 MV <https://storage.googleapis.com/pylinac_demo_files/rtplans/R1_6MV_HD120_prefab.dcm>`__
+      * `6 MV FFF <https://storage.googleapis.com/pylinac_demo_files/rtplans/R1_6MVFFF_HD120_prefab.dcm>`__
+      * `10 MV <https://storage.googleapis.com/pylinac_demo_files/rtplans/R1_10MV_HD120_prefab.dcm>`__
+      * `10 MV FFF <https://storage.googleapis.com/pylinac_demo_files/rtplans/R1_10MVFFF_HD120_prefab.dcm>`__
+      * `15 MV <https://storage.googleapis.com/pylinac_demo_files/rtplans/R1_15MV_HD120_prefab.dcm>`__
+      * `18 MV <https://storage.googleapis.com/pylinac_demo_files/rtplans/R1_18MV_HD120_prefab.dcm>`__
+
 
 Models
 ------
