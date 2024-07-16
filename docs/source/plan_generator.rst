@@ -120,6 +120,8 @@ you will have to add imaging on the fly to capture images. Depending on how
 you set the y-jaws and the size of your ROIs, you may need to adjust the EPID
 distance.
 
+.. _prefab-rt-plans:
+
 Pre-Generated Plans
 -------------------
 

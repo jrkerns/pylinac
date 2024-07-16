@@ -39,6 +39,9 @@ These can be downloaded from my.varian.com. Once logged in, search for RapidArc 
 and Files for TrueBeam"; there will be a corresponding one for C-Series. Use the RT Plan files and follow the instructions, not including the assessment procedure,
 which is the point of this module. Save & move the VMAT images to a place you can use pylinac.
 
+Prefabricated plans are available at :ref:`prefab-rt-plans` for download. See also the
+:ref:`plan-generator` module for creating your own plans.
+
 Typical Use
 -----------
 
