@@ -29,7 +29,7 @@ Picket Fence
 Metrics
 ^^^^^^^
 
-* A new class of metrics has been added: Samplers. These are classes that sample an ROI of an image,
+* :bdg-success:`Feature` A new class of metrics has been added: :ref:`sampler-metrics`. These are classes that sample an ROI of an image,
   in contrast to the existing class of metrics that find image features. To start,
   two finder-class metrics have been added: :class:`~pylinac.metrics.image.DiskROIMetric`
   and :class:`~pylinac.metrics.image.RectangleROIMetric`.
@@ -37,16 +37,16 @@ Metrics
 Core
 ^^^^
 
-* Most modules have a new documentation section "Analysis Parameters". This section is meant
+* :bdg-success:`Feature` Most modules have a new documentation section "Analysis Parameters". This section is meant
   to guide RadMachine users through the parameters available to them. Sometimes the names are slightly
   different and some parameters are not available to the user in RadMachine. Select the tab
   that indicates your usage.
-* A cookbook section has been added to the documentation: :ref:`cookbook`. Although not too many
+* :bdg-success:`Feature` A cookbook section has been added to the documentation: :ref:`cookbook`. Although not too many
   cases are covered yet, this will be a place for various use-cases and how to accomplish them.
 * :bdg-success:`Feature` Pylinac now supports QuAAC integration. QuAAC is an interoperability standard we created to attempt to
   standardize how QA information is stored and to be vendor-neutral. You can read more about the QuAAC standard `here <https://quaac.readthedocs.io/en/latest/index.html>`__.
   How to dump pylinac results to QuAAC format can be read in :ref:`exporting-to-quaac`.
-* :class:`~pylinac.core.roi.DiskROI` has been refactored. The constructor signature has changed to be more generic for
+* :bdg-primary:`Refactor` :class:`~pylinac.core.roi.DiskROI` has been refactored. The constructor signature has changed to be more generic for
   other external usages.
   Historically, these were only used internally and in the context of an ROI within a phantom. Unless you are using these
   classes directly no change is needed. If using these classes, a new class method has been added that has the same

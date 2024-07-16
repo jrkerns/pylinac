@@ -61,6 +61,8 @@ Finders
 | Find the ROI properties of a circular field in an image | The field size and location are known approximately              | :class:`~pylinac.metrics.image.SizedDiskRegion` (``invert=False``)           |
 +---------------------------------------------------------+------------------------------------------------------------------+------------------------------------------------------------------------------+
 
+.. _sampler-metrics:
+
 Samplers
 ^^^^^^^^
 
