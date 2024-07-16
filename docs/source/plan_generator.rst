@@ -74,7 +74,7 @@ The plan generator can then add QA fields into the plan.
         y1=-150,
         y2=150,  # set y-jaws so we can leave the EPID at 1500
         gantry_angle=90,
-        collimator_angle=0,
+        coll_angle=0,
     )
 
     # add a simple open field
@@ -304,7 +304,7 @@ Adding a picket fence field can be done like so:
         y1=-130,
         y2=130,  # set y-jaws so we can leave the EPID at 1500
         gantry_angle=90,
-        collimator_angle=0,
+        coll_angle=0,
     )
 
 This will create 4 pickets 3mm wide. The X-jaws will be opened up just wider than the pickets. See the :meth:`~pylinac.plan_generator.dicom.PlanGenerator.add_picketfence_beam` method for more information.
@@ -326,7 +326,6 @@ Adding a single-image dose rate linearity field can be done like so:
         dose_rates=(100, 200, 400, 600),
         y1=-50,
         y2=50,
-        mu=100,
         default_dose_rate=600,
         desired_mu=100,
     )
@@ -420,7 +419,7 @@ Adding a picket fence field can be done like so:
         mu=100,
         beam_name="PF 3mm",
         gantry_angle=90,
-        collimator_angle=0,
+        coll_angle=0,
     )
 
 API Documentation
