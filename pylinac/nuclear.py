@@ -31,7 +31,7 @@ from pylinac.core.image import DicomImage, NMImageStack
 from pylinac.core.mtf import MomentMTF
 from pylinac.core.profile import find_peaks
 from pylinac.core.roi import DiskROI, HighContrastDiskROI, RectangleROI
-from pylinac.core.utilities import ResultsDataMixin
+from pylinac.core.utilities import QuaacDatum, QuaacMixin, ResultsDataMixin
 from pylinac.metrics.image import WeightedCentroid
 
 
@@ -42,7 +42,7 @@ class MaxCountRateResults(BaseModel):
     sums: dict[int, float]  #:
 
 
-class MaxCountRate(ResultsDataMixin[MaxCountRateResults]):
+class MaxCountRate(ResultsDataMixin[MaxCountRateResults], QuaacMixin):
     """Calculate the maximum countrate of a gamma camera.
 
     Reimplementation of the NMQC toolkit's MaxCountRate test (4.2)
@@ -128,6 +128,21 @@ class MaxCountRate(ResultsDataMixin[MaxCountRateResults]):
             max_frame=self.max_frame,
             sums=self.sums,
         )
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        return {
+            "Max Count Rate": QuaacDatum(
+                value=self.max_countrate, unit="cps", description="Maximum countrate"
+            ),
+            "Frame Duration": QuaacDatum(
+                value=self.frame_duration, unit="s", description="Frame duration"
+            ),
+            "Max Frame": QuaacDatum(
+                value=self.max_frame,
+                unit="",
+                description="Frame with maximum countrate",
+            ),
+        }
 
 
 class PlanarUniformityResults(BaseModel):
@@ -253,7 +268,7 @@ class FOV:
         axis.legend()
 
 
-class PlanarUniformity:
+class PlanarUniformity(QuaacMixin):
     """Analyzes an image for its integral and differential uniformity."""
 
     stack: NMImageStack
@@ -353,6 +368,31 @@ class PlanarUniformity:
         if as_json:
             data = json.dumps(data)
         return data
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        data = self.results_data(as_dict=True)
+        return {
+            "UFOV Integral Uniformity": QuaacDatum(
+                value=data["Frame 1"]["ufov_integral_uniformity"],
+                unit="%",
+                description="UFOV integral uniformity",
+            ),
+            "UFOV Differential Uniformity": QuaacDatum(
+                value=data["Frame 1"]["ufov_differential_uniformity"],
+                unit="%",
+                description="UFOV differential uniformity",
+            ),
+            "CFOV Integral Uniformity": QuaacDatum(
+                value=data["Frame 1"]["cfov_integral_uniformity"],
+                unit="%",
+                description="CFOV integral uniformity",
+            ),
+            "CFOV Differential Uniformity": QuaacDatum(
+                value=data["Frame 1"]["cfov_differential_uniformity"],
+                unit="%",
+                description="CFOV differential uniformity",
+            ),
+        }
 
     def plot(self, show: bool = True, cmap: str = "gray") -> (list[Figure], list[Axes]):
         """Plot each frame with the UFOV and CFOV boundaries, max points, and max differential uniformity window."""
@@ -461,7 +501,7 @@ class CenterOfRotationResults(BaseModel):
     y_deviation_mm: float  #:
 
 
-class CenterOfRotation(ResultsDataMixin[CenterOfRotationResults]):
+class CenterOfRotation(ResultsDataMixin[CenterOfRotationResults], QuaacMixin):
     """Analyze the center of rotation deviation of a gamma camera."""
 
     centroids: dict[float, Point]
@@ -548,6 +588,21 @@ class CenterOfRotation(ResultsDataMixin[CenterOfRotationResults]):
             x_deviation_mm=self.x_cor_deviation_mm,
             y_deviation_mm=self.y_cor_deviation_mm,
         )
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        data = self.results_data(as_dict=True)
+        return {
+            "X-axis Center of Rotation Deviation": QuaacDatum(
+                value=data["x_deviation_mm"],
+                unit="mm",
+                description="X-axis center of rotation deviation",
+            ),
+            "Y-axis Center of Rotation Deviation": QuaacDatum(
+                value=data["y_deviation_mm"],
+                unit="mm",
+                description="Y-axis center of rotation deviation",
+            ),
+        }
 
     def plot(self, show: bool = True) -> (list[Figure], list[Axes]):
         figs = []
@@ -670,7 +725,7 @@ class TomographicResolutionAxisData:
         return fig, ax
 
 
-class TomographicResolution(ResultsDataMixin[TomographicResolutionResults]):
+class TomographicResolution(ResultsDataMixin[TomographicResolutionResults], QuaacMixin):
     """Analyze a tomographic resolution image for its x/y/z resolution. Based on IAEA test 4.3.4, pg 169
 
     Parameters
@@ -732,6 +787,29 @@ class TomographicResolution(ResultsDataMixin[TomographicResolutionResults]):
             y_fwtm=self.y_axis.fwtm,
             z_fwtm=self.z_axis.fwtm,
         )
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        data = self.results_data(as_dict=True)
+        return {
+            "X-axis FWHM": QuaacDatum(
+                value=data["x_fwhm"], unit="mm", description="X-axis FWHM"
+            ),
+            "Y-axis FWHM": QuaacDatum(
+                value=data["y_fwhm"], unit="mm", description="Y-axis FWHM"
+            ),
+            "Z-axis FWHM": QuaacDatum(
+                value=data["z_fwhm"], unit="mm", description="Z-axis FWHM"
+            ),
+            "X-axis FWTM": QuaacDatum(
+                value=data["x_fwtm"], unit="mm", description="X-axis FWTM"
+            ),
+            "Y-axis FWTM": QuaacDatum(
+                value=data["y_fwtm"], unit="mm", description="Y-axis FWTM"
+            ),
+            "Z-axis FWTM": QuaacDatum(
+                value=data["z_fwtm"], unit="mm", description="Z-axis FWTM"
+            ),
+        }
 
     def plot(self) -> (list[Figure], list[Axes]):
         """Plot the x/y/z profiles and their gaussian fits."""
@@ -804,7 +882,7 @@ class SimpleSensitivityResults(BaseModel):
     sensitivity_uci: float  #:
 
 
-class SimpleSensitivity(ResultsDataMixin[SimpleSensitivityResults]):
+class SimpleSensitivity(ResultsDataMixin[SimpleSensitivityResults], QuaacMixin):
     """The 'simple' sensitivity test as defined by IAEA 2.3.9. Equations come from the IAEA NMQC toolkit."""
 
     half_life_s: float
@@ -873,6 +951,40 @@ class SimpleSensitivity(ResultsDataMixin[SimpleSensitivityResults]):
             sensitivity_mbq=self.sensitivity_mbq,
             sensitivity_uci=self.sensitivity_uci,
         )
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        data = self.results_data(as_dict=True)
+        return {
+            "Phantom Counts per Second": QuaacDatum(
+                value=data["phantom_cps"],
+                unit="cps",
+            ),
+            "Background Counts per Second": QuaacDatum(
+                value=data["background_cps"],
+                unit="cps",
+            ),
+            "Half-life": QuaacDatum(
+                value=data["half_life_s"],
+                unit="s",
+            ),
+            "Duration": QuaacDatum(
+                value=data["duration_s"],
+                unit="s",
+            ),
+            "Decay Correction": QuaacDatum(
+                value=data["decay_correction"],
+                unit="",
+                description="Decay correction factor",
+            ),
+            "Sensitivity (MBq)": QuaacDatum(
+                value=data["sensitivity_mbq"],
+                unit="MBq",
+            ),
+            "Sensitivity (uCi)": QuaacDatum(
+                value=data["sensitivity_uci"],
+                unit="uCi",
+            ),
+        }
 
     @property
     def decay_correction(self) -> float:
@@ -977,7 +1089,7 @@ class FourBarResolutionResults(BaseModel):
     y_pixel_size_difference: float
 
 
-class FourBarResolution(ResultsDataMixin[FourBarResolutionResults]):
+class FourBarResolution(ResultsDataMixin[FourBarResolutionResults], QuaacMixin):
     """Spatial resolution in the X and Y direction as measured by a 'four-bar' phantom.
 
     Parameters
@@ -1016,9 +1128,7 @@ class FourBarResolution(ResultsDataMixin[FourBarResolutionResults]):
             self.stack.frames[0],
             width=width_px,
             height=height_px,
-            angle=0,
-            dist_from_center=0,
-            phantom_center=center,
+            center=center,
         )
         v_array = self.y_prof.pixel_array.mean(axis=-1)
         self.y_axis = DoubleGaussianProfile(
@@ -1028,9 +1138,7 @@ class FourBarResolution(ResultsDataMixin[FourBarResolutionResults]):
             self.stack.frames[0],
             width=height_px,
             height=width_px,
-            angle=0,
-            dist_from_center=0,
-            phantom_center=center,
+            center=center,
         )
         h_array = self.x_prof.pixel_array.mean(axis=0)
         self.x_axis = DoubleGaussianProfile(
@@ -1064,6 +1172,34 @@ class FourBarResolution(ResultsDataMixin[FourBarResolutionResults]):
             y_pixel_size_difference=self.y_axis.pixel_size_difference,
         )
 
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        data = self.results_data(as_dict=True)
+        return {
+            "X-axis FWHM": QuaacDatum(value=data["x_fwhm"], unit="mm"),
+            "Y-axis FWHM": QuaacDatum(value=data["y_fwhm"], unit="mm"),
+            "X-axis FWTM": QuaacDatum(value=data["x_fwtm"], unit="mm"),
+            "Y-axis FWTM": QuaacDatum(
+                value=data["y_fwtm"],
+                unit="mm",
+            ),
+            "X-axis Measured Pixel Size": QuaacDatum(
+                value=data["x_measured_pixel_size"],
+                unit="mm",
+            ),
+            "Y-axis Measured Pixel Size": QuaacDatum(
+                value=data["y_measured_pixel_size"],
+                unit="mm",
+            ),
+            "X-axis Pixel Size Difference": QuaacDatum(
+                value=data["x_pixel_size_difference"],
+                unit="%",
+            ),
+            "Y-axis Pixel Size Difference": QuaacDatum(
+                value=data["y_pixel_size_difference"],
+                unit="%",
+            ),
+        }
+
     def plot(self, show: bool = True) -> (list[Figure], list[Axes]):
         """Plot the image with the sample ROIs and the x/y profiles with gaussian fits"""
         figs = []
@@ -1093,7 +1229,7 @@ class QuadrantResolutionResults(BaseModel):
     ]  #:  quadrant idx: {'mtf': mtf, 'fwhm': fwhm, 'lpmm': lpmm}
 
 
-class QuadrantResolution(ResultsDataMixin[QuadrantResolutionResults]):
+class QuadrantResolution(ResultsDataMixin[QuadrantResolutionResults], QuaacMixin):
     """Analyze a 4-quadrant image of high-contrast line pairs to determine MTF and FWHM.
 
     Parameters
@@ -1135,7 +1271,7 @@ class QuadrantResolution(ResultsDataMixin[QuadrantResolutionResults]):
         )
         angles = (45, -45, -135, 135)
         for angle, spacing in zip(angles, bar_widths):
-            roi = HighContrastDiskROI(
+            roi = HighContrastDiskROI.from_phantom_center(
                 self.stack.frames[0],
                 angle=angle,
                 roi_radius=roi_diameter_mm,
@@ -1172,6 +1308,13 @@ class QuadrantResolution(ResultsDataMixin[QuadrantResolutionResults]):
                 )
             }
         )
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        data = self.results_data(as_dict=True)
+        return {
+            f"Quadrant {key} MTF": QuaacDatum(value=value["mtf"], unit="")
+            for key, value in data["quadrants"].items()
+        }
 
     def plot(self, show: bool = True) -> (list[Figure], list[Axes]):
         """Plot the image, the MTF, and the FWHMs."""
@@ -1338,6 +1481,28 @@ class TomographicUniformity(
             last_frame=self.last_frame,
         )
 
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        data = self.results_data(as_dict=True)
+        return {
+            "CFOV Integral Uniformity": QuaacDatum(
+                value=data["cfov_integral_uniformity"], unit="%"
+            ),
+            "CFOV Differential Uniformity": QuaacDatum(
+                value=data["cfov_differential_uniformity"], unit="%"
+            ),
+            "UFOV Integral Uniformity": QuaacDatum(
+                value=data["ufov_integral_uniformity"], unit="%"
+            ),
+            "UFOV Differential Uniformity": QuaacDatum(
+                value=data["ufov_differential_uniformity"], unit="%"
+            ),
+            "Center-to-Border Ratio": QuaacDatum(
+                value=data["center_border_ratio"], unit=""
+            ),
+            "First Frame": QuaacDatum(value=data["first_frame"], unit=""),
+            "Last Frame": QuaacDatum(value=data["last_frame"], unit=""),
+        }
+
     def results(self) -> str:
         """Return a string representation of the results."""
         return (
@@ -1397,10 +1562,8 @@ class TomographicROI:
         """Plot the ROI to the axis."""
         d = DiskROI(
             array=self.sphere_array,
-            angle=0,
-            roi_radius=self.radius,
-            dist_from_center=0,
-            phantom_center=Point(self.x, self.y),
+            radius=self.radius,
+            center=Point(self.x, self.y),
         )
         d.plot2axes(axes=axis, edgecolor="r", text=str(self.number))
 
@@ -1420,7 +1583,7 @@ class TomographicContrastResults(BaseModel):
     spheres: dict[str, TomgraphicSphere]
 
 
-class TomographicContrast(ResultsDataMixin[TomographicContrastResults]):
+class TomographicContrast(ResultsDataMixin[TomographicContrastResults], QuaacMixin):
     rois: dict[str, TomographicROI]
 
     def __init__(self, path: str | Path):
@@ -1573,6 +1736,17 @@ class TomographicContrast(ResultsDataMixin[TomographicContrastResults]):
                 for idx, roi in self.rois.items()
             },
         )
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        data = self.results_data(as_dict=True)
+        datum = {
+            f"Sphere {idx} Mean": QuaacDatum(value=sphere["mean"], unit="")
+            for idx, sphere in data["spheres"].items()
+        }
+        datum["Uniformity Baseline"] = QuaacDatum(
+            value=data["uniformity_baseline"], unit=""
+        )
+        return datum
 
     def plot(self, show: bool = True) -> (list[Figure], list[Axes]):
         """Plot the uniformity frame, sphere ROI frame, and contrast vs sphere number."""

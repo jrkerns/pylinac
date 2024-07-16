@@ -82,6 +82,12 @@ And the BibTeX entry:
 
   @article{Kerns2023, doi = {10.21105/joss.06001}, url = {https://doi.org/10.21105/joss.06001}, year = {2023}, publisher = {The Open Journal}, volume = {8}, number = {92}, pages = {6001}, author = {James R. Kerns}, title = {Pylinac: Image analysis for routine quality assurance in radiotherapy}, journal = {Journal of Open Source Software} }
 
+I was also interviewed due to this article! Thanks to Arfon and Abby for the fun interview:
+
+.. raw:: html
+
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/YoOc6MpmKK8?si=YLiUYKRIY-lyEBWx" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
 Documentation
 -------------
 

@@ -11,7 +11,7 @@ from pylinac import ACRMRILarge
 from pylinac.acr import ACRCT, ACRCTResult, ACRMRIResult
 from pylinac.core.geometry import Point
 from pylinac.core.io import TemporaryZipDirectory
-from tests_basic.core.test_utilities import TestResultsDataBase
+from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromZipTesterMixin,
@@ -107,6 +107,17 @@ class TestPlottingSaving(TestCase):
         fig = plt.gcf()
         self.assertEqual(fig.bbox_inches.height, 13)
         self.assertEqual(fig.bbox_inches.width, 8)
+
+
+class TestACRCTQuaac(QuaacTestBase, CloudFileMixin, TestCase):
+    dir_path = ["ACR", "CT"]
+    file_name = "Philips.zip"
+
+    def quaac_instance(self):
+        filename = self.get_filename()
+        ct = ACRCT.from_zip(filename)
+        ct.analyze()
+        return ct
 
 
 class ACRCTMixin(CloudFileMixin):
@@ -220,7 +231,7 @@ class TestACRMRI(TestCase, FromZipTesterMixin, InitTesterMixin):
             ACRMRILarge(paths)
 
 
-class TestACRMRIResultData(TestResultsDataBase, TestCase):
+class TestACRMRIResultData(TestCase, ResultsDataBase):
     def construct_analyzed_instance(self):
         path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "GE 3T.zip"])
         mri = ACRMRILarge.from_zip(path)
@@ -316,6 +327,17 @@ class TestMRPlottingSaving(TestCase):
         fig = plt.gcf()
         self.assertEqual(fig.bbox_inches.height, 13)
         self.assertEqual(fig.bbox_inches.width, 8)
+
+
+class TestACRMRIQuaac(QuaacTestBase, CloudFileMixin, TestCase):
+    dir_path = ["ACR", "MRI"]
+    file_name = "T1-Single.zip"
+
+    def quaac_instance(self):
+        filename = self.get_filename()
+        ct = ACRMRILarge.from_zip(filename)
+        ct.analyze()
+        return ct
 
 
 class ACRMRMixin(CloudFileMixin):

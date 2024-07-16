@@ -9,6 +9,12 @@ Overview
 .. automodule:: pylinac.winston_lutz
     :no-members:
 
+
+.. warning::
+
+    Documentation often uses the term "field CAX" or "CAX" to refer to the **center of the radiation field**. This is something of a misnomer and
+    we apologize in advance. Due to backwards-compatibility reasons, the term continues to be used in the code and documentation.
+
 Running the Demo
 ----------------
 
@@ -312,6 +318,40 @@ dictionary with the filenames as keys and a tuple of ints for the gantry, coll, 
 
     The filenames should be local to the directory. In the above example the full paths would be ``path/to/wl/dir/file1.dcm``, and ``path/to/wl/dir/file2.dcm``.
 
+.. _setting-wl-reference-values:
+
+Setting Reference Axis Values
+------------------------------
+
+It is possible to set reference axis values to angles other than zero. E.g. if the intended collimator angle
+of reference is 45 degrees to average the collimator rotation of a VMAT plan.
+In addition to changing reference values, the "snap" tolerance can also be passed which will allow axis angles to "snap"
+if the axis value is within the snap tolerance. See :ref:`wl_image_types`. This can be helpful for scenarios
+where you forgot to set the couch axes to 0 from a previous CBCT shift.
+
+To change the reference values and set a snap tolerance of 5 degrees:
+
+.. code-block:: python
+
+    wl = WinstonLutz(...)
+    wl.analyze(
+        ...,
+        snap_tolerance=5,
+        gantry_reference=45,
+        collimator_reference=10,
+        couch_reference=0,
+    )
+
+In the above scenario, images with gantry ranges of 40-50 degrees, collimator 5-15, and couch 355-5 will
+be considered "Reference" images.
+
+This can also be helpful if you have a very old linac and or use a coordinate space such as Varian Standard where
+gantry 180 is pointing to the floor, in which case you can set the gantry reference to 180.
+
+.. note::
+
+  The snap tolerance does not actually change the axis values, just the variable Axis type.
+
 Changing BB detection size
 --------------------------
 
@@ -492,12 +532,16 @@ used for determining whether to use the image for the given calculation. Image t
 analysis to a given axis if needed. E.g. for gantry iso size, as opposed to overall iso size, only the gantry should be moving
 so that no other variables influence it's calculation.
 
-* **Reference**: This is when all axes are at value 0 (gantry=coll=couch=0).
-* **Gantry**: This is when all axes but gantry are at value 0, e.g. gantry=45, coll=0, couch=0.
-* **Collimator**: This is when all axes but collimator are at value 0.
-* **Couch**: This is when all axes but the couch are at value 0.
-* **GB Combo**: This is when either the gantry or collimator are non-zero but the couch is 0.
-* **GBP Combo**: This is where the couch is kicked and the gantry and/or collimator are rotated.
+.. note::
+
+    Reference value defaults are 0, but this can be changed. See :ref:`setting-wl-reference-values`.
+
+* **Reference**: This is when all axes are at the reference value (default 0; e.g. gantry=coll=couch=0).
+* **Gantry**: This is when all axes but gantry are at the reference value; e.g. gantry=45, coll=0, couch=0.
+* **Collimator**: This is when all axes but collimator are at the reference value.
+* **Couch**: This is when all axes but the couch are at the reference value.
+* **GB Combo**: This is when either the gantry or collimator are non-zero but the couch is at the reference value.
+* **GBP Combo**: This is where the couch is kicked and the gantry and/or collimator are rotated away from reference.
 
 **Analysis definitions**
 Given the above terms, the following calculations are performed.
@@ -517,6 +561,129 @@ Given the above terms, the following calculations are performed.
   For EPID, the displacement is calculated as the distance from image center to BB for all images with couch=0. If no
   images are given that rotate about the axis in question (e.g. cardinal gantry angles only) the isocenter size will default to 0.
 
+.. _interpreting-winston-lutz-results:
+
+Interpreting Results
+--------------------
+
+This explains the :class:`~pylinac.winston_lutz.WinstonLutzResult` class that is returned from the ``results_data`` method.
+This is also what is given in RadMachine image analysis results and is explained further here.
+
+* ``num_gantry_images``: The number of images that were taken at different gantry angles and all other axes were at reference.
+* ``num_gantry_coll_images``: The number of images that were taken at different gantry and collimator angles and the couch was at reference.
+* ``num_coll_images``: The number of images that were taken at different collimator angles and all other axes were at reference.
+* ``num_couch_images``: The number of images that were taken at different couch angles and all other axes were at reference.
+* ``num_total_images``: The total number of images analyzed.
+* ``max_2d_cax_to_bb_mm``: The maximum 2D distance from the field CAX to the BB across all images analyzed in mm.
+* ``median_2d_cax_to_bb_mm``: The median 2D distance from the field CAX to the BB across all images analyzed in mm.
+* ``mean_2d_cax_to_bb_mm``: The mean 2D distance from the field CAX to the BB across all images analyzed in mm.
+* ``max_2d_cax_to_epid_mm``: The maximum 2D distance from the field CAX to the EPID center across all images analyzed in mm.
+* ``median_2d_cax_to_epid_mm``: The median 2D distance from the field CAX to the EPID center across all images analyzed in mm.
+* ``mean_2d_cax_to_epid_mm``: The mean 2D distance from the field CAX to the EPID center across all images analyzed in mm.
+* ``gantry_3d_iso_diameter_mm``: The 3D isocenter diameter **of the gantry axis only** as determined by the gantry images in mm.
+  This uses backprojection lines of the field center to the source and minimizes a sphere that touches all the backprojection lines.
+
+  .. note::
+
+      This value is independent of the BB position.
+
+* ``max_gantry_rms_deviation_mm``: The maximum RMS value of the field CAX to BB for the gantry axis images in mm. This is an alternative to the max/mean/median calculations.
+* ``max_epid_rms_deviation_mm``: The maximum RMS value of the field CAX to EPID center for the EPID images in mm. This is an alternative to the max/mean/median calculations.
+* ``gantry_coll_3d_iso_diameter_mm``: The 3D isocenter diameter **of the gantry and collimator axes** as determined by the gantry and collimator images in mm.
+* ``coll_2d_iso_diameter_mm``: The 2D isocenter diameter **of the collimator axis only** as determined by the collimator images in mm.
+* ``max_coll_rms_deviation_mm``: The maximum RMS deviation of the field CAX to BB for the collimator axis images in mm. This is an alternative to the max/mean/median calculations.
+* ``max_couch_rms_deviation_mm``: The maximum RMS value of the field CAX to BB for the couch axis images in mm. This is an alternative to the max/mean/median calculations.
+  This uses backprojection lines of the field center to the source and minimizes a sphere that touches all the backprojection lines.
+
+  .. note::
+
+      This value is independent of the BB position.
+
+* ``couch_2d_iso_diameter_mm``: The 2D isocenter diameter **of the couch axis only** as determined by the couch images in mm.
+* ``bb_shift_vector``: The Cartesian vector that would move the BB to the radiation isocenter. Each value is in mm. See also :ref:`wl_virtual_shift`, :ref:`winston-lutz-couch-shift-algorithm`
+* ``image_details``: A list of the individual image results. Each item has the following:
+
+  * ``variable_axis``: The axis that varied in the image. See :ref:`wl_image_types`.
+  * ``bb_location``: The location of the BB in the image as a Point in pixels.
+  * ``cax2epid_vector``: The vector (in Cartesian coordinates) from the field CAX to the EPID center in mm.
+  * ``cax2epid_distance``: The distance from the field CAX to the EPID center in mm.
+  * ``cax2bb_vector``: The vector (in Cartesian coordinates) from the field CAX to the BB in mm.
+  * ``cax2bb_distance``: The scalar distance from the field CAX to the BB in mm.
+  * ``field_cax``: The location of the field CAX in the image as a Point in pixels.
+* ``keyed_image_details``: A **dictionary** of the individual image results. This is the same as ``image_details`` but keyed by the images
+  using the axes values as the key. E.g. ``G0B45P0``. This can be used to identify individual
+  images vs those in ``image_details``.
+
+
+Interpreting specific publications
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A common question is how the algorithm is to be matched to existing QA publications. Some
+publications only specify the test and tolerance and say nothing about implementation.
+We list the publications and also our interpretation of what they mean. We do not make
+recommendations about how something should be done, but given the number of questions
+on the subject we provide this information.
+
+* **AAPM TG-142 Table III, Mechanical**:. "Coincidence of radiation and mechanical isocenter".
+  We interpret this to mean: 1) set up a BB at what you believe is the mechanical isocenter (e.g. light field, lasers, etc).
+  2) Perform a typical WL image dataset. 3) The ``bb_shift_vector`` is the value of interest as it's the
+  vector from BB to the overall radiation isocenter.
+* **AAPM TG-198: 2.D.2.5**: TG-198 is an implementation guide of TG-142 and gives explicit guidance. We
+  do not recommend using starshots for iso size analysis, but it can be done. The WL procedure describes
+  placing the BB at the mechanical isocenter via the surrogate of the lasers. The displacement from the determined
+  radiation iso from the images to the BB/mechanical isocenter is the value of interest, that is ``bb_shift_vector``.
+* **MPPG 9.a Table I - Monthly**: Fortunately, the guidance is very clear here and is the maximum of any
+  planar image from BB to field center. This is the ``max_2d_cax_to_bb_mm`` value.
+* **MPPG 9.a Table I - Annual**: This one is less clear but we interpret it as the ``bb_shift_vector``. See also :ref:`winston-lutz-couch-shift-algorithm`.
+* **MPPG 8.b Table 5 - M11, Table 8 MLC4**: This is very vague and does not provide any details on implementation other than
+  that it should be jaw-based and MLC-based respectively and should involve the gantry, couch, and collimator.
+  However, they do add a footnote to reference MPPG 9.a (above).
+
+Finally, it is worth nothing that physicists often have strong feelings about how WL should be done and interpreted.
+While we agree that providing the best possible treatment to patients is paramount, there are many ways that this can be improved,
+beyond just WL. It is one piece of many to provide high-quality care. Spending inordinate amounts of time squabbling over a pixel
+or two is time poorly spent. Finally, we argue for an empirical approach, which is why the image generator was created. See: :ref:`benchmarking-wl`
+
+Analysis Parameters
+-------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`~pylinac.winston_lutz.WinstonLutz.analyze` for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **BB size**: The size of the BB in mm.
+      * **Use Filenames**: Whether to use the filenames to determine the axis values. See :ref:`passing-in-axis-values`.
+      * **Low-Density BB**: Whether the BB is lower density than the surrounding material. E.g. an air pocket vs a tungsten BB.
+      * **Omit field determination**: If checked, sets the field center to the EPID center under the assumption the field is not the focus of interest or is too wide to be calculated.
+        This is often helpful for kV WL analysis where the blades are wide open and even then the blade edge is of less interest than simply the imaging iso vs the BB.
+
+        .. note::
+
+          For kV WL, you will generally need to check this and also check the low-density BB flag.
+
+      * **Coordinate system**: The coordinate system of the machine. This is used to determine the shift instructions. See :ref:`passing-a-coordinate-system`.
+      * **Pixels/inch**: The resolution of the images in pixels per inch. This is used to convert the pixel distances to mm.
+
+        .. note::
+
+          Only needed for TIFF/non-DICOM images and only if the resolution is not in the TIFF tags.
+
+      * **Source-to-image distance**: The source-to-image distance in mm.
+
+        .. note::
+
+          Only needed for TIFF/non-DICOM images.
+
+      * **Is a CBCT scan?**: Whether the images are from a CBCT scan. If checked, will create 4 DRRs at gantry 0, 90, 180, 270.
+      * **Apply virtual shift of BB to optimal isocenter**: If checked, will virtually shift the BB to the optimal isocenter position and reanalyze the images. See :ref:`wl_virtual_shift`.
+
 .. _wl-algorithm:
 
 Algorithm
@@ -527,6 +694,8 @@ Winkler found that the collimator and couch iso could be found using a minimum o
 of the field CAX points. They also found that the gantry isocenter could by found by "backprojecting"
 the field CAX as a line in 3D coordinate space, with the BB being the reference point. This method is used to find the
 gantry isocenter size.
+
+.. _winston-lutz-couch-shift-algorithm:
 
 Couch shift
 ^^^^^^^^^^^
@@ -568,8 +737,8 @@ Using the sentence after eqn 2 as a guide: "A couch angle of :math:`\phi` degree
 to a signed rotation around the :math:`Z_{C}` axis of the couch coordinate system."
 
 Just from this sentence it would appear :math:`Z_{C}` should be VERT. The only way this makes
-sense is if the couch coordinate system is from a HFS patient perspective where VERT is actually
-Superior-Inferior and AP is VERT. If this is true, everything falls into place.
+sense is if the couch coordinate system is from a HFS patient perspective; i.e. VERT=>In/Out, LAT=>Left/Right, -AP=>Up/Down.
+If this is true, everything falls into place.
 
 Finally, it is worth nothing that in the Varian "Standard" coordinate system (the one assumed by Low), couch vertical
 *increases* as the couch is lowered. This may explain the negative sign in the Z axis of equation 2, whereas
@@ -581,13 +750,14 @@ We thus can generate the following table for transforming the equations from Low
 +-----------------------+---+----------------+---+------------------------+---+-----------------+---+----------------------------+
 | Low Couch coordinates |   | Low Couch Axes |   | Low Gantry coordinates |   | Low Gantry axes |   | Pylinac Gantry coordinates |
 +=======================+===+================+===+========================+===+=================+===+============================+
-| Xc                    | = | VERT           | = | Xg                     | = | LONG            | = | -Y                         |
+| Xc                    | = | VERT           | = | Xg                     | = | LONG            | = | -Y (In/Out)                |
 +-----------------------+---+----------------+---+------------------------+---+-----------------+---+----------------------------+
-| Yc                    | = | LAT            | = | Yg                     | = | LAT             | = | X                          |
+| Yc                    | = | LAT            | = | Yg                     | = | LAT             | = | X (Left/Right)             |
 +-----------------------+---+----------------+---+------------------------+---+-----------------+---+----------------------------+
-| Zc                    | = | -AP            | = | Zg                     | = | VERT            | = | Z                          |
+| Zc                    | = | -AP            | = | Zg                     | = | VERT            | = | Z (Up/Down)                |
 +-----------------------+---+----------------+---+------------------------+---+-----------------+---+----------------------------+
 
+See :ref:`coordinate_space`.
 
 We can now address the implementation for the couch shift as follows:
 
@@ -662,7 +832,6 @@ The algorithm works like such:
 * The BB must be fully within the field of view.
 * The BB must be within 2.0cm of the real isocenter.
 * The images must be acquired with the EPID.
-* The linac scale should be IEC 61217.
 
 **Analysis**
 
@@ -696,6 +865,7 @@ The algorithm works like such:
 .. _Du et al: http://scitation.aip.org/content/aapm/journal/medphys/37/5/10.1118/1.3397452
 .. _Low et al: https://aapm.onlinelibrary.wiley.com/doi/abs/10.1118/1.597475
 
+.. _benchmarking-wl:
 
 Benchmarking the Algorithm
 --------------------------
@@ -777,7 +947,7 @@ Let's now offset the BB by 1mm to the left:
         generate_winstonlutz,
     )
 
-    wl_dir = 'wl_dir'
+    wl_dir = 'wl_dir_offset'
     generate_winstonlutz(
         AS1200Image(1000),
         FilteredFieldLayer,
@@ -834,7 +1004,7 @@ We can simulate gantry tilt, where at 0 and 180 the gantry tilts forward and bac
         generate_winstonlutz,
     )
 
-    wl_dir = 'wl_dir'
+    wl_dir = 'wl_dir_tilt'
     generate_winstonlutz(
         AS1200Image(1000),
         FilteredFieldLayer,
@@ -892,7 +1062,7 @@ We can simulate gantry sag, where at 90 and 270 the gantry tilts towards the flo
         generate_winstonlutz,
     )
 
-    wl_dir = 'wldir'
+    wl_dir = 'wldir_sag'
     generate_winstonlutz(
         AS1200Image(1000),
         FilteredFieldLayer,
@@ -946,7 +1116,7 @@ values. We offset the BB to the left by 2mm for visualization purposes:
         generate_winstonlutz,
     )
 
-    wl_dir = 'wl_dir'
+    wl_dir = 'wl_dir_offset_multi'
     generate_winstonlutz(
         AS1200Image(1000),
         FilteredFieldLayer,
@@ -1003,7 +1173,7 @@ We can also look at simulated cone WL images. Here we use the 17.5mm cone:
         generate_winstonlutz, generate_winstonlutz_cone, FilterFreeConeLayer,
     )
 
-    wl_dir = 'wl_dir'
+    wl_dir = 'wl_dir_cone'
     generate_winstonlutz_cone(
         AS1200Image(1000),
         FilterFreeConeLayer,
@@ -1035,7 +1205,7 @@ Simulate a low-density BB surrounded by higher-density material:
         generate_winstonlutz,
     )
 
-    wl_dir = 'wl_dir'
+    wl_dir = 'wl_dir_low'
     generate_winstonlutz(
         AS1200Image(1000),
         FilteredFieldLayer,
@@ -1059,10 +1229,9 @@ API Documentation
 .. autoclass:: pylinac.winston_lutz.WinstonLutz
     :members:
 
-.. autoclass:: pylinac.winston_lutz.WinstonLutzResult
-
+.. autopydantic_model:: pylinac.winston_lutz.WinstonLutzResult
 
 .. autoclass:: pylinac.winston_lutz.WinstonLutz2D
     :members:
 
-.. autoclass:: pylinac.winston_lutz.WinstonLutz2DResult
+.. autopydantic_model:: pylinac.winston_lutz.WinstonLutz2DResult

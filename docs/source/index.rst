@@ -29,6 +29,7 @@
    winston_lutz
    winston_lutz_multi
    planar_imaging
+   field_profile_analysis
    field_analysis
    nuclear
 
@@ -45,6 +46,7 @@
    :hidden:
    :caption: Topics
 
+   topics/cookbook
    topics/exporting_results
    topics/images
    topics/xim

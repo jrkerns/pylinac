@@ -29,15 +29,23 @@ from typing import BinaryIO, Iterable, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.axes import Axes
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from py_linq import Enumerable
+from pydantic import Field
 
 from . import Normalization
 from .core import image, pdf
 from .core.geometry import Line, Point, Rectangle
 from .core.io import get_url, retrieve_demo_file
 from .core.profile import FWXMProfilePhysical, MultiProfile
-from .core.utilities import ResultBase, ResultsDataMixin, convert_to_enum
+from .core.utilities import (
+    QuaacDatum,
+    QuaacMixin,
+    ResultBase,
+    ResultsDataMixin,
+    convert_to_enum,
+)
 from .log_analyzer import load_log
 from .metrics.image import SizedDiskLocator
 
@@ -128,22 +136,62 @@ class PFResult(ResultBase):
 
     Use the following attributes as normal class attributes."""
 
-    tolerance_mm: float  #:
-    action_tolerance_mm: float | None  #:
-    percent_leaves_passing: float  #:
-    number_of_pickets: int  #:
-    absolute_median_error_mm: float  #:
-    max_error_mm: float  #:
-    max_error_picket: int  #:
-    max_error_leaf: str | int  #:
-    mean_picket_spacing_mm: float  #:
-    offsets_from_cax_mm: list[float]  #:
-    passed: bool  #:
-    failed_leaves: list[str] | list[int]  #:
-    mlc_skew: float  #:
-    picket_widths: dict[str, dict[str, float]]  #:
-    mlc_positions_by_leaf: dict[str, list[float]]  #:
-    mlc_errors_by_leaf: dict[str, list[float]]  #:
+    tolerance_mm: float = Field(
+        description="This is the tolerance in mm used for the analysis."
+    )
+    action_tolerance_mm: float | None = Field(
+        description="The tolerance used to determine if the picket is failing and requires action in mm."
+    )
+    percent_leaves_passing: float = Field(
+        description="The percentage of leaves that pass the tolerance.",
+        title="Leaves Passing (%)",
+    )
+    number_of_pickets: int = Field(
+        description="The number of pickets found in the image.",
+        title="Number of Pickets",
+    )
+    absolute_median_error_mm: float = Field(
+        description="The median of the absolute errors across all MLC leaves from the ideal picket line in mm.",
+        title="Absolute Median Error (mm)",
+    )
+    max_error_mm: float = Field(
+        description="The maximum error across all MLC leaves from the ideal picket line in mm.",
+        title="Maximum Error (mm)",
+    )
+    max_error_picket: int = Field(
+        description="The picket number that had the maximum error. This is 0-index based, meaning the 0th picket is the left/topmost."
+    )
+    max_error_leaf: str | int = Field(
+        description="The leaf number that had the maximum error."
+    )
+    mean_picket_spacing_mm: float = Field(
+        description="The mean spacing between pickets in mm.",
+        title="Mean Picket Spacing (mm)",
+    )
+    offsets_from_cax_mm: list[float] = Field(
+        description="The offsets of each picket from the central axis in mm.",
+        title="Offsets from CAX (mm)",
+    )
+    passed: bool = Field(
+        description="Whether all the MLC positions were within tolerance."
+    )
+    failed_leaves: list[str] | list[int] = Field(
+        description="A list of leaf numbers that failed. If using ``separate_leaves=False``, this will be the leaf pairs (10, 22, etc). If using ``separate_leaves=True`` this will be the bank-specific leaves; A10, B22, A22, etc.",
+        title="Failing Leaves",
+    )
+    mlc_skew: float = Field(
+        description="The skew of the MLC stack in degrees. This is the angle of the MLCs from the nearest cardinal direction.",
+        title="MLC Skew (\N{DEGREE SIGN})",
+    )
+    picket_widths: dict[str, dict[str, float]] = Field(
+        description="The widths of the pickets in mm."
+    )
+    mlc_positions_by_leaf: dict[str, list[float]] = Field(
+        description="A dictionary where the key is the leaf number and the value is a list of positions in mm **from the left or top of the image**."
+    )
+    mlc_errors_by_leaf: dict[str, list[float]] = Field(
+        description="A dictionary where the key is the leaf number and the value is a list of errors in mm."
+    )
 
 
 class PFDicomImage(image.LinacDicomImage):
@@ -205,7 +253,7 @@ class PFDicomImage(image.LinacDicomImage):
             return super().center
 
 
-class PicketFence(ResultsDataMixin[PFResult]):
+class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
     """A class used for analyzing EPID images where radiation strips have been formed by the
     MLCs. The strips are assumed to be parallel to one another and normal to the image edge;
     i.e. a "left-right" or "up-down" orientation is assumed. Further work could follow up by accounting
@@ -849,6 +897,7 @@ class PicketFence(ResultsDataMixin[PFResult]):
         leaf_error_subplot: bool = True,
         show: bool = True,
         figure_size: str | tuple = "auto",
+        show_text: bool = False,
         barplot_kwargs: dict | None = None,
     ) -> None:
         """Plot the analyzed image.
@@ -869,6 +918,10 @@ class PicketFence(ResultsDataMixin[PFResult]):
         figure_size
             Either 'auto' or a tuple. If auto, the figure size is set depending on the orientation. If a tuple, this is the
             figure size to use.
+        show_text
+            Whether to show the text on the image.
+        barplot_kwargs
+            Keyword arguments to pass to the bar plot. Only used if leaf_error_subplot is True.
         """
         if not self._is_analyzed:
             raise RuntimeError("The image must be analyzed first. Use .analyze().")
@@ -894,15 +947,15 @@ class PicketFence(ResultsDataMixin[PFResult]):
             self._add_leaf_error_subplot(axtop, barplot_kwargs)
 
         if guard_rails:
-            for picket in self.pickets:
-                picket.add_guards_to_axes(ax.axes)
+            for idx, picket in enumerate(self.pickets):
+                picket.add_guards_to_axes(ax.axes, show_text=show_text, idx=idx)
         if mlc_peaks:
             for mlc_meas in self.mlc_meas:
                 mlc_meas.plot2axes(ax.axes, width=1.5)
 
         if overlay:
             for mlc_meas in self.mlc_meas:
-                mlc_meas.plot_overlay2axes(ax.axes)
+                mlc_meas.plot_overlay2axes(ax.axes, show_text)
 
         # plot CAX
         ax.plot(
@@ -1004,6 +1057,7 @@ class PicketFence(ResultsDataMixin[PFResult]):
         mlc_peaks: bool = True,
         overlay: bool = True,
         leaf_error_subplot: bool = False,
+        show_text: bool = False,
         **kwargs,
     ) -> None:
         """Save the analyzed figure to a file. See :meth:`~pylinac.picketfence.PicketFence.plot_analyzed_image()` for
@@ -1014,6 +1068,7 @@ class PicketFence(ResultsDataMixin[PFResult]):
             mlc_peaks,
             overlay,
             leaf_error_subplot=leaf_error_subplot,
+            show_text=show_text,
             show=False,
         )
         plt.savefig(filename, **kwargs)
@@ -1171,6 +1226,53 @@ class PicketFence(ResultsDataMixin[PFResult]):
 
         if open_file:
             webbrowser.open(filename)
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        results_data = self.results_data()
+        data = {
+            "Leaves passing": QuaacDatum(
+                value=results_data.percent_leaves_passing,
+                unit="%",
+                description="The percentage of leaves that passed the tolerance test. A value of 100% is ideal.",
+            ),
+            "Absolute median error": QuaacDatum(
+                value=results_data.absolute_median_error_mm,
+                unit="mm",
+                description="The absolute median error of all leaves.",
+            ),
+            "Max error": QuaacDatum(
+                value=results_data.max_error_mm,
+                unit="mm",
+                description="The maximum error found in the picket fence test.",
+            ),
+            "MLC skew": QuaacDatum(
+                value=results_data.mlc_skew,
+                unit="degrees",
+                description="The apparent rotation in degrees of the MLC. This could be conflated with the EPID skew, so be careful when interpreting this value.",
+            ),
+            "Mean picket spacing": QuaacDatum(
+                value=results_data.mean_picket_spacing_mm,
+                unit="mm",
+                description="The average distance between pickets in mm.",
+            ),
+            "Max error leaf": QuaacDatum(
+                value=results_data.max_error_leaf,
+                description="The leaf number that had the maximum error.",
+            ),
+            "Max error picket": QuaacDatum(
+                value=results_data.max_error_picket,
+                description="The picket number that had the maximum error.",
+            ),
+        }
+        for index, offset in enumerate(results_data.offsets_from_cax_mm):
+            data |= {
+                f"Offset from CAX ({offset})": QuaacDatum(
+                    value=offset,
+                    unit="mm",
+                    description="The distance of each picket from the central axis.",
+                )
+            }
+        return data
 
     def mlc_skew(self) -> float:
         """Apparent rotation in degrees of the MLC. This could be conflated with the EPID skew, so be careful when interpreting this value."""
@@ -1444,7 +1546,7 @@ class MLCValue:
             lines.append(line)
         return lines
 
-    def plot_overlay2axes(self, axes) -> None:
+    def plot_overlay2axes(self, axes: Axes, show_text: bool) -> None:
         """Create a rectangle overlay with the width of the error. I.e. it stretches from the picket fit to the MLC position. Gives more visual size to the"""
         # calculate height (based on leaf analysis ratio)
         upper_point = (
@@ -1455,12 +1557,13 @@ class MLCValue:
         )
         height = abs(upper_point - lower_point) * 0.8
 
-        for idx, line in enumerate(self.marker_lines):
+        for idx, (line, leaf) in enumerate(zip(self.marker_lines, self.full_leaf_nums)):
             width = abs(self.error[idx]) * self._image.dpmm
-            y = line.center.y
-            x = self.position[idx] - (self.error[idx] * self._image.dpmm) / 2
 
+            text = leaf if show_text else None
             if self._orientation == Orientation.UP_DOWN:
+                y = line.center.y
+                x = self.position[idx] - (self.error[idx] * self._image.dpmm) / 2
                 r = Rectangle(width, height, center=(x, y))
                 # if any of the values are over tolerance, show another larger rectangle to draw the eye
                 if not self.passed[idx] or not self.passed_action[idx]:
@@ -1469,12 +1572,17 @@ class MLCValue:
                     )
                     re.plot2axes(
                         axes,
-                        edgecolor="none",
+                        edgecolor="r",
                         fill=True,
                         alpha=0.5,
                         facecolor=self.bg_color[idx],
+                        text=text,
+                        ha="right",
+                        fontsize="x-small",
                     )
             else:
+                x = line.center.x
+                y = self.position[idx] - (self.error[idx] * self._image.dpmm) / 2
                 r = Rectangle(height, width, center=(x, y))
                 if not self.passed[idx] or not self.passed_action[idx]:
                     re = Rectangle(
@@ -1482,10 +1590,15 @@ class MLCValue:
                     )
                     re.plot2axes(
                         axes,
-                        edgecolor="none",
+                        edgecolor="r",
                         fill=True,
                         alpha=0.5,
                         facecolor=self.bg_color[idx],
+                        text=text,
+                        ha="center",
+                        va="bottom",
+                        fontsize="x-small",
+                        text_rotation=90,
                     )
             r.plot2axes(
                 axes, edgecolor="none", fill=True, alpha=1, facecolor=self.bg_color[idx]
@@ -1593,7 +1706,9 @@ class Picket:
             other_fit[-1] += self._nominal_gap * mag_factor / 2 * self.image.dpmm
             return [np.poly1d(r_fit), np.poly1d(other_fit)]
 
-    def add_guards_to_axes(self, axis: plt.Axes, color: str = "g") -> None:
+    def add_guards_to_axes(
+        self, axis: plt.Axes, idx: int, color: str = "g", show_text: bool = False
+    ) -> None:
         """Plot guard rails to the axis."""
         if self.orientation == Orientation.UP_DOWN:
             length = self.image.shape[0]
@@ -1605,7 +1720,25 @@ class Picket:
         for left, right in zip(left_y_data, right_y_data):
             if self.orientation == Orientation.UP_DOWN:
                 axis.plot(left(x_data), x_data, color=color)
-                axis.plot(right(x_data), x_data, color=color)
+                line = axis.plot(right(x_data), x_data, color=color)
             else:
                 axis.plot(x_data, left(x_data), color=color)
-                axis.plot(x_data, right(x_data), color=color)
+                line = axis.plot(x_data, right(x_data), color=color)
+        if show_text:
+            if self.orientation == Orientation.UP_DOWN:
+                axis.annotate(
+                    text=f"Picket {idx}",
+                    xy=(0.5, 0.05),
+                    xycoords=line[0],
+                    color="g",
+                    rotation=90,
+                    fontsize="x-small",
+                )
+            else:
+                axis.annotate(
+                    text=f"Picket {idx}",
+                    xy=(0.05, 0.5),
+                    xycoords=line[0],
+                    color="g",
+                    fontsize="x-small",
+                )

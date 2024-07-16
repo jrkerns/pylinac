@@ -136,7 +136,7 @@ The minimum needed to get going is to:
       # print results to the console
       print(pf.results())
       # view analyzed image
-      pf.plot_analyzed_image()
+      pf.plot_analyzed_image(show_text=True)
 
   which results in:
 
@@ -146,7 +146,7 @@ The minimum needed to get going is to:
       from pylinac import PicketFence
       pf = PicketFence.from_demo_image()
       pf.analyze(tolerance=0.15, action_tolerance=0.03)
-      pf.plot_analyzed_image()
+      pf.plot_analyzed_image(show_text=True)
 
   The plot is also able to be saved to PNG:
 
@@ -159,6 +159,8 @@ The minimum needed to get going is to:
   .. code-block:: python
 
       pf.publish_pdf("mypf.pdf")
+
+.. _picketfence-individual-leaves:
 
 Analyzing individual leaves
 ---------------------------
@@ -726,6 +728,58 @@ Generated file: :download:`erroneous_leaves.dcm <files/erroneous_leaves.dcm>`.
     print(pf.results_data())
     pf.plot_analyzed_image()
 
+Analysis Parameters
+-------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`~pylinac.picketfence.PicketFence.analyze` for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **MLC**: One of the MLC options: **Millennium**, **HD Millennium**, **Halcyon Distal**, **Halcyon Proximal**, **Agility**, **BMOD**, or **MLCi**.
+      * **Individual leaf analysis (vs pair)**: Whether to analyze leaves individually (each tip) or as a set (combined, center of the picket). See :ref:`picketfence-individual-leaves`.
+      * **Tolerance**: The tolerance in mm between an MLC pair center or leaf position and the
+        picket fit line.
+      * **Parse filename**: If checked, the filename will be searched for keywords that describe the gantry and/or collimator angle.
+        For example, if the file name was "PF_gantry45.dcm" the gantry would be interpreted as being at 45 degrees. See :ref:`passing-in-axis-values`.
+      * **Nominal gap**: The expected gap of the pickets in mm. Only used when separate leaves is True. Due to the DLG and EPID
+        scattering, this value will have to be determined by you with a known good delivery.
+
+        .. note:: This is only required for individual leaf analysis.
+
+      * **Number of pickets**: The number of pickets in the image. A helper parameter to limit the total number of pickets,
+        only needed if analysis is catching more pickets than there really are.
+      * **Picket orientation**: If None (default), the orientation is automatically determined. If for some reason the determined
+        orientation is not correct, you can pass it directly using this parameter.
+      * **Leaf analysis ratio**: The ratio of the leaf width to the nominal gap. This is used to determine the expected leaf width.
+      * :bdg-info:`Advanced` **Picket spacing**: If None (default), the spacing between pickets is determined automatically.
+        If given, it should be an int or float specifying the number of **PIXELS** apart the pickets are.
+      * :bdg-info:`Advanced` **Normalized kiss height threshold**: The threshold that the MLC peak needs to be above to be considered a picket (vs background).
+        Lower if not all leaves are being caught. Note that for FFF beams this would very likely need to be lowered.
+      * **MLC leaf detection ratio**: The threshold of pixel value standard deviation within the analysis window of the MLC leaf to be considered a full leaf.
+        This is how pylinac removes MLCs that are eclipsed by the jaw. This also is how to
+        omit or catch leaves at the edge of the field. Raise to catch more edge leaves.
+      * :bdg-info:`Advanced` **MLC picket peak detection**: Either 'peak_heights' or 'prominences'. This is the method for determining the peaks. Usually not needed
+        unless the wrong number of pickets have been detected.
+      * :bdg-info:`Advanced` **Normalized picket height threshold**: The required height of the picket (not individual MLCs) to be considered a peak.
+        Pylinac takes a mean of the image axis perpendicular to the leaf motion to get an initial guess of the peak
+        locations and also to determine picket spacing. Changing this can be useful for wide-gap tests where
+        the shape of the beam horns can form two or more local maximums in the picket area. Increase if for wide-gap
+        images that are catching too many pickets. Consider lowering for FFF beams if there are analysis issues.
+      * :bdg-info:`Advanced` **MLC kiss FWXM height**: For each MLC kiss, the profile is a curve from low to high to low. The FWXM (0-100) is the height to use to measure
+        to determine the center of the curve, which is the surrogate for MLC kiss position. I.e. for each MLC kiss,
+        what height of the picket should you use to actually determine the center location? It is unusual to change this.
+        If you have something in the way (we've seen crazy examples with a BB in the way) you may want to increase this.
+      * :bdg-info:`Advanced` **MLC sag adjustment**: The amount of shift in mm to apply to the image to correct for EPID sag.
+        For Up-Down picket images, positive moves the image down, negative up.
+        For Left-Right picket images, positive moves the image left, negative right.
+
 Algorithm
 ---------
 
@@ -774,6 +828,32 @@ of the FWHM to determine the MLC positions:
   each peak of a picket are fitted to a 1D polynomial which is considered the ideal picket. Differences of each MLC position to the picket
   polynomial fit at that position are determined, which is the error. When plotted, errors are tested against the tolerance
   and action tolerance as appropriate.
+
+.. _interpreting_pf_results:
+
+Interpreting Results
+--------------------
+
+This section explains what is returned in the ``results_data`` object.
+This is also the same information that is given in the RadMachine results
+section.
+
+* ``tolerance_mm`` -- The tolerance used to determine if the picket is passing or failing in mm.
+* ``action_tolerance_mm`` -- The tolerance used to determine if the picket is failing and requires action in mm.
+* ``percent_leaves_passing`` -- The percentage of leaves that pass the tolerance.
+* ``number_of_pickets`` -- The number of pickets found in the image.
+* ``absolute_median_error_mm`` -- The median of the absolute errors across all MLC leaves from the ideal picket line in mm.
+* ``max_error_mm`` -- The maximum error across all MLC leaves from the ideal picket line in mm.
+* ``max_error_picket`` -- The picket number that had the maximum error. This is 0-index based, meaning the 0th picket is the left/topmost.
+* ``max_error_leaf`` -- The leaf number that had the maximum error.
+* ``mean_picket_spacing_mm`` -- The mean spacing between pickets in mm.
+* ``offsets_from_cax_mm`` -- The offsets of each picket from the central axis in mm.
+* ``passed`` -- Whether all the MLC positions were within tolerance.
+* ``failed_leaves`` -- A list of leaf numbers that failed. If using ``separate_leaves=False``, this will be the leaf pairs (10, 22, etc). If using ``separate_leaves=True`` this will be the bank-specific leaves; A10, B22, A22, etc.
+* ``mlc_skew`` -- The skew of the MLC stack in degrees. This is the angle of the MLCs from the nearest cardinal direction.
+* ``picket_widths`` -- The widths of the pickets in mm.
+* ``mlc_positions_by_leaf`` -- A dictionary where the key is the leaf number and the value is a list of positions in mm **from the left or top of the image**.
+* ``mlc_errors_by_leaf`` -- A dictionary where the key is the leaf number and the value is a list of errors in mm.
 
 Troubleshooting
 ---------------
@@ -848,8 +928,8 @@ These are the classes a typical user may interface with.
 .. autoclass:: pylinac.picketfence.MLC
     :members:
 
-.. autoclass:: pylinac.picketfence.PFResult
-    :members:
+.. autopydantic_model:: pylinac.picketfence.PFResult
+
 
 Supporting Classes
 ^^^^^^^^^^^^^^^^^^

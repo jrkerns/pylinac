@@ -38,7 +38,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import art3d
 from py_linq import Enumerable
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from scipy import ndimage, optimize
 from scipy.ndimage import zoom
 from scipy.spatial.transform import Rotation
@@ -60,7 +60,14 @@ from .core.geometry import (
 from .core.image import DicomImageStack, is_image, tiff_to_dicom
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.scale import MachineScale, convert
-from .core.utilities import ResultBase, ResultsDataMixin, convert_to_enum, is_close
+from .core.utilities import (
+    QuaacDatum,
+    QuaacMixin,
+    ResultBase,
+    ResultsDataMixin,
+    convert_to_enum,
+    is_close_degrees,
+)
 from .metrics.features import (
     is_right_circumference,
     is_right_size_bb,
@@ -377,13 +384,27 @@ class Axis(enum.Enum):
 
 
 class WinstonLutz2DResult(ResultBase):
-    variable_axis: str  #:
-    bb_location: PointSerialized  #:
-    cax2epid_vector: VectorSerialized  #:
-    cax2epid_distance: float  #:
-    cax2bb_distance: float  #:
-    cax2bb_vector: VectorSerialized  #:
-    field_cax: PointSerialized  #:
+    variable_axis: str = Field(description="The axis that varied in the image.")
+    bb_location: PointSerialized = Field(
+        description="The location of the BB in the image as a Point in pixels."
+    )
+    cax2epid_vector: VectorSerialized = Field(
+        description="The vector (in Cartesian coordinates) from the field CAX to the EPID center in mm."
+    )
+    cax2epid_distance: float = Field(
+        description="The distance from the field CAX to the EPID center in mm.",
+        title="Scalar distance from CAX to EPID center (mm)",
+    )
+    cax2bb_vector: VectorSerialized = Field(
+        description="The vector (in Cartesian coordinates) from the field CAX to the BB in mm."
+    )
+    cax2bb_distance: float = Field(
+        description="The scalar distance from the field CAX to the BB in mm.",
+        title="Scalar distance from CAX to BB (mm)",
+    )
+    field_cax: PointSerialized = Field(
+        description="The location of the field CAX in the image as a Point in pixels."
+    )
 
 
 class WinstonLutzResult(ResultBase):
@@ -392,27 +413,86 @@ class WinstonLutzResult(ResultBase):
 
     Use the following attributes as normal class attributes."""
 
-    num_gantry_images: int  #:
-    num_gantry_coll_images: int  #:
-    num_coll_images: int  #:
-    num_couch_images: int  #:
-    num_total_images: int  #:
-    max_2d_cax_to_bb_mm: float  #:
-    median_2d_cax_to_bb_mm: float  #:
-    mean_2d_cax_to_bb_mm: float  #:
-    max_2d_cax_to_epid_mm: float  #:
-    median_2d_cax_to_epid_mm: float  #:
-    mean_2d_cax_to_epid_mm: float  #:
-    gantry_3d_iso_diameter_mm: float  #:
-    max_gantry_rms_deviation_mm: float  #:
-    max_epid_rms_deviation_mm: float  #:
-    gantry_coll_3d_iso_diameter_mm: float  #:
-    coll_2d_iso_diameter_mm: float  #:
-    max_coll_rms_deviation_mm: float  #:
-    couch_2d_iso_diameter_mm: float  #:
-    max_couch_rms_deviation_mm: float  #:
-    image_details: list[WinstonLutz2DResult]  #:
-    keyed_image_details: dict[str, WinstonLutz2DResult]  #:
+    max_2d_cax_to_bb_mm: float = Field(
+        description="The maximum 2D distance from the field CAX to the BB across all images analyzed in mm.",
+        title="Max scalar in-plane distance from BB to CAX (mm)",
+    )
+    median_2d_cax_to_bb_mm: float = Field(
+        description="The median 2D distance from the field CAX to the BB across all images analyzed in mm.",
+        title="Median absolute scalar in-plane distance from BB to CAX (mm)",
+    )
+    mean_2d_cax_to_bb_mm: float = Field(
+        description="The mean 2D distance from the field CAX to the BB across all images analyzed in mm.",
+        title="Mean absolute scalar in-plane distance from BB to CAX (mm)",
+    )
+    max_2d_cax_to_epid_mm: float = Field(
+        description="The maximum 2D distance from the field CAX to the EPID center across all images analyzed in mm.",
+        title="Max scalar in-plane distance from EPID to CAX (mm)",
+    )
+    median_2d_cax_to_epid_mm: float = Field(
+        description="The median 2D distance from the field CAX to the EPID center across all images analyzed in mm.",
+        title="Median absolute scalar in-plane distance from EPID to CAX (mm)",
+    )
+    mean_2d_cax_to_epid_mm: float = Field(
+        description="The mean 2D distance from the field CAX to the EPID center across all images analyzed in mm.",
+        title="Mean absolute scalar in-plane distance from EPID to CAX (mm)",
+    )
+    gantry_3d_iso_diameter_mm: float = Field(
+        description="The 3D isocenter diameter **of the gantry axis only** as determined by the gantry images in mm. This uses backprojection lines of the field center to the source and minimizes a sphere that touches all the backprojection lines.",
+        title="Gantry-isolated 3D isocenter diameter (mm)",
+    )
+    coll_2d_iso_diameter_mm: float = Field(
+        description="The 2D isocenter diameter **of the collimator axis only** as determined by the collimator images in mm.",
+        title="Collimator-isolated 2D isocenter diameter (mm)",
+    )
+    couch_2d_iso_diameter_mm: float = Field(
+        description="The 2D isocenter diameter **of the couch axis only** as determined by the couch images in mm.",
+        title="Couch-isolated 2D isocenter diameter (mm)",
+    )
+    gantry_coll_3d_iso_diameter_mm: float = Field(
+        description="The 3D isocenter diameter **of the gantry and collimator axes** as determined by the gantry and collimator images in mm.",
+        title="Gantry & Collimator combined 3D isocenter diameter (mm)",
+    )
+    num_total_images: int = Field(
+        description="The total number of images analyzed.", title="Number of images"
+    )
+    num_gantry_images: int = Field(
+        description="The number of images that were taken at different gantry angles and all other axes were at reference.",
+        title="Number of gantry-axis images",
+    )
+    num_coll_images: int = Field(
+        description="The number of images that were taken at different collimator angles and all other axes were at reference.",
+        title="Number of collimator-axis images",
+    )
+    num_couch_images: int = Field(
+        description="The number of images that were taken at different couch angles and all other axes were at reference.",
+        title="Number of couch-axis images",
+    )
+    num_gantry_coll_images: int = Field(
+        description="The number of images that were taken at different gantry and collimator angles and the couch was at reference.",
+        title="Number of gantry+collimator axis images",
+    )
+    max_gantry_rms_deviation_mm: float = Field(
+        description="The maximum RMS value of the field CAX to BB for the gantry axis images in mm. This is an alternative to the max/mean/median calculations."
+    )
+    max_epid_rms_deviation_mm: float = Field(
+        description="The maximum RMS value of the field CAX to EPID center for the EPID images in mm. This is an alternative to the max/mean/median calculations."
+    )
+    max_coll_rms_deviation_mm: float = Field(
+        description="The maximum RMS deviation of the field CAX to BB for the collimator axis images in mm. This is an alternative to the max/mean/median calculations."
+    )
+    max_couch_rms_deviation_mm: float = Field(
+        description="The maximum RMS value of the field CAX to BB for the couch axis images in mm. This is an alternative to the max/mean/median calculations. This uses backprojection lines of the field center to the source and minimizes a sphere that touches all the backprojection lines."
+    )
+    bb_shift_vector: VectorSerialized = Field(
+        description="The Cartesian vector that would move the BB to the radiation isocenter. Each value is in mm."
+    )
+    image_details: list[WinstonLutz2DResult] = Field(
+        description="A list of the individual image results.",
+    )
+    keyed_image_details: dict[str, WinstonLutz2DResult] = Field(
+        description="A **dictionary** of the individual image results. This is the same as ``image_details`` but keyed by the images using the axes values as the key. E.g. ``G0B45P0``. This can be used to identify individual images vs those in ``image_details``."
+    )
 
 
 class WinstonLutzMultiTargetMultiFieldResult(ResultBase):
@@ -421,16 +501,40 @@ class WinstonLutzMultiTargetMultiFieldResult(ResultBase):
 
     Use the following attributes as normal class attributes."""
 
-    num_total_images: int  #:
-    max_2d_field_to_bb_mm: float  #:
-    median_2d_field_to_bb_mm: float  #:
-    mean_2d_field_to_bb_mm: float  #:
-    bb_arrangement: tuple[BBConfig, ...]  #:
-    bb_maxes: dict[str, float]  #:
-    bb_shift_vector: VectorSerialized  #:
-    bb_shift_yaw: float  #:
-    bb_shift_pitch: float  #:
-    bb_shift_roll: float  #:
+    num_total_images: int = Field(
+        description="The total number of images analyzed.",
+        title="Number of images considered",
+    )
+    max_2d_field_to_bb_mm: float = Field(
+        description="The maximum 2D distance from any BB to its field center.",
+        title="Max field center -> BB distance (mm)",
+    )
+    mean_2d_field_to_bb_mm: float = Field(
+        description="The mean 2D distance from any BB to its field center.",
+        title="Mean field center -> BB distance (mm)",
+    )
+    median_2d_field_to_bb_mm: float = Field(
+        description="The median 2D distance from any BB to its field center.",
+        title="Median field center -> BB distance (mm)",
+    )
+    bb_arrangement: tuple[BBConfig, ...] = Field(
+        description="A list of expected arrangements of the BBs"
+    )
+    bb_maxes: dict[str, float] = Field(
+        description="A dictionary of the maximum 2D distances of each BB to its field center. The key is the BB name as defined in the arrangement."
+    )
+    bb_shift_vector: VectorSerialized = Field(
+        description="The vector (in 3D cartesian space) to move the phantom to align with the isocenter in mm."
+    )
+    bb_shift_yaw: float = Field(
+        description="The yaw rotation in degrees needed to align the phantom with the radiation isocenter."
+    )
+    bb_shift_pitch: float = Field(
+        description="The pitch rotation needed in degrees to align the phantom with the radiation isocenter."
+    )
+    bb_shift_roll: float = Field(
+        description="The roll rotation needed in degrees to align the phantom with the radiation isocenter."
+    )
 
 
 def is_near_center(region: RegionProperties, *args, **kwargs) -> bool:
@@ -488,6 +592,10 @@ class WLBaseImage(image.LinacDicomImage):
     arrangement_matches: dict[
         str, BBFieldMatch
     ]  # a field CAX and BB matched to their respective nominal locations
+    _gantry_reference: float
+    _collimator_reference: float
+    _couch_reference: float
+    _snap_tolerance: float
 
     def __init__(
         self,
@@ -516,6 +624,10 @@ class WLBaseImage(image.LinacDicomImage):
         is_open_field: bool = False,
         is_low_density: bool = False,
         shift_vector: Vector | None = None,
+        snap_tolerance: float = 3,
+        gantry_reference: float = 0,
+        collimator_reference: float = 0,
+        couch_reference: float = 0,
     ) -> (tuple[Point], tuple[Point]):
         """Analyze the image for BBs and field CAXs.
 
@@ -529,7 +641,19 @@ class WLBaseImage(image.LinacDicomImage):
             Whether the BBs are low density (e.g. kV images).
         shift_vector : Vector, optional
             A vector to shift the detected BBs by. Useful for images that are not perfectly aligned.
+
+        See Also
+        --------
+
+        :meth:`~pylinac.winston_lutz.WinstonLutz.analyze`
+
         """
+        if snap_tolerance < 0:
+            raise ValueError("Snap tolerance must be >= 0")
+        self._snap_tolerance = snap_tolerance
+        self._gantry_reference = gantry_reference
+        self._collimator_reference = collimator_reference
+        self._couch_reference = couch_reference
         self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
         self._clean_edges()
         self.ground()
@@ -768,9 +892,17 @@ class WLBaseImage(image.LinacDicomImage):
         * Couch : All axes but couch at 0.
         * Combo : More than one axis is not at 0.
         """
-        G0 = is_close(self.gantry_angle, [0, 360])
-        B0 = is_close(self.collimator_angle, [0, 360])
-        P0 = is_close(self.couch_angle, [0, 360])
+        G0 = is_close_degrees(
+            self.gantry_angle, self._gantry_reference, delta=self._snap_tolerance
+        )
+        B0 = is_close_degrees(
+            self.collimator_angle,
+            self._collimator_reference,
+            delta=self._snap_tolerance,
+        )
+        P0 = is_close_degrees(
+            self.couch_angle, self._couch_reference, delta=self._snap_tolerance
+        )
         if G0 and B0 and not P0:
             return Axis.COUCH
         elif G0 and P0 and not B0:
@@ -832,6 +964,10 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
         low_density_bb: bool = False,
         open_field: bool = False,
         shift_vector: Vector | None = None,
+        snap_tolerance: float = 3,
+        gantry_reference: float = 0,
+        collimator_reference: float = 0,
+        couch_reference: float = 0,
     ) -> None:
         """Analyze the image. See WinstonLutz.analyze for parameter details."""
         bb_config = BBArrangement.ISO
@@ -841,6 +977,10 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
             is_open_field=open_field,
             is_low_density=low_density_bb,
             shift_vector=shift_vector,
+            snap_tolerance=snap_tolerance,
+            gantry_reference=gantry_reference,
+            collimator_reference=collimator_reference,
+            couch_reference=couch_reference,
         )
         self.bb_arrangement = bb_config
         # these are set for the deprecated properties of the 2D analysis specifically where 1 field and 1 bb are expected.
@@ -883,34 +1023,6 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
         plt.tight_layout()
         plt.savefig(filename, **kwargs)
 
-    @property
-    def variable_axis(self) -> Axis:
-        """The axis that is varying.
-
-        There are five types of images:
-
-        * Reference : All axes are at 0.
-        * Gantry: All axes but gantry at 0.
-        * Collimator : All axes but collimator at 0.
-        * Couch : All axes but couch at 0.
-        * Combo : More than one axis is not at 0.
-        """
-        G0 = is_close(self.gantry_angle, [0, 360])
-        B0 = is_close(self.collimator_angle, [0, 360])
-        P0 = is_close(self.couch_angle, [0, 360])
-        if G0 and B0 and not P0:
-            return Axis.COUCH
-        elif G0 and P0 and not B0:
-            return Axis.COLLIMATOR
-        elif P0 and B0 and not G0:
-            return Axis.GANTRY
-        elif P0 and B0 and G0:
-            return Axis.REFERENCE
-        elif P0:
-            return Axis.GB_COMBO
-        else:
-            return Axis.GBP_COMBO
-
     def _generate_results_data(self) -> WinstonLutz2DResult:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
@@ -928,7 +1040,7 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
         )
 
 
-class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
+class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
     """Class for performing a Winston-Lutz test of the radiation isocenter."""
 
     images: list[WinstonLutz2D]  #:
@@ -1208,6 +1320,10 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
         low_density_bb: bool = False,
         open_field: bool = False,
         apply_virtual_shift: bool = False,
+        snap_tolerance: float = 3,
+        gantry_reference: float = 0,
+        collimator_reference: float = 0,
+        couch_reference: float = 0,
     ) -> None:
         """Analyze the WL images.
 
@@ -1225,13 +1341,32 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
             less interest than simply the imaging iso vs the BB.
         apply_virtual_shift
             If True, applies a virtual shift to the BBs based on the shift necessary to place the BB at the radiation isocenter.
+        snap_tolerance
+            The tolerance of the axes values that will "snap" to the reference values. I.e. if the snap tolerance is 3 and the gantry is within 3 degrees of 0, it will snap to 0.
+            This is helpful, e.g., when you've forgotten to reset the couch to 0 after a CBCT.
+        gantry_reference
+            The reference value for the gantry. This is when pylinac will consider the image to be a reference image. E.g.
+            some customers take all images with collimator=45 and want that to be considered the reference. This is used in
+            combination with the snap_tolerance. I.e. a gantry of 43 with snap tolerance of 3 and reference of 45 will snap to 45.
+        collimator_reference
+            The reference value for the collimator. See `gantry_reference`.
+        couch_reference
+            The reference value for the couch. See `gantry_reference`.
         """
         self.machine_scale = machine_scale
         if self.is_from_cbct:
             low_density_bb = True
             open_field = True
         for img in self.images:
-            img.analyze(bb_size_mm, low_density_bb, open_field)
+            img.analyze(
+                bb_size_mm=bb_size_mm,
+                low_density_bb=low_density_bb,
+                open_field=open_field,
+                snap_tolerance=snap_tolerance,
+                gantry_reference=gantry_reference,
+                collimator_reference=collimator_reference,
+                couch_reference=couch_reference,
+            )
         # we need to construct the BB representation to get the shift vector
         bb_config = BBArrangement.ISO[0]
         bb_config.bb_size_mm = bb_size_mm
@@ -1244,7 +1379,16 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
             shift = self.bb_shift_vector
             self._virtual_shift = self.bb_shift_instructions()
             for img in self.images:
-                img.analyze(bb_size_mm, low_density_bb, open_field, shift_vector=shift)
+                img.analyze(
+                    bb_size_mm=bb_size_mm,
+                    low_density_bb=low_density_bb,
+                    open_field=open_field,
+                    shift_vector=shift,
+                    snap_tolerance=snap_tolerance,
+                    gantry_reference=gantry_reference,
+                    collimator_reference=collimator_reference,
+                    couch_reference=couch_reference,
+                )
 
         # in the vanilla WL case, the BB can only be represented by non-couch-kick images
         # the ray trace cannot handle the kick currently
@@ -1545,7 +1689,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
             # get BB positions
             xs = [img.bb.x for img in images[1:]]
             ys = [img.bb.y for img in images[1:]]
-            marker = "ro"
+            marker = "co"
         ax.plot(xs, ys, marker, ms=8)
         # set labels
         ax.set_title(axis.value + " wobble")
@@ -1954,6 +2098,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
                 self.axis_rms_deviation(axis=(Axis.COUCH, Axis.REFERENCE))
             ),
             max_epid_rms_deviation_mm=max(self.axis_rms_deviation(axis=Axis.EPID)),
+            bb_shift_vector=self.bb_shift_vector,
             image_details=individual_image_data,
             keyed_image_details=self._generate_keyed_images(individual_image_data),
         )
@@ -2043,6 +2188,54 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
     def _contains_axis_images(self, axis: Axis = Axis.GANTRY) -> bool:
         """Return whether or not the set of WL images contains images pertaining to a given axis"""
         return any(True for image in self.images if image.variable_axis in (axis,))
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        if not self._is_analyzed:
+            raise ValueError("The set is not analyzed. Use .analyze() first.")
+        result_data = self.results_data()
+        dataset = {
+            "Max 2D CAX->BB": QuaacDatum(
+                value=result_data.max_2d_cax_to_bb_mm,
+                unit="mm",
+                description="The maximum 2D distance of any image from the CAX to the BB.",
+            ),
+            "Median 2D CAX->BB": QuaacDatum(
+                value=result_data.median_2d_cax_to_bb_mm,
+                unit="mm",
+                description="The median 2D distance of any image from the CAX to the BB.",
+            ),
+            "Max 2D CAX->EPID": QuaacDatum(
+                value=result_data.max_2d_cax_to_epid_mm,
+                unit="mm",
+                description="The maximum 2D distance of any image from the CAX to the EPID.",
+            ),
+            "Median 2D CAX->EPID": QuaacDatum(
+                value=result_data.median_2d_cax_to_epid_mm,
+                unit="mm",
+                description="The median 2D distance of any image from the CAX to the EPID.",
+            ),
+            "Gantry-only 3D Isocenter Diameter": QuaacDatum(
+                value=result_data.gantry_3d_iso_diameter_mm,
+                unit="mm",
+                description="The diameter of the 3D isocenter sphere when considering the gantry-only images.",
+            ),
+            "Gantry+Collimator 3D Isocenter Diameter": QuaacDatum(
+                value=result_data.gantry_coll_3d_iso_diameter_mm,
+                unit="mm",
+                description="The diameter of the 3D isocenter sphere when considering the gantry and collimator images.",
+            ),
+            "Collimator 2D Isocenter Diameter": QuaacDatum(
+                value=result_data.coll_2d_iso_diameter_mm,
+                unit="mm",
+                description="The diameter of the 2D isocenter circle when considering the collimator images.",
+            ),
+            "Couch 2D Isocenter Diameter": QuaacDatum(
+                value=result_data.couch_2d_iso_diameter_mm,
+                unit="mm",
+                description="The diameter of the 2D isocenter circle when considering the couch images.",
+            ),
+        }
+        return dataset
 
 
 class WinstonLutzMultiTargetMultiFieldImage(WLBaseImage):
@@ -2279,6 +2472,45 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         z_dir = "UP" if translation.z > 0 else "DOWN"
         move = f"{x_dir} {abs(translation.x):2.2f}mm; {y_dir} {abs(translation.y):2.2f}mm; {z_dir} {abs(translation.z):2.2f}mm; Rotation {yaw:2.2f}°; Pitch {pitch:2.2f}°; Roll {roll:2.2f}°"
         return move
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        """Generate the Quaac datapoints for MTMF Winston-Lutz analysis"""
+        if not self._is_analyzed:
+            raise ValueError("The set is not analyzed. Use .analyze() first.")
+        result_data = self.results_data()
+        dataset = {
+            "Max 2D CAX->BB": QuaacDatum(
+                value=result_data.max_2d_field_to_bb_mm,
+                unit="mm",
+                description="The maximum 2D distance of any image from the CAX to the BB.",
+            ),
+            "Median 2D CAX->BB": QuaacDatum(
+                value=result_data.median_2d_field_to_bb_mm,
+                unit="mm",
+                description="The median 2D distance of any image from the CAX to the BB.",
+            ),
+            "Mean 2D CAX->BB": QuaacDatum(
+                value=result_data.mean_2d_field_to_bb_mm,
+                unit="mm",
+                description="The mean 2D distance of any image from the CAX to the BB.",
+            ),
+            "BB Shift (Yaw)": QuaacDatum(
+                value=result_data.bb_shift_yaw,
+                unit="degrees",
+                description="The ideal yaw rotation to place the BB at the isocenter.",
+            ),
+            "BB Shift (Pitch)": QuaacDatum(
+                value=result_data.bb_shift_pitch,
+                unit="degrees",
+                description="The ideal pitch rotation to place the BB at the isocenter.",
+            ),
+            "BB Shift (Roll)": QuaacDatum(
+                value=result_data.bb_shift_roll,
+                unit="degrees",
+                description="The ideal roll rotation to place the BB at the isocenter.",
+            ),
+        }
+        return dataset
 
     def _couch_rotation_error(self) -> dict[str, dict[str, float]]:
         """Calculate the couch rotation error in degrees for reference and couch-kicked images.

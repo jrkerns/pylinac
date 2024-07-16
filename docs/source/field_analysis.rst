@@ -4,6 +4,11 @@
 Field Analysis
 ==============
 
+.. warning::
+
+    This module will be deprecated in favor of the newer method of :ref:`field-profile-analysis` at some point in the future.
+    This module will either be moved to a ``deprecated`` module in v4 or simply removed.
+
 Overview
 --------
 
@@ -260,6 +265,13 @@ can be tripped up by noise so it is not used.
 Inflection (Hill)
 #################
 
+.. warning::
+
+    The Hill method is prone to errors if the penumbra is not expressed well on both edges. E.g.
+    if using a device array with a full, open field where the penumbra sharply falls to 0 but does not
+    have a long "tail" of low values, the Hill function will not fit well as a tail is expected on both
+    edges.
+
 The inflection point via the Hill function is useful for both flat and FFF beams
 The fitting of the function is best for low-resolution data, and is thus the default for ``DeviceFieldAnalysis``.
 The Hill function, the sigmoid function, and 4-point non-linear regression belong to a family of logistic equations to fit a dual-curved value.
@@ -282,7 +294,18 @@ The function is fitted to the edge data of the field on each side to return the 
 
     This method is recommended for low spatial resolution images such as 2D device arrays, where there is very little data at the beam edges.
     While it can be used for EPID images as well, the fit can have small errors as compared to the direct data.
-    The fit, however, is much better than a linear or even spline interpolation at low resolutions.
+    The fit, however, can be better than a linear or even spline interpolation at low resolutions. However,
+    this should be combined with a resolution method like linear interpolation. While Hill can sometimes
+    find a better fit for low-resolution data, the fit itself should have many data points to work with. I.e.
+    the call should look similar to:
+
+    .. code-block:: python
+
+      fa = DeviceFieldAnalysis(...)
+      fa.analyze(
+          ..., interpolation=Interpolation.LINEAR, edge_detection_method=Edge.INFLECTION_HILL
+      )
+
 
 .. code-block:: python
 
@@ -605,6 +628,7 @@ The easiest way to demonstrate this is through the Device demo, which is an FFF 
     fa.analyze(protocol=Protocol.VARIAN, is_FFF=True)
     fa.plot_analyzed_image()
 
+.. _field_analysis_top_metric:
 
 "Top" metric
 ^^^^^^^^^^^^
@@ -621,6 +645,8 @@ When printing results for an FFF beam there will be a section like so::
     'Top' horizontal distance from CAX: 0.6mm
     'Top' vertical distance from beam center: 1.7mm
     'Top' horizontal distance from beam center: 0.3mm
+
+.. _field_analysis_slope_metric:
 
 Field slope
 ^^^^^^^^^^^
@@ -682,6 +708,68 @@ we would access that custom protocol data as:
 
 because the protocol name was ``my flatness``.
 
+Analysis Parameters
+-------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`~pylinac.field_analysis.FieldAnalysis.analyze` for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **Protocol**: The protocol to use for the analysis. See :ref:`analysis_definitions`.
+      * **Centering method**: The method used to determine the center of the field. See :ref:`centering`.
+      * **is FFF beam**: Whether the beam is a Flattening Filter Free beam. If so, the "Top" metric is calculated. See :ref:`fff_fields`.
+      * **Normalized vertical position**: The distance ratio of the image to sample. E.g. at the default of 0.5 the profile is extracted
+        in the middle of the image. 0.0 is at the left edge of the image and 1.0 is at the right edge of the image.
+
+        .. note::
+
+            This is only used when centering is set to "MANUAL".
+
+      * **Normalized horizontal position**: The distance ratio of the image to sample. E.g. at the default of 0.5 the profile is extracted
+        in the middle of the image. 0.0 is at the top edge of the image and 1.0 is at the bottom edge of the image.
+
+        .. note::
+
+            This is only used when centering is set to "MANUAL".
+
+      * **Normalized vertical width**: The width of the vertical profile to take. 0 is a single pixel, 1 is the entire image. The resulting
+        profile will be the mean of the pixels within the specified width.
+      * **Normalized horizontal width**: The width of the horizontal profile to take. 0 is a single pixel, 1 is the entire image. The resulting
+        profile will be the mean of the pixels within the specified width.
+      * **In-field ratio**: The ratio of the field width to use for protocol analyses. E.g. 0.8 means the central 80% of the field is used for flatness and symmetry.
+      * **Slope exclusion ratio**: This is the ratio of the field to use to 1) calculate the "top" metric for an FFF beam (:ref:`field_analysis_top_metric`) and 2) exclude from the
+        "slope" calculation of each side of the field (:ref:`field_analysis_slope_metric`).
+      * **Lower penumbra**: The lower penumbra value in % to use for the field edge.
+      * **Upper penumbra**: The upper penumbra value in % to use for the field edge.
+      * **Interpolation**: Interpolation technique to use. See :ref:`Interpolation`. Interpolation is usually only helpful
+        for low-resolution data.
+      * **Interpolation resolution**: The resolution that the interpolation will scale to.
+        E.g. if the native dpmm is 2 and the resolution is set to 0.1mm the data will be interpolated to have a new dpmm of 10 (1/0.1).
+      * **Ground the profile**: If True, the lowest value of the profile will be set to 0.
+      * **Normalization method**: The method used to normalize the field. See :ref:`normalization`.
+      * **Edge detection method**: The method used to detect the field edges. See :ref:`edge`.
+      * **Edge smoothing ratio**:
+
+        .. note:: Only applies to Inflection Derivative and Inflection Hill Edge detection methods.
+
+        The ratio of the length of the values to use as the sigma for a Gaussian filter applied before searching for
+        the inflection. E.g. 0.005 with a profile of 1000 points will result in a sigma of 5.
+        This helps make the inflection point detection more robust to noise. Increase for noisy data.
+      * **Hill window ratio**:
+
+        .. note:: Only applies to Inflection Hill Edge detection methods.
+
+        The ratio of the field size to use as the window to fit the Hill function. E.g. 0.2 will using a window
+        centered about each edge with a width of 20% the size of the field width.
+
+
 Algorithm
 ---------
 
@@ -708,6 +796,63 @@ notekeeping.
   :ref:`analysis_definitions`). For symmetry calculations that operate around the CAX, the CAX must first be determined, which is
   the center of the FWHM of the profile.
 
+Interpreting Results
+--------------------
+
+The field analysis result is slightly different if analyzing a device array vs
+a 2D image (EPID/DICOM). In both cases the following is given:
+
+* ``protocol``: The protocol used for the analysis. See: :ref:`analysis_definitions`.
+* ``protocol_results``: This is a dictionary that contains the results of the protocol calculations. The keys are the protocol names.
+  Generally, they are ``symmetry_horizontal``, ``symmetry_vertical``, ``flatness_horizontal``, and ``flatness_vertical``.
+  The values themselves are the calculated values for that specific protocol equation.
+* ``centering_method``: The method used to determine the center of the field. See :ref:`centering`.
+* ``normalization_method``: The method used to normalize the field. See :ref:`normalization`.
+* ``interpolation_method``: The method used to interpolate the field. See :ref:`interpolation`.
+* ``edge_detection_method``: The method used to detect the field edges. See :ref:`edge`.
+* ``top_penumbra_mm``: The penumbra width at the top of the field.
+* ``bottom_penumbra_mm``: The penumbra width at the bottom of the field.
+* ``left_penumbra_mm``: The penumbra width at the left of the field.
+* ``right_penumbra_mm``: The penumbra width at the right of the field.
+* ``geometric_center_index_x_y``: The geometric center of the field in pixel coordinates.
+* ``beam_center_index_x_y``: The beam center of the field in pixel coordinates.
+* ``field_size_vertical_mm``: The vertical field size in mm.
+* ``field_size_horizontal_mm``: The horizontal field size in mm.
+* ``beam_center_to_top_mm``: The distance from the beam center to the top edge of the field.
+* ``beam_center_to_bottom_mm``: The distance from the beam center to the bottom edge of the field.
+* ``beam_center_to_left_mm``: The distance from the beam center to the left edge of the field.
+* ``beam_center_to_right_mm``: The distance from the beam center to the right edge of the field.
+* ``cax_to_top_mm``: The distance from the CAX to the top edge of the field.
+* ``cax_to_bottom_mm``: The distance from the CAX to the bottom edge of the field.
+* ``cax_to_left_mm``: The distance from the CAX to the left edge of the field.
+* ``cax_to_right_mm``: The distance from the CAX to the right edge of the field.
+* ``top_position_index_x_y``: The top position of the field in pixel coordinates.
+* ``top_horizontal_distance_from_cax_mm``: The horizontal distance from the top position to the image center.
+
+  .. note::
+    This says CAX, and by this we mean the CAX of the machine, regardless of field size/position.
+
+* ``top_vertical_distance_from_cax_mm``: The vertical distance from the top position to the image center.
+* ``top_horizontal_distance_from_beam_center_mm``: The horizontal distance from the top position to the beam center.
+* ``top_vertical_distance_from_beam_center_mm``: The vertical distance from the top position to the beam center.
+* ``left_slope_percent_mm``: The slope of the left side of the in-field region in percent per mm.
+* ``right_slope_percent_mm``: The slope of the right side of the in-field region in percent per mm.
+* ``top_slope_percent_mm``: The slope of the top side of the in-field region in percent per mm.
+* ``bottom_slope_percent_mm``: The slope of the bottom side of the in-field region in percent per mm.
+* ``top_penumbra_percent_mm``: The penumbra width at the top of the field in percent per mm.
+* ``bottom_penumbra_percent_mm``: The penumbra width at the bottom of the field in percent per mm.
+* ``left_penumbra_percent_mm``: The penumbra width at the left of the field in percent per mm.
+* ``right_penumbra_percent_mm``: The penumbra width at the right of the field in percent per mm.
+
+If analyzing a 2D image (EPID/DICOM) the following is also given.
+The ROI in this case is where the finite profile areas overlap. E.g.
+if ``vert_width`` and ``horiz_width`` are 0.1, there is a central 10% of the field that is used for the following ROI:
+
+* ``central_roi_mean``: The mean pixel value of the central region of interest.
+* ``central_roi_std``: The standard deviation of the pixel values of the central region of interest.
+* ``central_roi_max``: The maximum pixel value of the central region of interest.
+* ``central_roi_min``: The minimum pixel value of the central region of interest.
+
 API Documentation
 -----------------
 
@@ -719,11 +864,9 @@ These are the classes a typical user may interface with.
 .. autoclass:: pylinac.field_analysis.FieldAnalysis
     :members:
 
-.. autoclass:: pylinac.field_analysis.FieldResult
-    :members:
+.. autopydantic_model:: pylinac.field_analysis.FieldResult
 
-.. autoclass:: pylinac.field_analysis.DeviceResult
-    :members:
+.. autopydantic_model:: pylinac.field_analysis.DeviceResult
 
 .. autoclass:: pylinac.field_analysis.Device
     :members:

@@ -854,6 +854,47 @@ The FSQA phantom should be placed on the couch at 100cm SSD.
 * Keep the phantom away from a couch edge or any rails.
 * Keep the phantom as close to 0 degrees rotation as possible.
 
+Analysis Parameters
+-------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See the ``analyze`` method of the class. E.g. :meth:`pylinac.planar_imaging.LasVegas.analyze`.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **Source-to-Phantom distance**: The distance in mm from the phantom to the source.
+      * **Normalized high contrast threshold**: The rMTF minimum value for a region to be considered passing.
+      * **Angle override**: The angle in degrees to override the automatic angle determination.
+      * **Contrast definition**: The method to use to calculate contrast. See :ref:`contrast`.
+      * **Contrast threshold**: The minimum contrast value for a region to be considered passing.
+
+Analysis Parameters (Light/Rad)
+-------------------------------
+
+These are the analysis parameters for Light/Rad phantoms.
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`pylinac.planar_imaging.IMTLRad.analyze` and similar classes for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **FWXM height**: The percent height of the maximum to use as the field width.
+      * **BB edge distance threshold**: The threshold in mm to determine if the BB is near the edge of the image. If the BB-to-field-edge is less than this threshold,
+        a different, more robust algorithm is used to determine the BB position but
+        results in higher uncertainty when in a flat region (i.e. away from the field edge).
+
 Algorithm
 ^^^^^^^^^
 
@@ -882,6 +923,52 @@ The algorithm works like such:
 
 * **Comparing centroids** -- The irradiated field centroid is compared to the EPID/image center as well as the the BB centroid.
   The field size is also reported.
+
+Interpreting Results
+--------------------
+
+Phantoms
+^^^^^^^^
+
+The results from phantoms that are meant to measure image quality, contrast, etc, are:
+
+* ``median_contrast``: The median contrast of the low contrast ROIs. See :ref:`low_contrast_topic` and :ref:`cnr` for more.
+* ``median_cnr``: The median contrast-to-noise ratio of the low contrast ROIs.
+* ``num_contrast_rois_seen``: The number of low contrast ROIs that had a visibility
+  score above the passed threshold. See :ref:`visibility` for more.
+* ``phantom_center_x_y``: The center of the phantom in the image in pixels.
+* ``phantom_area``: The area of the phantom in pixels^2.
+* ``mtf_lp_mm``: The 80%, 50%, and 30% MTF values in lp/mm. For more values see: :ref:`calculate-specific-mtf`.
+* ``percent_integral_uniformity``: The percent integral uniformity of the image.
+* ``low_contrast_rois``: A dictionary of the individual low contrast ROIs. The dictionary keys
+  are the ROI number, starting at 0. Each ROI has the following information:
+
+  * ``contrast method``: The method used to calculate the contrast. See :ref:`low_contrast_topic`.
+  * ``contrast``: The contrast value of the ROI.
+  * ``visibility``: The visibility score of the ROI.
+  * ``visibility threshold``: The threshold used to determine visibility.
+  * ``cnr``: The contrast-to-noise ratio of the ROI.
+  * ``passed visibility``: Whether the ROI passed the visibility threshold.
+  * ``signal to noise``: The signal-to-noise ratio of the ROI.
+
+Light/Rad
+^^^^^^^^^
+
+Light/radiation coincidence phantoms are used to ensure that the light field and radiation field are aligned.
+The results from these analyses are:
+
+* ``field_size_x_mm``: The size of the field in the x-direction/crossplane in mm.
+* ``field_size_y_mm``: The size of the field in the y-direction/inplane in mm.
+* ``field_epid_offset_x_mm``: The offset of the field center from the EPID/image center in the x-direction/crossplane in mm.
+* ``field_epid_offset_y_mm``: The offset of the field center from the EPID/image center in the y-direction/inplane in mm.
+* ``field_bb_offset_x_mm``: The offset of the field center from the BB center in the x-direction/crossplane in mm.
+* ``field_bb_offset_y_mm``: The offset of the field center from the BB center in the y-direction/inplane in mm.
+
+.. note::
+
+    Some phantoms have multiple BBs. When we speak of the BB center when multiple BBs are present,
+    we are referring to the centroid of all BBs.
+
 
 .. _creating_a_custom_phantom:
 
@@ -1025,6 +1112,35 @@ and methods, the plotting and PDF report functionality comes for free.
 Usage tips, tweaks, & troubleshooting
 -------------------------------------
 
+.. _fine-tuning-planar:
+
+Fine-tuning the ROI locations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 3.24
+
+If after the automatic analysis you find that the ROIs are not quite where you want them, you can adjust the ROI locations
+by setting any of the following parameters: ``x_adjustment``, ``y_adjustment``, ``angle_adjustment``, ``scaling_factor``,
+or ``zoom_factor``. These parameters can be set in the ``analyze`` method.
+
+.. code-block:: python
+
+    from pylinac import LeedsTOR
+
+    leeds = LeedsTOR(...)
+    leeds.analyze(
+        ...,
+        x_adjustment=0.5,
+        y_adjustment=-0.3,
+        angle_adjustment=5,
+        scaling_factor=1.1,
+        roi_size_factor=0.9,
+    )
+
+In contrast to the ``angle_override``, ``size_override``, and ``center_override`` parameters, the adjustments are applied
+**after** the phantom localization. I.e. use adjustments if you need to fine-tune the automatic analysis; use overrides if the
+detection is failing.
+
 Set the SSD of your phantom
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1044,6 +1160,10 @@ distance via the ``ssd`` parameter.
 
 Adjust an ROI on an existing phantom
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. note::
+
+    If you are trying to uniformly adjust all the ROIs, see :ref:`fine-tuning-planar`.
 
 To adjust an ROI, override the relevant attribute or create a subclass. E.g. to move the 2nd ROI of the high-contrast ROI set of the QC-3 phantom:
 
@@ -1095,6 +1215,8 @@ To use the true min and max, set the percentiles to 0 and 100 respectively:
    It is not designed to handle negative values or 0. The calculated result may be misleading if these
    conditions exist.
 
+.. _calculate-specific-mtf:
+
 Calculate a specific MTF
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1137,8 +1259,8 @@ do so fairly easily by overloading the current tooling:
 
 .. _planar_scaling:
 
-Scaling
--------
+Scaling measurement
+-------------------
 
 .. versionadded:: 3.19
 
@@ -1163,6 +1285,11 @@ E.g.:
 
 Adjusting the scaling
 ^^^^^^^^^^^^^^^^^^^^^
+
+.. note::
+
+    This can also be adjusted uniformly using the ``scaling_factor`` parameter in the ``analyze`` method.
+    The below method is recommended if your adjustments are not uniform in both directions. See :ref:`fine-tuning-planar`.
 
 If you are dead-set on having the scaling value be the exact size of the phantom,
 or you simply have a different interpretation of what the scaling should be you
@@ -1273,3 +1400,5 @@ API Documentation
 
 .. autoclass:: pylinac.planar_imaging.SNCFSQA
     :inherited-members:
+
+.. autopydantic_model:: pylinac.planar_imaging.PlanarResult

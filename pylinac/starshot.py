@@ -29,14 +29,14 @@ from typing import BinaryIO
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
+from pydantic import Field
 from scipy import optimize
 
 from .core import image, pdf
 from .core.geometry import Circle, Line, Point
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.profile import CollapsedCircleProfile, FWXMProfile
-from .core.utilities import ResultBase, ResultsDataMixin
-from .settings import get_dicom_cmap
+from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
 
 
 class StarshotResults(ResultBase):
@@ -46,14 +46,25 @@ class StarshotResults(ResultBase):
     Use the following attributes as normal class attributes.
     """
 
-    tolerance_mm: float  #:
-    circle_diameter_mm: float  #:
-    circle_radius_mm: float  #:
-    passed: bool  #:
-    circle_center_x_y: tuple[float, float]  #:
+    tolerance_mm: float = Field(
+        description="The tolerance used for the analysis in mm."
+    )
+    circle_diameter_mm: float = Field(
+        description="The diameter of the minimum circle that touches all the star lines in mm.",
+        title="Diameter of fitted circle (mm)",
+    )
+    circle_radius_mm: float = Field(
+        description="The diameter of the minimum circle that touches all the star lines in mm.",
+        title="Radius of fitted circle (mm)",
+    )
+    circle_center_x_y: tuple[float, float] = Field(
+        description="The center position of the minimum circle in pixels.",
+        title="Circle center pixel (X, Y)",
+    )
+    passed: bool = Field(description="Whether the analysis passed or failed.")
 
 
-class Starshot(ResultsDataMixin[StarshotResults]):
+class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
     """Class that can determine the wobble in a "starshot" image, be it gantry, collimator,
     couch or MLC. The image can be a scanned film (TIF, JPG, etc) or a sequence of EPID DICOM images.
 
@@ -401,6 +412,17 @@ class Starshot(ResultsDataMixin[StarshotResults]):
             passed=self.passed,
         )
 
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        """Return the data points to be saved to the QuAAC file."""
+        results_data = self.results_data()
+        return {
+            "Circle diameter": QuaacDatum(
+                value=results_data.circle_diameter_mm,
+                unit="mm",
+                description="The diameter of the fitted circle representing isocenter.",
+            ),
+        }
+
     def plot_analyzed_image(self, show: bool = True, **plt_kwargs: dict):
         """Draw the star lines, profile circle, and wobble circle on a matplotlib figure.
 
@@ -447,7 +469,7 @@ class Starshot(ResultsDataMixin[StarshotResults]):
         if ax is None:
             fig, ax = plt.subplots(**plt_kwargs)
         # show analyzed image
-        ax.imshow(self.image.array, cmap=get_dicom_cmap())
+        self.image.plot(ax=ax, show=False)
         self.lines.plot(ax)
         self.wobble.plot2axes(ax, edgecolor="green")
         self.circle_profile.plot2axes(ax, edgecolor="green")

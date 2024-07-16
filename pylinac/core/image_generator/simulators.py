@@ -9,6 +9,14 @@ from pydicom.uid import UID, generate_uid
 from .layers import Layer
 
 
+def generate_file_metadata() -> Dataset:
+    file_meta = FileMetaDataset()
+    file_meta.TransferSyntaxUID = UID(
+        "1.2.840.10008.1.2"
+    )  # default DICOM transfer syntax
+    return file_meta
+
+
 class Simulator(ABC):
     """Abstract class for an image simulator"""
 
@@ -32,25 +40,20 @@ class Simulator(ABC):
         """Add a layer to the image"""
         self.image = layer.apply(self.image, self.pixel_size, self.mag_factor)
 
-    def as_dicom(
-        self,
-        gantry_angle: float = 0.0,
-        coll_angle: float = 0.0,
-        table_angle: float = 0.0,
-    ) -> Dataset:
+    def as_dicom(self, *args, **kwargs) -> Dataset:
         """Create and return a pydicom Dataset. I.e. create a pseudo-DICOM image."""
         raise NotImplementedError(
             "This method has not been implemented for this simulator. Overload the method of your simulator."
         )
 
-    def generate_dicom(
-        self,
-        file_out_name: str,
-        gantry_angle: float = 0.0,
-        coll_angle: float = 0.0,
-        table_angle: float = 0.0,
-    ) -> None:
-        ds = self.as_dicom(gantry_angle, coll_angle, table_angle)
+    def generate_dicom(self, file_out_name: str, *args, **kwargs) -> None:
+        """Save the simulated image to a DICOM file.
+
+        See Also
+        --------
+        as_dicom
+        """
+        ds = self.as_dicom(*args, **kwargs)
         ds.save_as(file_out_name, write_like_original=False)
 
 
@@ -65,11 +68,13 @@ class AS500Image(Simulator):
         gantry_angle: float = 0.0,
         coll_angle: float = 0.0,
         table_angle: float = 0.0,
+        invert_array: bool = True,
     ) -> Dataset:
         # make image look like an EPID with flipped data (dose->low)
-        flipped_image = -self.image + self.image.max() + self.image.min()
-
-        file_meta = FileMetaDataset()
+        if invert_array:
+            array = -self.image + self.image.max() + self.image.min()
+        else:
+            array = self.image
         # Main data elements
         ds = Dataset()
         ds.ImageType = ["DERIVED", "SECONDARY", "PORTAL"]
@@ -94,10 +99,7 @@ class AS500Image(Simulator):
         ds.PatientID = "zzzBAC_Lutz"
         ds.PatientBirthDate = ""
         ds.SoftwareVersions = "2.41.01J0"
-        ds.StudyInstanceUID = "1.2.840.113854.141883099300381770008774160544352783139"
-        ds.SeriesInstanceUID = (
-            "1.2.840.113854.141883099300381770008774160544352783139.1"
-        )
+        ds.StudyInstanceUID = generate_uid()
         ds.StudyID = "348469"
         ds.SeriesNumber = "4597199"
         ds.InstanceNumber = "0"
@@ -122,9 +124,9 @@ class AS500Image(Simulator):
         ds.GantryAngle = str(gantry_angle)
         ds.BeamLimitingDeviceAngle = str(coll_angle)
         ds.PatientSupportAngle = str(table_angle)
-        ds.PixelData = flipped_image  # XXX Array of 393216 bytes excluded
+        ds.PixelData = array.tobytes()  # XXX Array of 393216 bytes excluded
 
-        ds.file_meta = file_meta
+        ds.file_meta = generate_file_metadata()
         ds.is_implicit_VR = True
         ds.is_little_endian = True
         return ds
@@ -141,12 +143,13 @@ class AS1000Image(Simulator):
         gantry_angle: float = 0.0,
         coll_angle: float = 0.0,
         table_angle: float = 0.0,
+        invert_array: bool = True,
     ) -> Dataset:
         # make image look like an EPID with flipped data (dose->low)
-        flipped_image = -self.image + self.image.max() + self.image.min()
-
-        # File meta info data elements
-        file_meta = FileMetaDataset()
+        if invert_array:
+            array = -self.image + self.image.max() + self.image.min()
+        else:
+            array = self.image
 
         # Main data elements
         ds = Dataset()
@@ -172,10 +175,7 @@ class AS1000Image(Simulator):
         ds.PatientID = "abc123"
         ds.PatientBirthDate = ""
         ds.SoftwareVersions = "2.41.01J0"
-        ds.StudyInstanceUID = "1.2.840.113854.323870129946883845737820671794195198978"
-        ds.SeriesInstanceUID = (
-            "1.2.840.113854.323870129946883845737820671794195198978.1"
-        )
+        ds.StudyInstanceUID = generate_uid()
         ds.StudyID = "348469"
         ds.SeriesNumber = "4290463"
         ds.InstanceNumber = "0"
@@ -200,9 +200,9 @@ class AS1000Image(Simulator):
         ds.GantryAngle = str(gantry_angle)
         ds.BeamLimitingDeviceAngle = str(coll_angle)
         ds.PatientSupportAngle = str(table_angle)
-        ds.PixelData = flipped_image  # XXX Array of 1572864 bytes excluded
+        ds.PixelData = array.tobytes()  # XXX Array of 1572864 bytes excluded
 
-        ds.file_meta = file_meta
+        ds.file_meta = generate_file_metadata()
         ds.is_implicit_VR = True
         ds.is_little_endian = True
         return ds
@@ -219,17 +219,12 @@ class AS1200Image(Simulator):
         gantry_angle: float = 0.0,
         coll_angle: float = 0.0,
         table_angle: float = 0.0,
+        invert_array: bool = True,
     ) -> Dataset:
-        file_meta = FileMetaDataset()
-        file_meta.FileMetaInformationGroupLength = 196
-        file_meta.FileMetaInformationVersion = b"\x00\x01"
-        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.481.1"
-        file_meta.MediaStorageSOPInstanceUID = (
-            "1.2.246.352.64.1.5468686515961995030.4457606667843517571"
-        )
-        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
-        file_meta.ImplementationClassUID = "1.2.246.352.70.2.1.120.1"
-        file_meta.ImplementationVersionName = "MergeCOM3_410"
+        if invert_array:
+            array = -self.image + self.image.max() + self.image.min()
+        else:
+            array = self.image
 
         # Main data elements
         ds = Dataset()
@@ -258,10 +253,7 @@ class AS1200Image(Simulator):
         ds.PatientBirthTime = "000000"
         ds.PatientSex = ""
         ds.SoftwareVersions = "2.5.13.2"
-        ds.StudyInstanceUID = "1.2.246.352.64.4.5644626269434644263.1905029945372990626"
-        ds.SeriesInstanceUID = (
-            "1.2.246.352.64.2.5508761605912087323.11665958260371685307"
-        )
+        ds.StudyInstanceUID = generate_uid()
         ds.StudyID = "fdd794f2-8520-4c4a-aecc-e4446c1730ff"
         ds.SeriesNumber = None
         ds.AcquisitionNumber = "739774555"
@@ -282,9 +274,6 @@ class AS1200Image(Simulator):
         ds.PixelRepresentation = 0
         ds.WindowCenter = "32767.0"
         ds.WindowWidth = "65535.0"
-        ds.RescaleIntercept = "0.0"
-        ds.RescaleSlope = "1.0"
-        ds.RescaleType = "US"
         ds.RTImageLabel = "MV_180"
         ds.RTImageDescription = ""
         ds.ReportedValuesOrigin = "ACTUAL"
@@ -304,9 +293,9 @@ class AS1200Image(Simulator):
         ds.TableTopVerticalPosition = "-24.59382842824"
         ds.TableTopLongitudinalPosition = "200.813502948597"
         ds.TableTopLateralPosition = "3.00246706215532"
-        ds.PixelData = self.image  # XXX Array of 3276800 bytes excluded
+        ds.PixelData = array.tobytes()  # XXX Array of 3276800 bytes excluded
 
-        ds.file_meta = file_meta
+        ds.file_meta = generate_file_metadata()
         ds.is_implicit_VR = True
         ds.is_little_endian = True
         return ds

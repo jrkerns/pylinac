@@ -25,7 +25,7 @@ from pylinac.field_analysis import (
     plot_symmetry_point_difference,
     symmetry_point_difference,
 )
-from tests_basic.core.test_utilities import TestResultsDataBase
+from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
     get_file_from_cloud_test_repo,
@@ -42,10 +42,13 @@ def create_instance(model=FieldAnalysis):
     return fs
 
 
-class FieldAnalysisTests(TestCase):
+class FieldAnalysisTests(QuaacTestBase, TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         plt.close("all")
+
+    def quaac_instance(self):
+        return create_instance()
 
     def test_load_from_file_object(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "6x-auto-bulb-2.dcm"])
@@ -241,7 +244,7 @@ class FieldAnalysisTests(TestCase):
         self.assertEqual(vert_ref, vert_manual)
 
 
-class TestFAResultsData(TestResultsDataBase, TestCase):
+class TestFAResultsData(ResultsDataBase, TestCase):
     model = FieldAnalysis
 
 
@@ -269,6 +272,7 @@ class FieldAnalysisBase(CloudFileMixin):
     penumbra = (20, 80)
     protocol = Protocol.VARIAN
     interpolation_method = Interpolation.LINEAR
+    interpolation_resolution = 0.1
     edge_detection_method = Edge.INFLECTION_DERIVATIVE
     centering = Centering.BEAM_CENTER
     normalization_method = Normalization.GEOMETRIC_CENTER
@@ -302,10 +306,14 @@ class FieldAnalysisBase(CloudFileMixin):
             is_FFF=cls.is_FFF,
             penumbra=cls.penumbra,
             interpolation=cls.interpolation_method,
+            interpolation_resolution_mm=cls.interpolation_resolution,
             edge_detection_method=cls.edge_detection_method,
         )
         if cls.print_results:
             print(cls.fs.results())
+
+    def tearDown(self):
+        plt.close("all")
 
     def test_top_slope(self):
         if self.is_FFF:
@@ -414,6 +422,13 @@ class FieldAnalysisBase(CloudFileMixin):
             self.horiz_flatness,
             delta=self.flat_tolerance,
         )
+
+    def test_plot(self):
+        self.fs.plot_analyzed_image()
+        figs, names = self.fs.plot_analyzed_image(split_plots=True)
+        self.assertEqual(len(figs), 3)
+        self.assertEqual(len(names), 3)
+        self.assertIsInstance(figs[0], plt.Figure)
 
 
 class NormalOpenField(FieldAnalysisBase, TestCase):
@@ -555,6 +570,27 @@ class FlatSym18X(FieldAnalysisBase, TestCase):
     penum_bottom = 3.4
     penum_right = 3.0
     penum_left = 3.4
+
+
+class FlatSym18xSiemens(FlatSym18X):
+    protocol = Protocol.SIEMENS
+    horiz_symmetry = -0.33
+    vert_symmetry = -0.27
+
+
+class FlatSym18xSiemens2(FlatSym18xSiemens):
+    interpolation_resolution = (
+        0.137  # use an arbitrary interpolation so that we get an odd number of points
+    )
+    horiz_symmetry = -0.6
+    penum_left = 2.9
+
+
+class FlatSym18xSiementsNoInterp(FlatSym18xSiemens):
+    interpolation_method = Interpolation.NONE
+    horiz_symmetry = -0.62
+    penum_bottom = 3.8
+    penum_left = 3.0
 
 
 class BBLike(FieldAnalysisBase, TestCase):

@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 from skimage.transform import rotate
 
 from pylinac.cheese import CIRS062M, TomoCheese, TomoCheeseResult
-from tests_basic.core.test_utilities import TestResultsDataBase
+from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,
@@ -35,7 +35,7 @@ class TestInstantiation(
     is_folder = True
 
 
-class TestResults(TestCase, TestResultsDataBase):
+class TestResults(TestCase, ResultsDataBase):
     model = TomoCheese
 
     @classmethod
@@ -151,6 +151,23 @@ class TestPlottingSaving(TestCase):
         cheese = TomoCheese.from_demo_images()
         cheese.analyze(roi_config={"1": {"density": 1.2}})
         cheese.plot_density_curve()
+
+
+class TestTomoQuaac(QuaacTestBase, TestCase):
+    def quaac_instance(self):
+        t = TomoCheese.from_demo_images()
+        t.analyze()
+        return t
+
+
+class TestCIRS062Quaac(QuaacTestBase, CloudFileMixin, TestCase):
+    dir_path = ["Tomo", "CIRS062M"]
+    file_name = "CIRS062M - Erogluer.zip"
+
+    def quaac_instance(self):
+        t = CIRS062M.from_zip(self.get_filename())
+        t.analyze()
+        return t
 
 
 class CheeseMixin(CloudFileMixin):

@@ -210,6 +210,90 @@ Continuing from above:
     data_dict["ct_module"]["roi_radius_mm"]
     ...
 
+CT Analysis Parameters
+----------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`pylinac.acr.ACRCT.analyze` for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      There are currently no analysis parameters for the ACR CT phantom.
+
+Interpreting CT Results
+-----------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      The outcome from analyzing the phantom and calling ``.results_data()`` is a :class:`~pylinac.acr.ACRCTResult` instance.
+      See the API documentation for details and also :ref:`exporting-results`.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      The outcome from analyzing the phantom in RadMachine will return an "Entire Result" as follows:
+
+      * ``phantom_model``: The model of the phantom used.
+      * ``phantom_roll_deg``: The roll of the phantom in degrees.
+      * ``origin_slice``: The slice number of the "origin" slice; for ACR this is Module 1.
+      * ``num_images``: The number of images in the passed dataset.
+      * ``ct_module``: The results of the CT module with the following items:
+
+        * ``offset``: The offset of the module slice in mm from the origin slice (z-direction).
+        * ``roi_distance_from_center_mm``: The distance of the ROIs from the center of the phantom in mm in the image plane.
+        * ``roi_radius_mm``: The radius of the ROIs in mm.
+        * ``rois``: The analyzed ROIs. The key is the name of the material
+          and the value is the mean HU value. E.g. ``'Air': -987.1``.
+        * ``roi_settings``: The ROI settings. The keys are the material names,
+          each with the following items:
+
+          * ``angle``: The angle of the ROI in degrees.
+          * ``distance``: The distance of the ROI from the center of the phantom in mm.
+          * ``radius``: The radius of the ROI in mm.
+          * ``distance_pixels``: The distance of the ROI from the center of the phantom in pixels.
+          * ``radius_pixels``: The radius of the ROI in pixels.
+          * ``angle_corrected``: The angle of the ROI corrected for phantom roll in degrees.
+
+      * ``uniformity_module``: The results from the Uniformity module, with the following items:
+
+        * ``offset``: The offset of the module slice in mm from the origin slice (z-direction).
+        * ``roi_distance_from_center_mm``: The distance of the ROIs from the center of the phantom in mm in the image plane.
+        * ``roi_radius_mm``: The radius of the ROIs in mm.
+        * ``rois``: The analyzed ROIs. The key is the location
+          and the value is the mean HU value. E.g. ``'Top': 13.2``.
+        * ``roi_settings``: The ROI settings. The keys are the location names.
+        * ``center_roi_stdev``: The standard deviation of the center ROI.
+
+      * ``low_contrast_module``: The results of the Low-Contrast module, with the following items:
+
+        * ``offset``: The offset of the module slice in mm from the origin slice (z-direction).
+        * ``roi_distance_from_center_mm``: The distance of the ROIs from the center of the phantom in mm in the image plane.
+        * ``roi_radius_mm``: The radius of the ROIs in mm.
+        * ``rois``: The analyzed ROI values.
+        * ``roi_settings``: The ROI settings.
+        * ``cnr``: The contrast-to-noise ratio.
+
+      * ``spatial_resolution_module``: The results of the Spatial Resolution module, with the following items:
+
+        * ``offset``: The offset of the module slice in mm from the origin slice (z-direction).
+        * ``roi_distance_from_center_mm``: The distance of the ROIs from the center of the phantom in mm in the image plane.
+        * ``roi_radius_mm``: The radius of the ROIs in mm.
+        * ``rois``: The analyzed ROIs. The key is the location
+          and the value is the mean HU value. E.g. ``'Top': 13.2``.
+        * ``roi_settings``: The ROI settings. The keys are the location names.
+        * ``lpmm_to_rmtf``: Line pair to relative modulation transfer mapping. The keys are the line pair values and the values are the relative modulation transfer values.
+
+
 MRI Algorithm
 -------------
 
@@ -287,6 +371,148 @@ low-contrast visibility test.
 
   .. math:: PSG = ghosting_{ratio} * 100
 
+MRI Analysis Parameters
+-----------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`pylinac.acr.ACRMRILarge.analyze` for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **Echo Number**: The echo sequence to analyze; uses the `Echo Numbers <https://dicom.innolitics.com/ciods/mr-image/mr-image/00180086>`__ DICOM tag. Only relevant if more than one echo sequence
+        is present in the dataset. If multiple echos are detected, the default is to analyze the first echo sequence.
+
+Interpreting MRI Results
+------------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      The outcome from analyzing the phantom and calling ``.results_data()`` is a :class:`~pylinac.acr.ACRMRIResult` instance.
+      See the API documentation for details and also :ref:`exporting-results`.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      The outcome from analyzing the phantom in RadMachine will return an "Entire Result" as follows:
+
+      * ``phantom_model``: The model of the phantom used.
+      * ``phantom_roll_deg``: The roll of the phantom in degrees.
+      * ``origin_slice``: The slice number of the "origin" slice; for ACR this is Slice 1.
+      * ``num_images``: The number of images in the passed dataset.
+      * ``slice1``: The results for the "Slice 1" module with the following items:
+
+        * ``offset``: The offset of the phantom in mm from the origin slice.
+        * ``bar_difference_mm``: The difference in bar positions in mm.
+        * ``slice_shift_mm``: The measured shift in slice position compared to nominal.
+        * ``measured_slice_thickness_mm``: The measured slice thickness in mm.
+        * ``row_mtf_50``: The MTF at 50% for the row-based ROIs.
+        * ``col_mtf_50``: The MTF at 50% for the column-based ROIs.
+        * ``rois``: A dictionary of the analyzed MTF ROIs. The key is the name of the
+          ROI; e.g. ``Row 1.1`` and the key is a dictionary of the following items:
+
+          * ``name``: The name of the ROI.
+          * ``value``: The mean HU value of the ROI.
+          * ``stdev``: The standard deviation of the ROI.
+
+        * ``roi_settings``: A dictionary of the ROI settings. The keys are the ROI names,
+          each with the following items:
+
+          * ``angle``: The angle of the ROI in degrees.
+          * ``distance``: The distance of the ROI from the center of the phantom in mm.
+          * ``radius``: The radius of the ROI in mm.
+          * ``distance_pixels``: The distance of the ROI from the center of the phantom in pixels.
+          * ``radius_pixels``: The radius of the ROI in pixels.
+          * ``angle_corrected``: The angle of the ROI corrected for phantom roll in degrees.
+
+      * ``slice11``: A dictionary of results from the analysis of "Slice 11" with the '
+        following items:
+
+        * ``offset``: The offset of the phantom in mm from the origin slice.
+        * ``bar_difference_mm``: The difference in bar positions in mm.
+        * ``slice_shift_mm``: The measure shift in slice position compared to nominal.
+        * ``rois``: The results of the left and right bar ROIs. The key
+          is the name of the bar and the results are a dictionary with the following items:
+
+          * ``name``: The name of the ROI.
+          * ``value``: The mean HU value of the ROI.
+          * ``stdev``: The standard deviation of the ROI.
+
+          * ``roi_settings``: The ROI settings. The keys are the ROI names,
+            each with the following items:
+
+            * ``angle``: The angle of the ROI in degrees.
+            * ``distance``: The distance of the ROI from the center of the phantom in mm.
+            * ``radius``: The radius of the ROI in mm.
+            * ``distance_pixels``: The distance of the ROI from the center of the phantom in pixels.
+            * ``radius_pixels``: The radius of the ROI in pixels.
+            * ``angle_corrected``: The angle of the ROI corrected for phantom roll in degrees.
+
+      * ``uniformity_module``: Results from the uniformity module with the following items:
+
+        * ``offset``: The offset of the phantom in mm from the origin slice.
+        * ``ghosting_ratio``: The ghosting ratio.
+        * ``piu``: The percent integral uniformity.
+        * ``piu_passed``: Whether the PIU passed the test.
+        * ``psg``: The percent signal ghosting.
+        * ``rois``: A dictionary of the analyzed ROIs. The key is the name of
+          the ROI region with the following items:
+
+          * ``name``: The name of the ROI.
+          * ``value``: The mean HU value of the ROI.
+          * ``stdev``: The standard deviation of the ROI.
+          * ``difference``: The difference in HU value from the nominal value.
+          * ``nominal_value``: The nominal HU value of the ROI.
+          * ``passed``: Whether the ROI passed the test.
+
+        * ``roi_settings``: A dictionary of the ROI settings. The keys are the ROI names,
+          each with the following items:
+
+          * ``angle``: The angle of the ROI in degrees.
+          * ``distance``: The distance of the ROI from the center of the phantom in mm.
+          * ``radius``: The radius of the ROI in mm.
+          * ``distance_pixels``: The distance of the ROI from the center of the phantom in pixels.
+          * ``radius_pixels``: The radius of the ROI in pixels.
+          * ``angle_corrected``: The angle of the ROI corrected for phantom roll in degrees.
+
+        * ``ghost_rois``: A dictionary of the analyzed ghosting ROIs. The key is the name of
+          the ROI region with the following items:
+
+          * ``name``: The name of the ROI.
+          * ``value``: The mean HU value of the ROI.
+          * ``stdev``: The standard deviation of the ROI.
+
+      * ``ghost_roi_settings``: A dictionary of the ghosting ROI settings. The keys are the ROI names,
+        each with the following items:
+
+        * ``angle``: The angle of the ROI in degrees.
+        * ``distance``: The distance of the ROI from the center of the phantom in mm.
+        * ``radius``: The radius of the ROI in mm.
+        * ``distance_pixels``: The distance of the ROI from the center of the phantom in pixels.
+        * ``radius_pixels``: The radius of the ROI in pixels.
+        * ``angle_corrected``: The angle of the ROI corrected for phantom roll in degrees.
+
+      * ``geometric_distortion_module``: Results from the geometric distortion module with the following items:
+
+        * ``offset``: The offset of the phantom in mm from the origin slice.
+        * ``profiles``: A dictionary of the profiles used to measure the geometric distortion.
+          The key is the name of the profile and the value is a dictionary with the following items:
+
+          * ``width_mm``: The FWHM of the profile in mm.
+          * ``line``: A dictionary representing the line to be plotted.
+
+        * ``distances``: The lines measuring the ROI size. The
+          key is the name of the line direction and the value is a string of the
+          line length.
 
 API Documentation
 -----------------
@@ -296,36 +522,26 @@ API Documentation
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.acr.ACRCTResult
-    :members:
+.. autopydantic_model:: pylinac.acr.ACRCTResult
 
-.. autoclass:: pylinac.acr.CTModuleOutput
-    :members:
+.. autopydantic_model:: pylinac.acr.CTModuleOutput
 
-.. autoclass:: pylinac.acr.UniformityModuleOutput
-    :members:
+.. autopydantic_model:: pylinac.acr.UniformityModuleOutput
 
-.. autoclass:: pylinac.acr.SpatialResolutionModuleOutput
-    :members:
+.. autopydantic_model:: pylinac.acr.SpatialResolutionModuleOutput
 
-.. autoclass:: pylinac.acr.LowContrastModuleOutput
-    :members:
+.. autopydantic_model:: pylinac.acr.LowContrastModuleOutput
 
 .. autoclass:: pylinac.acr.ACRMRILarge
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.acr.ACRMRIResult
-    :members:
+.. autopydantic_model:: pylinac.acr.ACRMRIResult
 
-.. autoclass:: pylinac.acr.MRSlice11ModuleOutput
-    :members:
+.. autopydantic_model:: pylinac.acr.MRSlice11ModuleOutput
 
-.. autoclass:: pylinac.acr.MRSlice1ModuleOutput
-    :members:
+.. autopydantic_model:: pylinac.acr.MRSlice1ModuleOutput
 
-.. autoclass:: pylinac.acr.MRUniformityModuleOutput
-    :members:
+.. autopydantic_model:: pylinac.acr.MRUniformityModuleOutput
 
-.. autoclass:: pylinac.acr.MRGeometricDistortionModuleOutput
-    :members:
+.. autopydantic_model:: pylinac.acr.MRGeometricDistortionModuleOutput

@@ -18,7 +18,7 @@ from pylinac.core.image_generator import (
     RandomNoiseLayer,
 )
 from pylinac.vmat import VMATResult
-from tests_basic.core.test_utilities import TestResultsDataBase
+from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
 from tests_basic.utils import (
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
@@ -131,11 +131,25 @@ class TestDRMLCLoading(LoadingBase, TestCase):
     klass = DRMLC
 
 
-class TestDRMLCResultsData(TestResultsDataBase, TestCase):
+class TestDRGSQuaac(QuaacTestBase, TestCase):
+    def quaac_instance(self):
+        t = DRGS.from_demo_images()
+        t.analyze()
+        return t
+
+
+class TestDRMLCQuaac(QuaacTestBase, TestCase):
+    def quaac_instance(self):
+        t = DRMLC.from_demo_images()
+        t.analyze()
+        return t
+
+
+class TestDRMLCResultsData(ResultsDataBase, TestCase):
     model = DRMLC
 
 
-class TestDRGSResultsData(TestResultsDataBase, TestCase):
+class TestDRGSResultsData(ResultsDataBase, TestCase):
     model = DRGS
 
 

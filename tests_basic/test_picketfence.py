@@ -21,8 +21,8 @@ from pylinac.core.image_generator import (
 )
 from pylinac.core.io import TemporaryZipDirectory
 from pylinac.picketfence import MLC, MLCArrangement, Orientation, PFResult, PicketFence
-from tests_basic.core.test_profile_metrics import create_bb_image
-from tests_basic.core.test_utilities import TestResultsDataBase
+from tests_basic.core.test_image_metrics import create_bb_image
+from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,
@@ -122,7 +122,7 @@ class TestInstantiation(
         self.assertEqual(offset, offset_manual_dpi)
 
 
-class TestResultsData(TestResultsDataBase, TestCase):
+class TestResultsData(ResultsDataBase, TestCase):
     model = PicketFence
 
 
@@ -447,6 +447,13 @@ class TestPlottingSaving(TestCase):
         self.pf.plot_leaf_error(fig_kwargs={"figsize": (10, 10)})
 
         self.pf.plot_leaf_error(barplot_kwargs={"showfliers": False})
+
+
+class TestQuaac(QuaacTestBase, TestCase):
+    def quaac_instance(self):
+        pf = PicketFence.from_demo_image()
+        pf.analyze()
+        return pf
 
 
 class PFTestMixin(CloudFileMixin):

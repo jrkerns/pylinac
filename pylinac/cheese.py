@@ -7,12 +7,13 @@ from typing import Callable
 
 import numpy as np
 from matplotlib import pyplot as plt
+from pydantic import Field
 
 from .core import pdf
 from .core.profile import CollapsedCircleProfile
 from .core.roi import DiskROI
 from .core.scale import abs360
-from .core.utilities import ResultBase, ResultsDataMixin
+from .core.utilities import QuaacDatum, ResultBase, ResultsDataMixin
 from .ct import CatPhanBase, CatPhanModule, Slice
 
 
@@ -22,32 +23,43 @@ class TomoCheeseResult(ResultBase):
 
     Use the following attributes as normal class attributes."""
 
-    origin_slice: int  #:
-    num_images: int  #:
-    phantom_roll: float  #:
-    rois: dict  #:
+    origin_slice: int = Field(
+        description="The slice index that was used for the ROI analysis.",
+        title="Slice number of the analyzed image",
+    )
+    num_images: int = Field(
+        description="The number of images that were in the passed dataset.",
+        title="Number of images in the stack",
+    )
+    phantom_roll: float = Field(
+        description="The roll of the phantom in degrees.",
+        title="Phantom roll (\N{DEGREE SIGN})",
+    )
+    rois: dict[str, dict[str, int | float]] = Field(
+        description="A dictionary of measured ROIs.", title="ROI data"
+    )
     # having explicit rois here is a stupid idea. Keeping it for backwards compatibility.
     # `rois` is the new way to go as its extensible for N ROIs.
-    roi_1: dict  #:
-    roi_2: dict  #:
-    roi_3: dict  #:
-    roi_4: dict  #:
-    roi_5: dict  #:
-    roi_6: dict  #:
-    roi_7: dict  #:
-    roi_8: dict  #:
-    roi_9: dict  #:
-    roi_10: dict  #:
-    roi_11: dict  #:
-    roi_12: dict  #:
-    roi_13: dict  #:
-    roi_14: dict  #:
-    roi_15: dict  #:
-    roi_16: dict  #:
-    roi_17: dict  #:
-    roi_18: dict  #:
-    roi_19: dict  #:
-    roi_20: dict  #:
+    roi_1: dict = Field(title="ROI 1")
+    roi_2: dict = Field(title="ROI 2")
+    roi_3: dict = Field(title="ROI 3")
+    roi_4: dict = Field(title="ROI 4")
+    roi_5: dict = Field(title="ROI 5")
+    roi_6: dict = Field(title="ROI 6")
+    roi_7: dict = Field(title="ROI 7")
+    roi_8: dict = Field(title="ROI 8")
+    roi_9: dict = Field(title="ROI 9")
+    roi_10: dict = Field(title="ROI 10")
+    roi_11: dict = Field(title="ROI 11")
+    roi_12: dict = Field(title="ROI 12")
+    roi_13: dict = Field(title="ROI 13")
+    roi_14: dict = Field(title="ROI 14")
+    roi_15: dict = Field(title="ROI 15")
+    roi_16: dict = Field(title="ROI 16")
+    roi_17: dict = Field(title="ROI 17")
+    roi_18: dict = Field(title="ROI 18")
+    roi_19: dict = Field(title="ROI 19")
+    roi_20: dict = Field(title="ROI 20")
 
 
 class CheeseResult(ResultBase):
@@ -56,10 +68,21 @@ class CheeseResult(ResultBase):
 
     Use the following attributes as normal class attributes."""
 
-    origin_slice: int  #:
-    num_images: int  #:
-    phantom_roll: float  #:
-    rois: dict  #:
+    origin_slice: int = Field(
+        description="The slice index that was used for the ROI analysis.",
+        title="Slice number of the analyzed image",
+    )
+    num_images: int = Field(
+        description="The number of images that were in the passed dataset.",
+        title="Number of images in the stack",
+    )
+    phantom_roll: float = Field(
+        description="The roll of the phantom in degrees.",
+        title="Phantom roll (\N{DEGREE SIGN})",
+    )
+    rois: dict[str, dict[str, int | float]] = Field(
+        description="A dictionary of measured ROIs.", title="ROI data"
+    )
 
 
 class CheeseModule(CatPhanModule):
@@ -73,7 +96,7 @@ class CheeseModule(CatPhanModule):
     def _setup_rois(self) -> None:
         # unlike its super, we use simple disk ROIs as we're not doing complicated things.
         for name, setting in self.roi_settings.items():
-            self.rois[name] = DiskROI(
+            self.rois[name] = DiskROI.from_phantom_center(
                 self.image,
                 setting["angle_corrected"],
                 setting["radius_pixels"],
@@ -339,6 +362,20 @@ class CheesePhantomBase(CatPhanBase, ResultsDataMixin[CheeseResult]):
         plt.tight_layout()
         if show:
             plt.show()
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        results_data = self.results_data(as_dict=True)
+        data = {}
+        data["Phantom roll"] = QuaacDatum(
+            value=results_data["phantom_roll"],
+            unit="degrees",
+        )
+        for roi_num, roi_data in results_data["rois"].items():
+            data[f"ROI {roi_num}"] = QuaacDatum(
+                value=roi_data["median"],
+                unit="HU",
+            )
+        return data
 
     def publish_pdf(
         self,

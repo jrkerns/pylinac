@@ -12,7 +12,7 @@ from functools import lru_cache
 from io import BytesIO, StringIO
 from pathlib import Path, PurePosixPath
 from tempfile import TemporaryDirectory
-from typing import Callable, List, Sequence, Union
+from typing import Callable, List, Sequence
 from urllib.request import urlopen
 
 from google.cloud import storage
@@ -171,7 +171,7 @@ class CloudFileMixin:
     1. Override ``file_path`` with a list that contains the subfolder(s) and file name.
     """
 
-    file_name: Union[str, Sequence[str]]
+    file_name: str | Sequence[str] | None = None
     dir_path: Sequence[str]
     delete_file = True
 
@@ -192,7 +192,7 @@ class CloudFileMixin:
 
     @classmethod
     def tearDownClass(cls):
-        if cls.delete_file and DELETE_FILES:
+        if cls.delete_file and DELETE_FILES and cls.file_name:
             file = cls.get_filename()
             if osp.isfile(file):
                 os.remove(file)

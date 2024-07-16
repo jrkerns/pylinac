@@ -234,6 +234,24 @@ creating new classes is relatively easy. The following steps show how this can b
         swiss.analyze()
         swiss.plot_analyzed_image()
 
+Analysis Parameters
+-------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`pylinac.cheese.TomoCheese.analyze` for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **ROI <N> Density**: The density of the plug in the ROI. This is used to plot the HU-to-density curve.
+        The number of inputs depend on the phantom. All densities are optional. If at least one
+        density is provided, a density-to-HU curve will be plotted. Not all densities need to be provided. I.e.
+        any subset of the ROI densities can be provided.
 
 Algorithm
 ---------
@@ -281,6 +299,29 @@ Analysis
 * **Measure HU values of each plug** -- Based on the nominal spacing and roll compensation (if applied),
   each plug area is sampled for the median and standard deviation values.
 
+Interpreting Results
+^^^^^^^^^^^^^^^^^^^^
+
+The outcome from analyzing the phantom available in RadMachine or from
+``results_data`` is:
+
+* ``origin_slice``: The slice index that was used for the ROI analysis.
+* ``num_images``: The number of images that were in the passed dataset.
+* ``phantom_roll``: The roll of the phantom in degrees.
+* ``rois``: A dictionary of ROIs. The key is the ROI number and the value
+  of each key contains:
+
+  * ``center_x``: The x-coordinate of the center of the ROI in pixels.
+  * ``center_y``: The y-coordinate of the center of the ROI in pixels.
+  * ``diameter``: The diameter of the ROI in pixels.
+  * ``median``: The median HU value of the ROI.
+  * ``std``: The standard deviation of the HU values of the ROI.
+
+* ``roi_<n>``: This is the same thing as an individual result from ``rois``, but the name itself has
+  the ROI number appended. I.e. ``rois['11'] == roi_11``. It is redundant information and is the older implementation
+  of providing ROI data. Some "cheese" analyses may not have this set of keys. It
+  is deprecated due to the variable number of ROIs that can be analyzed.
+
 API Documentation
 -----------------
 
@@ -301,11 +342,9 @@ API Documentation
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.cheese.CheeseResult
-    :members:
+.. autopydantic_model:: pylinac.cheese.CheeseResult
 
-.. autoclass:: pylinac.cheese.TomoCheeseResult
-    :members:
+.. autopydantic_model:: pylinac.cheese.TomoCheeseResult
 
 .. autoclass:: pylinac.cheese.CheesePhantomBase
     :inherited-members:

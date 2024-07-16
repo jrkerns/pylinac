@@ -33,12 +33,13 @@ from typing import BinaryIO, Callable, Literal
 import matplotlib.pyplot as plt
 import numpy as np
 from py_linq import Enumerable
+from pydantic import Field
 from scipy.ndimage import median_filter
 from skimage import exposure, feature, measure
 from skimage.measure._regionprops import RegionProperties
 
 from . import Normalization
-from .core import geometry, image, pdf
+from .core import geometry, image, pdf, validators
 from .core.contrast import Contrast
 from .core.decorators import lru_cache
 from .core.geometry import Circle, Point, Rectangle, Vector
@@ -46,7 +47,7 @@ from .core.io import get_url, retrieve_demo_file
 from .core.mtf import MTF
 from .core.profile import CollapsedCircleProfile, FWXMProfilePhysical
 from .core.roi import DiskROI, HighContrastDiskROI, LowContrastDiskROI, bbox_center
-from .core.utilities import ResultBase, ResultsDataMixin
+from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
 from .metrics.image import SizedDiskLocator
 
 
@@ -56,15 +57,37 @@ class PlanarResult(ResultBase):
 
     Use the following attributes as normal class attributes."""
 
-    analysis_type: str  #:
-    median_contrast: float  #:
-    median_cnr: float  #:
-    num_contrast_rois_seen: int  #:
-    phantom_center_x_y: tuple[float, float]  #:
-    low_contrast_rois: list[dict]  #:
-    phantom_area: float  #: The area of the phantom in pixels^2
-    mtf_lp_mm: tuple[float, float, float] | None = None  #:
-    percent_integral_uniformity: float | None = None  #:
+    analysis_type: str = Field(description="Phantom name")
+    median_contrast: float = Field(
+        description="The median contrast of the low contrast ROIs.",
+        title="Median Contrast",
+    )
+    median_cnr: float = Field(
+        description="The median contrast-to-noise ratio of the low contrast ROIs.",
+        title="Median CNR",
+    )
+    num_contrast_rois_seen: int = Field(
+        description="The number of low contrast ROIs that had a visibility score above the passed threshold.",
+        title="Number of Low Contrast ROIs detected",
+    )
+    phantom_center_x_y: tuple[float, float] = Field(
+        description="The center of the phantom in the image in pixels."
+    )
+    low_contrast_rois: list[dict] = Field(
+        description="A dictionary of the individual low contrast ROIs. The dictionary keys are the ROI number, starting at 0"
+    )
+    phantom_area: float = Field(
+        description="The area of the phantom in mm^2. This is an approximation. It calculates the area of a perfect, similar shape (circle, square) that fits the phantom.",
+        title="Phantom Area (mm^2)",
+    )
+    mtf_lp_mm: tuple[float, float, float] | None = Field(
+        description="The 80%, 50%, and 30% MTF values in lp/mm.", default=None
+    )
+    percent_integral_uniformity: float | None = Field(
+        description="The percent integral uniformity of the image.",
+        default=None,
+        title="Percent Integral Uniformity",
+    )
 
 
 def _middle_of_bbox_region(region: RegionProperties) -> tuple:
@@ -105,7 +128,7 @@ def percent_integral_uniformity(max: float, min: float) -> float:
     return 100 * (1 - (max - min + 1e-6) / (max + min + 1e-6))
 
 
-class ImagePhantomBase(ResultsDataMixin[PlanarResult]):
+class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
     """Base class for planar phantom classes.
 
     Attributes
@@ -154,7 +177,12 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult]):
     detection_canny_settings = {"sigma": 2, "percentiles": (0.001, 0.01)}
     phantom_bbox_size_mm2: float
     roi_match_condition: Literal["max", "closest"] = "max"
-    mtf: MTF
+    mtf: MTF | None
+    x_adjustment: float
+    y_adjustment: float
+    angle_adjustment: float
+    roi_size_factor: float
+    scaling_factor: float
     _ssd: float
 
     def __init__(
@@ -285,6 +313,11 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult]):
         ssd: float | Literal["auto"] = "auto",
         low_contrast_method: str = Contrast.MICHELSON,
         visibility_threshold: float = 100,
+        x_adjustment: float = 0,
+        y_adjustment: float = 0,
+        angle_adjustment: float = 0,
+        roi_size_factor: float = 1,
+        scaling_factor: float = 1,
     ) -> None:
         """Analyze the phantom using the provided thresholds and settings.
 
@@ -322,6 +355,29 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult]):
             The equation to use for calculating low contrast.
         visibility_threshold
             The threshold for whether an ROI is "seen".
+        x_adjustment: float
+            A fine-tuning adjustment to the detected x-coordinate of the phantom center. This will move the
+            detected phantom position by this amount in the x-direction in mm. Positive values move the phantom to the right.
+
+            .. note::
+
+                This (along with the y-, scale-, and zoom-adjustment) is applied after the automatic detection in contrast to the center_override which is a **replacement** for
+                the automatic detection. The x, y, and angle adjustments cannot be used in conjunction with the angle, center, or size overrides.
+
+        y_adjustment: float
+            A fine-tuning adjustment to the detected y-coordinate of the phantom center. This will move the
+            detected phantom position by this amount in the y-direction in mm. Positive values move the phantom down.
+        angle_adjustment: float
+            A fine-tuning adjustment to the detected angle of the phantom. This will rotate the phantom by this amount in degrees.
+            Positive values rotate the phantom clockwise.
+        roi_size_factor: float
+            A fine-tuning adjustment to the ROI sizes of the phantom. This will scale the ROIs by this amount.
+            Positive values increase the ROI sizes. In contrast to the scaling adjustment, this
+            adjustment effectively makes the ROIs bigger or smaller, but does not adjust their position.
+        scaling_factor: float
+            A fine-tuning adjustment to the detected magnification of the phantom. This will zoom the ROIs and phantom outline by this amount.
+            In contrast to the roi size adjustment, the scaling adjustment effectively moves the phantom and ROIs
+            closer or further from the phantom center. I.e. this zooms the outline and ROI positions, but not ROI size.
         """
         self._angle_override = angle_override
         self._center_override = center_override
@@ -330,6 +386,28 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult]):
         self._low_contrast_threshold = low_contrast_threshold
         self._low_contrast_method = low_contrast_method
         self.visibility_threshold = visibility_threshold
+        self.mtf = None
+        # error checking
+        validators.is_positive(roi_size_factor)
+        validators.is_positive(scaling_factor)
+        # can't set overrides and adjustments
+        if center_override and any((x_adjustment, y_adjustment)):
+            raise ValueError(
+                "Cannot set both overrides and adjustments. Use one or the other."
+            )
+        if angle_adjustment and angle_override:
+            raise ValueError(
+                "Cannot set the angle override and angle adjustment simultaneously. Use one or the other."
+            )
+        if size_override and scaling_factor != 1:
+            raise ValueError(
+                "Cannot set the size override and scaling factor simultaneously. Use one or the other."
+            )
+        self.x_adjustment = x_adjustment
+        self.y_adjustment = y_adjustment
+        self.angle_adjustment = angle_adjustment
+        self.roi_size_factor = roi_size_factor
+        self.scaling_factor = scaling_factor
         self._ssd = ssd
         self._find_ssd()
         self._check_inversion()
@@ -357,10 +435,10 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult]):
         """Sample the low-contrast sample regions for calculating contrast values."""
         lc_rois = []
         for stng in self.low_contrast_roi_settings.values():
-            roi = LowContrastDiskROI(
+            roi = LowContrastDiskROI.from_phantom_center(
                 self.image,
                 self.phantom_angle + stng["angle"],
-                self.phantom_radius * stng["roi radius"],
+                self.phantom_radius * stng["roi radius"] * self.roi_size_factor,
                 self.phantom_radius * stng["distance from center"],
                 self.phantom_center,
                 self._low_contrast_threshold,
@@ -377,10 +455,10 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult]):
         """Sample the low-contrast background regions for calculating contrast values."""
         bg_rois = []
         for stng in self.low_contrast_background_roi_settings.values():
-            roi = LowContrastDiskROI(
+            roi = LowContrastDiskROI.from_phantom_center(
                 self.image,
                 self.phantom_angle + stng["angle"],
-                self.phantom_radius * stng["roi radius"],
+                self.phantom_radius * stng["roi radius"] * self.roi_size_factor,
                 self.phantom_radius * stng["distance from center"],
                 self.phantom_center,
                 self._low_contrast_threshold,
@@ -393,10 +471,10 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult]):
         """Sample the high-contrast line pair regions."""
         hc_rois = []
         for stng in self.high_contrast_roi_settings.values():
-            roi = HighContrastDiskROI(
+            roi = HighContrastDiskROI.from_phantom_center(
                 self.image,
                 self.phantom_angle + stng["angle"],
-                self.phantom_radius * stng["roi radius"],
+                self.phantom_radius * stng["roi radius"] * self.roi_size_factor,
                 self.phantom_radius * stng["distance from center"],
                 self.phantom_center,
                 self._high_contrast_threshold,
@@ -686,8 +764,10 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult]):
             median_cnr=np.median(
                 [roi.contrast_to_noise for roi in self.low_contrast_rois]
             ),
-            num_contrast_rois_seen=sum(
-                roi.passed_visibility for roi in self.low_contrast_rois
+            num_contrast_rois_seen=int(
+                sum(  # a numpy sum is np.int32, which pydantic doesn't like
+                    roi.passed_visibility for roi in self.low_contrast_rois
+                )
             ),
             phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
             low_contrast_rois=[roi.as_dict() for roi in self.low_contrast_rois],
@@ -700,6 +780,36 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult]):
                 {p: self.mtf.relative_resolution(p)} for p in (80, 50, 30)
             ]
         return data
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        data = self.results_data()
+        return {
+            "Median Contrast": QuaacDatum(
+                value=data.median_contrast,
+                unit="",
+                description="Median contrast of the low contrast ROIs",
+            ),
+            "Median CNR": QuaacDatum(
+                value=data.median_cnr,
+                unit="",
+                description="Median contrast-to-noise ratio of the low contrast ROIs",
+            ),
+            "Num Contrast ROIs Seen": QuaacDatum(
+                value=data.num_contrast_rois_seen,
+                unit="",
+                description="Number of low contrast ROIs 'seen'",
+            ),
+            "Percent Integral Uniformity": QuaacDatum(
+                value=data.percent_integral_uniformity,
+                unit="%",
+                description="Percent integral uniformity of the low contrast ROIs",
+            ),
+            "Phantom area": QuaacDatum(
+                value=data.phantom_area,
+                unit="pixels",
+                description="Area of the phantom in pixels^2",
+            ),
+        }
 
     def publish_pdf(
         self,
@@ -773,10 +883,12 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult]):
 
     @property
     def phantom_center(self) -> Point:
+        # convert the adjustment from mm to pixels
+        adjustment = Point(x=self.x_adjustment, y=self.y_adjustment) * self.image.dpmm
         return (
             Point(self._center_override)
             if self._center_override is not None
-            else self._phantom_center_calc()
+            else (self._phantom_center_calc() + adjustment).as_point()
         )
 
     @property
@@ -784,7 +896,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult]):
         return (
             self._size_override
             if self._size_override is not None
-            else self._phantom_radius_calc()
+            else self._phantom_radius_calc() * self.scaling_factor
         )
 
     @property
@@ -792,7 +904,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult]):
         return (
             self._angle_override
             if self._angle_override is not None
-            else self._phantom_angle_calc()
+            else self._phantom_angle_calc() + self.angle_adjustment
         )
 
     @property
@@ -801,10 +913,10 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult]):
         area_px = self._create_phantom_outline_object()[0].area
         return area_px / self.image.dpmm**2
 
-    def _phantom_center_calc(self):
+    def _phantom_center_calc(self) -> Point:
         return bbox_center(self.phantom_ski_region)
 
-    def _phantom_angle_calc(self):
+    def _phantom_angle_calc(self) -> float:
         pass
 
     def _phantom_radius_calc(self):
@@ -829,12 +941,30 @@ class LightRadResult(ResultBase):
 
     Use the following attributes as normal class attributes."""
 
-    field_size_x_mm: float  #:
-    field_size_y_mm: float  #:
-    field_epid_offset_x_mm: float  #:
-    field_epid_offset_y_mm: float  #:
-    field_bb_offset_x_mm: float  #:
-    field_bb_offset_y_mm: float  #:
+    field_size_x_mm: float = Field(
+        description="The size of the field in the x-direction/crossplane in mm.",
+        title="Field Size X (mm)",
+    )
+    field_size_y_mm: float = Field(
+        description="The size of the field in the y-direction/inplane in mm.",
+        title="Field Size Y (mm)",
+    )
+    field_epid_offset_x_mm: float = Field(
+        description="The offset of the field center from the EPID/image center in the x-direction/crossplane in mm.",
+        title="Field->EPID X offset (mm)",
+    )
+    field_epid_offset_y_mm: float = Field(
+        description="The offset of the field center from the EPID/image center in the y-direction/inplane in mm.",
+        title="Field->EPID Y offset (mm)",
+    )
+    field_bb_offset_x_mm: float = Field(
+        description="The offset of the field center from the BB center in the x-direction/crossplane in mm.",
+        title="Field->BB X offset (mm)",
+    )
+    field_bb_offset_y_mm: float = Field(
+        description="The offset of the field center from the BB center in the y-direction/inplane in mm.",
+        title="Field->BB Y offset (mm)",
+    )
 
 
 class StandardImagingFC2(ImagePhantomBase):
@@ -935,6 +1065,41 @@ class StandardImagingFC2(ImagePhantomBase):
             field_bb_offset_x_mm=self.field_bb_offset_mm.x,
             field_bb_offset_y_mm=self.field_bb_offset_mm.y,
         )
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        data = self.results_data()
+        return {
+            "Field size (X)": QuaacDatum(
+                value=data.field_size_x_mm,
+                unit="mm",
+                description="Detected crossplane field size",
+            ),
+            "Field size (Y)": QuaacDatum(
+                value=data.field_size_y_mm,
+                unit="mm",
+                description="Detected inplane field size",
+            ),
+            "Field EPID offset (X)": QuaacDatum(
+                value=data.field_epid_offset_x_mm,
+                unit="mm",
+                description="Detected crossplane field offset from the EPID center",
+            ),
+            "Field EPID offset (Y)": QuaacDatum(
+                value=data.field_epid_offset_y_mm,
+                unit="mm",
+                description="Detected inplane field offset from the EPID center",
+            ),
+            "Field BB offset (X)": QuaacDatum(
+                value=data.field_bb_offset_x_mm,
+                unit="mm",
+                description="Detected crossplane field offset from the BB center",
+            ),
+            "Field BB offset (Y)": QuaacDatum(
+                value=data.field_bb_offset_y_mm,
+                unit="mm",
+                description="Detected inplane field offset from the BB center",
+            ),
+        }
 
     def _check_inversion(self):
         """Perform a normal corner-check inversion. Since these are always 10x10 or 15x15 fields it seems unlikely the corners will be exposed."""
@@ -1429,8 +1594,8 @@ class LasVegas(ImagePhantomBase):
             median_cnr=np.median(
                 [roi.contrast_to_noise for roi in self.low_contrast_rois]
             ),
-            num_contrast_rois_seen=sum(
-                roi.passed_visibility for roi in self.low_contrast_rois
+            num_contrast_rois_seen=int(
+                sum(roi.passed_visibility for roi in self.low_contrast_rois)
             ),
             phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
             low_contrast_rois=[r.as_dict() for r in self.low_contrast_rois],
@@ -1736,12 +1901,10 @@ class IBAPrimusA(ImagePhantomBase):
         """The center region (crosshair) should be less intense than an area adjacent to it."""
         crosshair_disk = DiskROI(
             self.image.array,
-            angle=0,
-            roi_radius=self.phantom_radius / 2,
-            dist_from_center=0,
-            phantom_center=self.phantom_center,
+            radius=self.phantom_radius / 2,
+            center=self.phantom_center,
         )
-        adjacent_disk = DiskROI(
+        adjacent_disk = DiskROI.from_phantom_center(
             self.image.array,
             angle=0,
             roi_radius=self.phantom_radius / 2,
@@ -2401,7 +2564,7 @@ class LeedsTOR(ImagePhantomBase):
         # do the same as the base method but centered on the high-res block
         hc_rois = []
         for stng in self.high_contrast_roi_settings.values():
-            roi = HighContrastDiskROI(
+            roi = HighContrastDiskROI.from_phantom_center(
                 self.image,
                 self.phantom_angle + stng["angle"],
                 self.phantom_radius * stng["roi radius"],

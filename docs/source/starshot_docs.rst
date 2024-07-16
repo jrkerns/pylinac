@@ -118,6 +118,29 @@ A typical analysis sequence looks like so:
 
       mystar.publish_pdf("mystar.pdf")
 
+Analysis Parameters
+-------------------
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`~pylinac.starshot.Starshot.analyze` for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **Image dots per inch**: The DPI of the image. Only needed for TIFF images and only if the resolution tag is
+        not in the TIFF tags.
+      * **Source to film distance**: The distance from the radiation source to the film **in mm**. Only needed for TIFF images.
+      * **Normalized Radius**: The radius of the circle used to detect the spokes. 0 is the center of the spoke intersection
+        and 1 is the extent of the "shortest" detected spoke. E.g. the spokes may be partially cut off from the image edge.
+      * **Tolerance**: The isocenter diameter tolerance in mm.
+      * **Normalized minimum peak height**: The percentage minimum height a peak must be to be considered a valid peak. A lower value catches
+        radiation peaks that vary in magnitude (e.g. different MU delivered or gantry shot), but could also pick up noise.
+        If necessary, lower value for gantry shots and increase for noisy images.
 
 Algorithm
 ---------
@@ -166,6 +189,21 @@ Algorithm
 * **Check if passed** -- Once the wobble is calculated, it is tested against the tolerance given, and passes if below the
   tolerance. If the image carried a pixel/mm conversion ratio, the tolerance and result are in mm, otherwise they
   will be in pixels.
+
+.. _interpreting-starshot-results:
+
+Interpreting Results
+--------------------
+
+This section explains what is returned in the ``results_data`` object.
+This is also the same information that is given in the RadMachine results
+section.
+
+* ``tolerance_mm`` -- The tolerance used for the analysis in mm.
+* ``circle_radius_mm`` -- The radius of the minimum circle that touches all the star lines in mm.
+* ``circle_diameter_mm`` -- The diameter of the minimum circle that touches all the star lines in mm.
+* ``circle_center_x_y`` -- The center position of the minimum circle in pixels.
+* ``passed`` -- Whether the analysis passed or failed.
 
 Troubleshooting
 ---------------
@@ -313,8 +351,7 @@ API Documentation
 .. autoclass:: pylinac.starshot.Starshot
     :members:
 
-.. autoclass:: pylinac.starshot.StarshotResults
-    :members:
+.. autopydantic_model:: pylinac.starshot.StarshotResults
 
 .. autoclass:: pylinac.starshot.StarProfile
     :members:

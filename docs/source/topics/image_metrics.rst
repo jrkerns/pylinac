@@ -21,6 +21,20 @@ Use Cases
 Tool Legend
 -----------
 
+Tools can be divided into two categories: Finders and Samplers. The main difference is that Finders are used to **locate** objects in the image (using image features/pixel data)
+and Samplers are used to **sample** the image in some way where the location of the ROI is known or fixed.
+Finders make use of image features while Samplers do not.
+
+Finders use image features to locate objects in the image, such as a BB or field.
+From here, a user may then want to calculate properties of the object, such as the area or weighted centroid.
+
+Samplers are tools that sample the image in some way, such as calculating the mean pixel value of a region.
+These are not mutually exclusive use cases. E.g. a Finder may be used to locate a BB and then a Sampler may be used to calculate the mean pixel value
+of the region around that ROI or sample an offset from it, such as the penumbra or background.
+
+Finders
+^^^^^^^
+
 +---------------------------------------------------------+------------------------------------------------------------------+------------------------------------------------------------------------------+
 | Use Case                                                | Constraint                                                       | Class                                                                        |
 +=========================================================+==================================================================+==============================================================================+
@@ -46,6 +60,17 @@ Tool Legend
 +---------------------------------------------------------+------------------------------------------------------------------+------------------------------------------------------------------------------+
 | Find the ROI properties of a circular field in an image | The field size and location are known approximately              | :class:`~pylinac.metrics.image.SizedDiskRegion` (``invert=False``)           |
 +---------------------------------------------------------+------------------------------------------------------------------+------------------------------------------------------------------------------+
+
+Samplers
+^^^^^^^^
+
+* :class:`~pylinac.metrics.image.DiskROIMetric`: Sample a circular region of interest.
+  Will return a :class:`~pylinac.core.roi.DiskROI` object. This object contains
+  the mean pixel value, standard deviation, and other properties of the ROI.
+* :class:`~pylinac.metrics.image.RectangleROIMetric`: Sample a rectangular region of interest.
+  Will return a :class:`~pylinac.core.roi.RectangleROI` object. This object contains
+  the mean pixel value, standard deviation, and other properties of the ROI.
+
 
 Basic Usage
 -----------
@@ -355,8 +380,10 @@ Global Field Locator
 
 .. versionadded:: 3.17
 
-The :class:`GlobalFieldLocator` metric will find fields within an image, but does not require the field to be a specific size.
-It will find anything field-like in the image. The logic is similar to the :class:`GlobalSizedFieldLocator` metric otherwise.
+The :class:`~pylinac.metrics.image.GlobalFieldLocator` metric will find fields within an image, but does not require the field to be a specific size.
+It will find anything field-like in the image. The logic is similar to the :class:`~pylinac.metrics.image.GlobalSizedFieldLocator` metric otherwise.
+
+The position can be specified in pixels or mm.
 
 For example:
 
@@ -370,6 +397,124 @@ For example:
    img = DicomImage("my_image.dcm")
    img.compute(metrics=GlobalFieldLocator(max_number=2))
    img.plot()  # this will plot the image with the fields overlaid
+
+Disk ROI Metric
+^^^^^^^^^^^^^^^
+
+.. versionadded:: 3.25
+
+The :class:`~pylinac.metrics.image.DiskROIMetric` metric will sample a circular region of interest (ROI) in the image.
+This will return a :class:`~pylinac.core.roi.DiskROI` object. This object can then be used to
+determine the mean pixel value, standard deviation, etc.
+
+As with the other metrics, this can be specified in pixels or mm.
+
+.. code-block:: python
+
+    import numpy as np
+
+    from pylinac.core.roi import DiskROI
+    from pylinac.core.image import DicomImage
+    from pylinac.metrics.image import DiskROIMetric
+
+    img = DicomImage("my_image.dcm")
+
+    # position in pixels
+    roi: DiskROI = img.compute(
+        metrics=DiskROIMetric(
+            radius=20,
+            center=Point(511.5, 383.5),
+        )
+    )
+    img.plot()
+
+    mean = np.mean(roi.pixel_values)
+
+    # position in mm
+    roi: DiskROI = img.compute(
+        metrics=DiskROIMetric.from_physical(
+            radius_mm=10,
+            center_mm=(70, 80),
+        )
+    )
+
+.. plot::
+    :include-source: false
+
+    import numpy as np
+
+    from pylinac.core.geometry import Point
+    from pylinac.core.image import ArrayImage
+    from pylinac.metrics.image import DiskROIMetric
+
+    array = np.random.rand(100, 100)
+
+    img = ArrayImage(array)
+    img.compute(
+        metrics=DiskROIMetric(radius=20, center=Point(30, 40), text="My ROI", linewidth=5, fontsize='large'),
+    )
+    img.plot(vmin=0, vmax=5)
+
+
+Rectangle ROI Metric
+^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 3.25
+
+The :class:`~pylinac.metrics.image.RectangleROIMetric` metric will sample a rectangular region of interest (ROI) in the image.
+This will return a :class:`~pylinac.core.roi.RectangleROI` object. This object can then be used to
+determine the mean pixel value, standard deviation, etc.
+
+As with the other metrics, this can be specified in pixels or mm.
+
+.. code-block:: python
+
+    import numpy as np
+
+    from pylinac.core.roi import RectangleROI
+    from pylinac.core.image import DicomImage
+    from pylinac.metrics.image import RectangleROIMetric
+
+    img = DicomImage("my_image.dcm")
+
+    # position in pixels
+    roi: RectangleROI = img.compute(
+        metrics=RectangleROIMetric(
+            width=20,
+            height=30,
+            center=Point(511.5, 383.5),
+        )
+    )
+    img.plot()
+
+    mean = np.mean(roi.pixel_array)
+
+    # position in mm
+    roi: RectangleROI = img.compute(
+        metrics=RectangleROIMetric.from_physical(
+            width_mm=10,
+            height_mm=20,
+            center_mm=(70, 80),
+        )
+    )
+
+.. plot::
+    :include-source: false
+
+    import numpy as np
+
+    from pylinac.core.geometry import Point
+    from pylinac.core.image import ArrayImage
+    from pylinac.metrics.image import RectangleROIMetric
+
+    array = np.random.rand(100, 100)
+
+    img = ArrayImage(array)
+    img.compute(
+        metrics=RectangleROIMetric(width=20, height=30, center=Point(60, 50), text="My ROI", linewidth=5, fontsize='large'),
+    )
+    img.plot(vmin=0, vmax=5)
+
 
 Writing Custom Plugins
 ----------------------
@@ -575,6 +720,9 @@ Here is the plot of the final image with the BB location and threshold boundary 
 API
 ---
 
+Finders
+^^^^^^^
+
 .. autoclass:: pylinac.metrics.image.MetricBase
     :inherited-members:
     :members:
@@ -596,5 +744,16 @@ API
     :members:
 
 .. autoclass:: pylinac.metrics.image.GlobalFieldLocator
+    :inherited-members:
+    :members:
+
+Samplers
+^^^^^^^^
+
+.. autoclass:: pylinac.metrics.image.DiskROIMetric
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.metrics.image.RectangleROIMetric
     :inherited-members:
     :members:

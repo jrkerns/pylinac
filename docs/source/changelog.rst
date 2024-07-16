@@ -2,8 +2,67 @@
 Changelog
 =========
 
+Legend
+------
+
+* :bdg-success:`Feature` denotes a new feature or ability.
+* :bdg-warning:`Fixed` denotes a bug fix.
+* :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
+* :bdg-danger:`Change` denotes a change that may break existing code.
+
 v 3.25.0
 --------
+
+Winston Lutz
+^^^^^^^^^^^^
+
+* :bdg-success:`Feature` Reference axis values and tolerance-matching values for WL analysis can now be passed. See :ref:`setting-wl-reference-values`.
+
+Picket Fence
+^^^^^^^^^^^^
+
+* :bdg-success:`Feature` The picket fence plot can now explicitly list the pickets and any failed leaves with the new
+  parameter ``show_text`` in the ``plot_analyzed_image`` and ``save_analyzed_image`` methods. For backwards compatibility, the default is False.
+* :bdg-warning:`Fixed` The leaf overlay ``overlay=True`` when plotting analyzed images with a Left/Right orientation would
+  not display correctly.
+
+Metrics
+^^^^^^^
+
+* A new class of metrics has been added: Samplers. These are classes that sample an ROI of an image,
+  in contrast to the existing class of metrics that find image features. To start,
+  two finder-class metrics have been added: :class:`~pylinac.metrics.image.DiskROIMetric`
+  and :class:`~pylinac.metrics.image.RectangleROIMetric`.
+
+Core
+^^^^
+
+* Most modules have a new documentation section "Analysis Parameters". This section is meant
+  to guide RadMachine users through the parameters available to them. Sometimes the names are slightly
+  different and some parameters are not available to the user in RadMachine. Select the tab
+  that indicates your usage.
+* A cookbook section has been added to the documentation: :ref:`cookbook`. Although not too many
+  cases are covered yet, this will be a place for various use-cases and how to accomplish them.
+* :bdg-success:`Feature` Pylinac now supports QuAAC integration. QuAAC is an interoperability standard we created to attempt to
+  standardize how QA information is stored and to be vendor-neutral. You can read more about the QuAAC standard `here <https://quaac.readthedocs.io/en/latest/index.html>`__.
+  How to dump pylinac results to QuAAC format can be read in :ref:`exporting-to-quaac`.
+* :class:`~pylinac.core.roi.DiskROI` has been refactored. The constructor signature has changed to be more generic for
+  other external usages.
+  Historically, these were only used internally and in the context of an ROI within a phantom. Unless you are using these
+  classes directly no change is needed. If using these classes, a new class method has been added that has the same
+  signature as the original constructor ``from_phantom_center``. I.e. to retain the old behavior:
+
+  .. code-block:: python
+
+    # old
+    d = DiskROI(array, angle, roi_radius, dist_from_center, phantom_center)
+
+    # new
+    d = DiskROI.from_phantom_center(
+        array, angle, roi_radius, dist_from_center, phantom_center
+    )
+
+  The ``DiskROI`` 's new constructor signature is a much simpler ``array, radius, center``.
 
 Plan Generator
 ^^^^^^^^^^^^^^
@@ -13,11 +72,94 @@ Plan Generator
 * The :class:`MLCShaper` has a new method: ``park``.
 * A bug in the picket fence generator was having the MLCs start 2mm closer to isocenter rather than 2mm further away.
 
+v 3.24.1
+--------
+
+.. note::
+
+    Version 3.24.0 was accidentally released on pypi before the intended release date. PYPI does not allow
+    versions to be re-uploaded. v 3.24.0 was yanked and the official first release of the 3.24.x line is v3.24.1.
+    There is no 3.24.0.
+
+CBCT
+^^^^
+
+* :bdg-warning:`Fixed` Some datasets were failing due to the proximity to the edge of the FOV. While we encourage an FOV that is 1cm+ larger than the
+  phantom to minimize edge artifacts and ensure the entire phantom is captured, we have reduced the required clearance
+  of the phantom to the edge by approximately half.
+
+Image Generator
+^^^^^^^^^^^^^^^
+
+* :bdg-success:`Feature` When saving a simulated image to DICOM, the user can now choose whether to invert the image array.
+  This can help simulate older or newer EPID types.
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* :bdg-success:`Feature` Planar phantom analyses now have new parameter options for fine-tuning the automatic analysis. See :ref:`fine-tuning-planar`.
+
+Core
+^^^^
+
+* :bdg-primary:`Refactor` Multiplying ``Point`` s together would not return a new point. It now performs both an in-place
+  and out-of-place multiplication. E.g. ``Point(1, 2) * 2`` will return a new point at (2, 4) and
+  also change the original point to (2, 4).
+
+Field Analysis
+^^^^^^^^^^^^^^
+
+* :bdg-success:`Feature` There is a new module for performing field analysis that leverages the 1D metrics framework. This
+  is an alternative and successor to the original field analysis module. You can read more here: :ref:`field-profile-analysis`.
+* :bdg-warning:`Fixed` Using the ``INFLECTION_HILL`` edge detection with ``FieldAnalysis`` where the penumbra does not have a "tail" can lead to
+  plotting errors. This is a visual error only and does not affect the numerical calculations.
+* :bdg-warning:`Fixed` Plotting a ``FieldAnalysis`` with the ``SIEMENS`` protocol would sometimes fail to plot due to a mismatch
+  in x and y values to plot.
+
+Profiles & 1D Metrics
+^^^^^^^^^^^^^^^^^^^^^
+
+* :bdg-success:`Feature` 1D Profile Metrics have two new methods: ``geometric_center_idx`` and ``cax_index`` that return the index
+  (interpolated) for their respective values.
+* :bdg-success:`Feature` The ``plot`` method for profiles now includes a ``mirror`` parameter. This will mirror the profile about the
+  geometric center or beam center index. This is useful for visualizing the symmetry of the profile.
+* :bdg-success:`Feature` Physical profile plots now also plot the x-axis in physical values on a secondary axis.
+* :bdg-success:`Feature` 1D metrics now have a ``full_name`` property that concatenates the name of the metric and the unit if applicable.
+* ;bdg-danger:`Change` Calculated metrics of a profile that are stored in the ``metric_values`` attribute are now saved using the full name
+  as described above. This means if you access metrics this way, you may need to update the lookup to include the unit.
+* :bdg-success:`Feature` Two new metrics have been added: ``CAXtoLeftBeamEdge`` and ``CAXToRightBeamEdge``. These metrics will calculate the distance
+  from the CAX to the left and right beam edges, respectively.
+* :bdg-warning:`Fixed` The ``FlatnessDifferenceMetric`` had a bug that would cause plotting to fail.
+* :bdg-warning:`Fixed` The ``SymmetryPointDifferenceQuotientMetric`` 's default max and min range has been adjusted to 100-105 to better reflect default values.
+* :bdg-warning:`Fixed` The ``PenumbraLeftMetric`` and ``PenumbraRightMetric`` had their unit's changed from % to mm. % was incorrect.
+* :bdg-warning:`Fixed` The ``SlopeMetric`` would sometimes fail to plot if an uneven number of points were calculated over.
+
+Winston Lutz
+^^^^^^^^^^^^
+
+* :bdg-success:`Feature` A new value was added to the ``results_data`` call: ``bb_shift_vector``. This is the cartesian shift to
+  move the BB to the radiation isocenter. This was already available as ``<wl>.bb_shift_vector``.
+* :bdg-success:`Feature` Documentation has been added discussing our interpretation of common QA publication requirements of isocenter
+  QA. See :ref:`interpreting-winston-lutz-results`.
+
 v 3.23.2
 --------
 
 * The hotfix of v3.32.1 broke ``ACRMRILarge`` and ``DRGS/DRMLC`` results data when calling ``results_data(as_dict=True)``.
   This has been fixed.
+
+v 3.23.1
+--------
+
+Core
+^^^^
+
+* Attempting to dump the return value of ``.results_data()`` to json (i.e. ``json.dumps(<instance>.results_data(as_dict=True))``
+  would raise a JSON Serialization error. This was an unintended side-effect of the new export features introduced in v3.22.
+  This is often the way users of RadMachine would pass analysis results to other tests. While a Python dictionary is not
+  a guarantee of JSON compatibility, for the sake of ease of use and backwards-compatibility, we have fixed the results
+  such that JSON serialization should always work from ``as_dict=True``.
+
 
 v 3.23.1
 --------

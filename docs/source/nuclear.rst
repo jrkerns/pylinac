@@ -523,56 +523,47 @@ API
 .. autoclass:: pylinac.nuclear.MaxCountRate
    :members:
 
-.. autoclass:: pylinac.nuclear.MaxCountRateResults
-   :members:
+.. autopydantic_model:: pylinac.nuclear.MaxCountRateResults
 
 .. autoclass:: pylinac.nuclear.PlanarUniformity
    :members:
 
-.. autoclass:: pylinac.nuclear.PlanarUniformityResults
-   :members:
+.. autopydantic_model:: pylinac.nuclear.PlanarUniformityResults
 
 .. autoclass:: pylinac.nuclear.CenterOfRotation
    :members:
 
-.. autoclass:: pylinac.nuclear.CenterOfRotationResults
-    :members:
+.. autopydantic_model:: pylinac.nuclear.CenterOfRotationResults
 
 .. autoclass:: pylinac.nuclear.TomographicResolution
     :members:
 
-.. autoclass:: pylinac.nuclear.TomographicResolutionResults
-    :members:
+.. autopydantic_model:: pylinac.nuclear.TomographicResolutionResults
 
 .. autoclass:: pylinac.nuclear.SimpleSensitivity
     :members:
 
-.. autoclass:: pylinac.nuclear.SimpleSensitivityResults
-    :members:
+.. autopydantic_model:: pylinac.nuclear.SimpleSensitivityResults
 
 .. autoclass:: pylinac.nuclear.FourBarResolution
     :members:
 
-.. autoclass:: pylinac.nuclear.FourBarResolutionResults
-    :members:
+.. autopydantic_model:: pylinac.nuclear.FourBarResolutionResults
 
 .. autoclass:: pylinac.nuclear.QuadrantResolution
     :members:
 
-.. autoclass:: pylinac.nuclear.QuadrantResolutionResults
-    :members:
+.. autopydantic_model:: pylinac.nuclear.QuadrantResolutionResults
 
 .. autoclass:: pylinac.nuclear.TomographicUniformity
     :members:
 
-.. autoclass:: pylinac.nuclear.TomographicUniformityResults
-    :members:
+.. autopydantic_model:: pylinac.nuclear.TomographicUniformityResults
 
 .. autoclass:: pylinac.nuclear.TomographicContrast
     :members:
 
-.. autoclass:: pylinac.nuclear.TomographicContrastResults
-    :members:
+.. autopydantic_model:: pylinac.nuclear.TomographicContrastResults
 
 .. autoclass:: pylinac.nuclear.Nuclide
     :members:

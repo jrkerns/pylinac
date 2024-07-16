@@ -19,7 +19,7 @@ from typing import BinaryIO, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from . import Normalization
 from .core import image
@@ -28,8 +28,7 @@ from .core.image import DicomImage, ImageLike
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.pdf import PylinacCanvas
 from .core.profile import FWXMProfile
-from .core.utilities import ResultBase, ResultsDataMixin
-from .settings import get_dicom_cmap
+from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
 
 
 class ImageType(enum.Enum):
@@ -45,12 +44,22 @@ class SegmentResult(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    passed: bool  #:
-    x_position_mm: float  #:
-    r_corr: float  #:
-    r_dev: float  #:
-    center_x_y: PointSerialized  #:
-    stdev: float  #:
+    passed: bool = Field(
+        description="A boolean indicating if the segment passed or failed."
+    )
+    x_position_mm: float = Field(
+        description="The position of the segment ROI in mm from CAX."
+    )
+    r_corr: float = Field(
+        description="R corrected (ratio)", title="R corrected (ratio)"
+    )
+    r_dev: float = Field(description="R deviation (%)", title="R deviation (%)")
+    center_x_y: PointSerialized = Field(
+        description="The center of the segment in pixel coordinates."
+    )
+    stdev: float = Field(
+        description="The standard deviation of the segment of the ratioed images (DMLC / Open)"
+    )
 
 
 class VMATResult(ResultBase):
@@ -59,13 +68,26 @@ class VMATResult(ResultBase):
 
     Use the following attributes as normal class attributes."""
 
-    test_type: str  #:
-    tolerance_percent: float  #:
-    max_deviation_percent: float  #:
-    abs_mean_deviation: float  #:
-    passed: bool  #:
-    segment_data: list[SegmentResult]  #:
-    named_segment_data: dict[str, SegmentResult]  #:
+    test_type: str = Field(
+        description="The type of test that was performed as a string."
+    )
+    tolerance_percent: float = Field(
+        description=" The tolerance used to determine if the test passed or failed."
+    )
+    max_deviation_percent: float = Field(
+        description="The maximum deviation of any segment.", title="Max Deviation (%)"
+    )
+    abs_mean_deviation: float = Field(
+        description="The average absolute deviation of all segments.",
+        title="Absolute Mean Deviation (%)",
+    )
+    passed: bool = Field(
+        description="A boolean indicating if the test passed or failed."
+    )
+    segment_data: list[SegmentResult] = Field(description="Individual segment data.")
+    named_segment_data: dict[str, SegmentResult] = Field(
+        description="Named individual segment data."
+    )
 
 
 class Segment(Rectangle):
@@ -138,7 +160,7 @@ class Segment(Rectangle):
         return "blue" if self.passed else "red"
 
 
-class VMATBase(ResultsDataMixin[VMATResult]):
+class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
     _url_suffix: str
     _result_header: str
     _result_short_header: str
@@ -290,6 +312,28 @@ class VMATBase(ResultsDataMixin[VMATResult]):
 
         string += f"Max Deviation: {self.max_r_deviation:2.3}%\nAbsolute Mean Deviation: {self.avg_abs_r_deviation:2.3}%"
         return string
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        results_data = self.results_data(as_dict=True)
+        data = {
+            "Max Deviation": QuaacDatum(
+                value=results_data["max_deviation_percent"],
+                unit="%",
+            ),
+            "Absolute Mean Deviation": QuaacDatum(
+                value=results_data["abs_mean_deviation"],
+                unit="%",
+            ),
+        }
+        for segment, segment_data in results_data["named_segment_data"].items():
+            data[f"{segment} Rcorr"] = QuaacDatum(
+                value=segment_data["r_corr"],
+            )
+            data[f"{segment} Rdev"] = QuaacDatum(
+                value=segment_data["r_dev"],
+                unit="%",
+            )
+        return data
 
     def _generate_results_data(self) -> VMATResult:
         """Present the results data and metadata as a dataclass or dict.
@@ -448,7 +492,7 @@ class VMATBase(ResultsDataMixin[VMATResult]):
                 img = self.dmlc_image
             elif subimage == ImageType.OPEN:
                 img = self.open_image
-            ax.imshow(img, cmap=get_dicom_cmap())
+            img.plot(ax=ax, show=False)
             self._draw_segments(ax, show_text)
             plt.sca(ax)
             plt.axis("off")

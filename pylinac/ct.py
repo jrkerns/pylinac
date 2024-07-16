@@ -31,7 +31,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from py_linq import Enumerable
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from scipy import ndimage
 from skimage import draw, filters, measure, segmentation
 from skimage.measure._regionprops import RegionProperties
@@ -50,8 +50,7 @@ from .core.nps import (
 )
 from .core.profile import CollapsedCircleProfile, FWXMProfile
 from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
-from .core.utilities import ResultBase, ResultsDataMixin
-from .settings import get_dicom_cmap
+from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
 
 # The ramp angle ratio is from the Catphan manual ("Scan slice geometry" section)
 # and represents the fact that the wire is at an oblique angle (23°), making it appear
@@ -77,12 +76,14 @@ class ROIResult(BaseModel):
 
     Use the following attributes as normal class attributes."""
 
-    name: str  #:
-    value: float  #:
-    stdev: float  #:
-    difference: float | None  #:
-    nominal_value: float | None  #:
-    passed: bool | None  #:
+    name: str = Field(description="The region the ROI was sampled from.")
+    value: float = Field(description="The measured HU value.")
+    stdev: float = Field(description="The pixel value standard deviation of the ROI.")
+    difference: float | None = Field(
+        description="The difference between the measured and nominal values."
+    )
+    nominal_value: float | None = Field(description="The nominal HU value.")
+    passed: bool | None = Field(description=" Whether the ROI passed.")
 
 
 class CTP404Result(BaseModel):
@@ -91,19 +92,40 @@ class CTP404Result(BaseModel):
 
     Use the following attributes as normal class attributes."""
 
-    offset: int  #:
-    low_contrast_visibility: float  #:
-    thickness_passed: bool  #:
-    measured_slice_thickness_mm: float  #:
-    thickness_num_slices_combined: int  #:
-
-    geometry_passed: bool  #:
-    avg_line_distance_mm: float  #:
-    line_distances_mm: list[float]  #:
-
-    hu_linearity_passed: bool  #:
-    hu_tolerance: float  #:
-    hu_rois: dict  #:
+    offset: int = Field(
+        description="The offset of the module from the origin slice in mm."
+    )
+    low_contrast_visibility: float = Field(
+        description="The low contrast visibility score.",
+        title="Low Contrast Visibility",
+    )
+    thickness_passed: bool = Field(description="Whether the slice thickness passed.")
+    measured_slice_thickness_mm: float = Field(
+        description="The measured slice thickness in mm.",
+        title="Measured Slice Thickness (mm)",
+    )
+    thickness_num_slices_combined: int = Field(
+        description="The number of slices combined when measuring slice thickness."
+    )
+    geometry_passed: bool = Field(
+        description="Whether the geometry test passed, using the 4 nodes."
+    )
+    avg_line_distance_mm: float = Field(
+        description="The average distance between the 4 nodes in mm.",
+        title="Average Line Distance (mm)",
+    )
+    line_distances_mm: list[float] = Field(
+        description="A list of the individual distances between nodes."
+    )
+    hu_linearity_passed: bool = Field(
+        description="Whether all the HU ROIs were within tolerance."
+    )
+    hu_tolerance: float = Field(
+        description="The tolerance used for the HU linearity test."
+    )
+    hu_rois: dict[str, ROIResult] = Field(
+        description="A dictionary of the HU ROIs and their values. The keys will be the material name such as ``Acrylic``."
+    )
 
 
 class CTP486Result(BaseModel):
@@ -112,12 +134,24 @@ class CTP486Result(BaseModel):
 
     Use the following attributes as normal class attributes."""
 
-    uniformity_index: float  #:
-    integral_non_uniformity: float  #:
-    nps_avg_power: float
-    nps_max_freq: float
-    passed: bool  #:
-    rois: dict  #:
+    uniformity_index: float = Field(
+        description="The uniformity index as defined in Equation 2 of Elstrom et al",
+        title="Uniformity Index",
+    )
+    integral_non_uniformity: float = Field(
+        description="The integral non-uniformity as defined in Equation 1 of Elstrom et al",
+        title="Integral Non-Uniformity",
+    )
+    nps_avg_power: float = Field(
+        description="The average power of the noise power spectrum."
+    )
+    nps_max_freq: float = Field(
+        description="The most populous frequency of the noise power spectrum."
+    )
+    passed: bool = Field(description="Whether the uniformity test passed.")
+    rois: dict[str, ROIResult] = Field(
+        description="A dictionary of the uniformity ROIs and their values. The keys will be the region name such as ``Top``."
+    )
 
 
 class CTP515Result(BaseModel):
@@ -126,10 +160,19 @@ class CTP515Result(BaseModel):
 
     Use the following attributes as normal class attributes."""
 
-    cnr_threshold: float  #:
-    num_rois_seen: int  #:
-    roi_settings: dict  #:
-    roi_results: dict  #:
+    cnr_threshold: float = Field(
+        description="The contrast-to-noise ratio threshold used to determine if a low contrast ROI was 'seen'."
+    )
+    num_rois_seen: int = Field(
+        description="The number of ROIs that were above the threshold; ie. 'seen'.",
+        title="Number of low-contrast ROIs detected",
+    )
+    roi_settings: dict = Field(
+        description="The settings used for each low contrast ROI. The key names are ``n`` where ``<n>`` is the size of the ROI."
+    )
+    roi_results: dict = Field(
+        description="Results of the low contrast ROIs and their values. The keys will be the size of the ROI such as ``'9'``."
+    )
 
 
 class CTP528Result(BaseModel):
@@ -138,9 +181,15 @@ class CTP528Result(BaseModel):
 
     Use the following attributes as normal class attributes."""
 
-    start_angle_radians: float  #:
-    mtf_lp_mm: dict  #:
-    roi_settings: dict  #:
+    start_angle_radians: float = Field(
+        description="The angle where the circular profile started."
+    )
+    mtf_lp_mm: dict = Field(
+        description="A dictionary from 10% to 90% resolution in steps of 10 of the MTF in lp/mm. E.g. ``'20': 0.748``."
+    )
+    roi_settings: dict[str, dict[str, int | float]] = Field(
+        description="A dictionary of the settings used for each MTF ROI. The key names are ``region_<n>`` where ``<n>`` is the region number."
+    )
 
 
 class CatphanResult(ResultBase):
@@ -149,14 +198,34 @@ class CatphanResult(ResultBase):
 
     Use the following attributes as normal class attributes."""
 
-    catphan_model: str  #:
-    catphan_roll_deg: float  #:
-    origin_slice: int  #:
-    num_images: int  #:
-    ctp404: CTP404Result  #:
-    ctp486: CTP486Result | None = None  #:
-    ctp528: CTP528Result | None = None  #:
-    ctp515: CTP515Result | None = None  #:
+    catphan_model: str = Field(description="The model of CatPhan that was analyzed.")
+    catphan_roll_deg: float = Field(
+        description="The roll of the phantom in degrees.",
+        title="Phantom Roll (\N{DEGREE SIGN})",
+    )
+    origin_slice: int = Field(
+        description="The 'origin' slice number. For CatPhan, this is the center of the HU module."
+    )
+    num_images: int = Field(description="The number of images in the passed dataset.")
+    ctp404: CTP404Result = Field(
+        description="The results of the CTP404 (HU linearity, spacing) module.",
+        title="CTP404 (HU Linearity)",
+    )
+    ctp486: CTP486Result | None = Field(
+        description="The results of the CTP486 module (HU uniformity) module.",
+        title="CTP486 (HU Uniformity)",
+        default=None,
+    )
+    ctp528: CTP528Result | None = Field(
+        description="The results of the CTP528 (spatial resolution) module.",
+        title="CTP528 (Spatial Resolution)",
+        default=None,
+    )
+    ctp515: CTP515Result | None = Field(
+        description="The results of the CTP515 (Low contrast) module.",
+        default=None,
+        title="CTP515 (Low Contrast)",
+    )
 
 
 class HUDiskROI(DiskROI):
@@ -184,7 +253,8 @@ class HUDiskROI(DiskROI):
         tolerance
             The roi pixel value tolerance.
         """
-        super().__init__(array, angle, roi_radius, dist_from_center, phantom_center)
+        new_center = self._get_shifted_center(angle, dist_from_center, phantom_center)
+        super().__init__(array, roi_radius, new_center)
         self.nominal_val = nominal_value
         self.tolerance = tolerance
 
@@ -466,12 +536,7 @@ class CatPhanModule(Slice):
 
     def plot(self, axis: plt.Axes):
         """Plot the image along with ROIs to an axis"""
-        axis.imshow(
-            self.image.array,
-            cmap=get_dicom_cmap(),
-            vmin=self.window_min,
-            vmax=self.window_max,
-        )
+        self.image.plot(ax=axis, show=False, vmin=self.window_min, vmax=self.window_max)
         self.plot_rois(axis)
         axis.autoscale(tight=True)
         axis.set_title(self.common_name)
@@ -650,7 +715,7 @@ class CTP404CP504(CatPhanModule):
 
     def _setup_thickness_rois(self) -> None:
         for name, setting in self.thickness_roi_settings.items():
-            self.thickness_rois[name] = ThicknessROI(
+            self.thickness_rois[name] = ThicknessROI.from_phantom_center(
                 self.thickness_image,
                 setting["width_pixels"],
                 setting["height_pixels"],
@@ -988,7 +1053,7 @@ class CTP486(CatPhanModule):
         super()._setup_rois()
         self.nps_rois = {}
         for name, setting in self.roi_settings.items():
-            self.nps_rois[name] = RectangleROI(
+            self.nps_rois[name] = RectangleROI.from_phantom_center(
                 array=self.image,
                 width=setting["radius_pixels"] * 2,
                 height=setting["radius_pixels"] * 2,
@@ -1444,14 +1509,18 @@ class CTP515(CatPhanModule):
     def _setup_rois(self):
         # create both background rois dynamically, then create the actual sample ROI as normal
         for name, setting in self.roi_settings.items():
-            self.background_rois[name + "-outer"] = LowContrastDiskROI(
+            self.background_rois[
+                name + "-outer"
+            ] = LowContrastDiskROI.from_phantom_center(
                 self.image,
                 setting["angle_corrected"],
                 self.background_roi_radius_mm / self.mm_per_pixel,
                 setting["distance_pixels"] * (2 - self.background_roi_dist_ratio),
                 self.phan_center,
             )
-            self.background_rois[name + "-inner"] = LowContrastDiskROI(
+            self.background_rois[
+                name + "-inner"
+            ] = LowContrastDiskROI.from_phantom_center(
                 self.image,
                 setting["angle_corrected"],
                 self.background_roi_radius_mm / self.mm_per_pixel,
@@ -1467,7 +1536,7 @@ class CTP515(CatPhanModule):
                 )
             )
 
-            self.rois[name] = LowContrastDiskROI(
+            self.rois[name] = LowContrastDiskROI.from_phantom_center(
                 self.image,
                 setting["angle_corrected"],
                 setting["radius_pixels"],
@@ -1546,7 +1615,7 @@ class CTP515CP600(CTP515):
     }
 
 
-class CatPhanBase(ResultsDataMixin[CatphanResult]):
+class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
     """A class for loading and analyzing CT DICOM files of a CatPhan 504 & CatPhan 503. Can be from a CBCT or CT scanner
     Analyzes: Uniformity (CTP486), High-Contrast Spatial Resolution (CTP528), Image Scaling & HU Linearity (CTP404).
     """
@@ -2309,6 +2378,68 @@ class CatPhanBase(ResultsDataMixin[CatphanResult]):
             result = results
         return result
 
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        results_data = self.results_data(as_dict=True)
+        data = {
+            "Phantom Roll": QuaacDatum(
+                value=results_data["catphan_roll_deg"],
+                unit="degrees",
+            )
+        }
+        for material, roi in results_data["ctp404"]["hu_rois"].items():
+            data[f"{material} HU"] = QuaacDatum(
+                value=roi["value"], unit="HU", reference_value=roi["nominal_value"]
+            )
+        ctp404_keys = (
+            ("avg_line_distance_mm", "Geometric Line Average", "mm"),
+            ("measured_slice_thickness_mm", "Measured Slice Thickness", "mm"),
+            ("low_contrast_visibility", "Low Contrast Visibility", ""),
+        )
+        for key, desc, unit in ctp404_keys:
+            data[desc] = QuaacDatum(
+                value=results_data["ctp404"][key],
+                unit=unit,
+            )
+        if results_data["ctp486"] is not None:
+            ctp486_keys = (
+                ("uniformity_index", "Uniformity Index", ""),
+                ("integral_non_uniformity", "Integral Non-Uniformity", ""),
+            )
+            for key, desc, unit in ctp486_keys:
+                data[desc] = QuaacDatum(
+                    value=results_data["ctp486"][key],
+                    unit=unit,
+                )
+            for location, roi in results_data["ctp486"]["rois"].items():
+                data[f"{location} Uniformity"] = QuaacDatum(
+                    value=roi["value"], unit="HU", reference_value=roi["nominal_value"]
+                )
+        if results_data["ctp528"] is not None:
+            for percent, mtf in results_data["ctp528"]["mtf_lp_mm"].items():
+                data[f"MTF {percent}%"] = QuaacDatum(
+                    value=mtf,
+                    unit="lp/mm",
+                )
+        if results_data["ctp515"] is not None:
+            for diameter, roi in results_data["ctp515"]["roi_results"].items():
+                data[f"Low Contrast {diameter}mm visibility"] = QuaacDatum(
+                    value=roi["visibility"],
+                    unit="",
+                )
+                data[f"Low Contrast {diameter}mm CNR"] = QuaacDatum(
+                    value=roi["cnr"],
+                    unit="",
+                )
+                data[f"Low Contrast {diameter}mm SNR"] = QuaacDatum(
+                    value=roi["signal to noise"],
+                    unit="",
+                )
+                data[f"Low Contrast {diameter}mm Contrast"] = QuaacDatum(
+                    value=roi["contrast"],
+                    unit="",
+                )
+        return data
+
     def _generate_results_data(self) -> CatphanResult:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
@@ -2474,7 +2605,7 @@ class CatPhan604(CatPhanBase):
             # make a slice and add the wire ROIs to it.
             troi = {}
             for name, setting in ctp.thickness_roi_settings.items():
-                troi[name] = ThicknessROI(
+                troi[name] = ThicknessROI.from_phantom_center(
                     slice.image,
                     setting["width_pixels"],
                     setting["height_pixels"],
@@ -2582,7 +2713,7 @@ def get_regions(
         thres = thresmeth(edges)
     bw = edges > thres
     if clear_borders:
-        bw = segmentation.clear_border(bw, buffer_size=int(max(bw.shape) / 50))
+        bw = segmentation.clear_border(bw, buffer_size=min(int(max(bw.shape) / 100), 3))
     if fill_holes:
         bw = ndimage.binary_fill_holes(bw)
     labeled_arr, num_roi = measure.label(bw, return_num=True)

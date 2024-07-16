@@ -161,13 +161,13 @@ class Point:
     def __repr__(self) -> str:
         return f"Point(x={self.x:3.2f}, y={self.y:3.2f}, z={self.z:3.2f})"
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Point | Vector) -> bool:
         # if all attrs equal, points considered equal
         return all(
             getattr(self, attr) == getattr(other, attr) for attr in self._attr_list
         )
 
-    def __add__(self, other) -> Vector:
+    def __add__(self, other: Point | Vector) -> Vector:
         p = Vector()
         for attr in self._attr_list:
             try:
@@ -187,12 +187,13 @@ class Point:
             setattr(p, attr, diff)
         return p
 
-    def __mul__(self, other: int | float) -> None:
+    def __mul__(self, other: int | float) -> Point:
         for attr in self._attr_list:
             try:
                 self.__dict__[attr] *= other
             except TypeError:
                 pass
+        return self
 
     def __truediv__(self, other: int | float) -> Point:
         for attr in self._attr_list:
@@ -253,6 +254,8 @@ class Circle:
         fill: bool = False,
         text: str = "",
         fontsize: str = "medium",
+        ha: str = "center",
+        va: str = "center",
         **kwargs,
     ) -> None:
         """Plot the Circle on the axes.
@@ -281,12 +284,13 @@ class Circle:
             )
         )
         if text:
-            axes.text(
-                x=self.center.x,
-                y=self.center.y,
-                s=text,
+            axes.annotate(
+                text=text,
+                xy=(self.center.x, self.center.y),
                 fontsize=fontsize,
                 color=edgecolor,
+                ha=ha,
+                va=va,
             )
 
     def as_dict(self) -> dict:
@@ -316,6 +320,9 @@ class Vector:
     def as_scalar(self) -> float:
         """Return the scalar equivalent of the vector."""
         return math.sqrt(self.x**2 + self.y**2 + self.z**2)
+
+    def as_point(self) -> Point:
+        return Point(self.x, self.y, self.z)
 
     def dict(self) -> dict:
         """Convert to a dict. Shim until converting to dataclass"""
@@ -598,6 +605,8 @@ class Rectangle:
         text: str = "",
         fontsize: str = "medium",
         text_rotation: float = 0,
+        ha="center",
+        va="center",
         **kwargs,
     ):
         """Plot the Rectangle to the axes.
@@ -619,6 +628,10 @@ class Rectangle:
             for options.
         text_rotation: float
             The rotation of the text in degrees.
+        ha: str
+            Horizontal alignment of the text. See https://matplotlib.org/stable/api/text_api.html#matplotlib.text.Text
+        va: str
+            Vertical alignment of the text. See https://matplotlib.org/stable/api/text_api.html#matplotlib.text.Text
         """
         axes.add_patch(
             mpl_Rectangle(
@@ -635,13 +648,12 @@ class Rectangle:
             )
         )
         if text:
-            axes.text(
-                x=self.center.x,
-                y=self.center.y,
-                s=text,
+            axes.annotate(
+                text=text,
+                xy=(self.center.x, self.center.y),
                 fontsize=fontsize,
                 color=edgecolor,
                 rotation=text_rotation,
-                horizontalalignment="center",
-                verticalalignment="center",
+                horizontalalignment=ha,
+                verticalalignment=va,
             )

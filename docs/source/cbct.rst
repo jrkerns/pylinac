@@ -306,6 +306,8 @@ you can remove or adjust its offset by subclassing and overloading the ``modules
 
     ct = PartialCatPhan504.from_zip(...)  # use like normal
 
+.. _cbct-mtf:
+
 Examining rMTF
 ^^^^^^^^^^^^^^
 
@@ -389,6 +391,57 @@ As an example, let's override the angles of the ROIs for CTP404.
 .. warning:: If you overload the ``roi_settings`` or ``modules`` attributes, you are responsible for filling it out completely.
              I.e. when you overload it's not partial. In the above example if you want other CTP modules you **must** populate them.
 
+Analysis Parameters
+-------------------
+
+This applies to the 503, 504, 600, and 604. Model-specific parameters are called out.
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`~pylinac.ct.CatPhan604.analyze` for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **HU Tolerance**: The tolerance for the HU linearity of the inserts.
+      * **Scaling Tolerance**: The tolerance for the scaling of the phantom in mm. Uses the geometric nodes of the CTP404 module.
+      * **Slice Thickness tolerance**: The tolerance for the slice thickness in mm. Uses the ramped wire.
+      * **Slice thickness straddle**: The number of slices to combine when measuring slice thickness.If blank, will combine thin slices automatically.
+        Combining slices gives a more robust evaluation of the measurement in noisy/thin-slice images.
+      * **Minimum low contrast ROIs**: The minimum number of low contrast ROIs that must be "seen" to pass.
+      * **Air HU**: The reference HU value of the air ROI.
+      * **PMP HU**: The reference HU value of the PMP ROI.
+      * **LDPE HU**: The reference HU value of the LDPE ROI.
+      * **Poly HU**: The reference HU value of the Polystyrene ROI.
+      * **Acrylic HU**: The reference HU value of the Acrylic ROI.
+      * **Delrin HU**: The reference HU value of the Delrin ROI.
+      * **Teflon HU**: The reference HU value of the Teflon ROI.
+      * **Water Vial**: The reference HU value of the water vial ROI.
+
+        .. note::
+
+            Only applicable for the CatPhan 600
+
+      * **Bone 20%**: The reference HU value of the 20% bone ROI.
+
+        .. note::
+
+            Only applicable for the CatPhan 604
+
+     * **Bone 50%**: The reference HU value of the 50% bone ROI.
+
+        .. note::
+
+            Only applicable for the CatPhan 604
+
+      * **Contrast definition**: The method used to calculate the contrast of the low contrast ROIs. See :ref:`contrast`.
+      * **Low contrast detection threshold**: The threshold used to determine if a low contrast ROI was "seen". See :ref:`visibility`.
+
+
 .. _cbct-algorithm:
 
 Algorithm
@@ -458,7 +511,7 @@ Analysis
   correspond to the HU material regions. The median pixel value of the ROI is the stated HU value. Nominal HU values
   are taken as the mean of the range given in the manual(s):
 
-  .. note:: As of v3.16, these can be overriden: :ref:`custom-hu-values`.
+  .. note:: As of v3.16, these can be overridden: :ref:`custom-hu-values`.
 
   .. image:: images/catphan_densities.png
 
@@ -489,6 +542,96 @@ Post-Analysis
 
 * **Test if values are within tolerance** -- For each module, the determined values are compared with the nominal values.
   If the difference between the two is below the specified tolerance then the module passes.
+
+Interpreting Results
+--------------------
+
+The results of a CatPhan analysis in RadMachine or from ``results_data`` are:
+
+* ``catphan_model``: The model of CatPhan that was analyzed.
+* ``catphan_roll_deg``: The roll of the phantom in degrees.
+* ``origin_slice``: The "origin" slice number. For CatPhan, this is the center of the HU module.
+* ``num_images``: The number of images in the passed dataset.
+* ``ctp404``: The results of the CTP404 module (HU linearity, spacing) with the following items:
+
+  * ``offset``: The offset of the module from the origin slice in mm.
+  * ``low_contrast_visibility``: The low contrast visibility score.
+  * ``thickness_passed``: Whether the slice thickness passed.
+  * ``measured_slice_thickness_mm``: The measured slice thickness in mm.
+  * ``thickness_num_slices_combined``: The number of slices combined when measuring slice thickness.
+  * ``geometry_passed``: Whether the geometry test passed, using the 4 nodes.
+  * ``avg_line_distance_mm``: The average distance between the 4 nodes in mm.
+  * ``line_distances_mm``: A list of the individual distances between nodes.
+  * ``hu_linearity_passed``: Whether all the HU ROIs were within tolerance.
+  * ``hu_tolerance``: The tolerance used for the HU linearity test.
+  * ``hu_rois``: A dictionary of the HU ROIs and their values. The keys will be the material
+    name such as ``Acrylic``. The values for each ROI will be a dictionary with the following keys:
+
+    * ``name``: The name of the material.
+    * ``value``: The measured HU value.
+    * ``nominal_value``: The nominal HU value.
+    * ``passed``: Whether the ROI passed.
+    * ``stdev``: The pixel value standard deviation of the ROI.
+    * ``difference``: The difference between the measured and nominal values.
+
+* ``ctp486``: The results of the CTP486 module (HU uniformity) with the following items:
+
+  * ``uniformity_index``: The uniformity index as defined in Equation 2 of `Elstrom et al <https://www.tandfonline.com/doi/pdf/10.3109/0284186X.2011.590525>`__.
+  * ``integral_non_uniformity``: The integral non-uniformity as defined in Equation 1 of `Elstrom et al <https://www.tandfonline.com/doi/pdf/10.3109/0284186X.2011.590525>`__.
+  * ``nps_avg_power``: The average power of the noise power spectrum. See :ref:`nps`.
+  * ``nps_max_freq``: The most populous frequency of the noise power spectrum.
+  * ``passed``: Whether the uniformity test passed.
+  * ``rois``: A dictionary of the uniformity ROIs and their values. The keys will be the region
+    name such as ``Top``. The values for each ROI will be a dictionary with the following keys:
+
+    * ``name``: The region the ROI was sampled from.
+    * ``value``: The measured HU value.
+    * ``nominal_value``: The nominal HU value.
+    * ``passed``: Whether the ROI passed.
+    * ``stdev``: The pixel value standard deviation of the ROI.
+    * ``difference``: The difference between the measured and nominal values.
+
+* ``ctp528``: The results of the CTP528 (spatial resolution) module with the
+  following items:
+
+  * ``start_angle_radians``: The angle where the circular profile started.
+  * ``mtf_lp_mm``: A dictionary from 10% to 90% resolution in steps of 10 of the MTF in lp/mm. E.g. ``'20': 0.748``.
+    To get the MTF at a specific resolution see :ref:`cbct-mtf`.
+  * ``roi_settings``: A dictionary of the settings used for each MTF ROI. The key names are ``region_<n>``
+    where ``<n>`` is the region number. The values are a dictionary with the following keys:
+
+    * ``start``: The start angle of the ROI in degrees relative to the ``start_angle_radians`` setting.
+    * ``end``: The end angle of the ROI in degrees relative to the ``start_angle_radians`` setting.
+    * ``num peaks``: The number of peaks found in the profile.
+    * ``num valleys``: The number of valleys found in the profile.
+    * ``peak spacing``: The spacing between peaks in pixels.
+    * ``gap size (cm)``: The size of the gap between the bars in cm.
+    * ``lp/mm``: The number of line **pairs** per mm.
+
+* ``ctp515``: The results of the CTP515 (Low contrast) module with the following items:
+
+  * ``cnr_threshold``: The contrast-to-noise ratio threshold used to determine if a low contrast ROI was "seen".
+  * ``num_rois_seen``: The number of ROIs that were above the threshold; ie. "seen".
+  * ``roi_settings``: The settings used for each low contrast ROI. The key names are ``n``
+    where ``<n>`` is the size of the ROI. The values are a dictionary with the following keys:
+
+    * ``angle``: The angle of the ROI in degrees.
+    * ``distance``: The distance from the phantom center in mm.
+    * ``radius``: The radius of the ROI in mm.
+    * ``distance_pixels``: The distance from the phantom center in pixels.
+    * ``angle_corrected``: The angle of the ROI corrected for phantom roll.
+    * ``radius_pixels``: The radius of the ROI in pixels.
+
+  * ``roi_results``: Results of the low contrast ROIs and their values. The keys will be the size
+    of the ROI such as ``'9'``. The values for each ROI will be a dictionary with the following keys:
+
+    * ``contrast method``: The method used to calculate the contrast. See :ref:`contrast`.
+    * ``visibility``: The visibility score of the ROI.
+    * ``visibility threshold``: The threshold used to determine if the ROI was "seen".
+    * ``passed visibility``: Whether the ROI was "seen".
+    * ``contrast``: The contrast of the ROI.
+    * ``cnr``: The contrast-to-noise ratio of the ROI.
+    * ``signal to noise``: The signal-to-noise ratio of the ROI.
 
 Troubleshooting
 ---------------
@@ -531,23 +674,17 @@ These are the classes a typical user may interface with.
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.ct.CatphanResult
-    :members:
+.. autopydantic_model:: pylinac.ct.CatphanResult
 
-.. autoclass:: pylinac.ct.CTP404Result
-    :members:
+.. autopydantic_model:: pylinac.ct.CTP404Result
 
-.. autoclass:: pylinac.ct.CTP528Result
-    :members:
+.. autopydantic_model:: pylinac.ct.CTP528Result
 
-.. autoclass:: pylinac.ct.CTP515Result
-    :members:
+.. autopydantic_model:: pylinac.ct.CTP515Result
 
-.. autoclass:: pylinac.ct.CTP486Result
-    :members:
+.. autopydantic_model:: pylinac.ct.CTP486Result
 
-.. autoclass:: pylinac.ct.ROIResult
-    :members:
+.. autopydantic_model:: pylinac.ct.ROIResult
 
 
 Module classes (CTP404, etc)

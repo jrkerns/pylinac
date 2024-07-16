@@ -12,6 +12,7 @@ from typing import BinaryIO, Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
+from pydantic import Field
 
 from . import Centering
 from .core import image, pdf
@@ -21,8 +22,13 @@ from .core.hill import Hill
 from .core.io import SNCProfiler, retrieve_demo_file
 from .core.profile import Edge, Interpolation, Normalization, SingleProfile
 from .core.roi import RectangleROI
-from .core.utilities import ResultBase, ResultsDataMixin, convert_to_enum
-from .settings import get_dicom_cmap
+from .core.utilities import (
+    QuaacDatum,
+    QuaacMixin,
+    ResultBase,
+    ResultsDataMixin,
+    convert_to_enum,
+)
 
 
 def flatness_dose_difference(
@@ -110,6 +116,7 @@ def plot_symmetry_point_difference(
     """Plotting of the symmetry point difference."""
 
     def calc_sym(lt, rt, cax) -> float:
+        # TODO: remove the abs; unsure why it was added
         return 100 * abs(lt - rt) / cax
 
     _plot_sym_common(
@@ -230,16 +237,20 @@ def plot_symmetry_area(instance, profile: SingleProfile, axis: plt.Axes) -> None
     left_idx = data["left index (rounded)"]
     right_idx = data["right index (rounded)"]
 
+    left_range = range(left_idx, floor(cax_idx))
+    left_values = data["field values"][: ceil(cax_idx) - left_idx]
     axis.fill_between(
-        range(left_idx, floor(cax_idx)),
-        data["field values"][: floor(cax_idx) - left_idx],
+        left_range,
+        left_values[: len(left_range)],
         color="green",
         alpha=0.1,
         label="Left Area",
     )
+    right_range = range(ceil(cax_idx), right_idx)
+    right_values = data["field values"][ceil(cax_idx) - left_idx :]
     axis.fill_between(
-        range(ceil(cax_idx), right_idx),
-        data["field values"][ceil(cax_idx) - left_idx :],
+        right_range,
+        right_values[: len(right_range)],
         color="slateblue",
         alpha=0.1,
         label="Right Area",
@@ -274,41 +285,124 @@ class Protocol(Enum):
 
 
 class DeviceResult(ResultBase):
-    protocol: str  #:
-    protocol_results: dict  #:
-    centering_method: str | None  #:
-    normalization_method: str | None  #:
-    interpolation_method: str | None  #:
-    edge_detection_method: str  #:
-    top_penumbra_mm: float  #:
-    bottom_penumbra_mm: float  #:
-    left_penumbra_mm: float  #:
-    right_penumbra_mm: float  #:
-    geometric_center_index_x_y: tuple[float, float]  #:
-    beam_center_index_x_y: tuple[float, float]  #:
-    field_size_vertical_mm: float  #:
-    field_size_horizontal_mm: float  #:
-    beam_center_to_top_mm: float  #:
-    beam_center_to_bottom_mm: float  #:
-    beam_center_to_left_mm: float  #:
-    beam_center_to_right_mm: float  #:
-    cax_to_top_mm: float  #:
-    cax_to_bottom_mm: float  #:
-    cax_to_left_mm: float  #:
-    cax_to_right_mm: float  #:
-    top_position_index_x_y: tuple[float, float]  #:
-    top_horizontal_distance_from_cax_mm: float  #:
-    top_vertical_distance_from_cax_mm: float  #:
-    top_horizontal_distance_from_beam_center_mm: float  #:
-    top_vertical_distance_from_beam_center_mm: float  #:
-    left_slope_percent_mm: float  #:
-    right_slope_percent_mm: float  #:
-    top_slope_percent_mm: float  #:
-    bottom_slope_percent_mm: float  #:
-    top_penumbra_percent_mm: float = 0  #:
-    bottom_penumbra_percent_mm: float = 0  #:
-    left_penumbra_percent_mm: float = 0  #:
-    right_penumbra_percent_mm: float = 0  #:
+    protocol: str = Field(description="The protocol used for the analysis.")
+    protocol_results: dict = Field(
+        description="""This is a dictionary that contains the results of the protocol calculations. The keys are the protocol names.
+      Generally, they are ``symmetry_horizontal``, ``symmetry_vertical``, ``flatness_horizontal``, and ``flatness_vertical``.
+      The values themselves are the calculated values for that specific protocol equation."""
+    )
+    centering_method: str | None = Field(
+        description="The method used to determine the center of the field."
+    )
+    normalization_method: str | None = Field(
+        description="The method used to normalize the field."
+    )
+    interpolation_method: str | None = Field(
+        description="The method used to interpolate the field."
+    )
+    edge_detection_method: str = Field(
+        description="The method used to detect the field edges."
+    )
+    top_penumbra_mm: float = Field(
+        description="The penumbra width at the top of the field."
+    )
+    bottom_penumbra_mm: float = Field(
+        description="The penumbra width at the bottom of the field."
+    )
+    left_penumbra_mm: float = Field(
+        description="The penumbra width at the left of the field."
+    )
+    right_penumbra_mm: float = Field(
+        description="The penumbra width at the right of the field."
+    )
+    geometric_center_index_x_y: tuple[float, float] = Field(
+        description="The geometric center of the field in pixel coordinates."
+    )
+    beam_center_index_x_y: tuple[float, float] = Field(
+        description="The beam center of the field in pixel coordinates."
+    )
+    field_size_vertical_mm: float = Field(
+        description="The vertical field size in mm.", title="Vertical field size (mm)"
+    )
+    field_size_horizontal_mm: float = Field(
+        description="The horizontal field size in mm.",
+        title="Horizontal field size (mm)",
+    )
+    beam_center_to_top_mm: float = Field(
+        description="The distance from the beam center to the top edge of the field.",
+        title="Distance from beam center to top (mm)",
+    )
+    beam_center_to_bottom_mm: float = Field(
+        description="The distance from the beam center to the bottom edge of the field.",
+        title="Distance from beam center to bottom (mm)",
+    )
+    beam_center_to_left_mm: float = Field(
+        description="The distance from the beam center to the left edge of the field.",
+        title="Distance from beam center to left (mm)",
+    )
+    beam_center_to_right_mm: float = Field(
+        description="The distance from the beam center to the right edge of the field.",
+        title="Distance from beam center to right (mm)",
+    )
+    cax_to_top_mm: float = Field(
+        description="The distance from the CAX to the top edge of the field.",
+        title="Distance from CAX to top (mm)",
+    )
+    cax_to_bottom_mm: float = Field(
+        description="The distance from the CAX to the bottom edge of the field.",
+        title="Distance from CAX to bottom (mm)",
+    )
+    cax_to_left_mm: float = Field(
+        description="The distance from the CAX to the left edge of the field.",
+        title="Distance from CAX to left (mm)",
+    )
+    cax_to_right_mm: float = Field(
+        description="The distance from the CAX to the right edge of the field.",
+        title="Distance from CAX to right (mm)",
+    )
+    top_position_index_x_y: tuple[float, float] = Field(
+        description="The top position of the field in pixel coordinates."
+    )
+    top_horizontal_distance_from_cax_mm: float = Field(
+        description="The horizontal distance from the top position to the image center."
+    )
+    top_vertical_distance_from_cax_mm: float = Field(
+        description="The vertical distance from the top position to the image center."
+    )
+    top_horizontal_distance_from_beam_center_mm: float = Field(
+        description="The horizontal distance from the top position to the beam center."
+    )
+    top_vertical_distance_from_beam_center_mm: float = Field(
+        description="The vertical distance from the top position to the beam center."
+    )
+    left_slope_percent_mm: float = Field(
+        description="The slope of the left side of the in-field region in percent per mm."
+    )
+    right_slope_percent_mm: float = Field(
+        description="The slope of the right side of the in-field region in percent per mm."
+    )
+    top_slope_percent_mm: float = Field(
+        description="The slope of the top side of the in-field region in percent per mm."
+    )
+    bottom_slope_percent_mm: float = Field(
+        description="The slope of the bottom side of the in-field region in percent per mm."
+    )
+    top_penumbra_percent_mm: float = Field(
+        description="The penumbra width at the top of the field in percent per mm.",
+        default=0,
+    )
+    bottom_penumbra_percent_mm: float = Field(
+        description="The penumbra width at the bottom of the field in percent per mm.",
+        default=0,
+    )
+    left_penumbra_percent_mm: float = Field(
+        description="The penumbra width at the left of the field in percent per mm.",
+        default=0,
+    )
+    right_penumbra_percent_mm: float = Field(
+        description="The penumbra width at the right of the field in percent per mm.",
+        default=0,
+    )
 
 
 class FieldResult(DeviceResult):
@@ -324,13 +418,24 @@ class FieldResult(DeviceResult):
     E.g. a protocol item of ``symmetry`` will result in ``symmetry_vertical`` and ``symmetry_horizontal``.
     """
 
-    central_roi_mean: float = 0  #:
-    central_roi_max: float = 0  #:
-    central_roi_std: float = 0  #:
-    central_roi_min: float = 0  #:
+    central_roi_mean: float = Field(
+        description="The mean pixel value of the central region of interest.", default=0
+    )
+    central_roi_max: float = Field(
+        description="The maximum pixel value of the central region of interest.",
+        default=0,
+    )
+    central_roi_std: float = Field(
+        description="The standard deviation of the pixel values of the central region of interest.",
+        default=0,
+    )
+    central_roi_min: float = Field(
+        description="The minimum pixel value of the central region of interest.",
+        default=0,
+    )
 
 
-class FieldAnalysis(ResultsDataMixin[FieldResult]):
+class FieldAnalysis(ResultsDataMixin[FieldResult], QuaacMixin):
     """Class for analyzing the various parameters of a radiation image, most commonly an open image from a linac."""
 
     def __init__(
@@ -652,9 +757,7 @@ class FieldAnalysis(ResultsDataMixin[FieldResult]):
                 array=self.image.array,
                 width=width,
                 height=height,
-                phantom_center=center,
-                angle=0,
-                dist_from_center=0,
+                center=center,
             )
 
         # calculate common field info
@@ -874,6 +977,90 @@ class FieldAnalysis(ResultsDataMixin[FieldResult]):
             central_roi_std=self.central_roi.std,
         )
 
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        """Return the data points for the QUAAC analysis."""
+        return {
+            "Flatness": QuaacDatum(
+                value=self._extra_results["flatness_horizontal"],
+                unit="%",
+                description=f"Flatness via the {self._protocol.name} protocol",
+            ),
+            "Symmetry": QuaacDatum(
+                value=self._extra_results["symmetry_horizontal"],
+                unit="%",
+            ),
+            "Top Penumbra": QuaacDatum(
+                value=self._results["top_penumbra_mm"],
+                unit="mm",
+                description="The width of the penumbra at the top of the field.",
+            ),
+            "Bottom Penumbra": QuaacDatum(
+                value=self._results["bottom_penumbra_mm"],
+                unit="mm",
+                description="The width of the penumbra at the bottom of the field.",
+            ),
+            "Left Penumbra": QuaacDatum(
+                value=self._results["left_penumbra_mm"],
+                unit="mm",
+                description="The width of the penumbra at the left of the field.",
+            ),
+            "Right Penumbra": QuaacDatum(
+                value=self._results["right_penumbra_mm"],
+                unit="mm",
+                description="The width of the penumbra at the right of the field.",
+            ),
+            "Field Size Vertical": QuaacDatum(
+                value=self._results["field_size_vertical_mm"],
+                unit="mm",
+                description="The vertical field size.",
+            ),
+            "Field Size Horizontal": QuaacDatum(
+                value=self._results["field_size_horizontal_mm"],
+                unit="mm",
+                description="The horizontal field size.",
+            ),
+            "Beam Center to Top": QuaacDatum(
+                value=self._results["beam_center_to_top_mm"],
+                unit="mm",
+                description="The distance from the beam center to the top of the field.",
+            ),
+            "Beam Center to Bottom": QuaacDatum(
+                value=self._results["beam_center_to_bottom_mm"],
+                unit="mm",
+                description="The distance from the beam center to the bottom of the field.",
+            ),
+            "Beam Center to Left": QuaacDatum(
+                value=self._results["beam_center_to_left_mm"],
+                unit="mm",
+                description="The distance from the beam center to the left of the field.",
+            ),
+            "Beam Center to Right": QuaacDatum(
+                value=self._results["beam_center_to_right_mm"],
+                unit="mm",
+                description="The distance from the beam center to the right of the field.",
+            ),
+            "CAX to Top": QuaacDatum(
+                value=self._results["cax_to_top_mm"],
+                unit="mm",
+                description="The distance from the CAX to the top of the field.",
+            ),
+            "CAX to Bottom": QuaacDatum(
+                value=self._results["cax_to_bottom_mm"],
+                unit="mm",
+                description="The distance from the CAX to the bottom of the field.",
+            ),
+            "CAX to Left": QuaacDatum(
+                value=self._results["cax_to_left_mm"],
+                unit="mm",
+                description="The distance from the CAX to the left of the field.",
+            ),
+            "CAX to Right": QuaacDatum(
+                value=self._results["cax_to_right_mm"],
+                unit="mm",
+                description="The distance from the CAX to the right of the field.",
+            ),
+        }
+
     def _get_vert_values(
         self, vert_position: float, vert_width: float
     ) -> (np.ndarray, float, float):
@@ -1067,8 +1254,8 @@ class FieldAnalysis(ResultsDataMixin[FieldResult]):
                 labels.append(label)
         if not self._from_device:
             if split_plots:
-                for ax in (vert_ax, horiz_ax):
-                    ax.legend(lines, labels, loc="center")
+                vert_ax.legend(v_lines, v_labels)
+                horiz_ax.legend(h_lines, h_labels)
             else:
                 legend_ax = plt.subplot2grid((2, 2), (1, 0))
                 legend_ax.legend(lines, labels, loc="center")
@@ -1137,7 +1324,7 @@ class FieldAnalysis(ResultsDataMixin[FieldResult]):
         """Plot the image and profile extraction overlay"""
         if axis is None:
             fig, axis = plt.subplots()
-        axis.imshow(self.image.array, cmap=get_dicom_cmap())
+        self.image.plot(show=False, ax=axis)
 
         # vertical line/rect
         width = abs(self._left_v_index - self._right_v_index)
@@ -1192,9 +1379,13 @@ class FieldAnalysis(ResultsDataMixin[FieldResult]):
         sec_y.plot(physical_distance, self.vert_profile.values, markers)
         sec_y.set_xlabel("mm")
 
+        # we need to ensure the xlims are the same after plotting the penumbra
+        # Hill profiles can sometimes extend beyond the field edge
+        orig_xlim = axis.get_xlim()
         # plot basic parameters on profile
         self._plot_penumbra(self.vert_profile, axis)
         self._plot_field_edges(self.vert_profile, axis)
+        axis.set_xlim(orig_xlim)
         if self._is_FFF:
             self._plot_top(self.vert_profile, axis)
             self._plot_infield_slope(self.vert_profile, axis)
@@ -1232,9 +1423,13 @@ class FieldAnalysis(ResultsDataMixin[FieldResult]):
         sec_y.plot(physical_distance, self.horiz_profile.values, markers)
         sec_y.set_xlabel("mm")
 
+        # we need to ensure the xlims are the same after plotting the penumbra
+        # Hill profiles can sometimes extend beyond the field edge
+        orig_xlim = axis.get_xlim()
         # plot basic parameters on profile
         self._plot_penumbra(self.horiz_profile, axis)
         self._plot_field_edges(self.horiz_profile, axis)
+        axis.set_xlim(orig_xlim)
         if self._is_FFF:
             self._plot_top(self.horiz_profile, axis)
             self._plot_infield_slope(self.horiz_profile, axis)

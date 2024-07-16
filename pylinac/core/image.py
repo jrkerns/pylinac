@@ -120,7 +120,7 @@ def equate_images(image1: ImageLike, image2: ImageLike) -> tuple[ImageLike, Imag
 
     # resize images to be of the same shape
     zoom_factor = image1.shape[1] / image2.shape[1]
-    image2_array = ndimage.interpolation.zoom(image2.as_type(float), zoom_factor)
+    image2_array = ndimage.zoom(image2.as_type(float), zoom_factor)
     image2 = load(image2_array, dpi=image2.dpi * zoom_factor)
 
     return image1, image2
@@ -528,7 +528,8 @@ class BaseImage:
             fig, ax = plt.subplots()
         if clear_fig:
             plt.clf()
-        ax.imshow(self.array, cmap=get_dicom_cmap(), **kwargs)
+        cmap = kwargs.pop("cmap", get_dicom_cmap())
+        ax.imshow(self.array, cmap=cmap, **kwargs)
         # plot the metrics
         if show_metrics:
             for metric in self.metrics:
