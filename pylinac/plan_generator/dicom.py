@@ -392,6 +392,350 @@ class Beam:
         return self.ds
 
 
+class HalcyonBeam(Beam):
+    """A beam representing a Halcyon. Halcyons have dual MLC stacks, no X-jaws, no couch rotation, etc."""
+
+    ds: Dataset
+    distal_mlc_boundaries = list(
+        range(-140, 141, 10)
+    )  # 141 because range end is exclusive
+    proximal_mlc_boundaries = list(
+        range(-145, 146, 10)
+    )  # 146 because range end is exclusive
+
+    def __init__(
+        self,
+        plan_dataset: Dataset,
+        beam_name: str,
+        beam_type: BeamType,
+        energy: float,
+        dose_rate: int,
+        machine_name: str,
+        gantry_angles: float | list[float],
+        gantry_direction: GantryDirection,
+        coll_angle: float,
+        couch_vrt: float,
+        couch_lat: float,
+        couch_lng: float,
+        distal_mlc_positions: list[list[float]],
+        proximal_mlc_positions: list[list[float]],
+        metersets: list[float],
+    ):
+        """
+        Parameters
+        ----------
+        plan_dataset
+            The plan dataset. Used for dynamic links to other Sequences of the plan, such as Dose Reference and Tolerance Table.
+        beam_name : str
+            The name of the beam. Must be less than 16 characters.
+        beam_type : BeamType
+            The type of beam: dynamic or static.
+        energy : float
+            The energy of the beam.
+        dose_rate : int
+            The dose rate of the beam.
+        machine_name : str
+            The name of the machine.
+        gantry_angles : Union[float, list[float]]
+            The gantry angle(s) of the beam. If a single number, it's assumed to be a static beam. If multiple numbers, it's assumed to be a dynamic beam.
+        gantry_direction : GantryDirection
+            The direction of the gantry rotation. Only relevant if multiple gantry angles are specified.
+        couch_vrt : float
+            The couch vertical position.
+        couch_lat : float
+            The couch lateral position.
+        couch_lng : float
+            The couch longitudinal position.
+        distal_mlc_positions : list[list[float]]
+            The distal MLC positions for each control point. This is the x-position of each leaf for each control point.
+        proximal_mlc_positions : list[list[float]]
+            The proximal MLC positions for each control point. This is the x-position of each leaf for each control point.
+        metersets : list[float]
+            The meter sets for each control point. The length must match the number of control points in mlc_positions.
+        """
+        if len(beam_name) > 16:
+            raise ValueError("Beam name must be less than or equal to 16 characters")
+
+        if beam_type == BeamType.STATIC and (
+            len(proximal_mlc_positions) != 1 or len(distal_mlc_positions) != 1
+        ):
+            raise ValueError("Static beam can only have one MLC position change.")
+
+        if len(metersets) != len(proximal_mlc_positions) != len(distal_mlc_positions):
+            raise ValueError(
+                f"The number of meter sets ({len(metersets)}) "
+                f"must match the number of MLC position changes. Proximal: {len(proximal_mlc_positions)}; Distal: {len(distal_mlc_positions)}"
+            )
+
+        if (
+            isinstance(gantry_angles, Iterable)
+            and gantry_direction == GantryDirection.NONE
+        ):
+            raise ValueError(
+                "Cannot specify multiple gantry angles without a gantry direction"
+            )
+
+        if isinstance(gantry_angles, Iterable) and beam_type == BeamType.STATIC:
+            raise ValueError("Cannot specify multiple gantry angles as a static beam")
+        self.plan_ds = plan_dataset
+        self.ds = self._create_basic_beam_info(
+            beam_name,
+            beam_type,
+            machine_name,
+        )
+        if not isinstance(
+            gantry_angles, Iterable
+        ):  # if it's just a single number (like for a static beam) set it to an array of that value
+            gantry_angles = [gantry_angles] * len(metersets)
+        self._append_initial_control_point(
+            energy,
+            dose_rate,
+            gantry_angles[0],
+            gantry_direction,
+            coll_angle,
+            couch_vrt,
+            couch_lat,
+            couch_lng,
+            proximal_mlc_positions=proximal_mlc_positions[0],
+            distal_mlc_positions=distal_mlc_positions[0],
+        )
+        for prox_mlc_pos, distal_mlc_pos, meterset, gantry_angle in zip(
+            proximal_mlc_positions[1:],
+            distal_mlc_positions[1:],
+            metersets[1:],
+            gantry_angles[1:],
+        ):
+            if beam_type == BeamType.DYNAMIC:
+                self._append_secondary_dynamic_control_point(
+                    proximal_mlc_positions=prox_mlc_pos,
+                    distal_mlc_positions=distal_mlc_pos,
+                    meterset=meterset,
+                    gantry_angle=gantry_angle,
+                    gantry_dir=gantry_direction,
+                )
+            else:
+                self._append_secondary_static_control_point(meterset=meterset)
+
+    def _create_basic_beam_info(
+        self,
+        beam_name: str,
+        beam_type: BeamType,
+        machine_name: str,
+    ) -> Dataset:
+        """Halcyon-specific beam creation. We know the MLC boundaries, number of leaves, and that it's always FFF."""
+        beam = Dataset()
+        beam.Manufacturer = "Radformation"
+        beam.ManufacturerModelName = "RadMachine"
+        beam.TreatmentMachineName = machine_name
+        beam.PrimaryDosimeterUnit = "MU"
+        beam.SourceAxisDistance = "1000.0"
+
+        # Primary Fluence Mode Sequence
+        primary_fluence_mode_sequence = Sequence()
+        beam.PrimaryFluenceModeSequence = primary_fluence_mode_sequence
+
+        primary_fluence_mode1 = Dataset()
+        primary_fluence_mode1.FluenceMode = "NON_STANDARD"
+        primary_fluence_mode1.FluenceModeID = "FFF"
+
+        primary_fluence_mode_sequence.append(primary_fluence_mode1)
+
+        # Beam Limiting Device Sequence
+        beam_limiting_device_sequence = Sequence()
+        beam.BeamLimitingDeviceSequence = beam_limiting_device_sequence
+
+        # Beam Limiting Device Sequence: Beam Limiting Device 1
+        beam_limiting_device1 = Dataset()
+        beam_limiting_device1.RTBeamLimitingDeviceType = "X"
+        beam_limiting_device1.NumberOfLeafJawPairs = "1"
+        beam_limiting_device_sequence.append(beam_limiting_device1)
+
+        # Beam Limiting Device Sequence: Beam Limiting Device 2
+        beam_limiting_device2 = Dataset()
+        beam_limiting_device2.RTBeamLimitingDeviceType = "Y"
+        beam_limiting_device2.NumberOfLeafJawPairs = "1"
+        beam_limiting_device_sequence.append(beam_limiting_device2)
+
+        # Distal MLC
+        # Beam Limiting Device Sequence: Beam Limiting Device 3
+        beam_limiting_device3 = Dataset()
+
+        beam_limiting_device3.RTBeamLimitingDeviceType = "MLCX1"
+        beam_limiting_device3.NumberOfLeafJawPairs = 28
+        beam_limiting_device3.LeafPositionBoundaries = self.distal_mlc_boundaries
+        beam_limiting_device_sequence.append(beam_limiting_device3)
+
+        # Proximal MLC
+        # Beam Limiting Device Sequence: Beam Limiting Device 4
+        beam_limiting_device4 = Dataset()
+
+        beam_limiting_device4.RTBeamLimitingDeviceType = "MLCX2"
+        beam_limiting_device4.NumberOfLeafJawPairs = 29
+        beam_limiting_device4.LeafPositionBoundaries = self.proximal_mlc_boundaries
+        beam_limiting_device_sequence.append(beam_limiting_device4)
+
+        # beam numbers start at 0 and increment from there.
+        beam.BeamNumber = len(self.plan_ds.BeamSequence)
+        beam.BeamName = beam_name
+        beam.BeamType = beam_type.value
+        beam.RadiationType = "PHOTON"
+        beam.TreatmentDeliveryType = "TREATMENT"
+        beam.NumberOfWedges = "0"
+        beam.NumberOfCompensators = "0"
+        beam.NumberOfBoli = "0"
+        beam.NumberOfBlocks = "0"
+        beam.FinalCumulativeMetersetWeight = "1.0"
+        beam.NumberOfControlPoints = "0"
+
+        # Control Point Sequence
+        cp_sequence = Sequence()
+        beam.ControlPointSequence = cp_sequence
+        return beam
+
+    def _append_initial_control_point(
+        self,
+        energy: float,
+        dose_rate: int,
+        gantry_angle: float | list[float],
+        gantry_rot: GantryDirection,
+        coll_angle: float,
+        couch_vrt: float,
+        couch_lat: float,
+        couch_lng: float,
+        proximal_mlc_positions: list[float],
+        distal_mlc_positions: list[float],
+    ):
+        # Control Point Sequence: Control Point 0
+        cp0 = Dataset()
+        cp0.ControlPointIndex = "0"
+        cp0.NominalBeamEnergy = str(energy)
+        cp0.DoseRateSet = str(dose_rate)
+
+        # Beam Limiting Device Position Sequence
+        beam_limiting_device_position_sequence = Sequence()
+        cp0.BeamLimitingDevicePositionSequence = beam_limiting_device_position_sequence
+
+        # Beam Limiting Device Position Sequence: Beam Limiting Device Position 1
+        beam_limiting_device_position1 = Dataset()
+        beam_limiting_device_position1.RTBeamLimitingDeviceType = "X"
+        beam_limiting_device_position1.LeafJawPositions = [-140, 140]
+        beam_limiting_device_position_sequence.append(beam_limiting_device_position1)
+
+        # Beam Limiting Device Position Sequence: Beam Limiting Device Position 2
+        beam_limiting_device_position2 = Dataset()
+        beam_limiting_device_position2.RTBeamLimitingDeviceType = "Y"
+        beam_limiting_device_position2.LeafJawPositions = [-140, 140]
+        beam_limiting_device_position_sequence.append(beam_limiting_device_position2)
+
+        # Distal MLC
+        # Beam Limiting Device Position Sequence: Beam Limiting Device Position 3
+        beam_limiting_device_position3 = Dataset()
+        beam_limiting_device_position3.RTBeamLimitingDeviceType = "MLCX1"
+        beam_limiting_device_position3.LeafJawPositions = [
+            f"{m:6f}" for m in distal_mlc_positions
+        ]  # convert to truncated string to fit VR limitations
+        beam_limiting_device_position_sequence.append(beam_limiting_device_position3)
+
+        # Proximal MLC
+        # Beam Limiting Device Position Sequence: Beam Limiting Device Position 4
+        beam_limiting_device_position4 = Dataset()
+        beam_limiting_device_position4.RTBeamLimitingDeviceType = "MLCX2"
+        beam_limiting_device_position4.LeafJawPositions = [
+            f"{m:6f}" for m in proximal_mlc_positions
+        ]  # convert to truncated string to fit VR limitations
+        beam_limiting_device_position_sequence.append(beam_limiting_device_position4)
+
+        cp0.GantryAngle = str(gantry_angle)
+        cp0.GantryRotationDirection = gantry_rot.value
+        cp0.BeamLimitingDeviceAngle = str(coll_angle)
+        cp0.BeamLimitingDeviceRotationDirection = "NONE"
+        cp0.PatientSupportAngle = "0"
+        cp0.PatientSupportRotationDirection = "NONE"
+        cp0.TableTopEccentricAngle = "0.0"
+        cp0.TableTopEccentricRotationDirection = "NONE"
+        cp0.TableTopVerticalPosition = str(couch_vrt)
+        cp0.TableTopLongitudinalPosition = str(couch_lng)
+        cp0.TableTopLateralPosition = str(couch_lat)
+        cp0.IsocenterPosition = None
+        cp0.CumulativeMetersetWeight = "0.0"
+
+        # Referenced Dose Reference Sequence
+        refd_dose_ref_sequence = Sequence()
+        cp0.ReferencedDoseReferenceSequence = refd_dose_ref_sequence
+
+        # linked setup number and tolerance table
+        # we *could* hardcode it but this makes it more flexible to changes upstream
+        self.ds.ReferencedPatientSetupNumber = self.plan_ds.PatientSetupSequence[
+            0
+        ].PatientSetupNumber
+        self.ds.ReferencedToleranceTableNumber = self.plan_ds.ToleranceTableSequence[
+            0
+        ].ToleranceTableNumber
+
+        self.ds.NumberOfControlPoints = 1  # increment this
+        self.ds.ControlPointSequence.append(cp0)
+
+    def _append_secondary_static_control_point(self, meterset: float) -> None:
+        # Control Point Sequence: Control Point 1
+        cp1 = Dataset()
+        cp1.ControlPointIndex = len(self.ds.ControlPointSequence)
+
+        cp1.CumulativeMetersetWeight = (
+            f"{meterset:.5f}"  # convert to truncated string to fit VR limitations
+        )
+
+        self.ds.NumberOfControlPoints = int(self.ds.NumberOfControlPoints) + 1
+        self.ds.ControlPointSequence.append(cp1)
+
+    def _append_secondary_dynamic_control_point(
+        self,
+        proximal_mlc_positions: list[float],
+        distal_mlc_positions: list[float],
+        meterset: float,
+        gantry_angle: float,
+        gantry_dir: GantryDirection,
+    ) -> None:
+        # Control Point Sequence: Control Point 1
+        cp1 = Dataset()
+        cp1.ControlPointIndex = len(self.ds.ControlPointSequence)
+
+        if gantry_dir != GantryDirection.NONE:
+            cp1.GantryAngle = gantry_angle
+            cp1.GantryRotationDirection = gantry_dir.value
+        cp1.CumulativeMetersetWeight = (
+            f"{meterset:.5f}"  # convert to truncated string to fit VR limitations
+        )
+
+        # Beam Limiting Device Position Sequence
+        beam_limiting_device_position_sequence = Sequence()
+        cp1.BeamLimitingDevicePositionSequence = beam_limiting_device_position_sequence
+
+        # Distal MLC
+        # Beam Limiting Device Position Sequence: Beam Limiting Device Position 1
+        beam_limiting_device_position1 = Dataset()
+        beam_limiting_device_position1.RTBeamLimitingDeviceType = "MLCX1"
+        beam_limiting_device_position1.LeafJawPositions = [
+            f"{m:6f}" for m in distal_mlc_positions
+        ]  # convert to truncated string to fit VR limitations
+        beam_limiting_device_position_sequence.append(beam_limiting_device_position1)
+
+        # Proximal MLC
+        # Beam Limiting Device Position Sequence: Beam Limiting Device Position 2
+        beam_limiting_device_position2 = Dataset()
+        beam_limiting_device_position2.RTBeamLimitingDeviceType = "MLCX2"
+        beam_limiting_device_position2.LeafJawPositions = [
+            f"{m:6f}" for m in proximal_mlc_positions
+        ]  # convert to truncated string to fit VR limitations
+        beam_limiting_device_position_sequence.append(beam_limiting_device_position2)
+
+        # Referenced Dose Reference Sequence
+        refd_dose_ref_sequence = Sequence()
+        cp1.ReferencedDoseReferenceSequence = refd_dose_ref_sequence
+
+        self.ds.NumberOfControlPoints = int(self.ds.NumberOfControlPoints) + 1
+        self.ds.ControlPointSequence.append(cp1)
+
+
 class PlanGenerator:
     def __init__(
         self,
@@ -530,7 +874,7 @@ class PlanGenerator:
         """The name of the machine."""
         return self._old_beam.TreatmentMachineName
 
-    def _create_mlc(self):
+    def _create_mlc(self) -> MLCShaper:
         """Utility to create MLC shaper instances."""
         return MLCShaper(
             leaf_y_positions=self.leaf_config,
@@ -617,7 +961,7 @@ class PlanGenerator:
         mlc = self._create_mlc()
         # create initial starting point; start under the jaws
         mlc.add_strip(
-            position_mm=strip_positions_mm[0] + 2,
+            position_mm=strip_positions_mm[0] - 2,
             strip_width_mm=strip_width_mm,
             meterset_at_target=0,
         )
@@ -1438,4 +1782,198 @@ class PlanGenerator:
         # increment number of beams
         self.ds.FractionGroupSequence[0].NumberOfBeams = (
             int(self.ds.FractionGroupSequence[0].NumberOfBeams) + 1
+        )
+
+
+class STACK:
+    DISTAL = "distal"
+    PROXIMAL = "proximal"
+    BOTH = "both"
+
+
+class HalcyonPlanGenerator(PlanGenerator):
+    """A class to generate a plan with two beams stacked on top of each other such as the Halcyon. This
+    also assumes no jaws."""
+
+    def __init__(
+        self,
+        ds: Dataset,
+        plan_label: str,
+        plan_name: str,
+        x_width_mm: float = 280,
+        max_mlc_speed: float = 25,
+        max_gantry_speed: float = 4.8,
+        sacrificial_gap_mm: float = 5,
+        max_sacrificial_move_mm: float = 50,
+        max_overtravel_mm: float = 140,
+    ):
+        super().__init__(
+            ds,
+            plan_label,
+            plan_name,
+            x_width_mm,
+            max_mlc_speed,
+            max_gantry_speed,
+            sacrificial_gap_mm,
+            max_sacrificial_move_mm,
+            max_overtravel_mm,
+        )
+
+    @property
+    def leaf_config(self) -> list[float]:
+        raise ValueError(
+            "Dual Stacks have independent leaf configs. Use `distal_leaf_config` or `proximal_leaf_config`"
+        )
+
+    @property
+    def distal_leaf_config(self) -> list[float]:
+        return self._old_beam.BeamLimitingDeviceSequence[-2].LeafPositionBoundaries
+
+    @property
+    def proximal_leaf_config(self) -> list[float]:
+        return self._old_beam.BeamLimitingDeviceSequence[-1].LeafPositionBoundaries
+
+    def _create_mlc(self) -> (MLCShaper, MLCShaper):
+        """Create 2 MLC shaper objects, one for each stack."""
+        proximal_mlc = MLCShaper(
+            leaf_y_positions=self.proximal_leaf_config,
+            max_x_mm=self.x_width / 2,
+            sacrifice_gap_mm=self.sacrificial_gap,
+            sacrifice_max_move_mm=self.max_sacrificial_move,
+            max_overtravel_mm=self.max_overtravel_mm,
+        )
+        distal_mlc = MLCShaper(
+            leaf_y_positions=self.distal_leaf_config,
+            max_x_mm=self.x_width / 2,
+            sacrifice_gap_mm=self.sacrificial_gap,
+            sacrifice_max_move_mm=self.max_sacrificial_move,
+            max_overtravel_mm=self.max_overtravel_mm,
+        )
+        return proximal_mlc, distal_mlc
+
+    def add_picketfence_beam(
+        self,
+        stack: STACK,
+        strip_width_mm: float = 3,
+        strip_positions_mm: tuple[float] = (-45, -30, -15, 0, 15, 30, 45),
+        dose_rate: int = 600,
+        energy: float = 6,
+        gantry_angle: float = 0,
+        coll_angle: float = 0,
+        couch_vrt: float = 0,
+        couch_lng: float = 1000,
+        couch_lat: float = 0,
+        mu: int = 200,
+        beam_name: str = "PF",
+    ):
+        """Add a picket fence beam to the plan. The beam will be delivered with the MLCs stacked on top of each other.
+
+        Parameters
+        ----------
+        stack: STACK
+            Which MLC stack to use for the beam. The other stack will be parked.
+        strip_width_mm : float
+            The width of the strips in mm.
+        strip_positions_mm : tuple
+            The positions of the strips in mm.
+        dose_rate : int
+            The dose rate of the beam.
+        energy : float
+            The energy of the beam.
+        gantry_angle : float
+            The gantry angle of the beam.
+        coll_angle : float
+            The collimator angle of the beam.
+        couch_vrt : float
+            The couch vertical position.
+        couch_lng : float
+            The couch longitudinal position.
+        couch_lat : float
+            The couch lateral position.
+        mu : int
+            The monitor units of the beam.
+        beam_name : str
+            The name of the beam.
+        """
+        prox_mlc, dist_mlc = self._create_mlc()
+
+        # we prepend the positions with an initial starting position 2mm from the first strip
+        # that way, each picket is the same cadence where the leaves move into position dynamically.
+        # If you didn't do this, the first picket might be different as it has the advantage
+        # of starting from a static position vs the rest of the pickets being dynamic.
+        strip_positions = [strip_positions_mm[0] - 2, *strip_positions_mm]
+        metersets = [0, *[1 / len(strip_positions_mm) for _ in strip_positions_mm]]
+
+        for strip, meterset in zip(strip_positions, metersets):
+            if stack in (STACK.DISTAL, STACK.BOTH):
+                dist_mlc.add_strip(
+                    position_mm=strip,
+                    strip_width_mm=strip_width_mm,
+                    meterset_at_target=meterset,
+                )
+                if stack == STACK.DISTAL:
+                    prox_mlc.park(meterset=meterset)
+            if stack in (STACK.PROXIMAL, STACK.BOTH):
+                prox_mlc.add_strip(
+                    position_mm=strip,
+                    strip_width_mm=strip_width_mm,
+                    meterset_at_target=meterset,
+                )
+                if stack == STACK.PROXIMAL:
+                    dist_mlc.park(meterset=meterset)
+
+        beam = HalcyonBeam(
+            plan_dataset=self.ds,
+            beam_name=beam_name,
+            beam_type=BeamType.DYNAMIC,
+            energy=energy,
+            dose_rate=dose_rate,
+            gantry_angles=gantry_angle,
+            gantry_direction=GantryDirection.NONE,
+            coll_angle=coll_angle,
+            couch_vrt=couch_vrt,
+            couch_lat=couch_lat,
+            couch_lng=couch_lng,
+            proximal_mlc_positions=prox_mlc.as_control_points(),
+            distal_mlc_positions=dist_mlc.as_control_points(),
+            metersets=prox_mlc.as_metersets(),  # can use either MLC for metersets
+            machine_name=self.machine_name,
+        )
+        self.add_beam(beam.as_dicom(), mu=mu)
+
+    def add_open_field_beam(
+        self,
+    ):
+        """Add an open field beam to the plan. This can be defined by one or both MLC stacks.
+        The x1, x2, y1, and y2 terms are colloquial. The MLCs define the field edges.
+        The nearest MLC to the field edge in the y-direction will be the one used. It can round up or down.
+        """
+        raise NotImplementedError(
+            "Open field beams are not yet implemented for Halcyon plans"
+        )
+
+    def add_dose_rate_beams(
+        self,
+    ):
+        raise NotImplementedError(
+            "Dose rate beams are not yet implemented for Halcyon plans"
+        )
+
+    def add_mlc_speed_beams(self):
+        raise NotImplementedError(
+            "MLC speed beams are not yet implemented for Halcyon plans"
+        )
+
+    def add_gantry_speed_beams(
+        self,
+    ):
+        raise NotImplementedError(
+            "Gantry speed beams are not yet implemented for Halcyon plans"
+        )
+
+    def add_winston_lutz_beams(
+        self,
+    ):
+        raise NotImplementedError(
+            "Winston-Lutz beams are not yet implemented for Halcyon plans"
         )

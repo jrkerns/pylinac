@@ -64,6 +64,14 @@ Core
 
   The ``DiskROI`` 's new constructor signature is a much simpler ``array, radius, center``.
 
+Plan Generator
+^^^^^^^^^^^^^^
+
+* The plan generator can now generate Halcyon picket fence plans using the new :class:`~pylinac.planar_imaging.HalcyonPlanGenerator` class.
+  Currently, this specialized generator is limited to picket fence plans, but more plan types will be added in the future. See :ref:`halcyon-plan-generator`.
+* The :class:`MLCShaper` has a new method: ``park``.
+* A bug in the picket fence generator was having the MLCs start 2mm closer to isocenter rather than 2mm further away.
+
 v 3.24.1
 --------
 

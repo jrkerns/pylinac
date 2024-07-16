@@ -74,7 +74,7 @@ The plan generator can then add QA fields into the plan.
         y1=-150,
         y2=150,  # set y-jaws so we can leave the EPID at 1500
         gantry_angle=90,
-        collimator_angle=0,
+        coll_angle=0,
     )
 
     # add a simple open field
@@ -219,6 +219,10 @@ use the sacrificial movements. Although it might be simpler to scale the ROIs af
 software, having an image where the dose is constant across all ROIs is more intuitive, but comes at the expense of
 these sacrificial movements.
 
+.. image:: images/sacrifice.gif
+    :width: 600
+    :align: center
+
 Fields
 ------
 
@@ -300,7 +304,7 @@ Adding a picket fence field can be done like so:
         y1=-130,
         y2=130,  # set y-jaws so we can leave the EPID at 1500
         gantry_angle=90,
-        collimator_angle=0,
+        coll_angle=0,
     )
 
 This will create 4 pickets 3mm wide. The X-jaws will be opened up just wider than the pickets. See the :meth:`~pylinac.plan_generator.dicom.PlanGenerator.add_picketfence_beam` method for more information.
@@ -322,7 +326,6 @@ Adding a single-image dose rate linearity field can be done like so:
         dose_rates=(100, 200, 400, 600),
         y1=-50,
         y2=50,
-        mu=100,
         default_dose_rate=600,
         desired_mu=100,
     )
@@ -387,11 +390,49 @@ The MLCs are not moving during beam-on.
     The two variables are intertwined. This test isolates those variables so that *just*
     the gantry speed can be tested.
 
+.. _halcyon-plan-generator:
+
+Halcyon
+--------
+
+The Halcyon plan generator is a subclass of the PlanGenerator. It is specially made to handle
+plans for the Halcyon machine. The Halcyon machine has a double stack of MLCs, which complicate matters.
+
+Currently, only picket fence fields are supported but more will be added in the future to
+match the normal plan generator.
+
+Picket Fence
+^^^^^^^^^^^^
+
+Adding a picket fence field can be done like so:
+
+.. code-block:: python
+
+    from pylinac.plan_generator.dicom import HalcyonPlanGenerator, STACK
+
+    path = r"path/to/my/rtplan.dcm"
+    pg = HalcyonPlanGenerator.from_rt_plan_file(path, plan_label="MyQA", plan_name="QA")
+    pg.add_picketfence_beam(
+        stack=STACK.DISTAL,
+        strip_width=3,
+        strip_positions=(-50, -25, 25, 50),  # 4 pickets
+        mu=100,
+        beam_name="PF 3mm",
+        gantry_angle=90,
+        coll_angle=0,
+    )
+
 API Documentation
 ------------------
 
 .. autoclass:: pylinac.plan_generator.dicom.PlanGenerator
 
+.. autoclass:: pylinac.plan_generator.dicom.HalcyonPlanGenerator
+
+.. autoclass:: pylinac.plan_generator.dicom.STACK
+
 .. autoclass:: pylinac.plan_generator.dicom.Beam
+
+.. autoclass:: pylinac.plan_generator.dicom.HalcyonBeam
 
 .. autoclass:: pylinac.plan_generator.mlc.MLCShaper

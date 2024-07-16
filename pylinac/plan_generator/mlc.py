@@ -41,8 +41,8 @@ class MLCShaper:
         self.sacrifice_gap = sacrifice_gap_mm  # mm gap
         self.sacrifice_max_move_mm = sacrifice_max_move_mm  # mm
         self.max_overtravel_mm = max_overtravel_mm  # mm
-        self.control_points = []
-        self.metersets = []
+        self.control_points: list[list[float]] = []
+        self.metersets: list[float] = []
 
     @property
     def centers(self) -> list[float]:
@@ -204,6 +204,18 @@ class MLCShaper:
             if end_meterset != start_meterset:
                 self.control_points.append(positions)
                 self.metersets.append(end_meterset)
+
+    def park(self, meterset: float = 0) -> None:
+        """Park the MLC leaves"""
+        self.add_rectangle(
+            left_position=-self.max_x,
+            right_position=self.max_x,
+            x_outfield_position=-200,  # irrelevant
+            top_position=max(self.leaf_y_positions),
+            bottom_position=min(self.leaf_y_positions),
+            outer_strip_width=1,  # irrelevant
+            meterset_at_target=meterset,
+        )
 
     def add_strip(
         self,

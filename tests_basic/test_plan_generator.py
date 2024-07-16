@@ -6,10 +6,12 @@ import pydicom
 from matplotlib.figure import Figure
 
 from pylinac.plan_generator.dicom import (
+    STACK,
     Beam,
     BeamType,
     FluenceMode,
     GantryDirection,
+    HalcyonPlanGenerator,
     PlanGenerator,
 )
 from pylinac.plan_generator.mlc import (
@@ -22,6 +24,9 @@ from tests_basic.utils import get_file_from_cloud_test_repo
 
 RT_PLAN_FILE = get_file_from_cloud_test_repo(["plan_generator", "Murray-plan.dcm"])
 RT_PLAN_DS = pydicom.dcmread(RT_PLAN_FILE)
+HALCYON_PLAN_FILE = get_file_from_cloud_test_repo(
+    ["plan_generator", "Halcyon Prox.dcm"]
+)
 
 
 class TestPlanGenerator(TestCase):
@@ -373,6 +378,7 @@ class TestPlanPrefabs(TestCase):
         self.assertEqual(
             dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].BeamMeterset, 123
         )
+        # check X jaws
         self.assertEqual(
             dcm.BeamSequence[0]
             .ControlPointSequence[0]
@@ -380,12 +386,21 @@ class TestPlanPrefabs(TestCase):
             .LeafJawPositions,
             [-60, 60],
         )
+        # check Y jaws
         self.assertEqual(
             dcm.BeamSequence[0]
             .ControlPointSequence[0]
             .BeamLimitingDevicePositionSequence[1]
             .LeafJawPositions,
             [-10, 10],
+        )
+        # check first MLC position is near the first strip
+        self.assertEqual(
+            dcm.BeamSequence[0]
+            .ControlPointSequence[0]
+            .BeamLimitingDevicePositionSequence[-1]
+            .LeafJawPositions[0],
+            -53.5,
         )
 
     def test_picket_fence_too_wide(self):
@@ -570,6 +585,117 @@ class TestPlanPrefabs(TestCase):
                 y2=100,
                 mu=250,
             )
+
+
+HALCYON_MLC_INDEX = {
+    STACK.DISTAL: -2,
+    STACK.PROXIMAL: -1,
+}
+
+
+class TestHalcyonPrefabs(TestCase):
+    def setUp(self) -> None:
+        self.pg = HalcyonPlanGenerator.from_rt_plan_file(
+            HALCYON_PLAN_FILE,
+            plan_label="label",
+            plan_name="my name",
+        )
+
+    def test_create_picket_fence_proximal(self):
+        self.pg.add_picketfence_beam(
+            stack=STACK.PROXIMAL,
+            mu=123,
+            beam_name="Picket Fence",
+            strip_positions_mm=(-50, -30, -10, 10, 30, 50),
+        )
+        dcm = self.pg.as_dicom()
+        self.assertEqual(len(dcm.BeamSequence), 1)
+        self.assertEqual(dcm.BeamSequence[0].BeamName, "Picket Fence")
+        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 0)
+        self.assertEqual(dcm.FractionGroupSequence[0].NumberOfBeams, 1)
+        self.assertEqual(
+            dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].BeamMeterset, 123
+        )
+        # check first CP of proximal is at the PF position
+        self.assertEqual(
+            dcm.BeamSequence[0]
+            .ControlPointSequence[0]
+            .BeamLimitingDevicePositionSequence[HALCYON_MLC_INDEX[STACK.PROXIMAL]]
+            .LeafJawPositions[0],
+            -53.5,
+        )
+        # distal should be parked
+        self.assertEqual(
+            dcm.BeamSequence[0]
+            .ControlPointSequence[0]
+            .BeamLimitingDevicePositionSequence[HALCYON_MLC_INDEX[STACK.DISTAL]]
+            .LeafJawPositions[0],
+            -140,
+        )
+
+    def test_create_picket_fence_distal(self):
+        self.pg.add_picketfence_beam(
+            stack=STACK.DISTAL,
+            mu=123,
+            beam_name="Picket Fence",
+            strip_positions_mm=(-50, -30, -10, 10, 30, 50),
+        )
+        dcm = self.pg.as_dicom()
+        self.assertEqual(len(dcm.BeamSequence), 1)
+        self.assertEqual(dcm.BeamSequence[0].BeamName, "Picket Fence")
+        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 0)
+        self.assertEqual(dcm.FractionGroupSequence[0].NumberOfBeams, 1)
+        self.assertEqual(
+            dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].BeamMeterset, 123
+        )
+        # check first CP of proximal is parked
+        self.assertEqual(
+            dcm.BeamSequence[0]
+            .ControlPointSequence[0]
+            .BeamLimitingDevicePositionSequence[HALCYON_MLC_INDEX[STACK.PROXIMAL]]
+            .LeafJawPositions[0],
+            -140,
+        )
+        # distal should be at picket position
+        self.assertEqual(
+            dcm.BeamSequence[0]
+            .ControlPointSequence[0]
+            .BeamLimitingDevicePositionSequence[HALCYON_MLC_INDEX[STACK.DISTAL]]
+            .LeafJawPositions[0],
+            -53.5,
+        )
+
+    def test_create_picket_fence_both(self):
+        self.pg.add_picketfence_beam(
+            stack=STACK.BOTH,
+            mu=123,
+            beam_name="Picket Fence",
+            strip_positions_mm=(-50, -30, -10, 10, 30, 50),
+        )
+        dcm = self.pg.as_dicom()
+        self.assertEqual(len(dcm.BeamSequence), 1)
+        self.assertEqual(dcm.BeamSequence[0].BeamName, "Picket Fence")
+        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 0)
+        self.assertEqual(dcm.FractionGroupSequence[0].NumberOfBeams, 1)
+        self.assertEqual(
+            dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].BeamMeterset, 123
+        )
+        # check first CP of proximal is at the PF position
+        self.assertEqual(
+            dcm.BeamSequence[0]
+            .ControlPointSequence[0]
+            .BeamLimitingDevicePositionSequence[HALCYON_MLC_INDEX[STACK.PROXIMAL]]
+            .LeafJawPositions[0],
+            -53.5,
+        )
+        # distal should be at picket position
+        self.assertEqual(
+            dcm.BeamSequence[0]
+            .ControlPointSequence[0]
+            .BeamLimitingDevicePositionSequence[HALCYON_MLC_INDEX[STACK.DISTAL]]
+            .LeafJawPositions[0],
+            -53.5,
+        )
 
 
 class TestMLCShaper(TestCase):
