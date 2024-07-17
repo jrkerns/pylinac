@@ -262,7 +262,7 @@ E.g.:
     from pylinac.core import contrast
 
     my_roi = np.array((1.17, 1.31, 1.26, ...))
-    c = contrast.michelson(array=my_roi, algorithm="difference")
+    c = contrast.michelson(array=my_roi)
     cnr = c / np.std(my_roi)
 
 API
