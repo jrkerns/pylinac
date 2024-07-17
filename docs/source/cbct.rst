@@ -432,7 +432,7 @@ This applies to the 503, 504, 600, and 604. Model-specific parameters are called
 
             Only applicable for the CatPhan 604
 
-     * **Bone 50%**: The reference HU value of the 50% bone ROI.
+      * **Bone 50%**: The reference HU value of the 50% bone ROI.
 
         .. note::
 

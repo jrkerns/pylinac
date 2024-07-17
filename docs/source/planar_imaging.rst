@@ -210,14 +210,34 @@ The algorithm works like such:
 **Analysis**
 
 * **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
-  be known. From here, the contrast can be known; see :ref:`contrast`.
+  be known. The mean pixel value of each ROI (see below image, "LC0", ..., "LC17") is compared to the mean pixel value of all 4 reference ROIs ("LCR0", ..., "LCR3").
+  See also :ref:`low_contrast_topic`. By default, the :ref:`michelson` algorithm is used.
+  For example, the first contrast value would be calculated as:
+
+  .. math::
+
+        \frac{LC0_{mean} - LCR_{mean}}{LC0_{mean} + LCR_{mean}}
+
 * **Calculate high contrast** -- Again, because the phantom position and angle are known, offsets are applied
-  to sample the high contrast line pair regions. For each sample, the relative MTF is calculated. See :ref:`mtf_topic`.
+  to sample the high contrast line pair regions. For each sample ("HC0", ..., "HC11"), the relative MTF is calculated using Peak-Valley methodology. See :ref:`peak-valley-mtf`.
+  For example, the first high-contrast value would be calculated as:
+
+  .. math::
+
+        \frac{HC0_{max} - HC0_{min}}{HC0_{max} + HC0_{min}}
+
+* **Percent Integral Uniformity** -- See :ref:`planar-piu`.
 
 **Post-Analysis**
 
 * **Determine passing low and high contrast ROIs** -- For each low and high contrast region, the determined
   value is compared to the threshold. The plot colors correspond to the pass/fail status.
+
+See also :ref:`Interpreting Results <interpreting-planar-results>` for specific results items.
+
+.. figure:: images/leeds-reference.png
+
+    Labeled ROIs of the Leeds phantom analysis. W/L was adjusted for clarify of the labels.
 
 Troubleshooting
 ^^^^^^^^^^^^^^^
@@ -308,15 +328,34 @@ The algorithm works like such:
 **Analysis**
 
 * **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
-  be known. From here, the contrast can be known; see :ref:`contrast`.
+  be known. The mean pixel value of each ROI (see below image, "LC0", ..., "LC8") is compared to the mean pixel value of the reference ROI ("LCR").
+  See also :ref:`low_contrast_topic`. By default, the :ref:`michelson` algorithm is used.
+  For example, the first contrast value would be calculated as:
+
+  .. math::
+
+        \frac{LC0_{mean} - LCR_{mean}}{LC0_{mean} + LCR_{mean}}
+
 * **Calculate high contrast** -- Again, because the phantom position and angle are known, offsets are applied
-  to sample the high contrast line pair regions. For each sample, the relative MTF is calculated. See :ref:`mtf_topic`.
+  to sample the high contrast line pair regions. For each sample ("HC0", ..., "HC6"), the relative MTF is calculated using Peak-Valley methodology. See :ref:`peak-valley-mtf`.
+  For example, the first high-contrast value would be calculated as:
+
+  .. math::
+
+        \frac{HC0_{max} - HC0_{min}}{HC0_{max} + HC0_{min}}
+
+* **Percent Integral Uniformity** -- See :ref:`planar-piu`.
 
 **Post-Analysis**
 
 * **Determine passing low and high contrast ROIs** -- For each low and high contrast region, the determined
   value is compared to the threshold. The plot colors correspond to the pass/fail status.
 
+See also :ref:`Interpreting Results <interpreting-planar-results>` for specific results items.
+
+.. figure:: images/ptw-epid-qc-reference.png
+
+    Labeled ROIs of the PTW EPID QC phantom analysis. W/L was adjusted for clarify of the labels.
 
 Standard Imaging QC-3 Phantom
 -----------------------------
@@ -370,14 +409,34 @@ The algorithm works like such:
 **Analysis**
 
 * **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
-  be known. From here, the contrast can be known; see :ref:`contrast`.
+  be known. The mean pixel value of each ROI (see below image, "LC0", ..., "LC4") is compared to the mean pixel value of the reference ROI ("LCR").
+  See also :ref:`low_contrast_topic`. By default, the :ref:`michelson` algorithm is used.
+  For example, the first contrast value would be calculated as:
+
+  .. math::
+
+        \frac{LC0_{mean} - LCR_{mean}}{LC0_{mean} + LCR_{mean}}
+
 * **Calculate high contrast** -- Again, because the phantom position and angle are known, offsets are applied
-  to sample the high contrast line pair regions. For each sample, the relative MTF is calculated. See :ref:`mtf_topic`.
+  to sample the high contrast line pair regions. For each sample ("HC0", ..., "HC4"), the relative MTF is calculated using Peak-Valley methodology. See :ref:`peak-valley-mtf`.
+  For example, the first high-contrast value would be calculated as:
+
+  .. math::
+
+        \frac{HC0_{max} - HC0_{min}}{HC0_{max} + HC0_{min}}
+
+* **Percent Integral Uniformity** -- See :ref:`planar-piu`.
 
 **Post-Analysis**
 
 * **Determine passing low and high contrast ROIs** -- For each low and high contrast region, the determined
   value is compared to the threshold. The plot colors correspond to the pass/fail status.
+
+See also :ref:`Interpreting Results <interpreting-planar-results>` for specific results items.
+
+.. figure:: images/si-qc3-reference.png
+
+    Labeled ROIs of the Standard Imaging QC-3 phantom analysis. W/L was adjusted for clarify of the labels.
 
 Troubleshooting
 ^^^^^^^^^^^^^^^
@@ -387,6 +446,94 @@ the manufacturer's instructions (also see :ref:`qc3_image_acquisition`). One iss
 inversion. If the jaws are closed tightly around the phantom, the automatic inversion correction may falsely
 invert the image, just as for the Leeds phantom. If you have an image that looks inverted or just plain weird, add ``invert=True``
 to :meth:`~pylinac.planar_imaging.StandardImagingQC3.analyze`. If this doesn't help, reshoot the phantom with the jaws open.
+
+Standard Imaging QC-kV Phantom
+------------------------------
+
+The Standard Imaging QC-kV phantom is an kV imaging quality assurance phantom and has high and low contrast regions,
+just as the Leeds phantom, but with different geometric configurations.
+
+
+Image Acquisition
+^^^^^^^^^^^^^^^^^
+
+The Standard Imaging phantom has a specific setup as recommended by the manufacturer. The phantom should be angled 45
+degrees, with the "1" pointed toward the gantry stand and centered along the CAX. For best results when using pylinac,
+open the blades to fully cover the kV panel, or at least give 1-2cm flash around the phantom edges.
+
+.. warning::
+
+    If using the acrylic jig that comes with the phantom, place a spacer of at least a few mm between the jig and the phantom.
+    E.g. a slice of foam on each angled edge. This is because the edge detection of the phantom may fail at certain
+    energies with the phantom abutted to the acrylic jig.
+
+Algorithm
+^^^^^^^^^
+
+The algorithm works like such:
+
+**Allowances**
+
+* The images can be acquired at any SID.
+* The images can be acquired with any kV panel.
+* The images can be acquired with the phantom at any SSD.
+
+**Restrictions**
+
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+
+* The phantom must be at 45 degrees.
+* The phantom must not be touching any image edges.
+* The phantom should have the "1" pointing toward the gantry stand.
+* The phantom should be centered near the CAX (<1-2cm).
+
+**Pre-Analysis**
+
+* **Determine phantom location** -- A Canny edge search is performed on the image. Connected edges that
+  are semi-round and angled are thought to possibly be the phantom. Of the ROIs, the one with the longest
+  axis is said to be the phantom edge. The center of the bounding box of the ROI is set as the phantom center.
+* **Determine phantom radius and angle** -- The major axis length of the ROI determined above serves as the
+  phantom radius. The orientation of the edge ROI serves as the phantom angle.
+
+**Analysis**
+
+* **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
+  be known. The mean pixel value of each ROI (see below image, "LC0", ..., "LC4") is compared to the mean pixel value of the reference ROI ("LCR").
+  See also :ref:`low_contrast_topic`. By default, the :ref:`michelson` algorithm is used.
+  For example, the first contrast value would be calculated as:
+
+  .. math::
+
+        \frac{LC0_{mean} - LCR_{mean}}{LC0_{mean} + LCR_{mean}}
+
+* **Calculate high contrast** -- Again, because the phantom position and angle are known, offsets are applied
+  to sample the high contrast line pair regions. For each sample ("HC0", ..., "HC4"), the relative MTF is calculated using Peak-Valley methodology. See :ref:`peak-valley-mtf`.
+  For example, the first high-contrast value would be calculated as:
+
+  .. math::
+
+        \frac{HC0_{max} - HC0_{min}}{HC0_{max} + HC0_{min}}
+
+**Post-Analysis**
+
+* **Determine passing low and high contrast ROIs** -- For each low and high contrast region, the determined
+  value is compared to the threshold. The plot colors correspond to the pass/fail status.
+
+See also :ref:`Interpreting Results <interpreting-planar-results>` for specific results items.
+
+.. figure:: images/qckv-reference.png
+
+    Labeled ROIs of the QC-kV phantom analysis.
+
+
+Troubleshooting
+^^^^^^^^^^^^^^^
+
+If you're having issues with the StandardImaging class, make sure you have correctly positioned the phantom as per
+the manufacturer's instructions (also see :ref:`qc3_image_acquisition`). One issue that may arise is incorrect
+inversion. If the jaws are closed tightly around the phantom, the automatic inversion correction may falsely
+invert the image, just as for the Leeds phantom. If you have an image that looks inverted or just plain weird, add ``invert=True``
+to :meth:`~pylinac.planar_imaging.StandardImagingQCkV.analyze`. If this doesn't help, reshoot the phantom with the jaws open.
 
 
 Las Vegas Phantom
@@ -436,12 +583,24 @@ The algorithm works like such:
 **Analysis**
 
 * **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
-  be known. From here, the contrast can be known; see :ref:`contrast`.
+  be known. The mean pixel value of each ROI (see below image, "LC0", ..., "LC18") is compared to the mean pixel value of all 4 reference ROIs ("LCR0", ..., "LCR3").
+  See also :ref:`low_contrast_topic`. By default, the :ref:`michelson` algorithm is used.
+  For example, the first contrast value would be calculated as:
+
+  .. math::
+
+        \frac{LC0_{mean} - LCR_{mean}}{LC0_{mean} + LCR_{mean}}
 
 **Post-Analysis**
 
 * **Determine passing low and high contrast ROIs** -- For each low and high contrast region, the determined
   value is compared to the threshold. The plot colors correspond to the pass/fail status.
+
+See also :ref:`Interpreting Results <interpreting-planar-results>` for specific results items.
+
+.. figure:: images/las-vegas-reference.png
+
+    Labeled ROIs of the Las Vegas phantom analysis. W/L was adjusted for clarify of the labels.
 
 Doselab MC2 MV & kV
 -------------------
@@ -487,12 +646,36 @@ The algorithm works like such:
 **Analysis**
 
 * **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
-  be known. From here, the contrast can be known; see :ref:`contrast`.
+  be known. The mean pixel value of each ROI (see below image, "LC0", ..., "LC6") is compared to the mean pixel value of the reference ROI ("LCR").
+  See also :ref:`low_contrast_topic`. By default, the :ref:`michelson` algorithm is used.
+  For example, the first contrast value would be calculated as:
+
+  .. math::
+
+        \frac{LC0_{mean} - LCR_{mean}}{LC0_{mean} + LCR_{mean}}
+
+* **Calculate high contrast** -- Again, because the phantom position and angle are known, offsets are applied
+  to sample the high contrast line pair regions. For each sample ("HC0", ..., "HC3"), the relative MTF is calculated using Peak-Valley methodology. See :ref:`peak-valley-mtf`.
+  For example, the first high-contrast value would be calculated as:
+
+  .. math::
+
+        \frac{HC0_{max} - HC0_{min}}{HC0_{max} + HC0_{min}}
 
 **Post-Analysis**
 
 * **Determine passing low and high contrast ROIs** -- For each low and high contrast region, the determined
   value is compared to the threshold. The plot colors correspond to the pass/fail status.
+
+See also :ref:`Interpreting Results <interpreting-planar-results>` for specific results items.
+
+.. figure:: images/doselab-kv-reference.png
+
+    Labeled ROIs of the Doselab MC2 kV phantom analysis. W/L was adjusted for clarify of the labels.
+
+.. figure:: images/doselab-mv-reference.png
+
+    Labeled ROIs of the Doselab MC2 MV phantom analysis. W/L was adjusted for clarify of the labels.
 
 
 SNC MV & kV
@@ -540,12 +723,37 @@ The algorithm works like such:
 **Analysis**
 
 * **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
-  be known. From here, the contrast can be known; see :ref:`contrast`.
+  be known. The mean pixel value of each ROI (see below image, "LC0", ..., "LC3") is compared to the mean pixel values of both of the reference ROIs ("LCR0", "LCR1").
+  See also :ref:`low_contrast_topic`. By default, the :ref:`michelson` algorithm is used.
+  For example, the first contrast value would be calculated as:
+
+  .. math::
+
+        \frac{LC0_{mean} - LCR_{mean}}{LC0_{mean} + LCR_{mean}}
+
+* **Calculate high contrast** -- Again, because the phantom position and angle are known, offsets are applied
+  to sample the high contrast line pair regions. For each sample ("HC0", ..., "HC3"), the relative MTF is calculated using Peak-Valley methodology. See :ref:`peak-valley-mtf`.
+  For example, the first high-contrast value would be calculated as:
+
+  .. math::
+
+        \frac{HC0_{max} - HC0_{min}}{HC0_{max} + HC0_{min}}
 
 **Post-Analysis**
 
 * **Determine passing low and high contrast ROIs** -- For each low and high contrast region, the determined
   value is compared to the threshold. The plot colors correspond to the pass/fail status.
+
+See also :ref:`Interpreting Results <interpreting-planar-results>` for specific results items.
+
+.. figure:: images/snc-kv-reference.png
+
+    Labeled ROIs of the SNC kV phantom analysis. W/L was adjusted for clarify of the labels.
+
+.. figure:: images/snc-mv-reference.png
+
+    Labeled ROIs of the SNC MV phantom analysis. W/L was adjusted for clarify of the labels.
+
 
 .. _iba_primus_a:
 
@@ -598,14 +806,33 @@ The algorithm works like such:
 **Analysis**
 
 * **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
-  be known. From here, the contrast can be known; see :ref:`contrast`.
+  be known. The mean pixel value of each ROI (see below image, "LC0", ..., "LC14") is compared to the mean pixel values of the reference ROI ("LCR").
+  See also :ref:`low_contrast_topic`. By default, the :ref:`michelson` algorithm is used.
+  For example, the first contrast value would be calculated as:
+
+  .. math::
+
+        \frac{LC0_{mean} - LCR_{mean}}{LC0_{mean} + LCR_{mean}}
+
 * **Calculate high contrast** -- Again, because the phantom position and angle are known, offsets are applied
-  to sample the high contrast line pair regions. For each sample, the relative MTF is calculated. See :ref:`mtf_topic`.
+  to sample the high contrast line pair regions. For each sample ("HC0", ..., "HC12"), the relative MTF is calculated using Peak-Valley methodology. See :ref:`peak-valley-mtf`.
+  For example, the first high-contrast value would be calculated as:
+
+  .. math::
+
+        \frac{HC0_{max} - HC0_{min}}{HC0_{max} + HC0_{min}}
 
 **Post-Analysis**
 
 * **Determine passing low and high contrast ROIs** -- For each low and high contrast region, the determined
   value is compared to the threshold. The plot colors correspond to the pass/fail status.
+
+See also :ref:`Interpreting Results <interpreting-planar-results>` for specific results items.
+
+.. figure:: images/iba-primus-a-reference.png
+
+    Labeled ROIs of the IBA Primus A phantom analysis.
+
 
 Standard Imaging FC-2
 ---------------------
@@ -655,34 +882,6 @@ The algorithm works like such:
 
 * **Comparing centroids** -- The irradiated field centroid is compared to the EPID/image center as well as the the BB centroid.
   The field size is also reported.
-
-Customizing behavior
-^^^^^^^^^^^^^^^^^^^^
-
-The BB window as well as the expected BB positions, and field strip size can be overridden like so:
-
-.. code-block:: python
-
-    from pylinac import StandardImagingFC2
-
-
-    class MySIFC2(StandardImagingFC2):
-        bb_sampling_box_size_mm = (
-            20  # look at a 20x20mm window for the BB at the expected position
-        )
-        # change the 10x10 BB expected positions. This is in mm relative to the CAX.
-        bb_positions_10x10 = {
-            "TL": [-30, -30],
-            "BL": [-30, 30],
-            "TR": [30, -30],
-            "BR": [30, 30],
-        }
-        bb_positions_15x15 = ...  # same as above
-        field_strip_width_mm = 10  # 10mm strip in x and y to determine field size
-
-
-    # use as normal
-    fc2 = MySIFC2(...)
 
 
 .. _doselab_rlf:
@@ -854,6 +1053,35 @@ The FSQA phantom should be placed on the couch at 100cm SSD.
 * Keep the phantom away from a couch edge or any rails.
 * Keep the phantom as close to 0 degrees rotation as possible.
 
+Algorithm
+^^^^^^^^^
+
+The algorithm works like such:
+
+**Allowances**
+
+* The images can be acquired at any SID.
+* The images can be acquired with any EPID.
+
+**Restrictions**
+
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+
+* The phantom should be at 0 degrees relative to the EPID.
+* The phantom should be roughly centered along the CAX (<3mm).
+
+**Analysis**
+
+* **Get BB centroid** -- An image window looks for the top-right offset BB in a 1.2x1.2cm square. Once it finds it,
+  a "virtual center" centroid is calculated by shifting the detected BB location by 4cm in each direction.
+* **Determine field center** -- The field size is measured along the center of the image in the inplane and crossplane direction.
+  A 5mm strip is averaged and used to reduce noise.
+
+**Post-Analysis**
+
+* **Comparing centroids** -- The irradiated field centroid is compared to the EPID/image center as well as the the BB centroid.
+  The field size is also reported.
+
 Analysis Parameters
 -------------------
 
@@ -895,37 +1123,10 @@ These are the analysis parameters for Light/Rad phantoms.
         a different, more robust algorithm is used to determine the BB position but
         results in higher uncertainty when in a flat region (i.e. away from the field edge).
 
-Algorithm
-^^^^^^^^^
-
-The algorithm works like such:
-
-**Allowances**
-
-* The images can be acquired at any SID.
-* The images can be acquired with any EPID.
-
-**Restrictions**
-
-.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
-
-* The phantom should be at 0 degrees relative to the EPID.
-* The phantom should be roughly centered along the CAX (<3mm).
-
-**Analysis**
-
-* **Get BB centroid** -- An image window looks for the top-right offset BB in a 1.2x1.2cm square. Once it finds it,
-  a "virtual center" centroid is calculated by shifting the detected BB location by 4cm in each direction.
-* **Determine field center** -- The field size is measured along the center of the image in the inplane and crossplane direction.
-  A 5mm strip is averaged and used to reduce noise.
-
-**Post-Analysis**
-
-* **Comparing centroids** -- The irradiated field centroid is compared to the EPID/image center as well as the the BB centroid.
-  The field size is also reported.
-
 Interpreting Results
 --------------------
+
+.. _interpreting-planar-results:
 
 Phantoms
 ^^^^^^^^
@@ -939,7 +1140,7 @@ The results from phantoms that are meant to measure image quality, contrast, etc
 * ``phantom_center_x_y``: The center of the phantom in the image in pixels.
 * ``phantom_area``: The area of the phantom in pixels^2.
 * ``mtf_lp_mm``: The 80%, 50%, and 30% MTF values in lp/mm. For more values see: :ref:`calculate-specific-mtf`.
-* ``percent_integral_uniformity``: The percent integral uniformity of the image.
+* ``percent_integral_uniformity``: The percent integral uniformity of the image. See :ref:`planar-piu`.
 * ``low_contrast_rois``: A dictionary of the individual low contrast ROIs. The dictionary keys
   are the ROI number, starting at 0. Each ROI has the following information:
 
@@ -950,6 +1151,8 @@ The results from phantoms that are meant to measure image quality, contrast, etc
   * ``cnr``: The contrast-to-noise ratio of the ROI.
   * ``passed visibility``: Whether the ROI passed the visibility threshold.
   * ``signal to noise``: The signal-to-noise ratio of the ROI.
+
+.. _interpreting-light-rad-results:
 
 Light/Rad
 ^^^^^^^^^
@@ -969,11 +1172,69 @@ The results from these analyses are:
     Some phantoms have multiple BBs. When we speak of the BB center when multiple BBs are present,
     we are referring to the centroid of all BBs.
 
+.. _planar-piu:
+
+Percent Integral Uniformity
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The uniformity of the phantom can be found by using the :meth:`~pylinac.planar_imaging.LeedsTOR.percent_integral_uniformity` method.
+This uses the same equation as ACR for CT uniformity. See the "Uniformity" section under :ref:`ACR Analysis <acr_analysis>` for more information.
+
+The PIU is calculated over all the low-contrast ROIs and the lowest (worst) PIU is returned.
+
+For robustness, the 1st and 99th percentiles are used rather than the min/max. The true
+min/max can be influenced by salt and paper noise.
+To use the true min and max, set the percentiles to 0 and 100 respectively:
+
+.. note::
+
+    Calls to ``percent_integral_uniformity`` will not be reflected in the ``results_data`` structure; it will always use (1, 99).
+
+.. code-block:: python
+
+    leeds = LeedsTOR(...)
+    leeds.analyze(...)
+    print(leeds.percent_integral_uniformity(percentiles=(0, 100)))  # uses the true min/max
+
+.. warning::
+
+   This equation was chosen because it is common and understood, but it does come with pitfalls.
+   It is not designed to handle negative values or 0. The calculated result may be misleading if these
+   conditions exist.
+
+Customizing Light/Rad behavior
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The BB window as well as the expected BB positions, and field strip size can be overridden like so:
+
+.. code-block:: python
+
+    from pylinac import StandardImagingFC2  # works for any light/rad phantom
+
+
+    class MySIFC2(StandardImagingFC2):
+        bb_sampling_box_size_mm = (
+            20  # look at a 20x20mm window for the BB at the expected position
+        )
+        # change the 10x10 BB expected positions. This is in mm relative to the CAX.
+        bb_positions_10x10 = {
+            "TL": [-30, -30],
+            "BL": [-30, 30],
+            "TR": [30, -30],
+            "BR": [30, 30],
+        }
+        bb_positions_15x15 = ...  # same as above
+        field_strip_width_mm = 10  # 10mm strip in x and y to determine field size
+
+
+    # use as normal
+    fc2 = MySIFC2(...)
+
 
 .. _creating_a_custom_phantom:
 
-Creating a custom phantom
--------------------------
+Creating a custom planar phantom
+--------------------------------
 
 In the event you would like to analyze a phantom that pylinac does not analyze out of the box,
 the pylinac planar imaging module structure allows for generating new phantom analysis types quickly and easily.
@@ -1186,34 +1447,6 @@ To adjust an ROI, override the relevant attribute or create a subclass. E.g. to 
 
 
     qc3 = TweakedStandardImagingQC3(...)
-
-Calculating Uniformity
-^^^^^^^^^^^^^^^^^^^^^^
-
-The uniformity of the phantom can be found by using the :meth:`~pylinac.planar_imaging.LeedsTOR.percent_integral_uniformity` method.
-This uses the same equation as ACR for CT uniformity. See the "Uniformity" section under :ref:`ACR Analysis <acr_analysis>` for more information.
-
-The PIU is calculated over all the low-contrast ROIs and the lowest (worst) PIU is returned.
-
-For robustness, the 1st and 99th percentiles are used rather than the min/max. The true
-min/max can be influenced by salt and paper noise.
-To use the true min and max, set the percentiles to 0 and 100 respectively:
-
-.. note::
-
-    This will not be reflected in the ``results_data`` structure.
-
-.. code-block:: python
-
-    leeds = LeedsTOR(...)
-    leeds.analyze(...)
-    print(leeds.percent_integral_uniformity(percentiles=(0, 100)))  # uses the true min/max
-
-.. warning::
-
-   This equation was chosen because it is common and understood, but it does come with pitfalls.
-   It is not designed to handle negative values or 0. The calculated result may be misleading if these
-   conditions exist.
 
 .. _calculate-specific-mtf:
 

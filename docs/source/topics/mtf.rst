@@ -4,6 +4,8 @@
 Modulation Transfer Function
 ----------------------------
 
+.. _peak-valley-mtf:
+
 Peak-Valley MTF
 ~~~~~~~~~~~~~~~
 
