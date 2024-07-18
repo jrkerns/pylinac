@@ -846,7 +846,7 @@ class PlanGenerator:
         self.ds.BeamSequence = beam_sequence
 
     @classmethod
-    def from_rt_plan_file(cls, rt_plan_file: str, **kwargs) -> PlanGenerator:
+    def from_rt_plan_file(cls, rt_plan_file: str | Path, **kwargs) -> PlanGenerator:
         """Load an existing RTPLAN file and create a new plan based on it.
 
         Parameters
@@ -895,7 +895,7 @@ class PlanGenerator:
     def add_picketfence_beam(
         self,
         strip_width_mm: float = 3,
-        strip_positions_mm: tuple[float] = (-45, -30, -15, 0, 15, 30, 45),
+        strip_positions_mm: tuple[float | int, ...] = (-45, -30, -15, 0, 15, 30, 45),
         y1: float = -100,
         y2: float = 100,
         fluence_mode: FluenceMode = FluenceMode.STANDARD,
@@ -1000,7 +1000,7 @@ class PlanGenerator:
 
     def add_dose_rate_beams(
         self,
-        dose_rates: tuple[int] = (100, 300, 500, 600),
+        dose_rates: tuple[int, ...] = (100, 300, 500, 600),
         default_dose_rate: int = 600,
         gantry_angle: float = 0,
         desired_mu: int = 50,
@@ -1178,7 +1178,7 @@ class PlanGenerator:
 
     def add_mlc_speed_beams(
         self,
-        speeds: tuple[float] = (5, 10, 15, 20),
+        speeds: tuple[float | int, ...] = (5, 10, 15, 20),
         roi_size_mm: float = 20,
         mu: int = 50,
         default_dose_rate: int = 600,
@@ -1465,7 +1465,7 @@ class PlanGenerator:
 
     def add_gantry_speed_beams(
         self,
-        speeds: tuple = (2, 3, 4, 4.8),
+        speeds: tuple[float | int, ...] = (2, 3, 4, 4.8),
         max_dose_rate: int = 600,
         start_gantry_angle: float = 179,
         energy: float = 6,

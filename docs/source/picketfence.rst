@@ -75,6 +75,9 @@ Depending on the EPID type and physicist, either the entire array of MLCs can be
 leaves are acquired. Changing the SID can also change how many leaves are imaged. For analysis by pylinac,
 the SID does not matter, nor EPID type, nor panel translation.
 
+Prefabricated plans are available at :ref:`prefab-rt-plans` for download. See also the
+:ref:`plan-generator` module for creating your own plans.
+
 Typical Use
 -----------
 
