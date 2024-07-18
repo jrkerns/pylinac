@@ -166,11 +166,7 @@ An example calculation:
 
     from pylinac.core import contrast
 
-    c = contrast.ratio(feature=10, background=5)
-
-.. seealso::
-
-    `Wikipedia <https://en.wikipedia.org/wiki/Contrast-to-noise_ratio>`__.
+    c = contrast.difference(feature=10, background=5)
 
 Root-mean-square
 """"""""""""""""
@@ -228,12 +224,23 @@ where contrast is an option from the :ref:`low contrast methods <low_contrast_to
      For simplicity and ease of understanding, the inverse of the standard deviation, aka noise, of the ROI works as a simple surrogate.
      I.e.
 
-     .. math:: \sqrt{DQE(I)}\approx\sqrt{N}\approx\frac{1}{stdev_{I}}
+     .. math:: \sqrt{DQE(I)}\approx\sqrt{N}\propto\frac{1}{stdev_{I}}
 
 .. note::
     Pylinac ROIs are smaller than that actual size of the contrast ROI on the phantom. Uncertainty in the phantom detection
     algorithm means that the ROIs must be smaller to allow a small localization tolerance in the algorithm. Thus, visibility is a very specific
     number that depends on the size of the **sampling** ROI.
+
+An example calculation:
+
+.. code-block:: python
+
+    from pylinac.core import contrast
+
+    my_roi = np.array((1.17, 1.31, 1.26, ...))
+    vis = contrast.visibility(
+        array=my_roi, radius=5, std=np.std(my_roi), algorithm="michelson"
+    )
 
 .. _cnr:
 
@@ -247,3 +254,19 @@ The contrast to noise ratio (CNR) is defined as follows:
 where contrast is an option from the low contrast methods above: :ref:`low_contrast_topic`.
 If you prefer the `classic definition <https://en.wikipedia.org/wiki/Contrast-to-noise_ratio>`__ of CNR
 then use the "Difference" algorithm.
+
+E.g.:
+
+.. code-block:: python
+
+    from pylinac.core import contrast
+
+    my_roi = np.array((1.17, 1.31, 1.26, ...))
+    c = contrast.michelson(array=my_roi)
+    cnr = c / np.std(my_roi)
+
+API
+^^^
+
+.. automodule:: pylinac.core.contrast
+    :members:

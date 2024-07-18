@@ -45,9 +45,3 @@ Utilities Module
 
 .. automodule:: pylinac.core.utilities
     :members:
-
-Contrast Module
----------------
-
-.. automodule:: pylinac.core.contrast
-    :members:
