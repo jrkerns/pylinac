@@ -171,9 +171,12 @@ def gamma_1d(
         raise ValueError(
             f"Evaluation and evaluation_x_values must be the same length. Got evaluation: {len(evaluation)} and evaluation_x_values: {len(evaluation_x_values)}"
         )
-    if min(reference_x_values) > min(evaluation_x_values) or max(
+    # we add some padding on the check because resampling SingleProfiles
+    # can add ~1/2 pixel on each side to retain the same physical size
+    # when upsampling.
+    if min(reference_x_values) - 1 > min(evaluation_x_values) or max(
         reference_x_values
-    ) < max(evaluation_x_values):
+    ) + 1 < max(evaluation_x_values):
         raise ValueError(
             "The evaluation x-values must be within the range of the reference x-values"
         )

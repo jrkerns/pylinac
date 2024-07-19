@@ -1656,7 +1656,7 @@ class SingleProfile(ProfileMixin):
     def gamma(
         self,
         evaluation_profile: SingleProfile,
-        distance_to_agreement: float = 1,
+        distance_to_agreement: int = 1,
         dose_to_agreement: float = 1,
         gamma_cap_value: float = 2,
         dose_threshold: float = 5,
@@ -1696,29 +1696,18 @@ class SingleProfile(ProfileMixin):
             raise ValueError(
                 "At least one profile does not have the dpmm attribute. Physical spacing cannot be determined. Set it before performing gamma analysis."
             )
-        distance_to_agreement_px = int(round(distance_to_agreement * self.dpmm))
-        # resample eval profile to be same resolution as reference
-        resampled_evaluation = evaluation_profile.resample(
-            interpolation_resolution_mm=self._interpolation_res
-        )
-        if len(resampled_evaluation.values) != len(self.values):
-            warnings.warn(
-                f"The number of elements in the reference and evaluation differ. Ref: {len(self.values)}, Eval: {len(resampled_evaluation.values)}"
-            )
-        # now that we've resampled, it's still possible that the x-values of the two profiles differ.
-        # E.g. we may be at -0.475 and -0.37 for the first index depending on the amount of interpolation.
-        # we thus need to evaluate the evaluation profile at the exact same x-indices as the reference.
-        eval_at_ref_points = resampled_evaluation._y_original_to_interp(self.x_indices)
         return gamma_1d(
             reference=self.values,
-            evaluation=eval_at_ref_points,
+            evaluation=evaluation_profile.values,
+            reference_x_values=self.x_indices,
+            evaluation_x_values=evaluation_profile.x_indices,
             dose_to_agreement=dose_to_agreement,
-            distance_to_agreement=distance_to_agreement_px,
+            distance_to_agreement=distance_to_agreement,
             gamma_cap_value=gamma_cap_value,
             global_dose=global_dose,
             dose_threshold_percent=dose_threshold,
             fill_value=fill_value,
-        )
+        )[0]
 
     def plot(self, show: bool = True) -> None:
         """Plot the profile."""

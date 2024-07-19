@@ -2224,7 +2224,7 @@ class SingleProfileTests(TestCase):
         )
         gamma = reference.gamma(evaluation)
         self.assertIsInstance(gamma, np.ndarray)
-        self.assertEqual(len(gamma), len(reference.values))
+        self.assertEqual(len(gamma), len(evaluation.values))
         self.assertTrue(np.isnan(gamma[0]))  # first element is under threshold
         self.assertAlmostEqual(
             np.nanmean(gamma), 0, delta=0.001
