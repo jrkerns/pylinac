@@ -182,9 +182,11 @@ def gamma_1d(
     threshold = reference.max() / 100 * dose_threshold_percent
     # convert dose to agreement to % of global max; ignored later if local dose
     dose_ta = dose_to_agreement / 100 * reference.max()
-    # pad eval array on both edges so our search does not go out of bounds
 
-    # resample the reference to be the desired resolution factor compared to the evaluation if not already
+    # we need to interpolate the reference profile to the evaluation DTA search x-values
+    # we allow extrapolation due to physical grid size at the edges.
+    # I.e. at element 0 our DTA search will go to -1...+1.
+    # this only comes into effect if the edge values of the x-values of the reference and evaluation are the same.
     ref_interp = interp1d(
         reference_x_values, reference, kind="linear", fill_value="extrapolate"
     )

@@ -252,6 +252,46 @@ class TestGamma2D(TestCase):
 
 
 class TestGamma1D(TestCase):
+    def test_resolution_below_1mm(self):
+        ref = eval = np.ones(5)
+        with self.assertRaises(ValueError):
+            gamma_1d(reference=ref, evaluation=eval, resolution_factor=0)
+
+    def test_resolution_not_int(self):
+        ref = eval = np.ones(5)
+        with self.assertRaises(ValueError):
+            gamma_1d(reference=ref, evaluation=eval, resolution_factor=1.5)
+
+    def test_ref_x_values_not_same_length_as_ref(self):
+        ref = eval = np.ones(5)
+        with self.assertRaises(ValueError):
+            gamma_1d(reference=ref, evaluation=eval, reference_x_values=np.arange(6))
+
+    def test_eval_x_values_not_same_length_as_eval(self):
+        ref = eval = np.ones(5)
+        with self.assertRaises(ValueError):
+            gamma_1d(reference=ref, evaluation=eval, evaluation_x_values=np.arange(6))
+
+    def test_min_eval_x_lower_than_min_ref_x(self):
+        ref = eval = np.ones(5)
+        with self.assertRaises(ValueError):
+            gamma_1d(
+                reference=ref,
+                evaluation=eval,
+                evaluation_x_values=(np.arange(5) - 1),
+                reference_x_values=np.arange(5),
+            )
+
+    def test_max_eval_x_higher_than_max_ref_x(self):
+        ref = eval = np.ones(5)
+        with self.assertRaises(ValueError):
+            gamma_1d(
+                reference=ref,
+                evaluation=eval,
+                evaluation_x_values=(np.arange(5) + 1),
+                reference_x_values=np.arange(5),
+            )
+
     def test_same_profile_is_0_gamma(self):
         ref = eval = np.ones(5)
         gamma, _, _ = gamma_1d(reference=ref, evaluation=eval)
