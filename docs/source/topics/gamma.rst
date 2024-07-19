@@ -43,7 +43,7 @@ about the types of data to be evaluated. The following are a list of assumptions
 Usage
 -----
 
-We will use the geometric 1mm, DD example from `Agnew & McGarry <https://www.sciencedirect.com/science/article/abs/pii/S0167814015006660>`__.
+We will use the H&N 1mm, DD example from `Agnew & McGarry <https://www.sciencedirect.com/science/article/abs/pii/S0167814015006660>`__.
 Although their data is 2D, we can extract a 1D profile from their data.
 
 .. plot::
