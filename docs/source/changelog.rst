@@ -10,6 +10,30 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.26.0
+--------
+
+Gamma
+^^^^^
+
+* :bdg-success:`Feature` A new documentation section has been added for gamma: :ref:`gamma`.
+* :bdg-primary:`Refactor` The gamma functions :func:`~pylinac.core.gamma.gamma_1d` and :func:`~pylinac.core.gamma.gamma_2d` have been moved to a new ``gamma`` module.
+  The old imports from ``.image`` and ``.profile`` will stil work however.
+* :bdg-warning:`Fixed` A bug was fixed in the ``gamma_1d`` function where uint16 input arrays would cause overflow errors
+  if the eval or reference dose was near the datatype limit (65535 for uint16).
+* :bdg-danger:`Change` The ``gamma_1d`` function has been changed in several ways:
+
+  * It now performs interpolation on the reference distribution instead of
+    forcing the two grids to be the same size.
+  * The ``dose_threshold`` parameter is now ``dose_threshold_percent``.
+  * New parameters ``reference_x_values`` and ``evaluation_x_values`` have been added.
+    This allows the user to calculate gamma on non-uniformly spaced data or data that
+    is physically shifted (e.g. central 10cm of a 20cm field).
+  * A new parameter ``resolution_factor`` has been added. This is the factor by which the resolution
+    of the reference distribution is resampled. The rule of thumb is to have a sampling resolution
+    >=3x the :math:`\Delta d`.
+  * The function now returns 3 arrays instead of one: the gamma map, the resampled reference values, and the resampled reference x-values. The latter two are helpful for plotting.
+
 v 3.25.0
 --------
 
