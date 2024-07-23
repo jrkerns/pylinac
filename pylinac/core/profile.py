@@ -1699,13 +1699,13 @@ class SingleProfile(ProfileMixin):
         return gamma_1d(
             reference=self.values,
             evaluation=evaluation_profile.values,
-            reference_x_values=self.x_indices,
-            evaluation_x_values=evaluation_profile.x_indices,
+            reference_coordinates=self.x_indices,
+            evaluation_coordinates=evaluation_profile.x_indices,
             dose_to_agreement=dose_to_agreement,
             distance_to_agreement=distance_to_agreement,
             gamma_cap_value=gamma_cap_value,
             global_dose=global_dose,
-            dose_threshold_percent=dose_threshold,
+            dose_threshold=dose_threshold,
             fill_value=fill_value,
         )[0]
 

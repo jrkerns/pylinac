@@ -1,8 +1,9 @@
+import math
 from unittest import TestCase, skip
 
 import numpy as np
 
-from pylinac.core.gamma import gamma_1d, gamma_2d
+from pylinac.core.gamma import _compute_distance, gamma_1d, gamma_2d, gamma_geometric
 from pylinac.core.image import DicomImage
 from tests_basic.utils import get_file_from_cloud_test_repo
 
@@ -251,6 +252,192 @@ class TestGamma2D(TestCase):
             gamma_2d(reference=ref, evaluation=eval)
 
 
+class TestGammaGeometric(TestCase):
+    def test_point_projection_far_from_simplex(self):
+        # test a point that is far from the simplex
+        # goes to the closest point on the simplex (for 1D this is okay; not for 2D)
+        point = np.array([2, 2])
+        vertices = [np.array([0, 0]), np.array([1, 1])]
+        distance = _compute_distance(point, vertices)
+        self.assertAlmostEqual(distance, math.sqrt(2), delta=0.01)
+
+    def test_point_along_simplex(self):
+        # test a point that is along the simplex
+        point = np.array([0.5, 0.5])
+        vertices = [np.array([0, 0]), np.array([1, 1])]
+        distance = _compute_distance(point, vertices)
+        self.assertAlmostEqual(distance, 0, delta=0.01)
+
+    def test_simple_distance(self):
+        point = np.array([0, 1])
+        vertices = [np.array([0, 0]), np.array([1, 1])]
+        distance = _compute_distance(point, vertices)
+        self.assertAlmostEqual(distance, math.sqrt(2) / 2, delta=0.01)
+
+    def test_ref_x_values_not_same_length_as_ref(self):
+        ref = eval = np.ones(5)
+        with self.assertRaises(ValueError):
+            gamma_geometric(
+                reference=ref, evaluation=eval, reference_coordinates=np.arange(6)
+            )
+
+    def test_eval_x_values_not_same_length_as_eval(self):
+        ref = eval = np.ones(5)
+        with self.assertRaises(ValueError):
+            gamma_geometric(
+                reference=ref, evaluation=eval, evaluation_coordinates=np.arange(6)
+            )
+
+    def test_min_eval_x_lower_than_min_ref_x(self):
+        ref = eval = np.ones(5)
+        with self.assertRaises(ValueError):
+            gamma_geometric(
+                reference=ref,
+                evaluation=eval,
+                evaluation_coordinates=(np.arange(5) - 1),
+                reference_coordinates=np.arange(5),
+            )
+
+    def test_max_eval_x_higher_than_max_ref_x(self):
+        ref = eval = np.ones(5)
+        with self.assertRaises(ValueError):
+            gamma_geometric(
+                reference=ref,
+                evaluation=eval,
+                evaluation_coordinates=(np.arange(5) + 1),
+                reference_coordinates=np.arange(5),
+            )
+
+    def test_same_profile_is_0_gamma(self):
+        ref = eval = np.ones(5)
+        gamma = gamma_geometric(reference=ref, evaluation=eval)
+        self.assertEqual(max(gamma), 0)
+        self.assertEqual(min(gamma), 0)
+        self.assertEqual(len(gamma), 5)
+
+        # test a high measurement value
+        ref = eval = np.ones(5) * 50
+        gamma = gamma_geometric(reference=ref, evaluation=eval)
+        self.assertEqual(max(gamma), 0)
+        self.assertEqual(min(gamma), 0)
+        self.assertEqual(len(gamma), 5)
+
+    def test_gamma_perfectly_at_1(self):
+        # offset a profile exactly by the dose to agreement
+        ref = np.ones(5)
+        eval = np.ones(5) * 1.01
+        gamma = gamma_geometric(reference=ref, evaluation=eval, dose_to_agreement=1)
+        self.assertAlmostEqual(max(gamma), 1, delta=0.001)
+        self.assertAlmostEqual(min(gamma), 1, delta=0.001)
+
+        # test same but eval is LOWER than ref
+        ref = np.ones(5)
+        eval = np.ones(5) * 0.99
+        gamma = gamma_geometric(reference=ref, evaluation=eval, dose_to_agreement=1)
+        self.assertAlmostEqual(max(gamma), 1, delta=0.001)
+        self.assertAlmostEqual(min(gamma), 1, delta=0.001)
+
+    def test_gamma_half(self):
+        # offset a profile by half the dose to agreement to ensure it's 0.5
+        ref = np.ones(5)
+        eval = np.ones(5) / 1.005
+        gamma = gamma_geometric(reference=ref, evaluation=eval, dose_to_agreement=1)
+        self.assertAlmostEqual(max(gamma), 0.5, delta=0.01)
+        self.assertAlmostEqual(min(gamma), 0.5, delta=0.01)
+
+    def test_gamma_some_on_some_off(self):
+        ref = np.ones(5)
+        eval = np.asarray((1.03, 1.03, 1, 1, 1))
+        gamma = gamma_geometric(
+            reference=ref,
+            evaluation=eval,
+            dose_to_agreement=1,
+            distance_to_agreement=1,
+            gamma_cap_value=5,
+        )
+        self.assertAlmostEqual(gamma[0], 3, delta=0.01)  # fully off by 3
+        self.assertAlmostEqual(gamma[1], 3, delta=0.01)
+        self.assertAlmostEqual(gamma[-1], 0, delta=0.01)  # gamma at end is perfect
+
+        # check inverted pattern is mirrored (checks off-by-one errors)
+        ref = np.ones(5)
+        eval = np.asarray((1, 1, 1, 1.03, 1.03))
+        gamma = gamma_geometric(
+            reference=ref,
+            evaluation=eval,
+            dose_to_agreement=1,
+            distance_to_agreement=1,
+            gamma_cap_value=5,
+        )
+        self.assertAlmostEqual(gamma[0], 0, delta=0.01)
+        self.assertAlmostEqual(gamma[-2], 3, delta=0.01)
+        self.assertAlmostEqual(gamma[-1], 3, delta=0.01)
+
+    def test_localized_dose(self):
+        ref = eval = np.array((100, 1, 1, 1, 1))
+        gamma = gamma_geometric(
+            reference=ref,
+            evaluation=eval,
+            dose_to_agreement=3,
+            distance_to_agreement=1,
+            gamma_cap_value=5,
+        )
+        self.assertAlmostEqual(gamma[0], 0, delta=0.01)
+        self.assertTrue(np.isnan(gamma[-2]))
+        self.assertTrue(np.isnan(gamma[-1]))
+
+    def test_threshold(self):
+        ref = np.zeros(5)
+        ref[0] = 1
+        eval = ref
+        # only one point should be computed as rest are under default threshold
+        gamma = gamma_geometric(
+            reference=ref,
+            evaluation=eval,
+            dose_to_agreement=3,
+            distance_to_agreement=1,
+            gamma_cap_value=5,
+            dose_threshold=5,
+        )
+        self.assertAlmostEqual(gamma[0], 0, delta=0.01)
+        self.assertTrue(np.isnan(gamma[-2]))
+        self.assertTrue(np.isnan(gamma[-1]))
+
+    def test_fill_value(self):
+        ref = np.zeros(5)
+        ref[0] = 1
+        eval = ref
+        # only one point should be computed as rest are under default threshold
+        gamma = gamma_geometric(
+            reference=ref,
+            evaluation=eval,
+            dose_to_agreement=3,
+            distance_to_agreement=1,
+            gamma_cap_value=5,
+            dose_threshold=5,
+            fill_value=0.666,
+        )
+        self.assertAlmostEqual(gamma[0], 0, delta=0.01)
+        self.assertAlmostEqual(gamma[-2], 0.666, delta=0.01)
+        self.assertAlmostEqual(gamma[-1], 0.666, delta=0.01)
+
+    def test_gamma_cap(self):
+        # cap to the value
+        ref = np.ones(5)
+        eval = np.ones(5) * 10
+        gamma = gamma_geometric(
+            reference=ref, evaluation=eval, dose_to_agreement=1, gamma_cap_value=2
+        )
+        self.assertEqual(max(gamma), 2)
+        self.assertEqual(min(gamma), 2)
+
+    def test_non_1d_array(self):
+        ref = np.ones(5)
+        eval = np.ones((5, 5))
+        with self.assertRaises(ValueError):
+            gamma_geometric(reference=ref, evaluation=eval)
+
+
 class TestGamma1D(TestCase):
     def test_resolution_below_1mm(self):
         ref = eval = np.ones(5)
@@ -265,12 +452,14 @@ class TestGamma1D(TestCase):
     def test_ref_x_values_not_same_length_as_ref(self):
         ref = eval = np.ones(5)
         with self.assertRaises(ValueError):
-            gamma_1d(reference=ref, evaluation=eval, reference_x_values=np.arange(6))
+            gamma_1d(reference=ref, evaluation=eval, reference_coordinates=np.arange(6))
 
     def test_eval_x_values_not_same_length_as_eval(self):
         ref = eval = np.ones(5)
         with self.assertRaises(ValueError):
-            gamma_1d(reference=ref, evaluation=eval, evaluation_x_values=np.arange(6))
+            gamma_1d(
+                reference=ref, evaluation=eval, evaluation_coordinates=np.arange(6)
+            )
 
     def test_min_eval_x_lower_than_min_ref_x(self):
         ref = eval = np.ones(5)
@@ -278,8 +467,8 @@ class TestGamma1D(TestCase):
             gamma_1d(
                 reference=ref,
                 evaluation=eval,
-                evaluation_x_values=(np.arange(5) - 1),
-                reference_x_values=np.arange(5),
+                evaluation_coordinates=(np.arange(5) - 1),
+                reference_coordinates=np.arange(5),
             )
 
     def test_max_eval_x_higher_than_max_ref_x(self):
@@ -288,8 +477,8 @@ class TestGamma1D(TestCase):
             gamma_1d(
                 reference=ref,
                 evaluation=eval,
-                evaluation_x_values=(np.arange(5) + 1),
-                reference_x_values=np.arange(5),
+                evaluation_coordinates=(np.arange(5) + 1),
+                reference_coordinates=np.arange(5),
             )
 
     def test_same_profile_is_0_gamma(self):
@@ -383,7 +572,7 @@ class TestGamma1D(TestCase):
             distance_to_agreement=1,
             gamma_cap_value=5,
             global_dose=False,
-            dose_threshold_percent=5,
+            dose_threshold=5,
         )
         self.assertAlmostEqual(gamma[0], 0, delta=0.01)
         self.assertTrue(np.isnan(gamma[-2]))
@@ -401,7 +590,7 @@ class TestGamma1D(TestCase):
             distance_to_agreement=1,
             gamma_cap_value=5,
             global_dose=False,
-            dose_threshold_percent=5,
+            dose_threshold=5,
             fill_value=0.666,
         )
         self.assertAlmostEqual(gamma[0], 0, delta=0.01)

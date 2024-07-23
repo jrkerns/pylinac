@@ -25,7 +25,6 @@ Gamma
 
   * It now performs interpolation on the reference distribution instead of
     forcing the two grids to be the same size.
-  * The ``dose_threshold`` parameter is now ``dose_threshold_percent``.
   * New parameters ``reference_x_values`` and ``evaluation_x_values`` have been added.
     This allows the user to calculate gamma on non-uniformly spaced data or data that
     is physically shifted (e.g. central 10cm of a 20cm field).
@@ -33,6 +32,9 @@ Gamma
     of the reference distribution is resampled. The rule of thumb is to have a sampling resolution
     >=3x the :math:`\Delta d`.
   * The function now returns 3 arrays instead of one: the gamma map, the resampled reference values, and the resampled reference x-values. The latter two are helpful for plotting.
+* :bdg-success:`Feature` A new function has been added: :func:`~pylinac.core.gamma.gamma_geometric`.
+  This is the implementation of the 2007 follow-up paper that uses geometric distance and avoids discrete interpolation.
+
 
 v 3.25.0
 --------
