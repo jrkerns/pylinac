@@ -258,7 +258,7 @@ definitions:
         script:
           - apt-get update
           - apt-get install wget -y
-          - source venv/bin/activate
+          - pip install nox
           # Get gcloud CLI
           - wget https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-416.0.0-linux-x86_64.tar.gz -O gcloud_cli.tar.gz
           - tar -xf gcloud_cli.tar.gz
