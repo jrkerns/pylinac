@@ -10,6 +10,15 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.26.0
+--------
+
+Core
+^^^^
+
+* :bdg-warning:`Fixed` ``LazyDicomImageStack`` was not properly updating the image paths when
+  asked to check the UIDs.
+
 v 3.25.0
 --------
 
@@ -63,8 +72,6 @@ Core
     )
 
   The ``DiskROI`` 's new constructor signature is a much simpler ``array, radius, center``.
-* :bdg-warning:`Fixed` ``LazyDicomImageStack`` was not properly updating the image paths when
-  asked to check the UIDs.
 
 Plan Generator
 ^^^^^^^^^^^^^^
