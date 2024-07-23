@@ -37,6 +37,8 @@ Metrics
 Core
 ^^^^
 
+* :bdg-warning:`Fixed` XIM images with uint32 datatypes were not being parsed correctly, leading to a
+  datatype overflow. `Issue #501 <https://github.com/jrkerns/pylinac/issues/501>`__.
 * :bdg-success:`Feature` Most modules have a new documentation section "Analysis Parameters". This section is meant
   to guide RadMachine users through the parameters available to them. Sometimes the names are slightly
   different and some parameters are not available to the user in RadMachine. Select the tab

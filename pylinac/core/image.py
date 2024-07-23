@@ -1072,7 +1072,18 @@ class XIM(BaseImage):
         """
         img_height = self.img_height_px
         img_width = self.img_width_px
-        dtype = np.int8 if self.bytes_per_pixel == 1 else np.int16
+        if self.bytes_per_pixel == 1:
+            dtype = np.uint8
+        elif self.bytes_per_pixel == 2:
+            dtype = np.uint16
+        elif self.bytes_per_pixel == 4:
+            dtype = np.uint32
+        elif self.bytes_per_pixel == 8:
+            dtype = np.uint64
+        else:
+            raise ValueError(
+                "The XIM image has an unsupported bytes per pixel value. Raise a ticket on the pylinac Github with this file."
+            )
         compressed_array = a = np.zeros((img_height * img_width), dtype=dtype)
         # first row and 1st element, 2nd row is uncompressed
         # this SHOULD work by reading the # of bytes specified in the header but AFAICT this is just a standard int (4 bytes)

@@ -650,6 +650,12 @@ class TestXIMImage(TestCase):
         # reset to old settings
         np.seterr(**old_settings)
 
+    def test_32bit_image(self):
+        xim_path = get_file_from_cloud_test_repo(["xim_uint32.xim"])
+        xim = XIM(xim_path)
+        self.assertEqual(xim.array.dtype, np.uint32)
+        self.assertEqual(xim.array.max(), 38822)
+
 
 class TestLinacDicomImage(TestCase):
     def test_normal_image(self):
