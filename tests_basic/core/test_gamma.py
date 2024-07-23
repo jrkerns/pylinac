@@ -467,7 +467,7 @@ class TestGamma1D(TestCase):
             gamma_1d(
                 reference=ref,
                 evaluation=eval,
-                evaluation_coordinates=(np.arange(5) - 1),
+                evaluation_coordinates=(np.arange(5) - 3),
                 reference_coordinates=np.arange(5),
             )
 
@@ -477,7 +477,7 @@ class TestGamma1D(TestCase):
             gamma_1d(
                 reference=ref,
                 evaluation=eval,
-                evaluation_coordinates=(np.arange(5) + 1),
+                evaluation_coordinates=(np.arange(5) + 3),
                 reference_coordinates=np.arange(5),
             )
 

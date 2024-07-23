@@ -156,12 +156,12 @@ where :math:`V` and :math:`P` are calculated via equation 8:
     \\ \vdots & \ddots & \vdots \\ c_{n}(v_{1}) - c_{n}(v_{k+1}) & \vdots & c_{n}(v_{k}) - c_{n}(v_{k+1}) \end{Bmatrix}
 
 Also, as stated in the paper, the projection of the point onto the simplex may not be within the bounds
-of the simplex support. In the case, for 1D, we can simply take the minimum distance to the closest vertex.
+of the simplex support. In the 1D case, we can simply take the minimum distance to the closest vertex.
 
 Logic
 ~~~~~
 
-#. The reference and evaluation distributions are normalized both by the maximum reference value * the dose to agreement parameter.
+#. The reference and evaluation distributions are both normalized by the maximum reference value * the dose to agreement parameter.
 #. For each evaluation point :math:`p`:
 
    #. The vertices of each simplex are found. In the 1D scenario these will always be line segments defined by 2 points. All the points that are within and just beyond
@@ -202,7 +202,7 @@ Below we use the original Low gamma function to calculate gamma for a 1D profile
   eval_prof = eval_img[:, 90]
 
   # compute the gamma
-  gamma_map, ref_vals, ref_x_vals = gamma_1d(ref_prof, eval_prof, resolution_factor=7, dose_threshold_percent=0)
+  gamma_map, ref_vals, ref_x_vals = gamma_1d(ref_prof, eval_prof, resolution_factor=7, dose_threshold=0)
 
   # plot the results
   fig, ax = plt.subplots(figsize=(10, 7))
@@ -243,7 +243,7 @@ Next, let's also calculate the geometric gamma for the same data:
   eval_prof = eval_img[:, 90]
 
   # compute the gamma
-  gamma_map = gamma_geometric(ref_prof, eval_prof, dose_threshold_percent=0)
+  gamma_map = gamma_geometric(ref_prof, eval_prof, dose_threshold=0)
 
   # plot the results
   fig, ax = plt.subplots(figsize=(10, 7))
@@ -283,8 +283,8 @@ Finally, let's plot both against each other:
   eval_prof = eval_img[:, 90]
 
   # compute the gamma
-  geometric_gamma_map = gamma_geometric(ref_prof, eval_prof, dose_threshold_percent=0)
-  gamma_map, _, _ = gamma_1d(ref_prof, eval_prof, resolution_factor=2, dose_threshold_percent=0)
+  geometric_gamma_map = gamma_geometric(ref_prof, eval_prof, dose_threshold=0)
+  gamma_map, _, _ = gamma_1d(ref_prof, eval_prof, resolution_factor=2, dose_threshold=0)
 
   # plot the results
   fig, ax = plt.subplots(figsize=(10, 7))

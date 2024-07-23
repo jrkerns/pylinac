@@ -13,7 +13,7 @@ def _construct_matrices(
     p: np.ndarray, vertices: list[np.ndarray]
 ) -> tuple[np.ndarray, np.ndarray]:
     """Construct the matrices V and vector P for use in the calculation of the
-    projection weights. Low et al, Equation 8.
+    projection weights. Ju et al, Equation 8.
 
     .. note::
 
@@ -47,7 +47,7 @@ def _construct_matrices(
 def _calculate_weights(v: np.ndarray, p: np.ndarray) -> np.ndarray:
     """
     Calculate the weights for the projection of point p onto the simplex's
-    support. Low et al, Equation 7.
+    support. Ju et al, Equation 7.
 
     Parameters:
     v : ndarray
@@ -60,9 +60,6 @@ def _calculate_weights(v: np.ndarray, p: np.ndarray) -> np.ndarray:
         The weights vector w.
     """
     VTV = np.dot(v.T, v)
-    # VTV = V.T * V
-    # if np.linalg.det(VTV) == 0:
-    #     raise ValueError("The matrix V^T*V is singular and cannot be inverted.")
     VTV_inv = np.linalg.pinv(VTV)
     w = np.dot(VTV_inv, np.dot(v.T, p))
     wk1 = 1 - np.sum(w)
@@ -72,7 +69,7 @@ def _calculate_weights(v: np.ndarray, p: np.ndarray) -> np.ndarray:
 def _compute_distance(p: np.ndarray, vertices: list[np.ndarray]) -> float:
     """Compute the distance from the point p to the projected point on the simplex's
     support using the weights. This will result in the distance to the support.
-    Low et al, Equation 6.
+    Ju et al, Equation 6.
 
     .. note::
 
