@@ -63,6 +63,8 @@ Core
     )
 
   The ``DiskROI`` 's new constructor signature is a much simpler ``array, radius, center``.
+* :bdg-warning:`Fixed` ``LazyDicomImageStack`` was not properly updating the image paths when
+  asked to check the UIDs.
 
 Plan Generator
 ^^^^^^^^^^^^^^
