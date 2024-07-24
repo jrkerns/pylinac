@@ -8,6 +8,7 @@ import scipy.signal as sps
 from pylinac.core import image
 from pylinac.core.array_utils import normalize
 from pylinac.core.image_generator import (
+    AS1000Image,
     FilteredFieldLayer,
     FilterFreeFieldLayer,
     GaussianFilterLayer,
@@ -51,12 +52,12 @@ def generate_open_field(
     sigma=2,
     center=(0, 0),
     field: Type[Layer] = FilteredFieldLayer,
+    imager: type[Simulator] = AS1000Image,
+    alpha: float = 1.0,
 ) -> Simulator:
-    from pylinac.core.image_generator import AS1000Image
-
-    as1000 = AS1000Image()  # this will set the pixel size and shape automatically
+    as1000 = imager()  # this will set the pixel size and shape automatically
     as1000.add_layer(
-        field(field_size_mm=field_size, cax_offset_mm=center)
+        field(field_size_mm=field_size, cax_offset_mm=center, alpha=alpha)
     )  # create a 50x50mm square field
     as1000.add_layer(
         GaussianFilterLayer(sigma_mm=sigma)
@@ -524,6 +525,15 @@ class TestFWXMProfilePhysical(TestCase):
         self.assertAlmostEqual(
             max(phys_x_values), 23 / dpmm - half_pixel
         )  # 23 is len of x-values
+
+    def test_physical_values_without_dpmm(self):
+        # dpmm is optional now; we implicitly calculate it
+        array = create_long_23_profile()
+        profile = FWXMProfilePhysical(array, fwxm_height=50)
+        self.assertEqual(profile.implicit_dpmm, 1)
+        # shouldn't change the x-values
+        self.assertEqual(profile.physical_x_values[0], 0)
+        self.assertEqual(profile.physical_x_values[-1], 22)
 
     def test_converting_to_simple_profile(self):
         pixel_size = 0.390625  # as1000 pixel size

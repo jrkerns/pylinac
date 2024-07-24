@@ -1,5 +1,6 @@
 from __future__ import annotations  # noqa:I001
 
+import copy
 import enum
 import math
 import warnings
@@ -28,7 +29,7 @@ from ..metrics.profile import SymmetryPointDifferenceQuotientMetric  # noqa:F401
 from ..metrics.profile import LEFT, RIGHT, ProfileMetric
 from . import array_utils as utils
 from . import validators
-from .gamma import gamma_1d
+from .gamma import gamma_1d, gamma_geometric
 from .geometry import Circle, Point
 from .hill import Hill
 from .utilities import convert_to_enum
@@ -441,6 +442,7 @@ class ProfileBase(ProfileMixin, ABC):
         show_grid: bool = True,
         show_center: bool = True,
         mirror: Literal["beam", "geometry"] | None = None,
+        data_label: str = "Profile",
     ) -> plt.Axes:
         """Plot the profile along with relevant overlays to point out features.
 
@@ -459,19 +461,45 @@ class ProfileBase(ProfileMixin, ABC):
         mirror : {'beam', 'geometry'}, None
             Whether to mirror the profile. 'beam' mirrors the profile about the center of the beam. 'geometry' mirrors the profile about the geometric center of the array.
             If None, no mirror is plotted.
+        data_label
+            The label for the data shown in the legend.
         """
+        return self._plot(
+            x_values=self.x_values,
+            x_label="Index",
+            data_label=data_label,
+            show=show,
+            axis=axis,
+            show_field_edges=show_field_edges,
+            show_grid=show_grid,
+            show_center=show_center,
+            mirror=mirror,
+        )
+
+    def _plot(
+        self,
+        x_values: np.ndarray,
+        x_label: str,
+        data_label: str,
+        show: bool = True,
+        axis: plt.Axes | None = None,
+        show_field_edges: bool = True,
+        show_grid: bool = True,
+        show_center: bool = True,
+        mirror: Literal["beam", "geometry"] | None = None,
+    ) -> plt.Axes:
         if axis is None:
             _, axis = plt.subplots()
-        axis.plot(self.x_values, self.values, label="Data")
+        axis.plot(x_values, self.values, label=data_label)
         if mirror == "beam":
-            mirrored_x_values = np.flip(self.x_values) + 2 * (
+            mirrored_x_values = np.flip(x_values) + 2 * (
                 self.center_idx - self.geometric_center_idx
             )
             axis.plot(mirrored_x_values, self.values, label="Beam-Mirrored Data")
         elif mirror == "geometry":
-            mirrored_x_values = np.flip(self.x_values)
+            mirrored_x_values = np.flip(x_values)
             axis.plot(mirrored_x_values, self.values, label="Geometry-Mirrored Data")
-            axis.plot(self.x_values, self.values, label="Data")
+            axis.plot(x_values, self.values, label=data_label)
         if show_field_edges:
             axis.axvline(self.field_edge_idx(side=LEFT), ls="--", label="Field Edges")
             axis.axvline(self.field_edge_idx(side=RIGHT), ls="--")
@@ -481,17 +509,8 @@ class ProfileBase(ProfileMixin, ABC):
             metric.plot(axis)
         axis.grid(show_grid)
         axis.legend()
-        axis.set_xlabel("Index")
+        axis.set_xlabel(x_label)
         axis.set_ylabel("Response")
-
-        # if this is a physical profile, plot the physical axis as well
-        if isinstance(self, PhysicalProfileMixin):
-
-            def physical(x):
-                return x / self.dpmm
-
-            sax = axis.secondary_xaxis("top", functions=(physical, physical))
-            sax.set_xlabel("Physical (mm)")
 
         if show:
             plt.show()
@@ -703,24 +722,191 @@ class PhysicalProfileMixin:
     x_values: np.ndarray
     values: np.ndarray
     field_width_px: float
+    dpmm: float | None
+    implicit_dpmm: float
 
     def __init__(
         self,
-        dpmm: float,
+        dpmm: float | None,
     ):
         self.dpmm = dpmm
+        if dpmm is None:
+            # find implicit dpmm by average diff
+            self.implicit_dpmm = np.mean(np.diff(self.x_values))
+        else:
+            self.implicit_dpmm = dpmm
 
     @property
     def physical_x_values(self) -> np.array:
         """The x-values of the profile in absolute position, taking into account the dpmm."""
-        half_pixel_offset = 0.5 / self.dpmm
-        x_values = self.x_values / self.dpmm + half_pixel_offset
-        return x_values
+        if self.dpmm is None:
+            # x-values are already physical
+            return self.x_values
+        else:
+            half_pixel_offset = 0.5 / self.dpmm
+            x_values = self.x_values / self.dpmm + half_pixel_offset
+            return x_values
 
     @cached_property
     def field_width_mm(self) -> float:
         """The field width of the profile in mm"""
-        return self.field_width_px / self.dpmm
+        return self.field_width_px / self.implicit_dpmm
+
+    def plot(
+        self,
+        show: bool = True,
+        axis: plt.Axes | None = None,
+        show_field_edges: bool = True,
+        show_grid: bool = True,
+        show_center: bool = True,
+        mirror: Literal["beam", "geometry"] | None = None,
+        data_label: str = "Profile",
+    ) -> plt.Axes:
+        """Plot the profile along with relevant overlays to point out features.
+
+        Parameters
+        ----------
+        show : bool
+            Whether to show the plot.
+        axis : matplotlib.Axes, None
+            The axis to plot on. If None, a new figure is created.
+        show_field_edges : bool
+            Whether to show the beam field edges.
+        show_grid : bool
+            Whether to show the grid on the plt plot.
+        show_center : bool
+            Whether to show the center line of the beam
+        mirror : {'beam', 'geometry'}, None
+            Whether to mirror the profile. 'beam' mirrors the profile about the center of the beam. 'geometry' mirrors the profile about the geometric center of the array.
+            If None, no mirror is plotted.
+        data_label
+            The label for the data shown in the legend.
+        """
+        return self._plot(
+            x_values=self.physical_x_values,
+            x_label="Physical (mm)",
+            data_label=data_label,
+            show=show,
+            axis=axis,
+            show_field_edges=show_field_edges,
+            show_grid=show_grid,
+            show_center=show_center,
+            mirror=mirror,
+        )
+
+    def gamma(
+        self,
+        reference_profile: ProfileBase | PhysicalProfileMixin,
+        dose_to_agreement: float = 3,
+        distance_to_agreement: float = 3,
+        gamma_cap_value: float = 2,
+        dose_threshold: float = 5,
+        fill_value: float = np.nan,
+        return_profiles: bool = False,
+    ) -> np.ndarray | (np.ndarray, PhysicalProfileMixin, PhysicalProfileMixin):
+        """Compute the gamma index between the profile and a reference profile.
+
+        Parameters
+        ----------
+        reference_profile : ProfileBase
+            The reference profile to compare against.
+        return_profiles : bool
+            Whether to return the gamma index values or the gamma index values and the two profiles.
+            The profiles are adjusted to be geometrically centered and thus are not the original profiles.
+            This can be useful for plotting. Will return (gamma, evaluation, reference).
+
+        For the rest of the parameters, see :func:`~pylinac.core.gamma.gamma_geometric`.
+
+        Returns
+        -------
+        numpy.ndarray
+            The gamma index values.
+        """
+        if not isinstance(reference_profile, PhysicalProfileMixin):
+            raise ValueError("The reference profile must also be a physical profile.")
+        evaluation = copy.deepcopy(self)
+        reference = copy.deepcopy(reference_profile)
+        # center the profiles geometrically by shifting x-values to the mean
+        ref_x = reference.x_values - reference.geometric_center_idx
+        eval_x = evaluation.x_values - evaluation.geometric_center_idx
+        reference.x_values = ref_x
+        evaluation.x_values = eval_x
+
+        gamma = gamma_geometric(
+            reference=reference.values,
+            reference_coordinates=reference.physical_x_values,
+            evaluation=evaluation.values,
+            evaluation_coordinates=evaluation.physical_x_values,
+            dose_to_agreement=dose_to_agreement,
+            distance_to_agreement=distance_to_agreement,
+            gamma_cap_value=gamma_cap_value,
+            dose_threshold=dose_threshold,
+            fill_value=fill_value,
+        )
+        if return_profiles:
+            return gamma, evaluation, reference
+        else:
+            return gamma
+
+    def plot_gamma(
+        self,
+        reference_profile: ProfileBase | PhysicalProfileMixin,
+        dose_to_agreement: float = 3,
+        distance_to_agreement: float = 3,
+        gamma_cap_value: float = 2,
+        dose_threshold: float = 5,
+        fill_value: float = np.nan,
+        axis: plt.Axes | None = None,
+        show: bool = True,
+    ) -> plt.Axes:
+        """Compute the gamma index between the profile and a reference profile.
+
+        See .gamma() and .plot() for parameter info.
+
+        Returns
+        -------
+        plt.Axes
+            The axis on which the plot was drawn.
+        """
+        gamma, evaluation, reference = self.gamma(
+            reference_profile=reference_profile,
+            dose_to_agreement=dose_to_agreement,
+            distance_to_agreement=distance_to_agreement,
+            gamma_cap_value=gamma_cap_value,
+            dose_threshold=dose_threshold,
+            fill_value=fill_value,
+            return_profiles=True,
+        )
+        if axis is None:
+            _, axis = plt.subplots()
+        evaluation.plot(
+            data_label="Evaluation",
+            show=False,
+            axis=axis,
+            show_center=False,
+            show_field_edges=False,
+            show_grid=False,
+        )
+        reference.plot(
+            data_label="Reference",
+            show=False,
+            axis=axis,
+            show_center=False,
+            show_field_edges=False,
+            show_grid=False,
+        )
+        gamma_ax = axis.twinx()
+        gamma_ax.plot(evaluation.physical_x_values, gamma, color="green", label="Gamma")
+        gamma_ax.legend(loc="upper left")
+        gamma_ax.set_ylabel("Gamma Index")
+        axis.set_xlabel("Physical (mm)")
+        axis.set_title(
+            f"\N{Greek Small Letter Gamma} Analysis | {np.nansum(gamma < 1) / np.sum(~np.isnan(gamma)) * 100:.2f}% pass rate | {np.nanmean(gamma):.3f} mean \N{Greek Small Letter Gamma}"
+        )
+        axis.grid()
+        if show:
+            plt.show()
+        return axis
 
     def as_simple_profile(self) -> ProfileBase:
         """Convert a physical profile into a simple profile where
@@ -806,7 +992,7 @@ class FWXMProfilePhysical(PhysicalProfileMixin, FWXMProfile):
     def __init__(
         self,
         values: np.array,
-        dpmm: float,
+        dpmm: float | None = None,
         x_values: np.array | None = None,
         ground: bool = False,
         normalization: str | Normalization = Normalization.NONE,
@@ -841,7 +1027,7 @@ class InflectionDerivativeProfilePhysical(
     def __init__(
         self,
         values: np.array,
-        dpmm: float,
+        dpmm: float | None = None,
         x_values: np.array | None = None,
         ground: bool = False,
         normalization: str | Normalization = Normalization.NONE,
@@ -874,7 +1060,7 @@ class HillProfilePhysical(PhysicalProfileMixin, HillProfile):
     def __init__(
         self,
         values: np.array,
-        dpmm: float,
+        dpmm: float | None = None,
         x_values: np.array | None = None,
         ground: bool = False,
         normalization: str | Normalization = Normalization.NONE,

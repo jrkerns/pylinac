@@ -35,6 +35,21 @@ Gamma
 * :bdg-success:`Feature` A new function has been added: :func:`~pylinac.core.gamma.gamma_geometric`.
   This is the implementation of the 2007 follow-up paper that uses geometric distance and avoids discrete interpolation.
 
+Profiles
+^^^^^^^^
+
+* :bdg-success:`Feature` :ref:`profiles <profiles>` now have a :meth:`~pylinac.core.profile.FWXMProfilePhysical.gamma` method that will calculate gamma using the profile data against a reference profile.
+  This uses ``gamma_geometric`` under the hood.
+* :bdg-success:`Feature` :ref:`profiles <profiles>` now have a :meth:`~pylinac.core.profile.FWXMProfilePhysical.plot_gamma` method that will plot the profiles and gamma onto a matplotlib image.
+* :bdg-primary:`Change` Physical :ref:`profiles <profiles>` no longer requre the ``dpmm`` parameter. It will currently default
+  to ``None``. The reason for this is to better handle profiles that are already mapped to the x-values. Generally,
+  there are two types of profiles: those from an image where dpmm makes sense and those from some physical
+  array where the data file may already have the x-values as the physical values and dpmm is not needed.
+  If you are currently using profiles where the x-values are already mapped to the physical location,
+  remove the ``dpmm=`` parameter from the call.
+* :bdg-primary:`Refactor` Plotting a physical profile will now replace the x-axis with the physical values (rather than the indices as for regular profiles).
+  Previously, a secondary axis was plotted on the top of the axis. Due to the plotting of gamma, the secondary axis was problematic.
+
 Core
 ^^^^
 
