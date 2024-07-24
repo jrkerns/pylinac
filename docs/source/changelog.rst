@@ -35,6 +35,10 @@ Gamma
 * :bdg-success:`Feature` A new function has been added: :func:`~pylinac.core.gamma.gamma_geometric`.
   This is the implementation of the 2007 follow-up paper that uses geometric distance and avoids discrete interpolation.
 
+Core
+^^^^
+
+* A new page on the upcoming v4.x changes are available: :ref:`v4-changes`. Don't worry, v4.x is not coming soon.
 
 v 3.25.0
 --------

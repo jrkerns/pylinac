@@ -65,4 +65,5 @@
 
    troubleshooting
    contributing
+   v4_changes
    changelog
