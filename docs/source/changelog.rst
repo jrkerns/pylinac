@@ -38,7 +38,7 @@ Gamma
 Core
 ^^^^
 
-* A new page on the upcoming v4.x changes are available: :ref:`v4_changes`. Don't worry, v4.x is not coming soon.
+* A new page on the upcoming v4.x changes are available: :ref:`v4-changes`. Don't worry, v4.x is not coming soon.
 
 v 3.25.0
 --------
