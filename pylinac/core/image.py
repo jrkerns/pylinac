@@ -1670,6 +1670,11 @@ class LazyDicomImageStack:
         if check_uid:
             most_common_uid = self._get_common_uid_imgs(metadatas, min_number)
             metadatas = [m for m in metadatas if m.SeriesInstanceUID == most_common_uid]
+            paths = [
+                p
+                for p, m in zip(paths, metadatas)
+                if m.SeriesInstanceUID == most_common_uid
+            ]
         # sort according to physical order
         order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
         self.metadatas = [metadatas[i] for i in order]

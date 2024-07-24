@@ -1,9 +1,11 @@
 import copy
 import io
 import json
+import os
 import shutil
 import tempfile
 import unittest
+import zipfile
 from builtins import ValueError
 from pathlib import Path
 from unittest import TestCase
@@ -796,6 +798,22 @@ class TestDicomStack(TestCase):
         dstack = DicomImageStack.from_zip(self.stack_location)
         dstack_lazy = LazyDicomImageStack.from_zip(self.stack_location)
         self.assertEqual(len(dstack), len(dstack_lazy))
+
+    def test_lazy_with_multiple_uids_updates_paths(self):
+        # issue 494
+        # join two stacks into a temporary dir
+        stack1 = get_file_from_cloud_test_repo(["CBCT", "CatPhan_504", "CBCT_5.zip"])
+        stack2 = get_file_from_cloud_test_repo(["CBCT", "CatPhan_504", "CBCT_3.zip"])
+        new_dir = tempfile.mkdtemp()
+        for s in (stack1, stack2):
+            zfiles = zipfile.ZipFile(s)
+            zfiles.extractall(path=new_dir)
+        # we have a lot of images to start
+        self.assertEqual(len(os.listdir(new_dir)), 130)
+        dstack = LazyDicomImageStack(new_dir, check_uid=True)
+        # check we've only kept the most common (64 slices)
+        self.assertEqual(len(dstack.metadatas), 64)
+        self.assertEqual(len(dstack._image_path_keys), 64)
 
     def test_images_are_the_same(self):
         dstack = DicomImageStack.from_zip(self.stack_location)
