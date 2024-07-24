@@ -30,7 +30,6 @@ from pylinac.core.image import (
     _rescale_dicom_values,
     _unscale_dicom_values,
     equate_images,
-    gamma_2d,
     load,
     tiff_to_dicom,
 )
@@ -652,6 +651,12 @@ class TestXIMImage(TestCase):
         # reset to old settings
         np.seterr(**old_settings)
 
+    def test_32bit_image(self):
+        xim_path = get_file_from_cloud_test_repo(["xim_uint32.xim"])
+        xim = XIM(xim_path)
+        self.assertEqual(xim.array.dtype, np.uint32)
+        self.assertEqual(xim.array.max(), 38822)
+
 
 class TestLinacDicomImage(TestCase):
     def test_normal_image(self):
@@ -840,161 +845,6 @@ class TestDicomStack(TestCase):
         path = get_file_from_cloud_test_repo(["ACR", "MRI", "T1-Single.zip"])
         dstack = DicomImageStack.from_zip(path, min_number=5)
         self.assertAlmostEqual(dstack.slice_spacing, 10, delta=0.001)
-
-
-class TestGamma2D(TestCase):
-    def test_perfect_match_is_0(self):
-        ref = eval = np.ones((5, 5))
-        gamma = gamma_2d(reference=ref, evaluation=eval)
-        self.assertEqual(gamma.max(), 0)
-        self.assertEqual(gamma.min(), 0)
-        self.assertEqual(gamma.size, 25)
-
-        # test a high measurement value
-        ref = eval = np.ones((5, 5)) * 50
-        gamma = gamma_2d(reference=ref, evaluation=eval)
-        self.assertEqual(gamma.max(), 0)
-        self.assertEqual(gamma.min(), 0)
-        self.assertEqual(gamma.size, 25)
-
-    def test_gamma_perfectly_at_1(self):
-        # offset a profile exactly by the dose to agreement
-        ref = np.ones((5, 5))
-        eval = np.ones((5, 5)) * 1.01
-        gamma = gamma_2d(reference=ref, evaluation=eval, dose_to_agreement=1)
-        self.assertAlmostEqual(gamma.max(), 1, delta=0.001)
-        self.assertAlmostEqual(gamma.min(), 1, delta=0.001)
-
-        # test same but eval is LOWER than ref
-        ref = np.ones((5, 5))
-        eval = np.ones((5, 5)) * 0.99
-        gamma = gamma_2d(reference=ref, evaluation=eval, dose_to_agreement=1)
-        self.assertAlmostEqual(gamma.max(), 1, delta=0.001)
-        self.assertAlmostEqual(gamma.min(), 1, delta=0.001)
-
-    def test_gamma_some_on_some_off(self):
-        ref = np.ones((5, 5))
-        eval = np.ones((5, 5))
-        eval[(0, 0, 1, 1), (0, 1, 1, 0)] = 1.03  # set top left corner to 3% off
-        gamma = gamma_2d(
-            reference=ref,
-            evaluation=eval,
-            dose_to_agreement=1,
-            distance_to_agreement=1,
-            gamma_cap_value=5,
-        )
-        self.assertAlmostEqual(gamma[0, 0], 3, delta=0.01)  # fully off by 3
-        self.assertAlmostEqual(
-            gamma[0, 1], 1, delta=0.01
-        )  # dose at next pixel matches (dose=0, dist=1)
-        self.assertAlmostEqual(gamma[-1, -1], 0, delta=0.01)  # gamma at end is perfect
-
-        # check inverted pattern is mirrored (checks off-by-one errors)
-        ref = np.ones((5, 5))
-        eval = np.ones((5, 5))
-        eval[
-            (-1, -1, -2, -2), (-1, -2, -2, -1)
-        ] = 1.03  # set bottom right corner to 3% off
-        gamma = gamma_2d(
-            reference=ref,
-            evaluation=eval,
-            dose_to_agreement=1,
-            distance_to_agreement=1,
-            gamma_cap_value=5,
-        )
-        self.assertAlmostEqual(gamma[0, 0], 0, delta=0.01)
-        self.assertAlmostEqual(gamma[-1, -2], 1, delta=0.01)
-        self.assertAlmostEqual(gamma[-1, -1], 3, delta=0.01)
-
-    def test_localized_dose(self):
-        ref = np.ones((5, 5))
-        ref[0, 0] = 100
-        eval = np.ones((5, 5))
-        eval[0, 0] = 103
-        eval[0, 1] = 1.03
-        # with global, element 2 is easily under gamma 1 since DTA there is 3
-        gamma = gamma_2d(
-            reference=ref,
-            evaluation=eval,
-            dose_to_agreement=3,
-            distance_to_agreement=1,
-            gamma_cap_value=5,
-            global_dose=False,
-            dose_threshold=0,
-        )
-        self.assertAlmostEqual(gamma[0, 0], 1, delta=0.01)  # fully off by 3
-        self.assertAlmostEqual(
-            gamma[0, 1], 1, delta=0.01
-        )  # dose here is also off by 3% relative dose
-        self.assertAlmostEqual(gamma[-1, -1], 0, delta=0.01)  # gamma at end is perfect
-
-    def test_threshold(self):
-        ref = np.zeros((5, 5))
-        ref[0, 0] = 1
-        eval = ref
-        # only one point should be computed as rest are under default threshold
-        gamma = gamma_2d(
-            reference=ref,
-            evaluation=eval,
-            dose_to_agreement=3,
-            distance_to_agreement=1,
-            gamma_cap_value=5,
-            global_dose=False,
-            dose_threshold=5,
-        )
-        self.assertAlmostEqual(gamma[0, 0], 0, delta=0.01)
-        self.assertTrue(np.isnan(gamma[0, 1]))
-        self.assertTrue(np.isnan(gamma[-1, -1]))
-
-    def test_fill_value(self):
-        ref = np.zeros((5, 5))
-        ref[0, 0] = 1
-        eval = ref
-        # only one point should be computed as rest are under default threshold
-        gamma = gamma_2d(
-            reference=ref,
-            evaluation=eval,
-            dose_to_agreement=3,
-            distance_to_agreement=1,
-            gamma_cap_value=5,
-            global_dose=False,
-            dose_threshold=5,
-            fill_value=0.666,
-        )
-        self.assertAlmostEqual(gamma[0, 0], 0, delta=0.01)
-        self.assertAlmostEqual(
-            gamma[0, 1], 0.666, delta=0.01
-        )  # dose here is also off by 3% relative dose
-        self.assertAlmostEqual(gamma[-1, -1], 0.666, delta=0.01)
-
-    def test_gamma_half(self):
-        # offset a profile by half the dose to agreement to ensure it's 0.5
-        ref = np.ones((5, 5))
-        eval = np.ones((5, 5)) / 1.005
-        gamma = gamma_2d(reference=ref, evaluation=eval, dose_to_agreement=1)
-        self.assertAlmostEqual(gamma.max(), 0.5, delta=0.01)
-        self.assertAlmostEqual(gamma.min(), 0.5, delta=0.01)
-
-    def test_gamma_cap(self):
-        # cap to the value
-        ref = np.ones((5, 5))
-        eval = np.ones((5, 5)) * 10
-        gamma = gamma_2d(
-            reference=ref, evaluation=eval, dose_to_agreement=1, gamma_cap_value=2
-        )
-        self.assertEqual(gamma.max(), 2)
-        self.assertEqual(gamma.min(), 2)
-
-    def test_non_2d_array(self):
-        ref = np.ones(5)
-        eval = np.ones((5, 5))
-        with self.assertRaises(ValueError):
-            gamma_2d(reference=ref, evaluation=eval)
-
-        ref = np.ones((5, 5))
-        eval = np.ones(5)
-        with self.assertRaises(ValueError):
-            gamma_2d(reference=ref, evaluation=eval)
 
 
 class TestTiffToDicom(TestCase):

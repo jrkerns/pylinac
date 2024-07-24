@@ -28,6 +28,7 @@ from ..metrics.profile import SymmetryPointDifferenceQuotientMetric  # noqa:F401
 from ..metrics.profile import LEFT, RIGHT, ProfileMetric
 from . import array_utils as utils
 from . import validators
+from .gamma import gamma_1d
 from .geometry import Circle, Point
 from .hill import Hill
 from .utilities import convert_to_enum
@@ -35,80 +36,6 @@ from .utilities import convert_to_enum
 # for Hill fits of 2D device data the # of points can be small.
 # This results in optimization warnings about the variance of the fit (the variance isn't of concern for us for that particular item)
 warnings.simplefilter("ignore", OptimizeWarning)
-
-
-def gamma_1d(
-    reference: np.ndarray,
-    evaluation: np.ndarray,
-    dose_to_agreement: float = 1,
-    distance_to_agreement: int = 1,
-    gamma_cap_value: float = 2,
-    global_dose: bool = True,
-    dose_threshold: float = 5,
-    fill_value: float = np.nan,
-) -> np.ndarray:
-    """Perform a 1D gamma of two 1D profiles/arrays. This does NOT check lengths or
-    spatial consistency. It performs an element-by-element evaluation. It is the responsibility
-    of the caller to ensure the reference and evaluation have comparable spatial resolution.
-
-    The algorithm follows Table I of D. Low's 2004 paper: Evaluation of the gamma dose distribution comparison method: https://aapm.onlinelibrary.wiley.com/doi/epdf/10.1118/1.1598711
-
-    Parameters
-    ----------
-
-    reference
-        The reference profile.
-    evaluation
-        The evaluation profile.
-    dose_to_agreement
-        The dose to agreement in %. E.g. 1 is 1% of global reference max dose.
-    distance_to_agreement
-        The distance to agreement in **elements**. E.g. if the value is 4 this means 4 elements from the reference point under calculation.
-        Must be >0
-    gamma_cap_value
-        The value to cap the gamma at. E.g. a gamma of 5.3 will get capped to 2. Useful for displaying data with a consistent range.
-    global_dose
-        Whether to evaluate the dose to agreement threshold based on the global max or the dose point under evaluation.
-    dose_threshold
-        The dose threshold as a number between 0 and 100 of the % of max dose under which a gamma is not calculated.
-        This is not affected by the global/local dose normalization and the threshold value is evaluated against the global max dose, period.
-    fill_value
-        The value to give pixels that were not calculated because they were under the dose threshold. Default
-        is NaN, but another option would be 0. If NaN, allows the user to calculate mean/median gamma over just the
-        evaluated portion and not be skewed by 0's that should not be considered.
-    """
-    if reference.ndim != 1 or evaluation.ndim != 1:
-        raise ValueError(
-            f"Reference and evaluation arrays must be 1D. Got reference: {reference.ndim} and evaluation: {evaluation.ndim}"
-        )
-    threshold = reference.max() / 100 * dose_threshold
-    # convert dose to agreement to % of global max; ignored later if local dose
-    dose_ta = dose_to_agreement / 100 * reference.max()
-    # pad eval array on both edges so our search does not go out of bounds
-    eval_padded = np.pad(evaluation, distance_to_agreement, mode="edge")
-    # iterate over each reference element, computing distance value and dose value
-    gamma = []
-    for r_idx, ref_point in enumerate(reference):
-        # skip if below dose threshold
-        if ref_point < threshold:
-            gamma.append(fill_value)
-            continue
-        # we search at the same indices in eval_padded, but remember eval_padded has extra indices on each edge,
-        # so this is actually searching from -DTA to +DTA because r_idx in eval_padded is off by distance_to_agreement.
-        capital_gammas = []
-        for e_idx, eval_point in enumerate(
-            eval_padded[r_idx : r_idx + 2 * distance_to_agreement + 1]
-        ):
-            dist = abs(e_idx - distance_to_agreement)
-            dose = eval_point - ref_point
-            if not global_dose:
-                dose_ta = dose_to_agreement / 100 * ref_point
-            capital_gamma = math.sqrt(
-                dist**2 / distance_to_agreement**2 + dose**2 / dose_ta**2
-            )
-            capital_gammas.append(capital_gamma)
-        gamma.append(min(min(capital_gammas), gamma_cap_value))
-    return np.asarray(gamma)
 
 
 def stretch(
@@ -1729,7 +1656,7 @@ class SingleProfile(ProfileMixin):
     def gamma(
         self,
         evaluation_profile: SingleProfile,
-        distance_to_agreement: float = 1,
+        distance_to_agreement: int = 1,
         dose_to_agreement: float = 1,
         gamma_cap_value: float = 2,
         dose_threshold: float = 5,
@@ -1769,29 +1696,18 @@ class SingleProfile(ProfileMixin):
             raise ValueError(
                 "At least one profile does not have the dpmm attribute. Physical spacing cannot be determined. Set it before performing gamma analysis."
             )
-        distance_to_agreement_px = int(round(distance_to_agreement * self.dpmm))
-        # resample eval profile to be same resolution as reference
-        resampled_evaluation = evaluation_profile.resample(
-            interpolation_resolution_mm=self._interpolation_res
-        )
-        if len(resampled_evaluation.values) != len(self.values):
-            warnings.warn(
-                f"The number of elements in the reference and evaluation differ. Ref: {len(self.values)}, Eval: {len(resampled_evaluation.values)}"
-            )
-        # now that we've resampled, it's still possible that the x-values of the two profiles differ.
-        # E.g. we may be at -0.475 and -0.37 for the first index depending on the amount of interpolation.
-        # we thus need to evaluate the evaluation profile at the exact same x-indices as the reference.
-        eval_at_ref_points = resampled_evaluation._y_original_to_interp(self.x_indices)
         return gamma_1d(
             reference=self.values,
-            evaluation=eval_at_ref_points,
+            evaluation=evaluation_profile.values,
+            reference_coordinates=self.x_indices,
+            evaluation_coordinates=evaluation_profile.x_indices,
             dose_to_agreement=dose_to_agreement,
-            distance_to_agreement=distance_to_agreement_px,
+            distance_to_agreement=distance_to_agreement,
             gamma_cap_value=gamma_cap_value,
             global_dose=global_dose,
             dose_threshold=dose_threshold,
             fill_value=fill_value,
-        )
+        )[0]
 
     def plot(self, show: bool = True) -> None:
         """Plot the profile."""

@@ -411,6 +411,7 @@ Plot the Gantry difference:
 .. plot::
     :context:
 
+    plt.clf()
     log.axis_data.gantry.plot_difference()
 
 Axis plots are just as easily saved:

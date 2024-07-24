@@ -50,6 +50,7 @@
    topics/exporting_results
    topics/images
    topics/xim
+   topics/gamma
    topics/contrast
    topics/nps
    topics/mtf
@@ -64,4 +65,5 @@
 
    troubleshooting
    contributing
+   v4_changes
    changelog
