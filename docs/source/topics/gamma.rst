@@ -176,6 +176,12 @@ Logic
 Usage
 -----
 
+Arrays
+^^^^^^
+
+Original Gamma
+~~~~~~~~~~~~~~
+
 We will use the H&N 1mm, DD example from `Agnew & McGarry <https://www.sciencedirect.com/science/article/abs/pii/S0167814015006660>`__.
 Although their data is 2D, we can extract a 1D profile from their data.
 Below we use the original Low gamma function to calculate gamma for a 1D profile.
@@ -218,6 +224,9 @@ Below we use the original Low gamma function to calculate gamma for a 1D profile
   g_ax.set_ylabel('Gamma')
   fig.suptitle(f'1D Gamma Analysis; max \N{Greek Small Letter Gamma}:{gamma_map.max():.2f}; avg \N{Greek Small Letter Gamma}: {gamma_map.mean():.2f}; pass rate: {100*gamma_map[gamma_map <= 1].size/gamma_map.size:.2f}%')
   plt.show()
+
+Geometric Gamma
+~~~~~~~~~~~~~~~
 
 Next, let's also calculate the geometric gamma for the same data:
 
@@ -303,6 +312,59 @@ Finally, let's plot both against each other:
 
 Note that the original gamma is slightly higher than the geometric gamma. This is due to the interpolation.
 Higher interpolation factors will get closer to the geometric gamma value, but at the cost of calculation time.
+
+Profiles
+^^^^^^^^
+
+It is also possible to calculate and plot the gamma for a :ref:`1D profile <profiles>`
+via the :meth:`~pylinac.core.profile.FWXMProfilePhysical.gamma` method and/or the :meth:`~pylinac.core.profile.FWXMProfilePhysical.plot_gamma` method.
+
+.. tip::
+
+  Gamma can only be calculated on "Physical" profiles. If your profile is not physical then
+  the above array-based approach works well.
+
+.. warning::
+
+  Currently, both profiles are geometrically centered before computing the gamma. Know this going in.
+
+Below, let's generate two profiles from two different synthetic EPIDs (to simulate different resolutions and
+physical locations) and calculate the gamma between them:
+
+.. plot::
+
+  from pylinac.core.profile import FWXMProfilePhysical
+  from pylinac.core.image_generator import AS1200Image, AS1000Image, GaussianFilterLayer, FilteredFieldLayer
+
+  # create the synthetic images
+  as1000 = AS1000Image()
+  as1000.add_layer(
+      FilteredFieldLayer(field_size_mm=(100, 100))
+  )
+  as1000.add_layer(
+      GaussianFilterLayer(sigma_mm=2)
+  )
+  as1200 = AS1200Image()
+  as1200.add_layer(
+      FilteredFieldLayer(field_size_mm=(100, 100))
+  )
+  as1200.add_layer(
+      GaussianFilterLayer(sigma_mm=2)
+  )
+
+  # and the profiles
+  p1200 = as1200.image[640, :]
+  p1000 = as1000.image[384, :]
+  p1200_prof = FWXMProfilePhysical(values=p1200, dpmm=1/as1200.pixel_size)
+  p1000_prof = FWXMProfilePhysical(values=p1000, dpmm=1/as1000.pixel_size)
+
+  # compute gamma as a numpy array the same size as the evaluation profile
+  gamma = p1000_prof.gamma(reference_profile=p1200_prof, dose_to_agreement=1, gamma_cap_value=2)
+
+  # we could calculate pass rate, etc from this.
+  # However, we want to plot it. The helper method does this for us, plotting the profiles and gamma.
+  p1000_prof.plot_gamma(reference_profile=p1200_prof, dose_to_agreement=1, dose_threshold=0)
+
 
 
 .. [1] Low, Harms, Mutic, Purdy. A technique for the quantitative evaluation of dose distributions. Med Phys. 1998;25(5):656-61.

@@ -104,7 +104,7 @@ def gamma_geometric(
     reference_coordinates: np.ndarray | None = None,
     evaluation_coordinates: np.ndarray | None = None,
     dose_to_agreement: float = 1,
-    distance_to_agreement: int = 1,
+    distance_to_agreement: float = 1,
     gamma_cap_value: float = 2,
     dose_threshold: float = 5,
     fill_value: float = np.nan,
@@ -156,11 +156,23 @@ def gamma_geometric(
         raise ValueError(
             f"Evaluation and evaluation_x_values must be the same length. Got evaluation: {len(evaluation)} and evaluation_x_values: {len(evaluation_coordinates)}"
         )
+    # we add some padding on the check because resampling SingleProfiles
+    # can add ~1/2 pixel on each side to retain the same physical size
+    # when upsampling.
+    if min(reference_coordinates) - 1 > min(evaluation_coordinates) or max(
+        reference_coordinates
+    ) + 1 < max(evaluation_coordinates):
+        raise ValueError(
+            "The evaluation x-values must be within the range of the reference x-values"
+        )
     threshold = float(dose_threshold)
-    # convert dose to agreement to % of global max; ignored later if local dose
-    # dose_ta = dose_to_agreement / 100 * reference.max()
-    normalized_reference = reference / (dose_to_agreement / 100 * reference.max())
-    normalized_evaluation = evaluation / (dose_to_agreement / 100 * reference.max())
+    # convert dose to normalized distance of dose to agreement. I.e. D/delta(D)
+    normalized_reference = (
+        reference.astype(float) * 100 / (reference.max() * dose_to_agreement)
+    )
+    normalized_evaluation = (
+        evaluation.astype(float) * 100 / (reference.max() * dose_to_agreement)
+    )
 
     gamma = np.full(len(evaluation), fill_value)
     for idx, (eval_x, eval_point) in enumerate(

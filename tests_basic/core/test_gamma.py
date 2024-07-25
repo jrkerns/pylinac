@@ -5,6 +5,9 @@ import numpy as np
 
 from pylinac.core.gamma import _compute_distance, gamma_1d, gamma_2d, gamma_geometric
 from pylinac.core.image import DicomImage
+from pylinac.core.image_generator import AS1000Image, AS1200Image
+from pylinac.core.profile import FWXMProfile, FWXMProfilePhysical
+from tests_basic.core.test_profile import generate_open_field
 from tests_basic.utils import get_file_from_cloud_test_repo
 
 
@@ -612,3 +615,56 @@ class TestGamma1D(TestCase):
         eval = np.ones((5, 5))
         with self.assertRaises(ValueError):
             gamma_1d(reference=ref, evaluation=eval)
+
+
+class TestGammaFromProfile(TestCase):
+    """Test the gamma method from the physical profile class"""
+
+    def test_other_profile_not_physical(self):
+        p = FWXMProfilePhysical(values=np.ones(5), dpmm=1)
+        p2 = FWXMProfile(values=np.ones(5))
+        with self.assertRaises(ValueError):
+            p.gamma(reference_profile=p2)
+
+    def test_gamma_on_self_is_zero(self):
+        p = FWXMProfilePhysical(values=np.ones(5), dpmm=1)
+        gamma = p.gamma(reference_profile=p)
+        self.assertTrue(np.allclose(gamma, 0))
+
+    def test_dose_gamma(self):
+        vals = np.ones(5) * 1.03
+        ref_vals = np.ones(5)
+        p = FWXMProfilePhysical(values=vals, dpmm=1)
+        ref_p = FWXMProfilePhysical(values=ref_vals, dpmm=1)
+        gamma = p.gamma(reference_profile=ref_p, dose_to_agreement=3, gamma_cap_value=2)
+        # all right at 1 because dose is 3% high
+        self.assertTrue(np.allclose(gamma, 1))
+
+    def test_low_density_eval(self):
+        # the eval is 1/2 the spacing, but same values, as the reference
+        vals = np.arange(1, 11)[::2]
+        ref_vals = np.arange(11)
+        p = FWXMProfilePhysical(values=vals, x_values=np.arange(1, 11, 2))
+        ref_p = FWXMProfilePhysical(
+            values=ref_vals,
+        )
+        gamma = p.gamma(reference_profile=ref_p, dose_to_agreement=1, gamma_cap_value=2)
+        # gamma is perfect
+        self.assertTrue(np.allclose(gamma, 0))
+
+    def test_different_epids(self):
+        """This test the same profile but with different EPIDs (i.e. pixel size)"""
+        # we offset the reference by 1% to ensure we have a realistic gamma value
+        img1200 = generate_open_field(
+            field_size=(100, 100), imager=AS1200Image, alpha=0.99
+        )
+        img1000 = generate_open_field(field_size=(100, 100), imager=AS1000Image)
+        p1200 = img1200.image[640, :]
+        p1000 = img1000.image[384, :]
+        p1200_prof = FWXMProfilePhysical(values=p1200, dpmm=1 / img1200.pixel_size)
+        p1000_prof = FWXMProfilePhysical(values=p1000, dpmm=1 / img1000.pixel_size)
+        gamma = p1000_prof.gamma(
+            reference_profile=p1200_prof, dose_to_agreement=1, gamma_cap_value=2
+        )
+        # gamma is very low; just pixel noise from the image generator
+        self.assertAlmostEqual(np.nanmean(gamma), 0.948, delta=0.01)
