@@ -6,10 +6,12 @@ from typing import Sequence
 
 import argue
 import numpy as np
+import plotly.graph_objects as go
 from matplotlib import pyplot as plt
 from scipy.interpolate import interp1d
 
 from .contrast import michelson
+from .plotly_utils import add_title
 from .roi import HighContrastDiskROI
 
 
@@ -102,6 +104,38 @@ class MTF:
         maximums = [roi.max for roi in diskset]
         minimums = [roi.min for roi in diskset]
         return cls(spacings, maximums, minimums)
+
+    def plotly(
+        self,
+        fig: go.Figure | None = None,
+        x_label: str = "Line pairs / mm",
+        y_label: str = "Relative MTF",
+        title: str = "Relative MTF",
+        name: str = "rMTF",
+        **kwargs,
+    ) -> go.Figure:
+        """Plot the Relative MTF.
+
+        Parameters
+        ----------
+        """
+        fig = fig or go.Figure()
+        fig.add_scatter(
+            x=list(self.norm_mtfs.keys()),
+            y=list(self.norm_mtfs.values()),
+            mode="markers+lines",
+            name=name,
+            **kwargs,
+        )
+        fig.update_layout(
+            xaxis_title=x_label,
+            yaxis_title=y_label,
+        )
+        add_title(fig, title)
+        fig.update_layout(
+            showlegend=True,
+        )
+        return fig
 
     def plot(
         self,

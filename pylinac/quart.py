@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 import scipy.ndimage
 from matplotlib import pyplot as plt
+from plotly import graph_objects as go
 from pydantic import BaseModel, Field
 from scipy.interpolate import interp1d
 
@@ -349,6 +350,10 @@ class QuartGeometryModule(CatPhanModule):
         for name, profile_data in self.profiles.items():
             profile_data["line"].plot2axes(axis, width=2, color="blue")
 
+    def plotly_rois(self, fig: go.Figure) -> None:
+        for name, profile_data in self.profiles.items():
+            profile_data["line"].plotly(fig, line_width=2, color="blue")
+
     def distances(self) -> dict[str, float]:
         """The measurements of the phantom size for the two lines in mm"""
         return {f"{name} mm": p["width (mm)"] for name, p in self.profiles.items()}
@@ -435,6 +440,19 @@ class QuartDVT(CatPhanBase, ResultsDataMixin[QuartDVTResult]):
         self.geometry_module = self.geometry_module_class(
             self, tolerance=3, offset=GEOMETRY_OFFSET_MM
         )
+
+    def plotly_analyzed_image(self, show: bool = True) -> dict[str, go.Figure]:
+        figs = {}
+        figs[self.hu_module.common_name] = self.hu_module.plotly()
+        figs["HU Linearity plot"] = self.hu_module.plotly_linearity()
+        figs[self.uniformity_module.common_name] = self.uniformity_module.plotly()
+        figs[self.geometry_module.common_name] = self.geometry_module.plotly()
+        figs["Side View"] = self.plotly_side_view(offset=-5)
+
+        if show:
+            for fig in figs.values():
+                fig.show()
+        return figs
 
     def plot_analyzed_image(self, show: bool = True, **plt_kwargs) -> None:
         """Plot the images used in the calculation and summary data.

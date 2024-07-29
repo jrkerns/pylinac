@@ -19,6 +19,7 @@ from typing import BinaryIO, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
+from plotly import graph_objects as go
 from pydantic import BaseModel, ConfigDict, Field
 
 from . import Normalization
@@ -413,6 +414,39 @@ class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
         """Return the value of the maximum R_deviation segment."""
         return np.max(np.abs(self.r_devs))
 
+    def plotly_analyzed_images(
+        self, show: bool = True, show_text: bool = True, show_colorbar: bool = True
+    ) -> (go.Figure, go.Figure, go.Figure):
+        """Plot both images and the median profiles in 3 Plotly figures."""
+
+        # images
+        fig_open = self.open_image.plotly(show=False, title="Open Image")
+        self._draw_plotly_segments(fig=fig_open, show_text=show_text)
+        fig_dmlc = self.dmlc_image.plotly(show=False, title="DMLC Image")
+        self._draw_plotly_segments(fig=fig_dmlc, show_text=show_text)
+
+        # median profiles
+        dmlc_prof, open_prof = self._median_profiles(self.dmlc_image, self.open_image)
+        fig_profile = go.Figure()
+        dmlc_prof.plotly(fig_profile, name="DMLC")
+        open_prof.plotly(fig_profile, name="Open")
+        fig_profile.update_layout(
+            title={
+                "text": "Median Profiles",
+                "x": 0.5,
+            },
+            xaxis_title="Pixel",
+            yaxis_title="Normalized Response",
+            coloraxis_showscale=show_colorbar,
+        )
+
+        if show:
+            fig_open.show()
+            fig_dmlc.show()
+            fig_profile.show()
+
+        return fig_open, fig_dmlc, fig_profile
+
     def plot_analyzed_image(
         self, show: bool = True, show_text: bool = True, **plt_kwargs: dict
     ):
@@ -511,6 +545,34 @@ class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
 
         if show:
             plt.show()
+
+    def _draw_plotly_segments(self, fig: go.Figure, show_text: bool) -> None:
+        """Draw the segments onto a plotly figure.
+
+        Parameters
+        ----------
+        fig : go.Figure
+            The figure to draw the objects on.
+        show_text : bool
+            Whether to show the ROI name on the image
+        """
+        for segment, roi_name in zip(self.segments, self.roi_config.keys()):
+            color = segment.get_bg_color()
+            if show_text:
+                text = f"{roi_name} : {segment.r_dev:2.2f}%"
+            else:
+                text = ""
+            segment.plotly(
+                fig,
+                edgecolor=color,
+                text=text,
+                text_kwargs={
+                    "textangle": 90,
+                    "font_color": color,
+                    "showarrow": False,
+                    "font_size": 14,
+                },
+            )
 
     def _draw_segments(self, axis: plt.Axes, show_text: bool):
         """Draw the segments onto a plot.

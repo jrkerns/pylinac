@@ -12,6 +12,7 @@ import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
+from plotly import graph_objects as go
 from scipy import ndimage, signal
 from scipy.interpolate import InterpolatedUnivariateSpline, UnivariateSpline, interp1d
 from scipy.ndimage import gaussian_filter1d, zoom
@@ -32,7 +33,7 @@ from . import validators
 from .gamma import gamma_1d, gamma_geometric
 from .geometry import Circle, Point
 from .hill import Hill
-from .utilities import convert_to_enum
+from .utilities import TemporaryAttribute, convert_to_enum
 
 # for Hill fits of 2D device data the # of points can be small.
 # This results in optimization warnings about the variance of the fit (the variance isn't of concern for us for that particular item)
@@ -433,6 +434,26 @@ class ProfileBase(ProfileMixin, ABC):
         else:
             output_type = self.__class__
         return output_type(values=target_y, x_values=target_x)
+
+    def plotly(
+        self,
+        fig: go.Figure | None = None,
+        show: bool = True,
+        show_field_edges: bool = True,
+        show_grid: bool = True,
+        show_center: bool = True,
+        mirror: Literal["beam", "geometry"] | None = None,
+        name: str = "Profile",
+    ) -> go.Figure:
+        """Plot the profile to a plotly figure."""
+
+        if fig is None:
+            fig = go.Figure()
+        fig.add_scatter(x=self.x_values, y=self.values, name=name)
+
+        if show:
+            fig.show()
+        return fig
 
     def plot(
         self,
@@ -2255,6 +2276,24 @@ class CircleProfile(MultiProfile, Circle):
         self.x_locations = np.roll(self.x_locations, -amount)
         self.y_locations = np.roll(self.y_locations, -amount)
 
+    def plotly(
+        self,
+        fig: go.Figure,
+        edgecolor: str = "black",
+        fill: bool = False,
+        plot_peaks: bool = True,
+    ):
+        Circle.plotly(self, fig, edgecolor, fill)
+        if plot_peaks:
+            x_locs = [peak.x for peak in self.peaks]
+            y_locs = [peak.y for peak in self.peaks]
+            fig.add_scatter(
+                x=x_locs,
+                y=y_locs,
+                mode="markers",
+                marker=dict(size=10, color=edgecolor),
+            )
+
     def plot2axes(
         self,
         axes: plt.Axes = None,
@@ -2382,6 +2421,27 @@ class CollapsedCircleProfile(CircleProfile):
             profile += ndimage.map_coordinates(self.image_array, [y, x], order=0)
         profile /= self.num_profiles
         return profile
+
+    def plotly(
+        self,
+        fig: go.Figure,
+        edgecolor: str = "black",
+        fill: bool = False,
+        plot_peaks: bool = True,
+    ):
+        with TemporaryAttribute(self, "radius", self.radius * (1 + self.width_ratio)):
+            super().plotly(fig, edgecolor, fill)
+        with TemporaryAttribute(self, "radius", self.radius * (1 - self.width_ratio)):
+            super().plotly(fig, edgecolor, fill)
+        if plot_peaks:
+            x_locs = [peak.x for peak in self.peaks]
+            y_locs = [peak.y for peak in self.peaks]
+            fig.add_scatter(
+                x=x_locs,
+                y=y_locs,
+                mode="markers",
+                marker=dict(size=10, color=edgecolor),
+            )
 
     def plot2axes(
         self,

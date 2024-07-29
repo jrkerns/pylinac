@@ -23,6 +23,7 @@ import scipy.ndimage as spf
 from PIL import Image as pImage
 from PIL.PngImagePlugin import PngInfo
 from PIL.TiffTags import TAGS
+from plotly import graph_objects as go
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.errors import InvalidDicomError
 from pydicom.uid import UID, generate_uid
@@ -493,6 +494,45 @@ class BaseImage:
             except AttributeError:
                 date = "Unknown"
         return date
+
+    def plotly(
+        self,
+        fig: go.Figure | None = None,
+        colorscale: str = "gray",
+        title: str = "",
+        show: bool = True,
+        show_metrics: bool = True,
+        show_colorbar: bool = True,
+        **kwargs,
+    ) -> go.Figure:
+        """Plot the image in a plotly figure"""
+        if fig is None:
+            fig = go.Figure()
+        fig.add_heatmap(z=self.array, colorscale=colorscale, **kwargs)
+        # fig.update_traces(showscale=show_colorbar)
+        if show_metrics:
+            for metric in self.metrics:
+                metric.plotly(fig)
+        fig.update_layout(
+            title={
+                "text": title,
+                "x": 0.5,
+            },
+            xaxis_showticklabels=False,
+            yaxis_showticklabels=False,
+            # this inverts the y axis so 0 is at the top
+            # note that this will cause later `range=(...)` calls to fail;
+            # appears to be bug in plotly.
+            yaxis_autorange="reversed",
+            yaxis_scaleanchor="x",
+            yaxis_constrain="domain",
+            xaxis_scaleanchor="y",
+            xaxis_constrain="domain",
+            legend={"x": 0},
+        )
+        if show:
+            fig.show()
+        return fig
 
     def plot(
         self,

@@ -48,11 +48,20 @@ Core
   * ``load_url``
   * ``.from_url(...)`` class methods. I've not seen a single use case for loading from a URL directly.
 
+Plotting
+--------
+
 * The plotting of analyzed images will migrate from ``matplotlib`` to ``plotly``.
   This is mainly related to being able to zoom in and otherwise examine an analyzed image
   more closely. Once plotly is supported, there is no reason to keep both plotting methods
   around. To reduce maintenance burden, the matplotlib plotting will be removed.
-
+* Methods involving saving figures (``.save_image(...)``) to file will be removed. Both matplotlib and plotly can
+  save to file programmatically, and plotly can do so interactively as well.
+* Plotting will always produce individual images. Pylinac would sometimes combine plots
+  in a subplot. This made for annoying figure sizing. Now, each plot will be its own figure.
+  E.g. for a 2D planar analysis, the plotting method will return up to 3 figures: the image,
+  the low-contrast plot, and the high-contrast plot. Previously, these would be plotted into
+  a single 3x1 subplot figure.
 
 
 Open-Field Analysis

@@ -37,6 +37,7 @@ import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import art3d
+from plotly import graph_objects as go
 from py_linq import Enumerable
 from pydantic import BaseModel, Field
 from scipy import ndimage, optimize
@@ -59,6 +60,7 @@ from .core.geometry import (
 )
 from .core.image import DicomImageStack, is_image, tiff_to_dicom
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
+from .core.plotly_utils import add_horizontal_line, add_vertical_line
 from .core.scale import MachineScale, convert
 from .core.utilities import (
     QuaacDatum,
@@ -741,6 +743,7 @@ class WLBaseImage(image.LinacDicomImage):
                 radius_tolerance_mm=bb_tolerance_mm,
                 invert=not low_density,
                 detection_conditions=self.detection_conditions,
+                name="BB",
             )
         )
         return centers
@@ -779,6 +782,73 @@ class WLBaseImage(image.LinacDicomImage):
         return [
             match.bb_epid_distance_mm for match in self.arrangement_matches.values()
         ]
+
+    def plotly(
+        self,
+        fig: go.Figure | None = None,
+        show: bool = True,
+        zoomed: bool = True,
+        show_legend: bool = True,
+        show_colorbar: bool = True,
+    ) -> go.Figure:
+        fig = super().plotly(
+            fig=fig, show=show, show_metrics=True, show_colorbar=show_colorbar
+        )
+        # show EPID center
+        add_vertical_line(fig, self.epid.x, color="blue", name="EPID Center")
+        add_horizontal_line(fig, self.epid.y, color="blue")
+        # show the field CAXs
+        for match in self.arrangement_matches.values():
+            fig.add_scatter(
+                x=[match.field.x],
+                y=[match.field.y],
+                line_color="green",
+                name="Field Center",
+                mode="markers",
+                marker_size=8,
+                marker_symbol="square",
+            )
+            fig.add_scatter(
+                x=[match.bb.x],
+                y=[match.bb.y],
+                line_color="cyan",
+                name="Detected BB",
+                mode="markers",
+                marker_size=10,
+                marker_symbol="circle",
+            )
+        if zoomed:
+            # zoom to the BBs
+            min_x = (
+                min([match.bb.x for match in self.arrangement_matches.values()])
+                - 20 * self.dpmm
+            )
+            min_y = (
+                min([match.bb.y for match in self.arrangement_matches.values()])
+                - 20 * self.dpmm
+            )
+            max_x = (
+                max([match.bb.x for match in self.arrangement_matches.values()])
+                + 20 * self.dpmm
+            )
+            max_y = (
+                max([match.bb.y for match in self.arrangement_matches.values()])
+                + 20 * self.dpmm
+            )
+            fig.update_xaxes(range=[min_x, max_x])
+            # bug in plotly; can't have autorange reversed and set this.
+            fig.update_yaxes(range=[max_y, min_y], autorange=None)
+        fig.update_layout(
+            xaxis_title=f"Gantry={self.gantry_angle:.0f}, Coll={self.collimator_angle:.0f}, Couch={self.couch_angle:.0f}",
+            yaxis_title=f"Max Nominal to BB: {max(self.field_to_bb_distances()):3.2f}mm",
+        )
+        fig.update_layout(
+            showlegend=show_legend,
+            title_text="\n".join(wrap(Path(self.path).name, 30)),
+        )
+        if show:
+            fig.show()
+        return fig
 
     def plot(
         self,
@@ -1594,6 +1664,144 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             return statistics.median(distances)
         elif metric == "mean":
             return statistics.mean(distances)
+
+    def plotly_analyzed_images(
+        self,
+        zoomed: bool = True,
+        show_legend: bool = True,
+        show: bool = True,
+        show_colorbar: bool = True,
+        **kwargs,
+    ) -> (go.Figure, ...):
+        """Plot the analyzed images in a Plotly figure.
+
+        Parameters
+        ----------
+        kwargs
+            Keyword arguments to pass to the plotly figure.
+
+        Returns
+        -------
+        go.Figure
+        """
+        figs = []
+        for wl_image in self.images:
+            fig = wl_image.plotly(
+                show=False, show_legend=show_legend, zoomed=zoomed, **kwargs
+            )
+            figs.append(fig)
+
+        # 3d iso visualization
+        iso_fig = go.Figure()
+        # origin lines
+        limit = (
+            max(
+                np.abs(
+                    (
+                        self.bb_shift_vector.x,
+                        self.bb_shift_vector.y,
+                        self.bb_shift_vector.z,
+                    )
+                )
+            )
+            + self._bb_diameter
+        )
+        for x, y, z in (
+            ((-limit, limit), (0, 0), (0, 0)),
+            ((0, 0), (-limit, limit), (0, 0)),
+            ((0, 0), (0, 0), (-limit, limit)),
+        ):
+            iso_fig.add_scatter3d(
+                mode="lines", x=x, y=y, z=z, name="Isocenter Axis", marker_color="blue"
+            )
+        # isosphere
+        x, y, z = create_sphere_surface(
+            radius=self.cax2bb_distance("max"),
+            center=Point(),
+        )
+        iso_fig.add_surface(
+            x=x,
+            y=y,
+            z=z,
+            opacity=0.2,
+            name="Isosphere",
+            showscale=show_colorbar,
+            colorscale=[[0, "blue"], [1, "blue"]],
+        )
+        # bb
+        x, y, z = create_sphere_surface(
+            radius=self._bb_diameter / 2,
+            center=Point(
+                self.bb.measured_bb_position.x,
+                self.bb.measured_bb_position.y,
+                self.bb.measured_bb_position.z,
+            ),
+        )
+        iso_fig.add_surface(
+            x=x,
+            y=y,
+            z=z,
+            opacity=0.2,
+            name="BB",
+            showscale=show_colorbar,
+            colorscale=[[0, "red"], [1, "red"]],
+        )
+        # coll iso size
+        theta = np.linspace(0, 2 * np.pi, 100)
+        circle_x = self.collimator_iso_size / 2 * np.cos(theta)  # Radius of the circle
+        circle_z = self.collimator_iso_size / 2 * np.sin(theta)  # Radius of the circle
+        circle_y = np.zeros_like(theta) - limit  # Fixed z-coordinate
+        iso_fig.add_scatter3d(
+            x=circle_x,
+            y=circle_y,
+            z=circle_z,
+            mode="lines",
+            line=dict(color="green", width=2),
+            name="Collimator axis isosize projection",
+        )
+        # gantry iso size
+        circle_y = self.gantry_iso_size / 2 * np.cos(theta)  # Radius of the circle
+        circle_z = self.gantry_iso_size / 2 * np.sin(theta)  # Radius of the circle
+        circle_x = np.zeros_like(theta) - limit  # Fixed z-coordinate
+        iso_fig.add_scatter3d(
+            x=circle_x,
+            y=circle_y,
+            z=circle_z,
+            mode="lines",
+            line=dict(color="green", width=2),
+            name="Gantry axis isosize projection",
+        )
+        # couch isosize
+        circle_x = self.couch_iso_size / 2 * np.cos(theta)  # Radius of the circle
+        circle_y = self.couch_iso_size / 2 * np.sin(theta)  # Radius of the circle
+        circle_z = np.zeros_like(theta) - limit  # Fixed z-coordinate
+        iso_fig.add_scatter3d(
+            x=circle_x,
+            y=circle_y,
+            z=circle_z,
+            mode="lines",
+            line=dict(color="green", width=2),
+            name="Couch axis isosize projection",
+        )
+
+        iso_fig.update_layout(
+            scene=dict(
+                xaxis_range=[-limit, limit],
+                yaxis_range=[-limit, limit],
+                zaxis_range=[-limit, limit],
+                aspectmode="cube",
+                xaxis_title="X (mm), Right (+)",
+                yaxis_title="Y (mm), In (+)",
+                zaxis_title="Z (mm), Up (+)",
+            ),
+            title="3D Isocenter visualization",
+        )
+        figs.append(iso_fig)
+
+        if show:
+            for f in figs:
+                f.show()
+        return figs
 
     def _plot_deviation(
         self, axis: Axis, ax: plt.Axes | None = None, show: bool = True

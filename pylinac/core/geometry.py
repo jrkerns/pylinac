@@ -8,6 +8,7 @@ from typing import Iterable
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
+import plotly.graph_objects as go
 from matplotlib.patches import Circle as mpl_Circle
 from matplotlib.patches import Rectangle as mpl_Rectangle
 from mpl_toolkits.mplot3d.art3d import Line3D
@@ -246,6 +247,38 @@ class Circle:
     def diameter(self) -> float:
         """Get the diameter of the circle."""
         return self.radius * 2
+
+    def plotly(
+        self,
+        fig: go.Figure,
+        edgecolor: str = "black",
+        fill: bool = False,
+        show_legend: bool = True,
+        text: str = "",
+        text_kwargs: dict | None = None,
+        **kwargs,
+    ) -> None:
+        """Draw the circle on a plotly figure."""
+        fig.add_shape(
+            type="circle",
+            x0=self.center.x - self.radius,
+            y0=self.center.y - self.radius,
+            x1=self.center.x + self.radius,
+            y1=self.center.y + self.radius,
+            line=dict(color=edgecolor),
+            fillcolor=edgecolor if fill else "rgba(0,0,0,0)",
+            showlegend=show_legend,
+            **kwargs,
+        )
+        text_kwargs = text_kwargs or {}
+        if text:
+            fig.add_annotation(
+                x=self.center.x,
+                y=self.center.y,
+                text=text,
+                showarrow=False,
+                **text_kwargs,
+            )
 
     def plot2axes(
         self,
@@ -499,6 +532,16 @@ class Line:
         )
         return lines[0]
 
+    def plotly(self, fig: go.Figure, color: str = "blue", **kwargs) -> None:
+        """Plot the line to a plotly figure."""
+        fig.add_scatter(
+            x=[self.point1.x, self.point2.x],
+            y=[self.point1.y, self.point2.y],
+            mode="lines",
+            line=dict(color=color),
+            **kwargs,
+        )
+
     def dict(self) -> dict:
         """Convert to dict. Shim until convert to dataclass"""
         return {
@@ -592,6 +635,29 @@ class Rectangle:
             self.center.y + self.height / 2,
             as_int=self._as_int,
         )
+
+    def plotly(
+        self,
+        fig: go.Figure,
+        edgecolor: str = "black",
+        fill: bool = False,
+        text: str = "",
+        text_kwargs: dict | None = None,
+        **kwargs,
+    ) -> None:
+        """Draw the rectangle on a plotly figure."""
+        fig.add_shape(
+            type="rect",
+            x0=self.bl_corner.x,
+            y0=self.bl_corner.y,
+            x1=self.tr_corner.x,
+            y1=self.tr_corner.y,
+            **kwargs,
+        )
+        if text:
+            fig.add_annotation(
+                x=self.center.x, y=self.center.y, text=text, **text_kwargs or {}
+            )
 
     def plot2axes(
         self,

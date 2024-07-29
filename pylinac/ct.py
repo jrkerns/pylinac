@@ -30,6 +30,7 @@ from typing import BinaryIO, Callable, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
+from plotly import graph_objects as go
 from py_linq import Enumerable
 from pydantic import BaseModel, Field
 from scipy import ndimage
@@ -48,6 +49,7 @@ from .core.nps import (
     noise_power_spectrum_1d,
     noise_power_spectrum_2d,
 )
+from .core.plotly_utils import add_title, add_vertical_line
 from .core.profile import CollapsedCircleProfile, FWXMProfile
 from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
@@ -534,6 +536,12 @@ class CatPhanModule(Slice):
         for roi in self.background_rois.values():
             roi.plot2axes(axis, edgecolor="blue")
 
+    def plotly_rois(self, fig: go.Figure) -> None:
+        for roi in self.rois.values():
+            roi.plotly(fig, edgecolor=roi.plot_color)
+        for roi in self.background_rois.values():
+            roi.plotly(fig, edgecolor="blue")
+
     def plot(self, axis: plt.Axes):
         """Plot the image along with ROIs to an axis"""
         self.image.plot(ax=axis, show=False, vmin=self.window_min, vmax=self.window_max)
@@ -541,6 +549,14 @@ class CatPhanModule(Slice):
         axis.autoscale(tight=True)
         axis.set_title(self.common_name)
         axis.axis("off")
+
+    def plotly(self) -> go.Figure:
+        """Plot the image along with the ROIs to a plotly figure."""
+        fig = go.Figure()
+        self.image.plotly(fig, show=False, zmin=self.window_min, zmax=self.window_max)
+        self.plotly_rois(fig)
+        add_title(fig, self.common_name)
+        return fig
 
     @property
     def roi_vals_as_str(self) -> str:
@@ -766,6 +782,50 @@ class CTP404CP504(CatPhanModule):
             / (self.rois["LDPE"].std + self.rois["Poly"].std)
         )
 
+    def plotly_linearity(self, plot_delta: bool = True) -> go.Figure:
+        fig = go.Figure()
+        nominal_x_values = [roi.nominal_val for roi in self.rois.values()]
+        if plot_delta:
+            values = [roi.value_diff for roi in self.rois.values()]
+            nominal_measurements = [0] * len(values)
+            ylabel = "HU Delta"
+        else:
+            values = [roi.pixel_value for roi in self.rois.values()]
+            nominal_measurements = nominal_x_values
+            ylabel = "Measured Values"
+        fig.add_scatter(
+            x=nominal_x_values,
+            y=values,
+            name="Measured values",
+            mode="markers",
+            marker=dict(color="green", size=10, symbol="cross", line=dict(width=1)),
+        )
+        fig.add_scatter(
+            x=nominal_x_values,
+            y=nominal_measurements,
+            mode="lines",
+            name="Nominal Values",
+            marker_color="green",
+        )
+        fig.add_scatter(
+            x=nominal_x_values,
+            y=np.array(nominal_measurements) + self.hu_tolerance,
+            mode="lines",
+            name="Upper Tolerance",
+            line=dict(dash="dash", color="red"),
+        )
+        fig.add_scatter(
+            x=nominal_x_values,
+            y=np.array(nominal_measurements) - self.hu_tolerance,
+            mode="lines",
+            name="Lower Tolerance",
+            line=dict(dash="dash", color="red"),
+        )
+        fig.update_layout(
+            xaxis_title="Nominal Values", yaxis_title=ylabel, title="HU Linearity"
+        )
+        return fig
+
     def plot_linearity(
         self, axis: plt.Axes | None = None, plot_delta: bool = True
     ) -> tuple:
@@ -808,6 +868,15 @@ class CTP404CP504(CatPhanModule):
     def passed_hu(self) -> bool:
         """Boolean specifying whether all the ROIs passed within tolerance."""
         return all(roi.passed for roi in self.rois.values())
+
+    def plotly_rois(self, fig: go.Figure) -> None:
+        super().plotly_rois(fig)
+        # plot thickness ROIs
+        for roi in self.thickness_rois.values():
+            roi.plotly(fig, edgecolor="blue")
+        # plot geometry lines
+        for line in self.lines.values():
+            line.plotly(fig, color=line.pass_fail_color)
 
     def plot_rois(self, axis: plt.Axes) -> None:
         """Plot the ROIs onto the image, as well as the background ROIs"""
@@ -1068,6 +1137,12 @@ class CTP486(CatPhanModule):
             nps_roi.plot2axes(axis, edgecolor="green", linestyle="-.")
         super().plot(axis)
 
+    def plotly(self) -> go.Figure:
+        fig = super().plotly()
+        for nps_roi in self.nps_rois.values():
+            nps_roi.plotly(fig, edgecolor="green", line_dash="dash")
+        return fig
+
     @property
     def overall_passed(self) -> bool:
         """Boolean specifying whether all the ROIs passed within tolerance."""
@@ -1267,6 +1342,9 @@ class CTP528CP504(CatPhanModule):
     def radius2linepairs(self) -> float:
         """Radius from the phantom center to the line-pair region, corrected for pixel spacing."""
         return self.radius2linepairs_mm / self.mm_per_pixel
+
+    def plotly_rois(self, fig: go.Figure) -> None:
+        self.circle_profile.plotly(fig, edgecolor="blue", plot_peaks=False)
 
     def plot_rois(self, axis: plt.Axes) -> None:
         """Plot the circles where the profile was taken within."""
@@ -1723,6 +1801,24 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             )
         obj.was_from_zip = True
         return obj
+
+    def plotly_analyzed_image(self, show: bool = True) -> dict[str, go.Figure]:
+        figs = {}
+        figs["CTP404"] = self.ctp404.plotly()
+        figs["HU Linearity"] = self.ctp404.plotly_linearity()
+        figs["Side View"] = self.plotly_side_view()
+        if self._has_module(CTP486):
+            figs["CTP486"] = self.ctp486.plotly()
+        if self._has_module(CTP528CP504):
+            figs["CTP528"] = self.ctp528.plotly()
+            figs["MTF"] = self.ctp528.mtf.plotly()
+        if self._has_module(CTP515):
+            figs["CTP515"] = self.ctp515.plotly()
+
+        if show:
+            for fig in figs.values():
+                fig.show()
+        return figs
 
     def plot_analyzed_image(self, show: bool = True, **plt_kwargs) -> None:
         """Plot the images used in the calculation and summary data.
@@ -2186,6 +2282,29 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
                 os.remove(img.path)
             except Exception:
                 pass
+
+    def plotly_side_view(self, offset: float = -10) -> go.Figure:
+        fig = go.Figure()
+        side_array = self.dicom_stack.side_view(axis=1)
+        add_title(fig, "Side View")
+        fig.add_heatmap(z=side_array, colorscale="gray", showscale=False)
+        for module in self._detected_modules():
+            add_vertical_line(
+                fig,
+                module.slice_num,
+                width=3,
+                color="blue",
+                name=module.common_name,
+                text=module.common_name,
+                text_kwargs={
+                    "textangle": 270,
+                    "font_color": "blue",
+                    "font_size": 18,
+                    "showarrow": False,
+                },
+                offset=offset,
+            )
+        return fig
 
     def plot_side_view(self, axis: Axes) -> None:
         """Plot a view of the scan from the side with lines showing detected module positions"""

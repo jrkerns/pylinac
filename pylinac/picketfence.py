@@ -31,6 +31,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from plotly import graph_objs as go
 from py_linq import Enumerable
 from pydantic import Field
 
@@ -38,6 +39,7 @@ from . import Normalization
 from .core import image, pdf
 from .core.geometry import Line, Point, Rectangle
 from .core.io import get_url, retrieve_demo_file
+from .core.plotly_utils import add_title, add_vertical_line
 from .core.profile import FWXMProfilePhysical, MultiProfile
 from .core.utilities import (
     QuaacDatum,
@@ -889,6 +891,104 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
             if abs(center) < pixel_range / self.image.dpmm
         ]
 
+    def plotly_analyzed_image(
+        self,
+        guard_rails: bool = True,
+        mlc_peaks: bool = True,
+        overlay: bool = True,
+        leaf_error_subplot: bool = True,
+        show: bool = True,
+        figure_size: str | tuple = "auto",
+        show_text: bool = False,
+        barplot_kwargs: dict | None = None,
+    ) -> dict[str, go.Figure]:
+        """Plot the analyzed image.
+
+        Parameters
+        ----------
+        guard_rails
+            Do/don't plot the picket "guard rails" around the ideal picket
+        mlc_peaks
+            Do/don't plot the detected MLC peak positions.
+        overlay
+            Do/don't plot the alpha overlay of the leaf status.
+        leaf_error_subplot
+            If True, plots a linked leaf error subplot adjacent to the PF image plotting the average and standard
+            deviation of leaf error.
+        show
+            Whether to display the plot. Set to false for saving to a figure, etc.
+        figure_size
+            Either 'auto' or a tuple. If auto, the figure size is set depending on the orientation. If a tuple, this is the
+            figure size to use.
+        show_text
+            Whether to show the text on the image.
+        barplot_kwargs
+            Keyword arguments to pass to the bar plot. Only used if leaf_error_subplot is True.
+        """
+        if not self._is_analyzed:
+            raise RuntimeError("The image must be analyzed first. Use .analyze().")
+        # plot the image
+        figs = {}
+        fig = go.Figure()
+        self.image.plotly(fig=fig, show=False)
+        # else:
+        #     fig = go.Figure()
+        self.image.plotly(fig=fig, show=False)
+        if guard_rails:
+            for idx, picket in enumerate(self.pickets):
+                picket.plotly_guardrails(fig=fig, idx=idx)
+        if mlc_peaks:
+            for mlc_meas in self.mlc_meas:
+                mlc_meas.plotly(fig=fig)
+
+        if overlay:
+            for mlc_meas in self.mlc_meas:
+                mlc_meas.plotly_overlay(fig)
+
+        # plot CAX
+        fig.add_scatter(
+            x=[self.image.center.x],
+            y=[self.image.center.y],
+            mode="markers",
+            marker=dict(color="red", size=12, symbol="cross-thin"),
+        )
+        figs["Picket Fence"] = fig
+
+        # plot histogram
+        errors = Enumerable(self.mlc_meas).select_many(lambda m: m.error).to_list()
+        histogram_fig = go.Figure()
+        histogram_fig.add_histogram(
+            x=errors,
+        )
+        add_vertical_line(histogram_fig, self.tolerance, color="red", width=3)
+        add_vertical_line(histogram_fig, -self.tolerance, color="red", width=3)
+
+        if self.action_tolerance is not None:
+            add_vertical_line(
+                histogram_fig, self.action_tolerance, color="magenta", width=3
+            )
+            add_vertical_line(
+                histogram_fig, -self.action_tolerance, color="magenta", width=3
+            )
+        add_title(histogram_fig, "Leaf error histogram")
+        min_x = min(min(errors), -self.tolerance * 1.1)
+        max_x = max(max(errors), self.tolerance * 1.1)
+        histogram_fig.update_layout(
+            xaxis_title="Error (mm)",
+            yaxis_title="Counts",
+            xaxis_range=[min_x, max_x],
+        )
+        figs["Histogram"] = histogram_fig
+
+        # leaf error plot
+        if leaf_error_subplot:
+            figs |= self._plotly_leaf_error_plots()
+
+        if show:
+            for fig in figs.values():
+                fig.show()
+        return figs
+
     def plot_analyzed_image(
         self,
         guard_rails: bool = True,
@@ -965,6 +1065,100 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
 
         if show:
             plt.show()
+
+    def _plotly_leaf_error_plots(self) -> dict[str, go.Figure]:
+        # get leaf pair names
+        # labels = sorted(list({m.leaf_num for m in self.mlc_meas}))
+
+        # generate the error distributions per MLC pair
+
+        # if self.separate_leaves:
+        #     full_leaf_nums = np.asarray(Enumerable(self.mlc_meas).select_many(lambda m: m.full_leaf_nums).to_list())
+        #     error_items = np.asarray(Enumerable(self.mlc_meas).select_many(lambda m: m.error).to_list())
+        # else:
+        error_items = np.asarray(
+            Enumerable(self.mlc_meas).select(lambda m: m.error).to_list()
+        )
+        leaf_nums = np.asarray(
+            Enumerable(self.mlc_meas).select(lambda m: m.leaf_num).to_list(), dtype=int
+        )
+        # 2 figs; one for absolute errors and another for signed errors
+        signed_fig, abs_fig = go.Figure(), go.Figure()
+        add_title(signed_fig, "Signed Leaf Error (mm) | Pair")
+        add_title(abs_fig, "Absolute Leaf Error (mm) | Pair")
+        for leaf_num in set(leaf_nums):
+            idxs = np.argwhere(leaf_nums == leaf_num)
+            errs = error_items[idxs].squeeze()
+            signed_fig.add_box(
+                y=errs,
+                x=[leaf_num] * len(idxs),
+                name=str(leaf_num),
+                fillcolor="blue",
+                line_color="black",
+                marker_color="black",
+            )
+            abs_fig.add_box(
+                y=np.abs(errs),
+                x=[leaf_num] * len(idxs),
+                name=str(leaf_num),
+                fillcolor="blue",
+                line_color="black",
+                marker_color="black",
+            )
+        return {"error signed": signed_fig, "error absolute": abs_fig}
+
+        # for
+        # for leaf_num in {m.full_leaf_nums for m in self.mlc_meas}:
+        # for leaf_num in full_leaf_nums:
+        # if self.separate_leaves:
+        # flatten the error list and take the absolute value
+        # error_clusters.append(
+        #     np.abs(
+        #         [
+        #             e
+        #             for m in self.mlc_meas
+        #             if m.full_leaf_nums == leaf_num
+        #             for e in m.error
+        #         ]
+        #     )
+        # )
+        # else:
+        #     error_clusters.append(
+        #         np.abs([m.error for m in self.mlc_meas if m.leaf_num == leaf_num])
+        #     )
+        # error_dists = np.stack(error_clusters).squeeze()
+
+        # plot the leaf errors as a bar plot
+        # if self.orientation == Orientation.UP_DOWN:
+        # for idx, error_dist in enumerate(error_dists):
+        #     fig.add_box(
+        #         y=error_dist,
+        #         x=[full_leaf_nums[idx]]*len(error_dist),
+        #         name=full_leaf_nums[idx],
+        #     )
+        # add_horizontal_line(fig, self.tolerance, color="red", width=3)
+        # fig.add_box(
+        #     y=error_dists,
+        #     x=np.array(pos),
+        # )
+        # show every other leaf number on the ticks
+        # ax.set_yticks(pos[::2])
+        # ax.set_yticklabels(labels[::2])
+        # plot the tolerance line(s)
+        # ax.axvline(self.tolerance, color="r", linewidth=3)
+        # if self.action_tolerance is not None:
+        #     ax.axvline(self.action_tolerance, color="m", linewidth=3)
+        # reset xlims to comfortably include the max error or tolerance value
+        # ax.set_xlim([0, max([error_dists.max(), self.tolerance]) + 0.1])
+        # else:
+        #     fig.add_box(
+        #         x=error_dists,
+        #         # y=np.array(pos),
+        #         # vert=True,
+        #         # manage_ticks=False,
+        #         # **barplot_kwargs,
+        #     )
+        # add_title(fig, "Average Error (mm)")
 
     def _add_leaf_error_subplot(self, ax: plt.Axes, barplot_kwargs: dict) -> None:
         """Add a bar subplot showing the leaf error."""
@@ -1398,6 +1592,11 @@ class MLCValue:
                 f"{RIGHT_MLC_PREFIX}{self.leaf_num}",
             ]
 
+    def plotly(self, fig: go.Figure):
+        """Plot the MLC measurement to a plotly figure."""
+        for idx, line in enumerate(self.marker_lines):
+            line.plotly(fig, color=self.bg_color[idx])
+
     def plot2axes(self, axes: plt.Axes, width: float | int = 1) -> None:
         """Plot the measurement to the axes."""
         for idx, line in enumerate(self.marker_lines):
@@ -1453,11 +1652,11 @@ class MLCValue:
         colors = []
         for idx, passed in enumerate(self.passed):
             if not passed:
-                colors.append("r")
+                colors.append("red")
             elif self._action_tolerance is not None:
-                colors.append("b" if self.passed_action[idx] else "m")
+                colors.append("blue" if self.passed_action[idx] else "magenta")
             else:
-                colors.append("b")
+                colors.append("blue")
         return colors
 
     @property
@@ -1545,6 +1744,57 @@ class MLCValue:
                 line = Line((upper_point, mlc_position), (lower_point, mlc_position))
             lines.append(line)
         return lines
+
+    def plotly_overlay(self, fig: go.Figure) -> None:
+        upper_point = (
+            self.leaf_center_px - self.leaf_width_px / 2 * self._analysis_ratio
+        )
+        lower_point = (
+            self.leaf_center_px + self.leaf_width_px / 2 * self._analysis_ratio
+        )
+        height = abs(upper_point - lower_point) * 0.8
+
+        for idx, (line, leaf) in enumerate(zip(self.marker_lines, self.full_leaf_nums)):
+            width = abs(self.error[idx]) * self._image.dpmm
+
+            if self._orientation == Orientation.UP_DOWN:
+                y = line.center.y
+                x = self.position[idx] - (self.error[idx] * self._image.dpmm) / 2
+                r = Rectangle(width, height, center=(x, y))
+                # if any of the values are over tolerance, show another larger rectangle to draw the eye
+                if not self.passed[idx] or not self.passed_action[idx]:
+                    re = Rectangle(
+                        self._image_window.shape[1] * 0.2, height * 1.2, center=(x, y)
+                    )
+                    re.plotly(
+                        fig,
+                        line_color=self.bg_color[idx],
+                        fill=True,
+                        opacity=0.3,
+                        fillcolor=self.bg_color[idx],
+                    )
+            else:
+                x = line.center.x
+                y = self.position[idx] - (self.error[idx] * self._image.dpmm) / 2
+                r = Rectangle(height, width, center=(x, y))
+                if not self.passed[idx] or not self.passed_action[idx]:
+                    re = Rectangle(
+                        self._image_window.shape[1] * 0.2, height * 1.2, center=(x, y)
+                    )
+                    re.plotly(
+                        fig,
+                        line_color=self.bg_color[idx],
+                        fill=True,
+                        opacity=0.3,
+                        fillcolor=self.bg_color[idx],
+                    )
+            r.plotly(
+                fig,
+                fill=True,
+                opacity=1,
+                fillcolor=self.bg_color[idx],
+                line_color=self.bg_color[idx],
+            )
 
     def plot_overlay2axes(self, axes: Axes, show_text: bool) -> None:
         """Create a rectangle overlay with the width of the error. I.e. it stretches from the picket fit to the MLC position. Gives more visual size to the"""
@@ -1705,6 +1955,34 @@ class Picket:
             r_fit[-1] -= self._nominal_gap * mag_factor / 2 * self.image.dpmm
             other_fit[-1] += self._nominal_gap * mag_factor / 2 * self.image.dpmm
             return [np.poly1d(r_fit), np.poly1d(other_fit)]
+
+    def plotly_guardrails(self, fig: go.Figure, idx: int) -> None:
+        """Plot guard rails to the axis."""
+        if self.orientation == Orientation.UP_DOWN:
+            length = self.image.shape[0]
+        else:
+            length = self.image.shape[1]
+        x_data = np.arange(length)
+        left_y_data = self.left_guard_separated
+        right_y_data = self.right_guard_separated
+        for left, right in zip(left_y_data, right_y_data):
+            if self.orientation == Orientation.UP_DOWN:
+                fig.add_scatter(
+                    mode="lines",
+                    x=left(x_data),
+                    y=x_data,
+                    line_color="green",
+                )
+                fig.add_scatter(
+                    mode="lines", x=right(x_data), y=x_data, line_color="green"
+                )
+            else:
+                fig.add_scatter(
+                    mode="lines", x=x_data, y=left(x_data), line_color="green"
+                )
+                fig.add_scatter(
+                    mode="lines", x=x_data, y=right(x_data), line_color="green"
+                )
 
     def add_guards_to_axes(
         self, axis: plt.Axes, idx: int, color: str = "g", show_text: bool = False

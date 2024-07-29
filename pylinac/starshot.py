@@ -29,6 +29,7 @@ from typing import BinaryIO
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
+import plotly.graph_objects as go
 from pydantic import Field
 from scipy import optimize
 
@@ -422,6 +423,47 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
                 description="The diameter of the fitted circle representing isocenter.",
             ),
         }
+
+    def plotly_analyzed_image(
+        self, fig: go.Figure | None = None, show: bool = True, zoomed: bool = False
+    ) -> go.Figure:
+        """Plot the analyzed image with plotly.
+
+        Parameters
+        ----------
+        fig : go.Figure, None
+            The figure to plot on. If None, a new figure is created.
+        show : bool
+            Whether to actually show the image. Set to False if doing further annotations.
+        zoomed : bool
+            Whether to zoom in on the wobble circle.
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        fig.add_heatmap(z=self.image.array, colorscale="gray")
+        for line in self.lines:
+            line.plotly(fig, color="blue", showlegend=False)
+        self.wobble.plotly(fig, edgecolor="green")
+        fig.update_layout(
+            yaxis_scaleanchor="x",
+            yaxis_constrain="domain",
+            xaxis_constrain="domain",
+        )
+        if zoomed:
+            fig.update_layout(
+                xaxis_range=[
+                    self.wobble.center.x - self.wobble.diameter,
+                    self.wobble.center.x + self.wobble.diameter,
+                ],
+                yaxis_range=[
+                    self.wobble.center.y - self.wobble.diameter,
+                    self.wobble.center.y + self.wobble.diameter,
+                ],
+            )
+        if show:
+            fig.show()
+        return fig
 
     def plot_analyzed_image(self, show: bool = True, **plt_kwargs: dict):
         """Draw the star lines, profile circle, and wobble circle on a matplotlib figure.

@@ -32,6 +32,8 @@ from typing import BinaryIO, Callable, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
+from plotly import graph_objects as go
+from plotly.subplots import make_subplots
 from py_linq import Enumerable
 from pydantic import Field
 from scipy.ndimage import median_filter
@@ -600,6 +602,99 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             pius.append(percent_integral_uniformity(max=high, min=low))
         return min(pius)
 
+    def plotly_analyzed_images(
+        self,
+        image: bool = True,
+        low_contrast: bool = True,
+        high_contrast: bool = True,
+        show: bool = True,
+        show_legend: bool = True,
+        show_colorbar: bool = True,
+    ) -> list[go.Figure, ...]:
+        """Plot the analyzed image.
+
+        Parameters
+        ----------
+        image : bool
+            Show the image.
+        low_contrast : bool
+            Show the low contrast values plot.
+        high_contrast : bool
+            Show the high contrast values plot.
+        show : bool
+            Whether to actually show the image when called.
+        show_legend : bool
+            Whether to show the legend of ROIs on the image plot.
+        """
+        plot_low_contrast = low_contrast and any(self.low_contrast_rois)
+        plot_high_contrast = high_contrast and any(self.high_contrast_rois)
+        num_plots = sum((image, plot_low_contrast, plot_high_contrast))
+        if num_plots < 1:
+            raise ValueError(
+                "Nothing was plotted because either all parameters were false or there were no actual high/low ROIs"
+            )
+        figs = []
+        # plot the marked image
+        if image:
+            image_fig = self.image.plotly(
+                show=False,
+                title=f"{self.common_name} Phantom Analysis",
+                zmin=self.window_floor(),
+                zmax=self.window_ceiling(),
+                show_colorbar=show_colorbar,
+            )
+            figs.append(image_fig)
+
+            # plot the outline image
+            if self.phantom_outline_object is not None:
+                outline_obj, settings = self._create_phantom_outline_object()
+                outline_obj.plotly(image_fig, edgecolor="blue", **settings)
+            # plot the low contrast background ROIs
+            for idx, roi in enumerate(self.low_contrast_background_rois):
+                roi.plotly(
+                    image_fig,
+                    edgecolor="blue",
+                    name=f"LCR{idx}",
+                    showlegend=show_legend,
+                )
+            # plot the low contrast ROIs
+            for idx, roi in enumerate(self.low_contrast_rois):
+                roi.plotly(
+                    image_fig,
+                    edgecolor=roi.plot_color,
+                    name=f"LC{idx}",
+                    showlegend=show_legend,
+                )
+            # plot the high-contrast ROIs along w/ pass/fail coloration
+            if self.high_contrast_rois:
+                for idx, (roi, mtf) in enumerate(
+                    zip(self.high_contrast_rois, self.mtf.norm_mtfs.values())
+                ):
+                    color = "blue" if mtf > self._high_contrast_threshold else "red"
+                    roi.plotly(
+                        image_fig,
+                        edgecolor=color,
+                        name=f"HC{idx}",
+                        showlegend=show_legend,
+                    )
+
+        # plot the low contrast value graph
+        if plot_low_contrast:
+            lowcon_fig = make_subplots(specs=[[{"secondary_y": True}]])
+            figs.append(lowcon_fig)
+            self._plotly_lowcontrast_graph(lowcon_fig)
+
+        # plot the high contrast MTF graph
+        if plot_high_contrast:
+            hicon_fig = go.Figure()
+            figs.append(hicon_fig)
+            self._plotly_highcontrast_graph(hicon_fig)
+
+        if show:
+            for f in figs:
+                f.show()
+        return figs
+
     def plot_analyzed_image(
         self,
         image: bool = True,
@@ -700,6 +795,38 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             plt.show()
         return figs, names
 
+    def _plotly_lowcontrast_graph(self, fig: go.Figure):
+        """Plot the low contrast ROIs to an axes."""
+        fig.add_scatter(
+            y=[roi.contrast for roi in self.low_contrast_rois],
+            line={
+                "color": "magenta",
+            },
+            name="Contrast",
+        )
+        fig.add_scatter(
+            secondary_y=True,
+            y=[roi.contrast_to_noise for roi in self.low_contrast_rois],
+            line={
+                "color": "blue",
+            },
+            name="CNR",
+        )
+        fig.update_layout(
+            title={"text": "Low-frequency Contrast", "x": 0.5},
+        )
+        fig.update_xaxes(
+            title_text="ROI #",
+        )
+        fig.update_yaxes(
+            title_text=f"Contrast ({self._low_contrast_method})", secondary_y=False
+        )
+        fig.update_yaxes(
+            title_text=f"CNR ({self._low_contrast_method})",
+            secondary_y=True,
+            showgrid=False,
+        )
+
     def _plot_lowcontrast_graph(self, axes: plt.Axes):
         """Plot the low contrast ROIs to an axes."""
         (line1,) = axes.plot(
@@ -730,6 +857,21 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         axes.set_title("High-frequency rMTF")
         axes.set_xlabel("Line pairs / mm")
         axes.set_ylabel("relative MTF")
+
+    def _plotly_highcontrast_graph(self, fig: go.Figure) -> None:
+        """Plot the high contrast ROIs to an axes."""
+        fig.add_scatter(
+            y=list(self.mtf.norm_mtfs.values()),
+            x=self.mtf.spacings,
+            line={
+                "color": "black",
+            },
+        )
+        fig.update_layout(
+            title={"text": "High-frequency rMTF", "x": 0.5},
+            xaxis_title="Line pairs / mm",
+            yaxis_title="relative MTF",
+        )
 
     def results(self, as_list: bool = False) -> str | list[str]:
         """Return the results of the analysis.
