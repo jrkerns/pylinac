@@ -13,6 +13,13 @@ Legend
 v 3.26.0
 --------
 
+Picket Fence
+^^^^^^^^^^^^
+
+* :bdg-danger:`Change` The ``mlc_positions_by_leaf`` attribute from the ``results_data`` call has been changed
+  to be **relative to the CAX**. Previously, the positions were relative to the left/top of the image. This attribute
+  was requested by French sites and this change was also requested by them.
+
 Gamma
 ^^^^^
 
