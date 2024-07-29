@@ -823,7 +823,6 @@ class PhysicalProfileMixin:
         gamma_cap_value: float = 2,
         dose_threshold: float = 5,
         fill_value: float = np.nan,
-        centering: Centering | str = Centering.GEOMETRIC_CENTER,
         return_profiles: bool = False,
     ) -> np.ndarray | (np.ndarray, PhysicalProfileMixin, PhysicalProfileMixin):
         """Compute the gamma index between the profile and a reference profile.
@@ -832,11 +831,6 @@ class PhysicalProfileMixin:
         ----------
         reference_profile : ProfileBase
             The reference profile to compare against.
-        centering
-            The centering method of the profiles. If Manual,
-            no centering is done. It is assumed you have already performed any necessary centering.
-            If Geometric, will center both profiles geometrically.
-            If Beam, will center both profiles at the beam center.
         return_profiles : bool
             Whether to return the gamma index values or the gamma index values and the two profiles.
             The profiles are adjusted to be geometrically centered and thus are not the original profiles.
@@ -853,19 +847,11 @@ class PhysicalProfileMixin:
             raise ValueError("The reference profile must also be a physical profile.")
         evaluation = copy.deepcopy(self)
         reference = copy.deepcopy(reference_profile)
-        # center the profiles
-        center = convert_to_enum(centering, Centering)
-        if center == Centering.GEOMETRIC_CENTER:
-            ref_x = reference.x_values - reference.geometric_center_idx
-            eval_x = evaluation.x_values - evaluation.geometric_center_idx
-            reference.x_values = ref_x
-            evaluation.x_values = eval_x
-        elif center == Centering.BEAM_CENTER:
-            ref_x = reference.x_values - reference.center_idx
-            eval_x = evaluation.x_values - evaluation.center_idx
-            reference.x_values = ref_x
-            evaluation.x_values = eval_x
-        # no action needed for manual
+        # center the profiles geometrically by shifting x-values to the mean
+        ref_x = reference.x_values - reference.geometric_center_idx
+        eval_x = evaluation.x_values - evaluation.geometric_center_idx
+        reference.x_values = ref_x
+        evaluation.x_values = eval_x
 
         gamma = gamma_geometric(
             reference=reference.values,
@@ -891,7 +877,6 @@ class PhysicalProfileMixin:
         gamma_cap_value: float = 2,
         dose_threshold: float = 5,
         fill_value: float = np.nan,
-        centering: Centering | str = Centering.GEOMETRIC_CENTER,
         axis: plt.Axes | None = None,
         show: bool = True,
     ) -> plt.Axes:
@@ -912,7 +897,6 @@ class PhysicalProfileMixin:
             dose_threshold=dose_threshold,
             fill_value=fill_value,
             return_profiles=True,
-            centering=centering,
         )
         if axis is None:
             _, axis = plt.subplots()
