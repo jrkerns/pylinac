@@ -60,7 +60,7 @@ from .core.geometry import (
 )
 from .core.image import DicomImageStack, is_image, tiff_to_dicom
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
-from .core.plotly_utils import add_horizontal_line, add_vertical_line
+from .core.plotly_utils import add_horizontal_line, add_title, add_vertical_line
 from .core.scale import MachineScale, convert
 from .core.utilities import (
     QuaacDatum,
@@ -1672,7 +1672,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         show: bool = True,
         show_colorbar: bool = True,
         **kwargs,
-    ) -> (go.Figure, ...):
+    ) -> dict[str, go.Figure]:
         """Plot the analyzed images in a Plotly figure.
 
         Parameters
@@ -1684,12 +1684,17 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         -------
         go.Figure
         """
-        figs = []
-        for wl_image in self.images:
+        figs = {}
+        for idx, wl_image in enumerate(self.images):
             fig = wl_image.plotly(
-                show=False, show_legend=show_legend, zoomed=zoomed, **kwargs
+                show=False,
+                show_legend=show_legend,
+                zoomed=zoomed,
+                show_colorbar=show_colorbar,
+                **kwargs,
             )
-            figs.append(fig)
+            # we add a enumerator in case there are multiple images with the same axis values
+            figs[f"{idx} - {wl_image.to_axes()}"] = fig
 
         # 3d iso visualization
         iso_fig = go.Figure()
@@ -1748,9 +1753,9 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         )
         # coll iso size
         theta = np.linspace(0, 2 * np.pi, 100)
-        circle_x = self.collimator_iso_size / 2 * np.cos(theta)  # Radius of the circle
+        circle_y = self.collimator_iso_size / 2 * np.cos(theta)  # Radius of the circle
         circle_z = self.collimator_iso_size / 2 * np.sin(theta)  # Radius of the circle
-        circle_y = np.zeros_like(theta) - limit  # Fixed z-coordinate
+        circle_x = np.zeros_like(theta) + limit  # Fixed z-coordinate
         iso_fig.add_scatter3d(
             x=circle_x,
             y=circle_y,
@@ -1758,11 +1763,13 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             mode="lines",
             line=dict(color="green", width=2),
             name="Collimator axis isosize projection",
+            hovertext=f"Collimator isocenter size: {self.collimator_iso_size:.2f}mm",
+            hoverinfo="text",
         )
         # gantry iso size
-        circle_y = self.gantry_iso_size / 2 * np.cos(theta)  # Radius of the circle
+        circle_x = self.gantry_iso_size / 2 * np.cos(theta)  # Radius of the circle
         circle_z = self.gantry_iso_size / 2 * np.sin(theta)  # Radius of the circle
-        circle_x = np.zeros_like(theta) - limit  # Fixed z-coordinate
+        circle_y = np.zeros_like(theta) - limit  # Fixed z-coordinate
         iso_fig.add_scatter3d(
             x=circle_x,
             y=circle_y,
@@ -1770,7 +1777,10 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             mode="lines",
             line=dict(color="green", width=2),
             name="Gantry axis isosize projection",
+            hoverinfo="text",
+            hovertext=f"Gantry isocenter size: {self.gantry_iso_size:.2f}mm",
         )
+
         # couch isosize
         circle_x = self.couch_iso_size / 2 * np.cos(theta)  # Radius of the circle
         circle_y = self.couch_iso_size / 2 * np.sin(theta)  # Radius of the circle
@@ -1782,6 +1792,8 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             mode="lines",
             line=dict(color="green", width=2),
             name="Couch axis isosize projection",
+            hoverinfo="text",
+            hovertext=f"Couch isocenter size: {self.couch_iso_size:.2f}mm",
         )
 
         iso_fig.update_layout(
@@ -1794,12 +1806,15 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
                 yaxis_title="Y (mm), In (+)",
                 zaxis_title="Z (mm), Up (+)",
             ),
-            title="3D Isocenter visualization",
+            # set the camera so x axis is on the lower left; makes for more natural visualization
+            scene_camera_eye=dict(x=-1, y=1, z=1),
+            showlegend=show_legend,
         )
-        figs.append(iso_fig)
+        add_title(iso_fig, "3D Isocenter visualization")
+        figs["Isocenter Visualization"] = iso_fig
 
         if show:
-            for f in figs:
+            for f in figs.values():
                 f.show()
         return figs
 

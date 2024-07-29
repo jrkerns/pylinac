@@ -416,7 +416,7 @@ class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
 
     def plotly_analyzed_images(
         self, show: bool = True, show_text: bool = True, show_colorbar: bool = True
-    ) -> (go.Figure, go.Figure, go.Figure):
+    ) -> dict[str, go.Figure]:
         """Plot both images and the median profiles in 3 Plotly figures."""
 
         # images
@@ -445,7 +445,7 @@ class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
             fig_dmlc.show()
             fig_profile.show()
 
-        return fig_open, fig_dmlc, fig_profile
+        return {"Open": fig_open, "DMLC": fig_dmlc, "Profile": fig_profile}
 
     def plot_analyzed_image(
         self, show: bool = True, show_text: bool = True, **plt_kwargs: dict

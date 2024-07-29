@@ -426,7 +426,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
 
     def plotly_analyzed_image(
         self, fig: go.Figure | None = None, show: bool = True, zoomed: bool = False
-    ) -> go.Figure:
+    ) -> dict[str, go.Figure]:
         """Plot the analyzed image with plotly.
 
         Parameters
@@ -463,7 +463,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             )
         if show:
             fig.show()
-        return fig
+        return {"Image": fig}
 
     def plot_analyzed_image(self, show: bool = True, **plt_kwargs: dict):
         """Draw the star lines, profile circle, and wobble circle on a matplotlib figure.

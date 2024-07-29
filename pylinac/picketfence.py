@@ -898,9 +898,6 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
         overlay: bool = True,
         leaf_error_subplot: bool = True,
         show: bool = True,
-        figure_size: str | tuple = "auto",
-        show_text: bool = False,
-        barplot_kwargs: dict | None = None,
     ) -> dict[str, go.Figure]:
         """Plot the analyzed image.
 
@@ -917,22 +914,12 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
             deviation of leaf error.
         show
             Whether to display the plot. Set to false for saving to a figure, etc.
-        figure_size
-            Either 'auto' or a tuple. If auto, the figure size is set depending on the orientation. If a tuple, this is the
-            figure size to use.
-        show_text
-            Whether to show the text on the image.
-        barplot_kwargs
-            Keyword arguments to pass to the bar plot. Only used if leaf_error_subplot is True.
         """
         if not self._is_analyzed:
             raise RuntimeError("The image must be analyzed first. Use .analyze().")
         # plot the image
         figs = {}
         fig = go.Figure()
-        self.image.plotly(fig=fig, show=False)
-        # else:
-        #     fig = go.Figure()
         self.image.plotly(fig=fig, show=False)
         if guard_rails:
             for idx, picket in enumerate(self.pickets):

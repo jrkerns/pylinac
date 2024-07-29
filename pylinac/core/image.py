@@ -509,7 +509,7 @@ class BaseImage:
         if fig is None:
             fig = go.Figure()
         fig.add_heatmap(z=self.array, colorscale=colorscale, **kwargs)
-        # fig.update_traces(showscale=show_colorbar)
+        fig.update_traces(showscale=show_colorbar)
         if show_metrics:
             for metric in self.metrics:
                 metric.plotly(fig)

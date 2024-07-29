@@ -610,7 +610,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         show: bool = True,
         show_legend: bool = True,
         show_colorbar: bool = True,
-    ) -> list[go.Figure, ...]:
+    ) -> dict[str, go.Figure]:
         """Plot the analyzed image.
 
         Parameters
@@ -633,7 +633,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             raise ValueError(
                 "Nothing was plotted because either all parameters were false or there were no actual high/low ROIs"
             )
-        figs = []
+        figs = {}
         # plot the marked image
         if image:
             image_fig = self.image.plotly(
@@ -643,7 +643,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                 zmax=self.window_ceiling(),
                 show_colorbar=show_colorbar,
             )
-            figs.append(image_fig)
+            figs["Image"] = image_fig
 
             # plot the outline image
             if self.phantom_outline_object is not None:
@@ -681,13 +681,13 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         # plot the low contrast value graph
         if plot_low_contrast:
             lowcon_fig = make_subplots(specs=[[{"secondary_y": True}]])
-            figs.append(lowcon_fig)
+            figs["Low Contrast"] = lowcon_fig
             self._plotly_lowcontrast_graph(lowcon_fig)
 
         # plot the high contrast MTF graph
         if plot_high_contrast:
             hicon_fig = go.Figure()
-            figs.append(hicon_fig)
+            figs["High Contrast"] = hicon_fig
             self._plotly_highcontrast_graph(hicon_fig)
 
         if show:
