@@ -1054,15 +1054,6 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
             plt.show()
 
     def _plotly_leaf_error_plots(self) -> dict[str, go.Figure]:
-        # get leaf pair names
-        # labels = sorted(list({m.leaf_num for m in self.mlc_meas}))
-
-        # generate the error distributions per MLC pair
-
-        # if self.separate_leaves:
-        #     full_leaf_nums = np.asarray(Enumerable(self.mlc_meas).select_many(lambda m: m.full_leaf_nums).to_list())
-        #     error_items = np.asarray(Enumerable(self.mlc_meas).select_many(lambda m: m.error).to_list())
-        # else:
         error_items = np.asarray(
             Enumerable(self.mlc_meas).select(lambda m: m.error).to_list()
         )
@@ -1093,59 +1084,6 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
                 marker_color="black",
             )
         return {"error signed": signed_fig, "error absolute": abs_fig}
-
-        # for
-        # for leaf_num in {m.full_leaf_nums for m in self.mlc_meas}:
-        # for leaf_num in full_leaf_nums:
-        # if self.separate_leaves:
-        # flatten the error list and take the absolute value
-        # error_clusters.append(
-        #     np.abs(
-        #         [
-        #             e
-        #             for m in self.mlc_meas
-        #             if m.full_leaf_nums == leaf_num
-        #             for e in m.error
-        #         ]
-        #     )
-        # )
-        # else:
-        #     error_clusters.append(
-        #         np.abs([m.error for m in self.mlc_meas if m.leaf_num == leaf_num])
-        #     )
-        # error_dists = np.stack(error_clusters).squeeze()
-
-        # plot the leaf errors as a bar plot
-        # if self.orientation == Orientation.UP_DOWN:
-        # for idx, error_dist in enumerate(error_dists):
-        #     fig.add_box(
-        #         y=error_dist,
-        #         x=[full_leaf_nums[idx]]*len(error_dist),
-        #         name=full_leaf_nums[idx],
-        #     )
-        # add_horizontal_line(fig, self.tolerance, color="red", width=3)
-        # fig.add_box(
-        #     y=error_dists,
-        #     x=np.array(pos),
-        # )
-        # show every other leaf number on the ticks
-        # ax.set_yticks(pos[::2])
-        # ax.set_yticklabels(labels[::2])
-        # plot the tolerance line(s)
-        # ax.axvline(self.tolerance, color="r", linewidth=3)
-        # if self.action_tolerance is not None:
-        #     ax.axvline(self.action_tolerance, color="m", linewidth=3)
-        # reset xlims to comfortably include the max error or tolerance value
-        # ax.set_xlim([0, max([error_dists.max(), self.tolerance]) + 0.1])
-        # else:
-        #     fig.add_box(
-        #         x=error_dists,
-        #         # y=np.array(pos),
-        #         # vert=True,
-        #         # manage_ticks=False,
-        #         # **barplot_kwargs,
-        #     )
-        # add_title(fig, "Average Error (mm)")
 
     def _add_leaf_error_subplot(self, ax: plt.Axes, barplot_kwargs: dict) -> None:
         """Add a bar subplot showing the leaf error."""
