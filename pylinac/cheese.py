@@ -117,7 +117,7 @@ class CheeseModule(CatPhanModule):
             roi.plotly(
                 fig,
                 name=name,
-                edgecolor="blue",
+                color="blue",
                 text=name,
                 text_kwargs={"font_size": 16, "font_color": "blue"},
             )

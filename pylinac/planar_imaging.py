@@ -648,12 +648,12 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             # plot the outline image
             if self.phantom_outline_object is not None:
                 outline_obj, settings = self._create_phantom_outline_object()
-                outline_obj.plotly(image_fig, edgecolor="blue", **settings)
+                outline_obj.plotly(image_fig, color="blue", **settings)
             # plot the low contrast background ROIs
             for idx, roi in enumerate(self.low_contrast_background_rois):
                 roi.plotly(
                     image_fig,
-                    edgecolor="blue",
+                    color="blue",
                     name=f"LCR{idx}",
                     showlegend=show_legend,
                 )
@@ -661,7 +661,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             for idx, roi in enumerate(self.low_contrast_rois):
                 roi.plotly(
                     image_fig,
-                    edgecolor=roi.plot_color,
+                    color=roi.plot_color,
                     name=f"LC{idx}",
                     showlegend=show_legend,
                 )
@@ -673,7 +673,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                     color = "blue" if mtf > self._high_contrast_threshold else "red"
                     roi.plotly(
                         image_fig,
-                        edgecolor=color,
+                        color=color,
                         name=f"HC{idx}",
                         showlegend=show_legend,
                     )

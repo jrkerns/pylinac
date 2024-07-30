@@ -187,7 +187,7 @@ class SpatialResolutionModule(CatPhanModule):
 
     def plotly_rois(self, fig: go.Figure) -> None:
         for roi in self.rois.values():
-            roi.plotly(fig, edgecolor="green")
+            roi.plotly(fig, color="green")
 
     def plot_rois(self, axis: plt.Axes) -> None:
         """Plot the ROIs to the axis. Override to set the color"""
@@ -670,7 +670,7 @@ class MRSlice11PositionModule(CatPhanModule):
 
     def plotly_rois(self, fig: go.Figure) -> None:
         for roi in self.rois.values():
-            roi.plotly(fig, edgecolor="blue")
+            roi.plotly(fig, color="blue")
 
 
 class MRSlice11ModuleOutput(BaseModel):
@@ -767,11 +767,11 @@ class MRSlice1Module(CatPhanModule):
 
     def plotly_rois(self, fig: go.Figure) -> None:
         for roi in self.position_rois.values():
-            roi.plotly(fig, edgecolor="blue")
+            roi.plotly(fig, color="blue")
         for roi in self.thickness_rois.values():
-            roi.plotly(fig, edgecolor="blue")
+            roi.plotly(fig, color="blue")
         for roi, mtf in zip(self.rois.values(), self.rois.values()):
-            roi.plotly(fig, edgecolor="green")
+            roi.plotly(fig, color="green")
 
     @property
     def bar_difference_mm(self) -> float:
@@ -897,7 +897,7 @@ class MRUniformityModule(CatPhanModule):
     def plotly_rois(self, fig: go.Figure) -> None:
         super().plotly_rois(fig)
         for roi in self.ghost_rois.values():
-            roi.plotly(fig, edgecolor="yellow")
+            roi.plotly(fig, color="yellow")
 
     @property
     def percent_image_uniformity(self) -> float:

@@ -424,46 +424,45 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             ),
         }
 
-    def plotly_analyzed_image(
-        self, fig: go.Figure | None = None, show: bool = True, zoomed: bool = False
+    def plotly_analyzed_images(
+        self, show: bool = True, **kwargs
     ) -> dict[str, go.Figure]:
-        """Plot the analyzed image with plotly.
+        """Plot the analyzed image with plotly. Will produce two figures: the whole image and one zoomed into the wobble circle.
 
         Parameters
         ----------
-        fig : go.Figure, None
-            The figure to plot on. If None, a new figure is created.
         show : bool
             Whether to actually show the image. Set to False if doing further annotations.
-        zoomed : bool
-            Whether to zoom in on the wobble circle.
         """
-        if fig is None:
-            fig = go.Figure()
-
-        fig.add_heatmap(z=self.image.array, colorscale="gray")
-        for line in self.lines:
-            line.plotly(fig, color="blue", showlegend=False)
-        self.wobble.plotly(fig, edgecolor="green")
-        fig.update_layout(
-            yaxis_scaleanchor="x",
-            yaxis_constrain="domain",
-            xaxis_constrain="domain",
-        )
-        if zoomed:
-            fig.update_layout(
-                xaxis_range=[
-                    self.wobble.center.x - self.wobble.diameter,
-                    self.wobble.center.x + self.wobble.diameter,
-                ],
-                yaxis_range=[
-                    self.wobble.center.y - self.wobble.diameter,
-                    self.wobble.center.y + self.wobble.diameter,
-                ],
+        figs = {}
+        for name, zoom in zip(("Image", "Wobble"), (False, True)):
+            fig = self.image.plotly(show=False, **kwargs)
+            for line in self.lines:
+                line.plotly(fig, color="blue", showlegend=False)
+            self.wobble.plotly(
+                fig,
+                color="green",
+                name=f"Wobble Circle {self.wobble.diameter_mm:2.2f}mm",
+                hoverinfo="text",
+                hovertext=f"Wobble diameter: {self.wobble.diameter_mm:2.2f} mm",
             )
+            if zoom:
+                fig.update_layout(
+                    xaxis_range=[
+                        self.wobble.center.x - self.wobble.diameter,
+                        self.wobble.center.x + self.wobble.diameter,
+                    ],
+                    yaxis_range=[
+                        self.wobble.center.y - self.wobble.diameter,
+                        self.wobble.center.y + self.wobble.diameter,
+                    ],
+                    yaxis_autorange=None,  # bug in plotly; need to set to None
+                )
+            figs[name] = fig
         if show:
-            fig.show()
-        return {"Image": fig}
+            for f in figs.values():
+                f.show()
+        return figs
 
     def plot_analyzed_image(self, show: bool = True, **plt_kwargs: dict):
         """Draw the star lines, profile circle, and wobble circle on a matplotlib figure.

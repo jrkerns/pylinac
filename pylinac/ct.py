@@ -538,9 +538,9 @@ class CatPhanModule(Slice):
 
     def plotly_rois(self, fig: go.Figure) -> None:
         for roi in self.rois.values():
-            roi.plotly(fig, edgecolor=roi.plot_color)
+            roi.plotly(fig, color=roi.plot_color)
         for roi in self.background_rois.values():
-            roi.plotly(fig, edgecolor="blue")
+            roi.plotly(fig, color="blue")
 
     def plot(self, axis: plt.Axes):
         """Plot the image along with ROIs to an axis"""
@@ -873,7 +873,7 @@ class CTP404CP504(CatPhanModule):
         super().plotly_rois(fig)
         # plot thickness ROIs
         for roi in self.thickness_rois.values():
-            roi.plotly(fig, edgecolor="blue")
+            roi.plotly(fig, color="blue")
         # plot geometry lines
         for line in self.lines.values():
             line.plotly(fig, color=line.pass_fail_color)
@@ -1140,7 +1140,7 @@ class CTP486(CatPhanModule):
     def plotly(self) -> go.Figure:
         fig = super().plotly()
         for nps_roi in self.nps_rois.values():
-            nps_roi.plotly(fig, edgecolor="green", line_dash="dash")
+            nps_roi.plotly(fig, color="green", line_dash="dash")
         return fig
 
     @property
@@ -1344,7 +1344,7 @@ class CTP528CP504(CatPhanModule):
         return self.radius2linepairs_mm / self.mm_per_pixel
 
     def plotly_rois(self, fig: go.Figure) -> None:
-        self.circle_profile.plotly(fig, edgecolor="blue", plot_peaks=False)
+        self.circle_profile.plotly(fig, color="blue", plot_peaks=False)
 
     def plot_rois(self, axis: plt.Axes) -> None:
         """Plot the circles where the profile was taken within."""

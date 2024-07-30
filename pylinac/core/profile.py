@@ -2263,11 +2263,11 @@ class CircleProfile(MultiProfile, Circle):
     def plotly(
         self,
         fig: go.Figure,
-        edgecolor: str = "black",
+        color: str = "black",
         fill: bool = False,
         plot_peaks: bool = True,
     ):
-        Circle.plotly(self, fig, edgecolor, fill)
+        Circle.plotly(self, fig, color, fill)
         if plot_peaks:
             x_locs = [peak.x for peak in self.peaks]
             y_locs = [peak.y for peak in self.peaks]
@@ -2275,7 +2275,7 @@ class CircleProfile(MultiProfile, Circle):
                 x=x_locs,
                 y=y_locs,
                 mode="markers",
-                marker=dict(size=10, color=edgecolor),
+                marker=dict(size=10, color=color),
             )
 
     def plot2axes(
@@ -2409,14 +2409,14 @@ class CollapsedCircleProfile(CircleProfile):
     def plotly(
         self,
         fig: go.Figure,
-        edgecolor: str = "black",
+        color: str = "black",
         fill: bool = False,
         plot_peaks: bool = True,
     ):
         with TemporaryAttribute(self, "radius", self.radius * (1 + self.width_ratio)):
-            super().plotly(fig, edgecolor, fill)
+            super().plotly(fig, color, fill)
         with TemporaryAttribute(self, "radius", self.radius * (1 - self.width_ratio)):
-            super().plotly(fig, edgecolor, fill)
+            super().plotly(fig, color, fill)
         if plot_peaks:
             x_locs = [peak.x for peak in self.peaks]
             y_locs = [peak.y for peak in self.peaks]
@@ -2424,7 +2424,7 @@ class CollapsedCircleProfile(CircleProfile):
                 x=x_locs,
                 y=y_locs,
                 mode="markers",
-                marker=dict(size=10, color=edgecolor),
+                marker=dict(size=10, color=color),
             )
 
     def plot2axes(

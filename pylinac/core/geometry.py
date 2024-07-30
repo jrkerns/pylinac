@@ -251,34 +251,24 @@ class Circle:
     def plotly(
         self,
         fig: go.Figure,
-        edgecolor: str = "black",
+        color: str = "black",
         fill: bool = False,
         show_legend: bool = True,
-        text: str = "",
-        text_kwargs: dict | None = None,
         **kwargs,
     ) -> None:
         """Draw the circle on a plotly figure."""
-        fig.add_shape(
-            type="circle",
-            x0=self.center.x - self.radius,
-            y0=self.center.y - self.radius,
-            x1=self.center.x + self.radius,
-            y1=self.center.y + self.radius,
-            line=dict(color=edgecolor),
-            fillcolor=edgecolor if fill else "rgba(0,0,0,0)",
-            showlegend=show_legend,
+        # we use scatter so we can have hovertext/info, etc. Easier
+        # with add_shape but we don't have the same options. Makes interface more consistent.
+        theta = np.linspace(0, 2 * np.pi, 100)
+        fig.add_scatter(
+            x=self.center.x + self.radius * np.cos(theta),
+            y=self.center.y + self.radius * np.sin(theta),
+            mode="lines",
+            line_color=color,
+            fill="toself" if fill else "none",
+            fillcolor=color if fill else "rgba(0,0,0,0)",
             **kwargs,
         )
-        text_kwargs = text_kwargs or {}
-        if text:
-            fig.add_annotation(
-                x=self.center.x,
-                y=self.center.y,
-                text=text,
-                showarrow=False,
-                **text_kwargs,
-            )
 
     def plot2axes(
         self,
@@ -639,25 +629,34 @@ class Rectangle:
     def plotly(
         self,
         fig: go.Figure,
-        edgecolor: str = "black",
+        color: str = "black",
         fill: bool = False,
-        text: str = "",
-        text_kwargs: dict | None = None,
         **kwargs,
     ) -> None:
         """Draw the rectangle on a plotly figure."""
-        fig.add_shape(
-            type="rect",
-            x0=self.bl_corner.x,
-            y0=self.bl_corner.y,
-            x1=self.tr_corner.x,
-            y1=self.tr_corner.y,
+        # we use scatter so we can have hovertext/info, etc. Easier
+        # with add_shape but we don't have the same options. Makes interface more consistent.
+        fig.add_scatter(
+            x=[
+                self.bl_corner.x,
+                self.tl_corner.x,
+                self.tr_corner.x,
+                self.br_corner.x,
+                self.bl_corner.x,
+            ],
+            y=[
+                self.bl_corner.y,
+                self.tl_corner.y,
+                self.tr_corner.y,
+                self.br_corner.y,
+                self.bl_corner.y,
+            ],
+            mode="lines",
+            line_color=color,
+            fill="toself" if fill else "none",
+            fillcolor=color if fill else "rgba(0,0,0,0)",
             **kwargs,
         )
-        if text:
-            fig.add_annotation(
-                x=self.center.x, y=self.center.y, text=text, **text_kwargs or {}
-            )
 
     def plot2axes(
         self,

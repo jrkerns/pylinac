@@ -508,11 +508,6 @@ class BaseImage:
         """Plot the image in a plotly figure"""
         if fig is None:
             fig = go.Figure()
-        fig.add_heatmap(z=self.array, colorscale=colorscale, **kwargs)
-        fig.update_traces(showscale=show_colorbar)
-        if show_metrics:
-            for metric in self.metrics:
-                metric.plotly(fig)
         fig.update_layout(
             title={
                 "text": title,
@@ -529,7 +524,13 @@ class BaseImage:
             xaxis_scaleanchor="y",
             xaxis_constrain="domain",
             legend={"x": 0},
+            showlegend=kwargs.pop("show_legend", True),
         )
+        fig.add_heatmap(z=self.array, colorscale=colorscale, **kwargs)
+        fig.update_traces(showscale=show_colorbar)
+        if show_metrics:
+            for metric in self.metrics:
+                metric.plotly(fig)
         if show:
             fig.show()
         return fig

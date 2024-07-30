@@ -172,7 +172,7 @@ class DiskROIMetric(MetricBase):
         """Plot the disk ROI."""
         edgecolor = kwargs.pop("edgecolor", self.edge_color)
         kw = {**self.kwargs, **kwargs}
-        self.roi.plotly(fig, edgecolor=edgecolor, **kw)
+        self.roi.plotly(fig, color=edgecolor, **kw)
 
 
 class RectangleROIMetric(MetricBase):
@@ -267,7 +267,7 @@ class RectangleROIMetric(MetricBase):
         """Plot the disk ROI."""
         edgecolor = kwargs.pop("edgecolor", self.edge_color)
         kw = {**self.kwargs, **kwargs}
-        self.roi.plotly(fig, edgecolor=edgecolor, **kw)
+        self.roi.plotly(fig, color=edgecolor, **kw)
 
 
 class GlobalSizedDiskLocator(MetricBase):
