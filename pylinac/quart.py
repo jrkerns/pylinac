@@ -352,7 +352,7 @@ class QuartGeometryModule(CatPhanModule):
 
     def plotly_rois(self, fig: go.Figure) -> None:
         for name, profile_data in self.profiles.items():
-            profile_data["line"].plotly(fig, line_width=2, color="blue")
+            profile_data["line"].plotly(fig, line_width=2, color="blue", name=name)
 
     def distances(self) -> dict[str, float]:
         """The measurements of the phantom size for the two lines in mm"""
@@ -441,9 +441,17 @@ class QuartDVT(CatPhanBase, ResultsDataMixin[QuartDVTResult]):
             self, tolerance=3, offset=GEOMETRY_OFFSET_MM
         )
 
-    def plotly_analyzed_image(self, show: bool = True) -> dict[str, go.Figure]:
+    def plotly_analyzed_images(
+        self,
+        show: bool = True,
+        show_legend: bool = True,
+        show_colorbar: bool = True,
+        **kwargs,
+    ) -> dict[str, go.Figure]:
         figs = {}
-        figs[self.hu_module.common_name] = self.hu_module.plotly()
+        figs[self.hu_module.common_name] = self.hu_module.plotly(
+            show_colorbar=show_colorbar, show_legend=show_legend
+        )
         figs["HU Linearity plot"] = self.hu_module.plotly_linearity()
         figs[self.uniformity_module.common_name] = self.uniformity_module.plotly()
         figs[self.geometry_module.common_name] = self.geometry_module.plotly()

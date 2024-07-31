@@ -36,6 +36,7 @@ from scipy import optimize
 from .core import image, pdf
 from .core.geometry import Circle, Line, Point
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
+from .core.plotly_utils import set_axis_range
 from .core.profile import CollapsedCircleProfile, FWXMProfile
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
 
@@ -425,7 +426,11 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         }
 
     def plotly_analyzed_images(
-        self, show: bool = True, **kwargs
+        self,
+        show: bool = True,
+        show_colorbar: bool = True,
+        show_legend: bool = True,
+        **kwargs,
     ) -> dict[str, go.Figure]:
         """Plot the analyzed image with plotly. Will produce two figures: the whole image and one zoomed into the wobble circle.
 
@@ -436,7 +441,12 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         """
         figs = {}
         for name, zoom in zip(("Image", "Wobble"), (False, True)):
-            fig = self.image.plotly(show=False, **kwargs)
+            fig = self.image.plotly(
+                show=False,
+                show_legend=show_legend,
+                show_colorbar=show_colorbar,
+                **kwargs,
+            )
             for line in self.lines:
                 line.plotly(fig, color="blue", showlegend=False)
             self.wobble.plotly(
@@ -447,17 +457,18 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
                 hovertext=f"Wobble diameter: {self.wobble.diameter_mm:2.2f} mm",
             )
             if zoom:
-                fig.update_layout(
-                    xaxis_range=[
+                set_axis_range(
+                    fig=fig,
+                    x=[
                         self.wobble.center.x - self.wobble.diameter,
                         self.wobble.center.x + self.wobble.diameter,
                     ],
-                    yaxis_range=[
+                    y=[
                         self.wobble.center.y - self.wobble.diameter,
                         self.wobble.center.y + self.wobble.diameter,
                     ],
-                    yaxis_autorange=None,  # bug in plotly; need to set to None
                 )
+
             figs[name] = fig
         if show:
             for f in figs.values():

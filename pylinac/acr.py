@@ -42,6 +42,7 @@ MR_UNIFORMITY_MODULE_OFFSET_MM = 60
 
 
 class CTModule(CatPhanModule):
+    common_name = "HU Linearity"
     attr_name = "ct_calibration_module"
     roi_dist_mm = 63
     roi_radius_mm = 10
@@ -186,8 +187,8 @@ class SpatialResolutionModule(CatPhanModule):
         )
 
     def plotly_rois(self, fig: go.Figure) -> None:
-        for roi in self.rois.values():
-            roi.plotly(fig, color="green")
+        for name, roi in self.rois.items():
+            roi.plotly(fig, color="green", name=name)
 
     def plot_rois(self, axis: plt.Axes) -> None:
         """Plot the ROIs to the axis. Override to set the color"""
@@ -322,7 +323,26 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
             clear_borders=self.clear_borders,
         )
 
-    def plotly_analyzed_image(self, show: bool = True) -> dict[str, go.Figure]:
+    def plotly_analyzed_image(
+        self,
+        show: bool = True,
+        show_colorbar: bool = True,
+        show_legend: bool = True,
+        **kwargs,
+    ) -> dict[str, go.Figure]:
+        """Plot the analyzed image using Plotly. Will create multiple figures.
+
+        Parameters
+        ----------
+        show : bool
+            Whether to show the images. Set to False if doing further processing of the figure.
+        show_colorbar : bool
+            Whether to show the colorbar on the images.
+        show_legend : bool
+            Whether to show the legend on the images.
+        kwargs
+            Additional keyword arguments to pass to the figure.
+        """
         figs = {}
         for module in (
             self.ct_calibration_module,
@@ -330,9 +350,11 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
             self.spatial_resolution_module,
             self.low_contrast_module,
         ):
-            figs[module.common_name] = module.plotly()
-        figs["MTF"] = self.spatial_resolution_module.mtf.plotly()
-        figs["Side View"] = self.plotly_side_view()
+            figs[module.common_name] = module.plotly(
+                show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
+            )
+        figs["MTF"] = self.spatial_resolution_module.mtf.plotly(**kwargs)
+        figs["Side View"] = self.plotly_side_view(offset=-0.5)
 
         if show:
             for fig in figs.values():
@@ -669,8 +691,8 @@ class MRSlice11PositionModule(CatPhanModule):
             roi.plot2axes(axis, edgecolor="blue")
 
     def plotly_rois(self, fig: go.Figure) -> None:
-        for roi in self.rois.values():
-            roi.plotly(fig, color="blue")
+        for name, roi in self.rois.items():
+            roi.plotly(fig, color="blue", name=name)
 
 
 class MRSlice11ModuleOutput(BaseModel):
@@ -766,12 +788,12 @@ class MRSlice1Module(CatPhanModule):
             roi.plot2axes(axis, edgecolor="g")
 
     def plotly_rois(self, fig: go.Figure) -> None:
-        for roi in self.position_rois.values():
-            roi.plotly(fig, color="blue")
-        for roi in self.thickness_rois.values():
-            roi.plotly(fig, color="blue")
-        for roi, mtf in zip(self.rois.values(), self.rois.values()):
-            roi.plotly(fig, color="green")
+        for name, roi in self.position_rois.items():
+            roi.plotly(fig, color="blue", name=name)
+        for name, roi in self.thickness_rois.items():
+            roi.plotly(fig, color="blue", name=name)
+        for name, roi in self.rois.items():
+            roi.plotly(fig, color="green", name=name)
 
     @property
     def bar_difference_mm(self) -> float:
@@ -896,8 +918,8 @@ class MRUniformityModule(CatPhanModule):
 
     def plotly_rois(self, fig: go.Figure) -> None:
         super().plotly_rois(fig)
-        for roi in self.ghost_rois.values():
-            roi.plotly(fig, color="yellow")
+        for name, roi in self.ghost_rois.items():
+            roi.plotly(fig, color="yellow", name=name)
 
     @property
     def percent_image_uniformity(self) -> float:
@@ -1053,7 +1075,7 @@ class GeometricDistortionModule(CatPhanModule):
 
     def plotly_rois(self, fig: go.Figure) -> None:
         for name, profile_data in self.profiles.items():
-            profile_data["line"].plotly(fig, line_width=2, color="blue")
+            profile_data["line"].plotly(fig, line_width=2, color="blue", name=name)
 
     def plot_rois(self, axis: plt.Axes):
         for name, profile_data in self.profiles.items():
@@ -1231,7 +1253,13 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             del self.dicom_stack[idx]
             del self.dicom_stack.metadatas[idx]
 
-    def plotly_analyzed_image(self, show: bool = True) -> dict[str, go.Figure]:
+    def plotly_analyzed_image(
+        self,
+        show: bool = True,
+        show_colorbar: bool = True,
+        show_legend: bool = True,
+        **kwargs,
+    ) -> dict[str, go.Figure]:
         """Plot the analyzed image using Plotly
 
         Parameters
@@ -1247,7 +1275,9 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             self.uniformity_module,
             self.slice11,
         ):
-            figs[module.common_name] = module.plotly()
+            figs[module.common_name] = module.plotly(
+                show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
+            )
         # side view
         figs["Side View"] = self.plotly_side_view(offset=-0.2)
         # mtf

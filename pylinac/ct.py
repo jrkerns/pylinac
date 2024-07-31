@@ -537,10 +537,10 @@ class CatPhanModule(Slice):
             roi.plot2axes(axis, edgecolor="blue")
 
     def plotly_rois(self, fig: go.Figure) -> None:
-        for roi in self.rois.values():
-            roi.plotly(fig, color=roi.plot_color)
-        for roi in self.background_rois.values():
-            roi.plotly(fig, color="blue")
+        for name, roi in self.rois.items():
+            roi.plotly(fig, color=roi.plot_color, name=name)
+        for name, roi in self.background_rois.items():
+            roi.plotly(fig, color="blue", name=f"{name} Background")
 
     def plot(self, axis: plt.Axes):
         """Plot the image along with ROIs to an axis"""
@@ -550,10 +550,12 @@ class CatPhanModule(Slice):
         axis.set_title(self.common_name)
         axis.axis("off")
 
-    def plotly(self) -> go.Figure:
+    def plotly(self, **kwargs) -> go.Figure:
         """Plot the image along with the ROIs to a plotly figure."""
         fig = go.Figure()
-        self.image.plotly(fig, show=False, zmin=self.window_min, zmax=self.window_max)
+        self.image.plotly(
+            fig, show=False, zmin=self.window_min, zmax=self.window_max, **kwargs
+        )
         self.plotly_rois(fig)
         add_title(fig, self.common_name)
         return fig
@@ -821,9 +823,8 @@ class CTP404CP504(CatPhanModule):
             name="Lower Tolerance",
             line=dict(dash="dash", color="red"),
         )
-        fig.update_layout(
-            xaxis_title="Nominal Values", yaxis_title=ylabel, title="HU Linearity"
-        )
+        fig.update_layout(xaxis_title="Nominal Values", yaxis_title=ylabel)
+        add_title(fig, "HU Linearity")
         return fig
 
     def plot_linearity(
@@ -872,11 +873,11 @@ class CTP404CP504(CatPhanModule):
     def plotly_rois(self, fig: go.Figure) -> None:
         super().plotly_rois(fig)
         # plot thickness ROIs
-        for roi in self.thickness_rois.values():
-            roi.plotly(fig, color="blue")
+        for name, roi in self.thickness_rois.items():
+            roi.plotly(fig, color="blue", name=f"Ramp {name}")
         # plot geometry lines
-        for line in self.lines.values():
-            line.plotly(fig, color=line.pass_fail_color)
+        for name, line in self.lines.items():
+            line.plotly(fig, color=line.pass_fail_color, name=f"Geometry {name}")
 
     def plot_rois(self, axis: plt.Axes) -> None:
         """Plot the ROIs onto the image, as well as the background ROIs"""
@@ -1137,10 +1138,10 @@ class CTP486(CatPhanModule):
             nps_roi.plot2axes(axis, edgecolor="green", linestyle="-.")
         super().plot(axis)
 
-    def plotly(self) -> go.Figure:
-        fig = super().plotly()
-        for nps_roi in self.nps_rois.values():
-            nps_roi.plotly(fig, color="green", line_dash="dash")
+    def plotly(self, **kwargs) -> go.Figure:
+        fig = super().plotly(**kwargs)
+        for name, nps_roi in self.nps_rois.items():
+            nps_roi.plotly(fig, color="green", line_dash="dash", name=f"NPS {name}")
         return fig
 
     @property
@@ -1345,6 +1346,9 @@ class CTP528CP504(CatPhanModule):
 
     def plotly_rois(self, fig: go.Figure) -> None:
         self.circle_profile.plotly(fig, color="blue", plot_peaks=False)
+        fig.update_layout(
+            showlegend=False,
+        )
 
     def plot_rois(self, axis: plt.Axes) -> None:
         """Plot the circles where the profile was taken within."""
@@ -1802,7 +1806,13 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         obj.was_from_zip = True
         return obj
 
-    def plotly_analyzed_image(self, show: bool = True) -> dict[str, go.Figure]:
+    def plotly_analyzed_image(
+        self,
+        show: bool = True,
+        show_colorbar: bool = True,
+        show_legend: bool = True,
+        **kwargs,
+    ) -> dict[str, go.Figure]:
         figs = {}
         figs["CTP404"] = self.ctp404.plotly()
         figs["HU Linearity"] = self.ctp404.plotly_linearity()
@@ -2288,6 +2298,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         side_array = self.dicom_stack.side_view(axis=1)
         add_title(fig, "Side View")
         fig.add_heatmap(z=side_array, colorscale="gray", showscale=False)
+
         for module in self._detected_modules():
             add_vertical_line(
                 fig,
@@ -2295,14 +2306,6 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
                 width=3,
                 color="blue",
                 name=module.common_name,
-                text=module.common_name,
-                text_kwargs={
-                    "textangle": 270,
-                    "font_color": "blue",
-                    "font_size": 18,
-                    "showarrow": False,
-                },
-                offset=offset,
             )
         return fig
 

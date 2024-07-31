@@ -893,11 +893,12 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
 
     def plotly_analyzed_image(
         self,
-        guard_rails: bool = True,
         mlc_peaks: bool = True,
         overlay: bool = True,
-        leaf_error_subplot: bool = True,
         show: bool = True,
+        show_colorbar: bool = True,
+        show_legend: bool = True,
+        **kwargs,
     ) -> dict[str, go.Figure]:
         """Plot the analyzed image.
 
@@ -919,11 +920,11 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
             raise RuntimeError("The image must be analyzed first. Use .analyze().")
         # plot the image
         figs = {}
-        fig = go.Figure()
-        self.image.plotly(fig=fig, show=False)
-        if guard_rails:
-            for idx, picket in enumerate(self.pickets):
-                picket.plotly_guardrails(fig=fig, idx=idx)
+        fig = self.image.plotly(
+            show=False, show_legend=show_legend, show_colorbar=show_colorbar, **kwargs
+        )
+        for idx, picket in enumerate(self.pickets):
+            picket.plotly_guardrails(fig=fig, picket=idx)
         if mlc_peaks:
             for mlc_meas in self.mlc_meas:
                 mlc_meas.plotly(fig=fig)
@@ -937,7 +938,10 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
             x=[self.image.center.x],
             y=[self.image.center.y],
             mode="markers",
-            marker=dict(color="red", size=12, symbol="cross-thin"),
+            marker_symbol="square-open-dot",
+            marker_color="red",
+            marker_size=10,
+            name="CAX",
         )
         figs["Picket Fence"] = fig
 
@@ -968,8 +972,7 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
         figs["Histogram"] = histogram_fig
 
         # leaf error plot
-        if leaf_error_subplot:
-            figs |= self._plotly_leaf_error_plots()
+        figs |= self._plotly_leaf_error_plots()
 
         if show:
             for fig in figs.values():
@@ -1520,7 +1523,11 @@ class MLCValue:
     def plotly(self, fig: go.Figure):
         """Plot the MLC measurement to a plotly figure."""
         for idx, line in enumerate(self.marker_lines):
-            line.plotly(fig, color=self.bg_color[idx])
+            line.plotly(
+                fig,
+                color=self.bg_color[idx],
+                name=f"Picket {self.picket_num} - Leaf {self.leaf_num}",
+            )
 
     def plot2axes(self, axes: plt.Axes, width: float | int = 1) -> None:
         """Plot the measurement to the axes."""
@@ -1697,6 +1704,7 @@ class MLCValue:
                         fill=True,
                         opacity=0.3,
                         fillcolor=self.bg_color[idx],
+                        showlegend=False,
                     )
             else:
                 x = line.center.x
@@ -1712,13 +1720,14 @@ class MLCValue:
                         fill=True,
                         opacity=0.3,
                         fillcolor=self.bg_color[idx],
+                        showlegend=False,
                     )
             r.plotly(
                 fig,
                 fill=True,
                 opacity=1,
-                fillcolor=self.bg_color[idx],
-                line_color=self.bg_color[idx],
+                color=self.bg_color[idx],
+                showlegend=False,
             )
 
     def plot_overlay2axes(self, axes: Axes, show_text: bool) -> None:
@@ -1881,7 +1890,7 @@ class Picket:
             other_fit[-1] += self._nominal_gap * mag_factor / 2 * self.image.dpmm
             return [np.poly1d(r_fit), np.poly1d(other_fit)]
 
-    def plotly_guardrails(self, fig: go.Figure, idx: int) -> None:
+    def plotly_guardrails(self, fig: go.Figure, picket: int) -> None:
         """Plot guard rails to the axis."""
         if self.orientation == Orientation.UP_DOWN:
             length = self.image.shape[0]
@@ -1897,9 +1906,14 @@ class Picket:
                     x=left(x_data),
                     y=x_data,
                     line_color="green",
+                    name=f"Left Guard Rail - {picket}",
                 )
                 fig.add_scatter(
-                    mode="lines", x=right(x_data), y=x_data, line_color="green"
+                    mode="lines",
+                    x=right(x_data),
+                    y=x_data,
+                    line_color="green",
+                    name=f"Right Guard Rail - {picket}",
                 )
             else:
                 fig.add_scatter(

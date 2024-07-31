@@ -118,12 +118,7 @@ class CheeseModule(CatPhanModule):
                 fig,
                 name=name,
                 color="blue",
-                text=name,
-                text_kwargs={"font_size": 16, "font_color": "blue"},
             )
-        fig.update_layout(
-            showlegend=True,
-        )
 
 
 class TomoCheeseModule(CheeseModule):
@@ -308,7 +303,13 @@ class CheesePhantomBase(CatPhanBase, ResultsDataMixin[CheeseResult]):
             )
             return 0
 
-    def plotly_analyzed_image(self, show: bool = True) -> dict[str, go.Figure]:
+    def plotly_analyzed_image(
+        self,
+        show: bool = True,
+        show_colorbar: bool = True,
+        show_legend: bool = True,
+        **kwargs,
+    ) -> dict[str, go.Figure]:
         """Plot the images used in the calculation and summary data.
 
         Parameters
@@ -316,7 +317,11 @@ class CheesePhantomBase(CatPhanBase, ResultsDataMixin[CheeseResult]):
         show : bool
             Whether to plot the image or not.
         """
-        figs = {self.module.common_name: self.module.plotly()}
+        figs = {
+            self.module.common_name: self.module.plotly(
+                show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
+            )
+        }
 
         # density curve (if densities passed)
         if self.roi_config:

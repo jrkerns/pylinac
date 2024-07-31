@@ -135,18 +135,15 @@ class Point:
             (self.x - p.x) ** 2 + (self.y - p.y) ** 2 + (self.z - p.z) ** 2
         )
 
-    def as_array(self, only_coords: bool = True) -> np.ndarray:
-        """Return the point as a numpy array."""
-        if only_coords:
-            return np.array([getattr(self, item) for item in self._coord_list])
-        else:
-            return np.array(
-                [
-                    getattr(self, item)
-                    for item in self._attr_list
-                    if (getattr(self, item) is not None)
-                ]
-            )
+    def as_array(self, coords: tuple[str, ...] = ("x", "y", "z")) -> np.ndarray:
+        """Return the point as a numpy array.
+
+        Parameters
+        ----------
+        coords : tuple
+            The coordinate attributes to return in the array.
+        """
+        return np.array([getattr(self, coord) for coord in coords])
 
     def as_vector(self) -> Vector:
         return Vector(x=self.x, y=self.y, z=self.z)
@@ -253,7 +250,6 @@ class Circle:
         fig: go.Figure,
         color: str = "black",
         fill: bool = False,
-        show_legend: bool = True,
         **kwargs,
     ) -> None:
         """Draw the circle on a plotly figure."""
@@ -631,25 +627,31 @@ class Rectangle:
         fig: go.Figure,
         color: str = "black",
         fill: bool = False,
+        angle: float = 0.0,
         **kwargs,
     ) -> None:
         """Draw the rectangle on a plotly figure."""
         # we use scatter so we can have hovertext/info, etc. Easier
         # with add_shape but we don't have the same options. Makes interface more consistent.
+        bl_corner, tl_corner, tr_corner, br_corner = rotate_points(
+            [self.bl_corner, self.tl_corner, self.tr_corner, self.br_corner],
+            angle,
+            self.center,
+        )
         fig.add_scatter(
             x=[
-                self.bl_corner.x,
-                self.tl_corner.x,
-                self.tr_corner.x,
-                self.br_corner.x,
-                self.bl_corner.x,
+                bl_corner.x,
+                tl_corner.x,
+                tr_corner.x,
+                br_corner.x,
+                bl_corner.x,
             ],
             y=[
-                self.bl_corner.y,
-                self.tl_corner.y,
-                self.tr_corner.y,
-                self.br_corner.y,
-                self.bl_corner.y,
+                bl_corner.y,
+                tl_corner.y,
+                tr_corner.y,
+                br_corner.y,
+                bl_corner.y,
             ],
             mode="lines",
             line_color=color,
@@ -703,6 +705,7 @@ class Rectangle:
                 (self.bl_corner.x, self.bl_corner.y),
                 width=self.width,
                 height=self.height,
+                rotation_point="center",
                 angle=angle,
                 edgecolor=edgecolor,
                 alpha=alpha,
@@ -722,3 +725,21 @@ class Rectangle:
                 horizontalalignment=ha,
                 verticalalignment=va,
             )
+
+
+def rotate_points(points: list[Point], angle: float, center: Point) -> list[Point]:
+    """Rotate a list of points around a center point."""
+    angle = np.radians(angle - 90)
+    # Rotation matrix
+    rotation_matrix = np.array(
+        [[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]
+    )
+
+    p = np.asarray([p.as_array(("x", "y")) for p in points])
+    # Translate points to origin, apply rotation, translate back
+    translated_points = p - center.as_array(("x", "y"))
+    rotated_points = np.dot(translated_points, rotation_matrix) + center.as_array(
+        ("x", "y")
+    )
+
+    return [Point(x, y) for x, y in rotated_points]

@@ -348,12 +348,43 @@ class BB3D:
         # vectors and points are effectively the same thing here but we convert to a point for clarity
         return Point(x=vector.x, y=vector.y, z=vector.z)
 
+    def plotly_nominal(self, fig: go.Figure, color: str, **kwargs) -> None:
+        x, y, z = create_sphere_surface(
+            radius=self.bb_config.bb_size_mm / 2, center=self.nominal_bb_position
+        )
+        fig.add_surface(
+            x=x,
+            y=y,
+            z=z,
+            name=f"Nominal BB - {self.bb_config.name}",
+            showscale=False,
+            colorscale=[[0, color], [1, color]],
+            showlegend=True,
+            **kwargs,
+        )
+
     def plot_nominal(self, axes: plt.Axes, color: str, **kwargs):
         """Plot the BB nominal position"""
         x, y, z = create_sphere_surface(
             radius=self.bb_config.bb_size_mm / 2, center=self.nominal_bb_position
         )
         axes.plot_surface(x, y, z, color=color, **kwargs)
+
+    def plotly_measured(self, fig: go.Figure, color: str, **kwargs):
+        """Plot the BB measured position"""
+        x, y, z = create_sphere_surface(
+            radius=self.bb_config.bb_size_mm / 2, center=self.measured_bb_position
+        )
+        fig.add_surface(
+            x=x,
+            y=y,
+            z=z,
+            name=f"Measured BB - {self.bb_config.name}",
+            showscale=False,
+            colorscale=[[0, color], [1, color]],
+            showlegend=True,
+            **kwargs,
+        )
 
     def plot_measured(self, axes: plt.Axes, color: str, **kwargs):
         """Plot the BB measured position"""
@@ -950,6 +981,10 @@ class WLBaseImage(image.LinacDicomImage):
         x = (1.5, 30)
         return np.interp(bb_diameter, x, y)
 
+    def to_axes(self) -> str:
+        """Give just the axes values as a human-readable string"""
+        return f"Gantry={self.gantry_angle:.1f}, Coll={self.collimator_angle:.1f}, Couch={self.couch_angle:.1f}"
+
     @property
     def variable_axis(self) -> Axis:
         """The axis that is varying.
@@ -1059,10 +1094,6 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
 
     def __repr__(self):
         return f"WLImage(gantry={self.gantry_angle:.1f}, coll={self.collimator_angle:.1f}, couch={self.couch_angle:.1f})"
-
-    def to_axes(self) -> str:
-        """Give just the axes values as a human-readable string"""
-        return f"Gantry={self.gantry_angle:.1f}, Coll={self.collimator_angle:.1f}, Couch={self.couch_angle:.1f}"
 
     @property
     def cax2bb_vector(self) -> Vector:
@@ -1730,8 +1761,9 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             z=z,
             opacity=0.2,
             name="Isosphere",
-            showscale=show_colorbar,
+            showscale=False,
             colorscale=[[0, "blue"], [1, "blue"]],
+            showlegend=True,
         )
         # bb
         x, y, z = create_sphere_surface(
@@ -1746,10 +1778,11 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             x=x,
             y=y,
             z=z,
-            opacity=0.2,
+            opacity=0.1,
             name="BB",
-            showscale=show_colorbar,
+            showscale=False,
             colorscale=[[0, "red"], [1, "red"]],
+            showlegend=True,
         )
         # coll iso size
         theta = np.linspace(0, 2 * np.pi, 100)
@@ -2775,6 +2808,102 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
     @property
     def gantry_iso_size(self) -> float:
         raise NotImplementedError("Not yet implemented")
+
+    def plotly_analyzed_images(
+        self,
+        zoomed: bool = True,
+        show_legend: bool = True,
+        show: bool = True,
+        show_colorbar: bool = True,
+        **kwargs,
+    ) -> dict[str, go.Figure]:
+        """Plot the analyzed images using Plotly.
+
+        Parameters
+        ----------
+        zoomed : bool
+            Whether to zoom in on the BBs.
+        show_legend : bool
+            Whether to show the legend on the plot.
+        show : bool
+            Whether to show the plot.
+        show_colorbar : bool
+            Whether to show the colorbar on the plot.
+        kwargs
+            Additional keyword arguments to pass to the plot
+        """
+        figs = {}
+        for idx, wl_image in enumerate(self.images):
+            fig = wl_image.plotly(
+                show=False,
+                show_legend=show_legend,
+                zoomed=zoomed,
+                show_colorbar=show_colorbar,
+                **kwargs,
+            )
+            # we add a enumerator in case there are multiple images with the same axis values
+            figs[f"{idx} - {wl_image.to_axes()}"] = fig
+
+        x_lim = max(
+            max([np.abs(bb.nominal_bb_position.x) for bb in self.bbs]) * 1.3, 10
+        )
+        y_lim = max(
+            max([np.abs(bb.nominal_bb_position.y) for bb in self.bbs]) * 1.3, 10
+        )
+        z_lim = max(
+            max([np.abs(bb.nominal_bb_position.z) for bb in self.bbs]) * 1.3, 10
+        )
+        limit = max(x_lim, y_lim, z_lim)
+        # 3d iso visualization
+        iso_fig = go.Figure()
+        figs["Isocenter Visualization"] = iso_fig
+        for x, y, z in (
+            ((-limit, limit), (0, 0), (0, 0)),
+            ((0, 0), (-limit, limit), (0, 0)),
+            ((0, 0), (0, 0), (-limit, limit)),
+        ):
+            iso_fig.add_scatter3d(
+                mode="lines", x=x, y=y, z=z, name="Isocenter Axis", marker_color="blue"
+            )
+        # bbs
+        for bb in self.bbs:
+            bb.plotly_measured(iso_fig, color="cyan", opacity=0.6)
+            bb.plotly_nominal(iso_fig, color="green", opacity=0.6)
+
+        # isosphere
+        x, y, z = create_sphere_surface(
+            radius=self.cax2bb_distance("max"),
+            center=Point(),
+        )
+        iso_fig.add_surface(
+            x=x,
+            y=y,
+            z=z,
+            opacity=0.2,
+            name="Isosphere",
+            showscale=False,
+            colorscale=[[0, "blue"], [1, "blue"]],
+            showlegend=True,
+        )
+        iso_fig.update_layout(
+            scene=dict(
+                xaxis_range=[-limit, limit],
+                yaxis_range=[-limit, limit],
+                zaxis_range=[-limit, limit],
+                aspectmode="cube",
+                xaxis_title="X (mm), Right (+)",
+                yaxis_title="Y (mm), In (+)",
+                zaxis_title="Z (mm), Up (+)",
+            ),
+            # set the camera so x axis is on the lower left; makes for more natural visualization
+            scene_camera_eye=dict(x=-1, y=1, z=1),
+            showlegend=show_legend,
+        )
+        add_title(iso_fig, "3D Isocenter visualization")
+        if show:
+            for f in figs.values():
+                f.show()
+        return figs
 
     def plot_images(
         self, show: bool = True, zoomed: bool = True, legend: bool = True, **kwargs
