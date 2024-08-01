@@ -432,12 +432,25 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         show_legend: bool = True,
         **kwargs,
     ) -> dict[str, go.Figure]:
-        """Plot the analyzed image with plotly. Will produce two figures: the whole image and one zoomed into the wobble circle.
+        """Plot the analyzed set of images to Plotly figures. Will plot a zoomed-out image and a zoomed-in image.
+
 
         Parameters
         ----------
         show : bool
-            Whether to actually show the image. Set to False if doing further annotations.
+            Whether to show the plot.
+        show_colorbar : bool
+            Whether to show the colorbar on the plot.
+        show_legend : bool
+            Whether to show the legend on the plot.
+        kwargs
+            Additional keyword arguments to pass to the plot.
+
+        Returns
+        -------
+        dict
+            A dictionary of the Plotly figures where the key is the name of the
+            image and the value is the figure.
         """
         figs = {}
         for name, zoom in zip(("Image", "Wobble"), (False, True)):

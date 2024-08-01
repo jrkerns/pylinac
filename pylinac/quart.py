@@ -448,13 +448,37 @@ class QuartDVT(CatPhanBase, ResultsDataMixin[QuartDVTResult]):
         show_colorbar: bool = True,
         **kwargs,
     ) -> dict[str, go.Figure]:
+        """Plot the analyzed set of images to Plotly figures.
+
+
+        Parameters
+        ----------
+        show : bool
+            Whether to show the plot.
+        show_colorbar : bool
+            Whether to show the colorbar on the plot.
+        show_legend : bool
+            Whether to show the legend on the plot.
+        kwargs
+            Additional keyword arguments to pass to the plot.
+
+        Returns
+        -------
+        dict
+            A dictionary of the Plotly figures where the key is the name of the
+            image and the value is the figure.
+        """
         figs = {}
         figs[self.hu_module.common_name] = self.hu_module.plotly(
-            show_colorbar=show_colorbar, show_legend=show_legend
+            show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
         )
         figs["HU Linearity plot"] = self.hu_module.plotly_linearity()
-        figs[self.uniformity_module.common_name] = self.uniformity_module.plotly()
-        figs[self.geometry_module.common_name] = self.geometry_module.plotly()
+        figs[self.uniformity_module.common_name] = self.uniformity_module.plotly(
+            show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
+        )
+        figs[self.geometry_module.common_name] = self.geometry_module.plotly(
+            show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
+        )
         figs["Side View"] = self.plotly_side_view(offset=-5)
 
         if show:

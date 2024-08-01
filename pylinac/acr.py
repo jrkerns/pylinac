@@ -1260,12 +1260,24 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
         show_legend: bool = True,
         **kwargs,
     ) -> dict[str, go.Figure]:
-        """Plot the analyzed image using Plotly
+        """Plot the analyzed set of images to Plotly figures.
 
         Parameters
         ----------
-        show
-            Whether to show the image.
+        show : bool
+            Whether to show the plot.
+        show_colorbar : bool
+            Whether to show the colorbar on the plot.
+        show_legend : bool
+            Whether to show the legend on the plot.
+        kwargs
+            Additional keyword arguments to pass to the plot.
+
+        Returns
+        -------
+        dict
+            A dictionary of the Plotly figures where the key is the name of the
+            image and the value is the figure.
         """
         figs = {}
         # plot the images

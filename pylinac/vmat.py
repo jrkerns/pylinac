@@ -421,7 +421,25 @@ class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
         show_legend: bool = True,
         **kwargs,
     ) -> dict[str, go.Figure]:
-        """Plot both images and the median profiles in 3 Plotly figures."""
+        """Plot the analyzed set of images to Plotly figures.
+
+        Parameters
+        ----------
+        show : bool
+            Whether to show the plot.
+        show_colorbar : bool
+            Whether to show the colorbar on the plot.
+        show_legend : bool
+            Whether to show the legend on the plot.
+        kwargs
+            Additional keyword arguments to pass to the plot.
+
+        Returns
+        -------
+        dict
+            A dictionary of the Plotly figures where the key is the name of the
+            image and the value is the figure.
+        """
 
         # images
         fig_open = self.open_image.plotly(

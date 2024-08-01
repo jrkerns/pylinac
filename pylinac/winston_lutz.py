@@ -1708,12 +1708,22 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
 
         Parameters
         ----------
+        zoomed : bool
+            Whether to zoom in on the BBs of the 2D images.
+        show_legend : bool
+            Whether to show the legend on the plot.
+        show : bool
+            Whether to show the plot.
+        show_colorbar : bool
+            Whether to show the colorbar on the plot.
         kwargs
-            Keyword arguments to pass to the plotly figure.
+            Additional keyword arguments to pass to the plot.
 
         Returns
         -------
-        go.Figure
+        dict
+            A dictionary of the Plotly figures where the key is the name of the
+            image and the value is the figure.
         """
         figs = {}
         for idx, wl_image in enumerate(self.images):
@@ -2817,20 +2827,27 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         show_colorbar: bool = True,
         **kwargs,
     ) -> dict[str, go.Figure]:
-        """Plot the analyzed images using Plotly.
+        """Plot the analyzed set of images to Plotly figures.
+
 
         Parameters
         ----------
         zoomed : bool
-            Whether to zoom in on the BBs.
-        show_legend : bool
-            Whether to show the legend on the plot.
+            Whether to zoom in on the 2D image plots.
         show : bool
             Whether to show the plot.
         show_colorbar : bool
             Whether to show the colorbar on the plot.
+        show_legend : bool
+            Whether to show the legend on the plot.
         kwargs
-            Additional keyword arguments to pass to the plot
+            Additional keyword arguments to pass to the plot.
+
+        Returns
+        -------
+        dict
+            A dictionary of the Plotly figures where the key is the name of the
+            image and the value is the figure.
         """
         figs = {}
         for idx, wl_image in enumerate(self.images):

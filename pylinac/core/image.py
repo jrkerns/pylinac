@@ -49,6 +49,7 @@ from .io import (
     retrieve_dicom_file,
     retrieve_filenames,
 )
+from .plotly_utils import add_title
 from .profile import stretch as stretcharray
 from .scale import MachineScale, convert, wrap360
 from .utilities import decode_binary, is_close, simple_round
@@ -505,14 +506,29 @@ class BaseImage:
         show_colorbar: bool = True,
         **kwargs,
     ) -> go.Figure:
-        """Plot the image in a plotly figure"""
+        """Plot the image in a plotly figure.
+
+        Parameters
+        ----------
+        fig: plotly.graph_objects.Figure
+            The figure to plot to. If None, a new figure is created.
+        colorscale: str
+            The colorscale to use on the plot. See https://plotly.com/python/builtin-colorscales/
+        show : bool
+            Whether to show the plot. Set to False if performing later adjustments to the plot.
+        show_metrics : bool
+            Whether to show the metrics on the image.
+        title: str
+            The title of the plot.
+        show_colorbar : bool
+            Whether to show the colorbar on the plot.
+        kwargs
+            Additional keyword arguments to pass to the plot.
+        """
+
         if fig is None:
             fig = go.Figure()
         fig.update_layout(
-            title={
-                "text": title,
-                "x": 0.5,
-            },
             xaxis_showticklabels=False,
             yaxis_showticklabels=False,
             # this inverts the y axis so 0 is at the top
@@ -526,6 +542,7 @@ class BaseImage:
             legend={"x": 0},
             showlegend=kwargs.pop("show_legend", True),
         )
+        add_title(fig, title)
         fig.add_heatmap(z=self.array, colorscale=colorscale, **kwargs)
         fig.update_traces(showscale=show_colorbar)
         if show_metrics:

@@ -900,21 +900,22 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
         show_legend: bool = True,
         **kwargs,
     ) -> dict[str, go.Figure]:
-        """Plot the analyzed image.
+        """Plot the analyzed image, leaf error plots, and error histogram.
 
         Parameters
         ----------
-        guard_rails
-            Do/don't plot the picket "guard rails" around the ideal picket
         mlc_peaks
             Do/don't plot the detected MLC peak positions.
         overlay
             Do/don't plot the alpha overlay of the leaf status.
-        leaf_error_subplot
-            If True, plots a linked leaf error subplot adjacent to the PF image plotting the average and standard
-            deviation of leaf error.
         show
             Whether to display the plot. Set to false for saving to a figure, etc.
+        show_colorbar
+            Whether to show the colorbar.
+        show_legend
+            Whether to show the legend.
+        kwargs
+            Keyword arguments to pass to the plotly image plot.
         """
         if not self._is_analyzed:
             raise RuntimeError("The image must be analyzed first. Use .analyze().")
