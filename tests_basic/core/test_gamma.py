@@ -3,9 +3,10 @@ from unittest import TestCase, skip
 
 import numpy as np
 
+from pylinac import Centering
 from pylinac.core.gamma import _compute_distance, gamma_1d, gamma_2d, gamma_geometric
 from pylinac.core.image import DicomImage
-from pylinac.core.image_generator import AS1000Image, AS1200Image
+from pylinac.core.image_generator import AS1000Image, AS1200Image, PerfectFieldLayer
 from pylinac.core.profile import FWXMProfile, FWXMProfilePhysical
 from tests_basic.core.test_profile import generate_open_field
 from tests_basic.utils import get_file_from_cloud_test_repo
@@ -656,9 +657,14 @@ class TestGammaFromProfile(TestCase):
         """This test the same profile but with different EPIDs (i.e. pixel size)"""
         # we offset the reference by 1% to ensure we have a realistic gamma value
         img1200 = generate_open_field(
-            field_size=(100, 100), imager=AS1200Image, alpha=0.99
+            field_size=(100, 100),
+            imager=AS1200Image,
+            alpha=0.99,
+            field=PerfectFieldLayer,
         )
-        img1000 = generate_open_field(field_size=(100, 100), imager=AS1000Image)
+        img1000 = generate_open_field(
+            field_size=(100, 100), imager=AS1000Image, field=PerfectFieldLayer
+        )
         p1200 = img1200.image[640, :]
         p1000 = img1000.image[384, :]
         p1200_prof = FWXMProfilePhysical(values=p1200, dpmm=1 / img1200.pixel_size)
@@ -668,3 +674,54 @@ class TestGammaFromProfile(TestCase):
         )
         # gamma is very low; just pixel noise from the image generator
         self.assertAlmostEqual(np.nanmean(gamma), 0.948, delta=0.01)
+
+    def test_beam_centering_offset_profile(self):
+        # similar test as above, but profiles are offset and no dose difference
+        # we expect gamma to be very low
+        # note the 5mm offset below which would otherwise cause a large gamma range
+        img1200 = generate_open_field(
+            field_size=(100, 100),
+            imager=AS1200Image,
+            center=(0, 5),
+            field=PerfectFieldLayer,
+        )
+        img1000 = generate_open_field(
+            field_size=(100, 100), imager=AS1000Image, field=PerfectFieldLayer
+        )
+        p1200 = img1200.image[640, :]
+        p1000 = img1000.image[384, :]
+        p1200_prof = FWXMProfilePhysical(values=p1200, dpmm=1 / img1200.pixel_size)
+        p1000_prof = FWXMProfilePhysical(values=p1000, dpmm=1 / img1000.pixel_size)
+        gamma = p1000_prof.gamma(
+            reference_profile=p1200_prof,
+            dose_to_agreement=1,
+            gamma_cap_value=2,
+            centering=Centering.BEAM_CENTER,
+        )
+        # gamma is very low; just pixel noise from the image generator
+        self.assertAlmostEqual(np.nanmean(gamma), 0.003, delta=0.01)
+
+    def test_beam_centering_manual(self):
+        # 5mm offset but we don't correct for it so expect a high gamma
+        img1200 = generate_open_field(
+            field_size=(100, 100),
+            imager=AS1200Image,
+            center=(0, 5),
+            field=PerfectFieldLayer,
+        )
+        img1000 = generate_open_field(
+            field_size=(100, 100), imager=AS1000Image, field=PerfectFieldLayer
+        )
+        p1200 = img1200.image[640, :]
+        p1000 = img1000.image[384, :]
+        p1200_prof = FWXMProfilePhysical(values=p1200, dpmm=1 / img1200.pixel_size)
+        p1000_prof = FWXMProfilePhysical(values=p1000, dpmm=1 / img1000.pixel_size)
+        gamma = p1000_prof.gamma(
+            reference_profile=p1200_prof,
+            dose_to_agreement=1,
+            gamma_cap_value=2,
+            centering=Centering.MANUAL,
+        )
+        # gamma is relatively high because of the 5mm offset
+        self.assertAlmostEqual(np.nanmean(gamma), 0.327, delta=0.01)
+        self.assertEqual(np.nanmax(gamma), 2.0)
