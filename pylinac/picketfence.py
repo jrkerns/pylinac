@@ -36,7 +36,7 @@ from pydantic import Field
 
 from . import Normalization
 from .core import image, pdf
-from .core.geometry import Line, Point, Rectangle
+from .core.geometry import Line, Point, PointSerialized, Rectangle
 from .core.io import get_url, retrieve_demo_file
 from .core.profile import FWXMProfilePhysical, MultiProfile
 from .core.utilities import (
@@ -187,11 +187,13 @@ class PFResult(ResultBase):
         description="The widths of the pickets in mm."
     )
     mlc_positions_by_leaf: dict[str, list[float]] = Field(
-        description="A dictionary where the key is the leaf number and the value is a list of positions in mm **from the left or top of the image**."
+        description="A dictionary where the key is the leaf number and the value is a list of positions in mm **from the CAX**. The distance is from the x-value (or y-value for left-right orientation) of the CAX. "
+        "Rotation of the MLCs would affect these distances."
     )
     mlc_errors_by_leaf: dict[str, list[float]] = Field(
         description="A dictionary where the key is the leaf number and the value is a list of errors in mm."
     )
+    cax: PointSerialized = Field(description="The position of the CAX in pixels.")
 
 
 class PFDicomImage(image.LinacDicomImage):
@@ -248,7 +250,7 @@ class PFDicomImage(image.LinacDicomImage):
             cax = super().center + cax_shift
             # invert the y-axis for plotting purposes/consistency
             cax.y = 2 * (self.shape[0] // 2) - cax.y
-            return cax
+            return Point(cax.x, cax.y)
         else:
             return super().center
 
@@ -1139,11 +1141,19 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
         }
         errors_by_leaf = {}
         positions_by_leaf = {}
+        cax_position = (
+            self.image.center.x
+            if self.orientation == Orientation.UP_DOWN
+            else self.image.center.y
+        )
+        cax_physical_position = cax_position / self.image.dpmm
         for _, group_iter in groupby(self.mlc_meas, key=lambda m: m.leaf_num):
             leaf_items = list(group_iter)  # group_iter is a generator
             leaf_names = leaf_items[0].full_leaf_nums
             for idx, leaf_name in enumerate(leaf_names):
-                pos_vals = [m.position_mm[idx] for m in leaf_items]
+                pos_vals = [
+                    m.position_mm[idx] - cax_physical_position for m in leaf_items
+                ]
                 error_vals = [m.error[idx] for m in leaf_items]
                 positions_by_leaf[str(leaf_name)] = pos_vals
                 errors_by_leaf[str(leaf_name)] = error_vals
@@ -1170,6 +1180,7 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
             picket_widths=picket_widths,
             mlc_positions_by_leaf=positions_by_leaf,
             mlc_errors_by_leaf=errors_by_leaf,
+            cax=self.image.center,
         )
 
     def publish_pdf(

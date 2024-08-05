@@ -157,7 +157,7 @@ class TestAnalyze(TestCase):
         )  # 36 leaf pairs in the image
         # constancy check
         self.assertAlmostEqual(
-            statistics.mean(data.mlc_positions_by_leaf["17"]), 204.63, delta=0.1
+            statistics.mean(data.mlc_positions_by_leaf["17"]), 7.91, delta=0.1
         )
         # check max error matches a combination of the leaf values
         self.assertEqual(
@@ -168,7 +168,7 @@ class TestAnalyze(TestCase):
         data_dict = self.pf.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
         self.assertIn("pylinac_version", data_dict)
-        self.assertEqual(len(data_dict), 18)
+        self.assertEqual(len(data_dict), 19)
 
         data_str = self.pf.results_data(as_json=True)
         self.assertIsInstance(data_str, str)
@@ -347,6 +347,9 @@ class TestBBBasedAnalysis(TestCase):
         pf.analyze(separate_leaves=False)
         results = pf.results_data()
         self.assertAlmostEqual(results.max_error_mm, 0.0, delta=0.005)
+        self.assertAlmostEqual(results.cax.x, 636.5, delta=0.1)
+        # bb is 2mm off in bb setup image above
+        self.assertAlmostEqual(results.mlc_positions_by_leaf["17"][0], -102, delta=0.1)
 
 
 class LoadingFromMultiple(TestCase):
