@@ -29,12 +29,14 @@ from typing import BinaryIO
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
+import plotly.graph_objects as go
 from pydantic import Field
 from scipy import optimize
 
 from .core import image, pdf
 from .core.geometry import Circle, Line, Point
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
+from .core.plotly_utils import set_axis_range
 from .core.profile import CollapsedCircleProfile, FWXMProfile
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
 
@@ -422,6 +424,69 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
                 description="The diameter of the fitted circle representing isocenter.",
             ),
         }
+
+    def plotly_analyzed_images(
+        self,
+        show: bool = True,
+        show_colorbar: bool = True,
+        show_legend: bool = True,
+        **kwargs,
+    ) -> dict[str, go.Figure]:
+        """Plot the analyzed set of images to Plotly figures. Will plot a zoomed-out image and a zoomed-in image.
+
+
+        Parameters
+        ----------
+        show : bool
+            Whether to show the plot.
+        show_colorbar : bool
+            Whether to show the colorbar on the plot.
+        show_legend : bool
+            Whether to show the legend on the plot.
+        kwargs
+            Additional keyword arguments to pass to the plot.
+
+        Returns
+        -------
+        dict
+            A dictionary of the Plotly figures where the key is the name of the
+            image and the value is the figure.
+        """
+        figs = {}
+        for name, zoom in zip(("Image", "Wobble"), (False, True)):
+            fig = self.image.plotly(
+                show=False,
+                show_legend=show_legend,
+                show_colorbar=show_colorbar,
+                **kwargs,
+            )
+            for line in self.lines:
+                line.plotly(fig, color="blue", showlegend=False)
+            self.wobble.plotly(
+                fig,
+                color="green",
+                name=f"Wobble Circle {self.wobble.diameter_mm:2.2f}mm",
+                hoverinfo="text",
+                hovertext=f"Wobble diameter: {self.wobble.diameter_mm:2.2f} mm",
+            )
+            if zoom:
+                set_axis_range(
+                    fig=fig,
+                    x=[
+                        self.wobble.center.x - self.wobble.diameter,
+                        self.wobble.center.x + self.wobble.diameter,
+                    ],
+                    y=[
+                        self.wobble.center.y - self.wobble.diameter,
+                        self.wobble.center.y + self.wobble.diameter,
+                    ],
+                )
+
+            figs[name] = fig
+        if show:
+            for f in figs.values():
+                f.show()
+        return figs
 
     def plot_analyzed_image(self, show: bool = True, **plt_kwargs: dict):
         """Draw the star lines, profile circle, and wobble circle on a matplotlib figure.

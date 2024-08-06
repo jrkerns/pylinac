@@ -19,6 +19,7 @@ from typing import BinaryIO, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
+from plotly import graph_objects as go
 from pydantic import BaseModel, ConfigDict, Field
 
 from . import Normalization
@@ -413,6 +414,74 @@ class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
         """Return the value of the maximum R_deviation segment."""
         return np.max(np.abs(self.r_devs))
 
+    def plotly_analyzed_images(
+        self,
+        show: bool = True,
+        show_colorbar: bool = True,
+        show_legend: bool = True,
+        **kwargs,
+    ) -> dict[str, go.Figure]:
+        """Plot the analyzed set of images to Plotly figures.
+
+        Parameters
+        ----------
+        show : bool
+            Whether to show the plot.
+        show_colorbar : bool
+            Whether to show the colorbar on the plot.
+        show_legend : bool
+            Whether to show the legend on the plot.
+        kwargs
+            Additional keyword arguments to pass to the plot.
+
+        Returns
+        -------
+        dict
+            A dictionary of the Plotly figures where the key is the name of the
+            image and the value is the figure.
+        """
+
+        # images
+        fig_open = self.open_image.plotly(
+            show=False,
+            title="Open Image",
+            show_colorbar=show_colorbar,
+            show_legend=show_legend,
+            **kwargs,
+        )
+        self._draw_plotly_segments(fig=fig_open)
+        fig_dmlc = self.dmlc_image.plotly(
+            show=False,
+            title="DMLC Image",
+            show_colorbar=show_colorbar,
+            show_legend=show_legend,
+            **kwargs,
+        )
+        self._draw_plotly_segments(fig=fig_dmlc)
+
+        # median profiles
+        dmlc_prof, open_prof = self._median_profiles(self.dmlc_image, self.open_image)
+        fig_profile = go.Figure()
+        dmlc_prof.plotly(fig_profile, name="DMLC", show=False)
+        open_prof.plotly(fig_profile, name="Open", show=False)
+        fig_profile.update_layout(
+            title={
+                "text": "Median Profiles",
+                "x": 0.5,
+            },
+            xaxis_title="Pixel",
+            yaxis_title="Normalized Response",
+            coloraxis_showscale=show_colorbar,
+            showlegend=show_legend,
+        )
+
+        if show:
+            fig_open.show()
+            fig_dmlc.show()
+            fig_profile.show()
+
+        return {"Open": fig_open, "DMLC": fig_dmlc, "Profile": fig_profile}
+
     def plot_analyzed_image(
         self, show: bool = True, show_text: bool = True, **plt_kwargs: dict
     ):
@@ -511,6 +580,21 @@ class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
 
         if show:
             plt.show()
+
+    def _draw_plotly_segments(self, fig: go.Figure) -> None:
+        """Draw the segments onto a plotly figure.
+
+        Parameters
+        ----------
+        fig : go.Figure
+            The figure to draw the objects on.
+        """
+        for segment, roi_name in zip(self.segments, self.roi_config.keys()):
+            segment.plotly(
+                fig,
+                color=segment.get_bg_color(),
+                name=f"{roi_name} ({segment.r_dev:2.2f}%)",
+            )
 
     def _draw_segments(self, axis: plt.Axes, show_text: bool):
         """Draw the segments onto a plot.

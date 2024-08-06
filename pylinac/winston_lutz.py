@@ -37,6 +37,7 @@ import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import art3d
+from plotly import graph_objects as go
 from py_linq import Enumerable
 from pydantic import BaseModel, Field
 from scipy import ndimage, optimize
@@ -59,6 +60,7 @@ from .core.geometry import (
 )
 from .core.image import DicomImageStack, is_image, tiff_to_dicom
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
+from .core.plotly_utils import add_horizontal_line, add_title, add_vertical_line
 from .core.scale import MachineScale, convert
 from .core.utilities import (
     QuaacDatum,
@@ -346,12 +348,43 @@ class BB3D:
         # vectors and points are effectively the same thing here but we convert to a point for clarity
         return Point(x=vector.x, y=vector.y, z=vector.z)
 
+    def plotly_nominal(self, fig: go.Figure, color: str, **kwargs) -> None:
+        x, y, z = create_sphere_surface(
+            radius=self.bb_config.bb_size_mm / 2, center=self.nominal_bb_position
+        )
+        fig.add_surface(
+            x=x,
+            y=y,
+            z=z,
+            name=f"Nominal BB - {self.bb_config.name}",
+            showscale=False,
+            colorscale=[[0, color], [1, color]],
+            showlegend=True,
+            **kwargs,
+        )
+
     def plot_nominal(self, axes: plt.Axes, color: str, **kwargs):
         """Plot the BB nominal position"""
         x, y, z = create_sphere_surface(
             radius=self.bb_config.bb_size_mm / 2, center=self.nominal_bb_position
         )
         axes.plot_surface(x, y, z, color=color, **kwargs)
+
+    def plotly_measured(self, fig: go.Figure, color: str, **kwargs):
+        """Plot the BB measured position"""
+        x, y, z = create_sphere_surface(
+            radius=self.bb_config.bb_size_mm / 2, center=self.measured_bb_position
+        )
+        fig.add_surface(
+            x=x,
+            y=y,
+            z=z,
+            name=f"Measured BB - {self.bb_config.name}",
+            showscale=False,
+            colorscale=[[0, color], [1, color]],
+            showlegend=True,
+            **kwargs,
+        )
 
     def plot_measured(self, axes: plt.Axes, color: str, **kwargs):
         """Plot the BB measured position"""
@@ -741,6 +774,7 @@ class WLBaseImage(image.LinacDicomImage):
                 radius_tolerance_mm=bb_tolerance_mm,
                 invert=not low_density,
                 detection_conditions=self.detection_conditions,
+                name="BB",
             )
         )
         return centers
@@ -779,6 +813,73 @@ class WLBaseImage(image.LinacDicomImage):
         return [
             match.bb_epid_distance_mm for match in self.arrangement_matches.values()
         ]
+
+    def plotly(
+        self,
+        fig: go.Figure | None = None,
+        show: bool = True,
+        zoomed: bool = True,
+        show_legend: bool = True,
+        show_colorbar: bool = True,
+    ) -> go.Figure:
+        fig = super().plotly(
+            fig=fig, show=show, show_metrics=True, show_colorbar=show_colorbar
+        )
+        # show EPID center
+        add_vertical_line(fig, self.epid.x, color="blue", name="EPID Center")
+        add_horizontal_line(fig, self.epid.y, color="blue")
+        # show the field CAXs
+        for match in self.arrangement_matches.values():
+            fig.add_scatter(
+                x=[match.field.x],
+                y=[match.field.y],
+                line_color="green",
+                name="Field Center",
+                mode="markers",
+                marker_size=8,
+                marker_symbol="square",
+            )
+            fig.add_scatter(
+                x=[match.bb.x],
+                y=[match.bb.y],
+                line_color="cyan",
+                name="Detected BB",
+                mode="markers",
+                marker_size=10,
+                marker_symbol="circle",
+            )
+        if zoomed:
+            # zoom to the BBs
+            min_x = (
+                min([match.bb.x for match in self.arrangement_matches.values()])
+                - 20 * self.dpmm
+            )
+            min_y = (
+                min([match.bb.y for match in self.arrangement_matches.values()])
+                - 20 * self.dpmm
+            )
+            max_x = (
+                max([match.bb.x for match in self.arrangement_matches.values()])
+                + 20 * self.dpmm
+            )
+            max_y = (
+                max([match.bb.y for match in self.arrangement_matches.values()])
+                + 20 * self.dpmm
+            )
+            fig.update_xaxes(range=[min_x, max_x])
+            # bug in plotly; can't have autorange reversed and set this.
+            fig.update_yaxes(range=[max_y, min_y], autorange=None)
+        fig.update_layout(
+            xaxis_title=f"Gantry={self.gantry_angle:.0f}, Coll={self.collimator_angle:.0f}, Couch={self.couch_angle:.0f}",
+            yaxis_title=f"Max Nominal to BB: {max(self.field_to_bb_distances()):3.2f}mm",
+        )
+        fig.update_layout(
+            showlegend=show_legend,
+            title_text="\n".join(wrap(Path(self.path).name, 30)),
+        )
+        if show:
+            fig.show()
+        return fig
 
     def plot(
         self,
@@ -879,6 +980,10 @@ class WLBaseImage(image.LinacDicomImage):
         y = (2, 4)
         x = (1.5, 30)
         return np.interp(bb_diameter, x, y)
+
+    def to_axes(self) -> str:
+        """Give just the axes values as a human-readable string"""
+        return f"Gantry={self.gantry_angle:.1f}, Coll={self.collimator_angle:.1f}, Couch={self.couch_angle:.1f}"
 
     @property
     def variable_axis(self) -> Axis:
@@ -989,10 +1094,6 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
 
     def __repr__(self):
         return f"WLImage(gantry={self.gantry_angle:.1f}, coll={self.collimator_angle:.1f}, couch={self.couch_angle:.1f})"
-
-    def to_axes(self) -> str:
-        """Give just the axes values as a human-readable string"""
-        return f"Gantry={self.gantry_angle:.1f}, Coll={self.collimator_angle:.1f}, Couch={self.couch_angle:.1f}"
 
     @property
     def cax2bb_vector(self) -> Vector:
@@ -1594,6 +1695,171 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             return statistics.median(distances)
         elif metric == "mean":
             return statistics.mean(distances)
+
+    def plotly_analyzed_images(
+        self,
+        zoomed: bool = True,
+        show_legend: bool = True,
+        show: bool = True,
+        show_colorbar: bool = True,
+        **kwargs,
+    ) -> dict[str, go.Figure]:
+        """Plot the analyzed images in a Plotly figure.
+
+        Parameters
+        ----------
+        zoomed : bool
+            Whether to zoom in on the BBs of the 2D images.
+        show_legend : bool
+            Whether to show the legend on the plot.
+        show : bool
+            Whether to show the plot.
+        show_colorbar : bool
+            Whether to show the colorbar on the plot.
+        kwargs
+            Additional keyword arguments to pass to the plot.
+
+        Returns
+        -------
+        dict
+            A dictionary of the Plotly figures where the key is the name of the
+            image and the value is the figure.
+        """
+        figs = {}
+        for idx, wl_image in enumerate(self.images):
+            fig = wl_image.plotly(
+                show=False,
+                show_legend=show_legend,
+                zoomed=zoomed,
+                show_colorbar=show_colorbar,
+                **kwargs,
+            )
+            # we add a enumerator in case there are multiple images with the same axis values
+            figs[f"{idx} - {wl_image.to_axes()}"] = fig
+
+        # 3d iso visualization
+        iso_fig = go.Figure()
+        # origin lines
+        limit = (
+            max(
+                np.abs(
+                    (
+                        self.bb_shift_vector.x,
+                        self.bb_shift_vector.y,
+                        self.bb_shift_vector.z,
+                    )
+                )
+            )
+            + self._bb_diameter
+        )
+        for x, y, z in (
+            ((-limit, limit), (0, 0), (0, 0)),
+            ((0, 0), (-limit, limit), (0, 0)),
+            ((0, 0), (0, 0), (-limit, limit)),
+        ):
+            iso_fig.add_scatter3d(
+                mode="lines", x=x, y=y, z=z, name="Isocenter Axis", marker_color="blue"
+            )
+        # isosphere
+        x, y, z = create_sphere_surface(
+            radius=self.cax2bb_distance("max"),
+            center=Point(),
+        )
+        iso_fig.add_surface(
+            x=x,
+            y=y,
+            z=z,
+            opacity=0.2,
+            name="Isosphere",
+            showscale=False,
+            colorscale=[[0, "blue"], [1, "blue"]],
+            showlegend=True,
+        )
+        # bb
+        x, y, z = create_sphere_surface(
+            radius=self._bb_diameter / 2,
+            center=Point(
+                self.bb.measured_bb_position.x,
+                self.bb.measured_bb_position.y,
+                self.bb.measured_bb_position.z,
+            ),
+        )
+        iso_fig.add_surface(
+            x=x,
+            y=y,
+            z=z,
+            opacity=0.1,
+            name="BB",
+            showscale=False,
+            colorscale=[[0, "red"], [1, "red"]],
+            showlegend=True,
+        )
+        # coll iso size
+        theta = np.linspace(0, 2 * np.pi, 100)
+        circle_y = self.collimator_iso_size / 2 * np.cos(theta)  # Radius of the circle
+        circle_z = self.collimator_iso_size / 2 * np.sin(theta)  # Radius of the circle
+        circle_x = np.zeros_like(theta) + limit  # Fixed z-coordinate
+        iso_fig.add_scatter3d(
+            x=circle_x,
+            y=circle_y,
+            z=circle_z,
+            mode="lines",
+            line=dict(color="green", width=2),
+            name="Collimator axis isosize projection",
+            hovertext=f"Collimator isocenter size: {self.collimator_iso_size:.2f}mm",
+            hoverinfo="text",
+        )
+        # gantry iso size
+        circle_x = self.gantry_iso_size / 2 * np.cos(theta)  # Radius of the circle
+        circle_z = self.gantry_iso_size / 2 * np.sin(theta)  # Radius of the circle
+        circle_y = np.zeros_like(theta) - limit  # Fixed z-coordinate
+        iso_fig.add_scatter3d(
+            x=circle_x,
+            y=circle_y,
+            z=circle_z,
+            mode="lines",
+            line=dict(color="green", width=2),
+            name="Gantry axis isosize projection",
+            hoverinfo="text",
+            hovertext=f"Gantry isocenter size: {self.gantry_iso_size:.2f}mm",
+        )
+
+        # couch isosize
+        circle_x = self.couch_iso_size / 2 * np.cos(theta)  # Radius of the circle
+        circle_y = self.couch_iso_size / 2 * np.sin(theta)  # Radius of the circle
+        circle_z = np.zeros_like(theta) - limit  # Fixed z-coordinate
+        iso_fig.add_scatter3d(
+            x=circle_x,
+            y=circle_y,
+            z=circle_z,
+            mode="lines",
+            line=dict(color="green", width=2),
+            name="Couch axis isosize projection",
+            hoverinfo="text",
+            hovertext=f"Couch isocenter size: {self.couch_iso_size:.2f}mm",
+        )
+
+        iso_fig.update_layout(
+            scene=dict(
+                xaxis_range=[-limit, limit],
+                yaxis_range=[-limit, limit],
+                zaxis_range=[-limit, limit],
+                aspectmode="cube",
+                xaxis_title="X (mm), Right (+)",
+                yaxis_title="Y (mm), In (+)",
+                zaxis_title="Z (mm), Up (+)",
+            ),
+            # set the camera so x axis is on the lower left; makes for more natural visualization
+            scene_camera_eye=dict(x=-1, y=1, z=1),
+            showlegend=show_legend,
+        )
+        add_title(iso_fig, "3D Isocenter visualization")
+        figs["Isocenter Visualization"] = iso_fig
+
+        if show:
+            for f in figs.values():
+                f.show()
+        return figs
 
     def _plot_deviation(
         self, axis: Axis, ax: plt.Axes | None = None, show: bool = True
@@ -2552,6 +2818,109 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
     @property
     def gantry_iso_size(self) -> float:
         raise NotImplementedError("Not yet implemented")
+
+    def plotly_analyzed_images(
+        self,
+        zoomed: bool = True,
+        show_legend: bool = True,
+        show: bool = True,
+        show_colorbar: bool = True,
+        **kwargs,
+    ) -> dict[str, go.Figure]:
+        """Plot the analyzed set of images to Plotly figures.
+
+
+        Parameters
+        ----------
+        zoomed : bool
+            Whether to zoom in on the 2D image plots.
+        show : bool
+            Whether to show the plot.
+        show_colorbar : bool
+            Whether to show the colorbar on the plot.
+        show_legend : bool
+            Whether to show the legend on the plot.
+        kwargs
+            Additional keyword arguments to pass to the plot.
+
+        Returns
+        -------
+        dict
+            A dictionary of the Plotly figures where the key is the name of the
+            image and the value is the figure.
+        """
+        figs = {}
+        for idx, wl_image in enumerate(self.images):
+            fig = wl_image.plotly(
+                show=False,
+                show_legend=show_legend,
+                zoomed=zoomed,
+                show_colorbar=show_colorbar,
+                **kwargs,
+            )
+            # we add a enumerator in case there are multiple images with the same axis values
+            figs[f"{idx} - {wl_image.to_axes()}"] = fig
+
+        x_lim = max(
+            max([np.abs(bb.nominal_bb_position.x) for bb in self.bbs]) * 1.3, 10
+        )
+        y_lim = max(
+            max([np.abs(bb.nominal_bb_position.y) for bb in self.bbs]) * 1.3, 10
+        )
+        z_lim = max(
+            max([np.abs(bb.nominal_bb_position.z) for bb in self.bbs]) * 1.3, 10
+        )
+        limit = max(x_lim, y_lim, z_lim)
+        # 3d iso visualization
+        iso_fig = go.Figure()
+        figs["Isocenter Visualization"] = iso_fig
+        for x, y, z in (
+            ((-limit, limit), (0, 0), (0, 0)),
+            ((0, 0), (-limit, limit), (0, 0)),
+            ((0, 0), (0, 0), (-limit, limit)),
+        ):
+            iso_fig.add_scatter3d(
+                mode="lines", x=x, y=y, z=z, name="Isocenter Axis", marker_color="blue"
+            )
+        # bbs
+        for bb in self.bbs:
+            bb.plotly_measured(iso_fig, color="cyan", opacity=0.6)
+            bb.plotly_nominal(iso_fig, color="green", opacity=0.6)
+
+        # isosphere
+        x, y, z = create_sphere_surface(
+            radius=self.cax2bb_distance("max"),
+            center=Point(),
+        )
+        iso_fig.add_surface(
+            x=x,
+            y=y,
+            z=z,
+            opacity=0.2,
+            name="Isosphere",
+            showscale=False,
+            colorscale=[[0, "blue"], [1, "blue"]],
+            showlegend=True,
+        )
+        iso_fig.update_layout(
+            scene=dict(
+                xaxis_range=[-limit, limit],
+                yaxis_range=[-limit, limit],
+                zaxis_range=[-limit, limit],
+                aspectmode="cube",
+                xaxis_title="X (mm), Right (+)",
+                yaxis_title="Y (mm), In (+)",
+                zaxis_title="Z (mm), Up (+)",
+            ),
+            # set the camera so x axis is on the lower left; makes for more natural visualization
+            scene_camera_eye=dict(x=-1, y=1, z=1),
+            showlegend=show_legend,
+        )
+        add_title(iso_fig, "3D Isocenter visualization")
+        if show:
+            for f in figs.values():
+                f.show()
+        return figs
 
     def plot_images(
         self, show: bool = True, zoomed: bool = True, legend: bool = True, **kwargs

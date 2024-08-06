@@ -7,6 +7,7 @@ from typing import Any, Callable
 
 import numpy as np
 from matplotlib import pyplot as plt
+from plotly import graph_objects as go
 from skimage import measure, segmentation
 from skimage.measure._regionprops import RegionProperties
 
@@ -70,6 +71,10 @@ class MetricBase(ABC):
     @abstractmethod
     def calculate(self) -> Any:
         """Calculate the metric. Can return anything"""
+        pass
+
+    def plotly(self, fig: plt.Figure, **kwargs) -> None:
+        """Plot the metric using plotly."""
         pass
 
     def plot(self, axis: plt.Axes, **kwargs) -> None:
@@ -163,6 +168,12 @@ class DiskROIMetric(MetricBase):
         kw = {**self.kwargs, **kwargs}
         self.roi.plot2axes(axis, edgecolor=edgecolor, **kw)
 
+    def plotly(self, fig: go.Figure, **kwargs) -> None:
+        """Plot the disk ROI."""
+        edgecolor = kwargs.pop("edgecolor", self.edge_color)
+        kw = {**self.kwargs, **kwargs}
+        self.roi.plotly(fig, color=edgecolor, **kw)
+
 
 class RectangleROIMetric(MetricBase):
     roi: RectangleROI
@@ -252,6 +263,12 @@ class RectangleROIMetric(MetricBase):
         kw = {**self.kwargs, **kwargs}
         self.roi.plot2axes(axis, edgecolor=edgecolor, **kw)
 
+    def plotly(self, fig: plt.Figure, **kwargs) -> None:
+        """Plot the disk ROI."""
+        edgecolor = kwargs.pop("edgecolor", self.edge_color)
+        kw = {**self.kwargs, **kwargs}
+        self.roi.plotly(fig, color=edgecolor, **kw)
+
 
 class GlobalSizedDiskLocator(MetricBase):
     name: str
@@ -333,6 +350,29 @@ class GlobalSizedDiskLocator(MetricBase):
             self.y_boundaries.append(boundary_y)
             self.x_boundaries.append(boundary_x)
         return self.points
+
+    def plotly(
+        self,
+        fig: go.Figure,
+        marker_color="red",
+        marker_symbol="circle-dot",
+        marker_size=3,
+        **kwargs,
+    ) -> None:
+        """Plot the BB centers"""
+        xs = [point.x for point in self.points]
+        ys = [point.y for point in self.points]
+        # for point in self.points:
+        fig.add_scatter(
+            x=xs,
+            y=ys,
+            mode="markers",
+            marker_color=marker_color,
+            marker_symbol=marker_symbol,
+            marker_size=marker_size,
+            name=self.name,
+            **kwargs,
+        )
 
     def plot(
         self,
@@ -569,6 +609,31 @@ class SizedDiskRegion(MetricBase):
         self.points = points
         return regions
 
+    def plotly(
+        self,
+        fig: go.Figure,
+        show_boundaries: bool = True,
+        color: str = "red",
+        marker_size: float = 3,
+        opacity: float = 0.25,
+        **kwargs,
+    ) -> None:
+        """Plot the BB boundaries"""
+        if show_boundaries:
+            for boundary in self.boundaries:
+                boundary_y, boundary_x = np.nonzero(boundary)
+                fig.add_scatter(
+                    x=boundary_x,
+                    y=boundary_y,
+                    mode="markers",
+                    marker_color=color,
+                    marker_symbol="square",
+                    marker_size=marker_size,
+                    marker_opacity=opacity,
+                    name=f"{self.name} Boundary",
+                    **kwargs,
+                )
+
     def plot(
         self,
         axis: plt.Axes,
@@ -598,6 +663,37 @@ class SizedDiskLocator(SizedDiskRegion):
         """Get the weighted centroids of the BB regions."""
         super().calculate()
         return self.points
+
+    def plotly(
+        self,
+        fig: go.Figure,
+        show_boundaries: bool = True,
+        color: str = "red",
+        marker_size: float = 7,
+        opacity: float = 0.25,
+        **kwargs,
+    ) -> None:
+        """Plot the BB center"""
+        super().plotly(
+            fig,
+            show_boundaries=show_boundaries,
+            color=color,
+            marker_size=marker_size,
+            opacity=opacity,
+            **kwargs,
+        )
+        for point in self.points:
+            fig.add_scatter(
+                x=[point.x],
+                y=[point.y],
+                mode="markers",
+                marker_color=color,
+                marker_symbol="circle-dot",
+                opacity=1,
+                marker_size=marker_size,
+                name=self.name,
+                **kwargs,
+            )
 
     def plot(
         self,

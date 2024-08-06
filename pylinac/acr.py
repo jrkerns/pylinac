@@ -10,6 +10,7 @@ from pathlib import Path
 
 import numpy as np
 from matplotlib import pyplot as plt
+from plotly import graph_objects as go
 from pydantic import BaseModel, ConfigDict, Field
 from scipy import ndimage
 
@@ -41,6 +42,7 @@ MR_UNIFORMITY_MODULE_OFFSET_MM = 60
 
 
 class CTModule(CatPhanModule):
+    common_name = "HU Linearity"
     attr_name = "ct_calibration_module"
     roi_dist_mm = 63
     roi_radius_mm = 10
@@ -184,6 +186,10 @@ class SpatialResolutionModule(CatPhanModule):
             spacings=spacings, diskset=list(self.rois.values())
         )
 
+    def plotly_rois(self, fig: go.Figure) -> None:
+        for name, roi in self.rois.items():
+            roi.plotly(fig, color="green", name=name)
+
     def plot_rois(self, axis: plt.Axes) -> None:
         """Plot the ROIs to the axis. Override to set the color"""
         for roi, mtf in zip(self.rois.values(), self.mtf.norm_mtfs.values()):
@@ -316,6 +322,44 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
             offset=CT_LOW_CONTRAST_MODULE_OFFSET_MM,
             clear_borders=self.clear_borders,
         )
+
+    def plotly_analyzed_image(
+        self,
+        show: bool = True,
+        show_colorbar: bool = True,
+        show_legend: bool = True,
+        **kwargs,
+    ) -> dict[str, go.Figure]:
+        """Plot the analyzed image using Plotly. Will create multiple figures.
+
+        Parameters
+        ----------
+        show : bool
+            Whether to show the images. Set to False if doing further processing of the figure.
+        show_colorbar : bool
+            Whether to show the colorbar on the images.
+        show_legend : bool
+            Whether to show the legend on the images.
+        kwargs
+            Additional keyword arguments to pass to the figure.
+        """
+        figs = {}
+        for module in (
+            self.ct_calibration_module,
+            self.uniformity_module,
+            self.spatial_resolution_module,
+            self.low_contrast_module,
+        ):
+            figs[module.common_name] = module.plotly(
+                show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
+            )
+        figs["MTF"] = self.spatial_resolution_module.mtf.plotly(**kwargs)
+        figs["Side View"] = self.plotly_side_view(offset=-0.5)
+
+        if show:
+            for fig in figs.values():
+                fig.show()
+        return figs
 
     def plot_analyzed_image(self, show: bool = True, **plt_kwargs) -> plt.Figure:
         """Plot the analyzed image
@@ -646,6 +690,10 @@ class MRSlice11PositionModule(CatPhanModule):
         for roi in self.rois.values():
             roi.plot2axes(axis, edgecolor="blue")
 
+    def plotly_rois(self, fig: go.Figure) -> None:
+        for name, roi in self.rois.items():
+            roi.plotly(fig, color="blue", name=name)
+
 
 class MRSlice11ModuleOutput(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
@@ -738,6 +786,14 @@ class MRSlice1Module(CatPhanModule):
             roi.plot2axes(axis, edgecolor="blue")
         for roi, mtf in zip(self.rois.values(), self.rois.values()):
             roi.plot2axes(axis, edgecolor="g")
+
+    def plotly_rois(self, fig: go.Figure) -> None:
+        for name, roi in self.position_rois.items():
+            roi.plotly(fig, color="blue", name=name)
+        for name, roi in self.thickness_rois.items():
+            roi.plotly(fig, color="blue", name=name)
+        for name, roi in self.rois.items():
+            roi.plotly(fig, color="green", name=name)
 
     @property
     def bar_difference_mm(self) -> float:
@@ -859,6 +915,11 @@ class MRUniformityModule(CatPhanModule):
         super().plot_rois(axis)
         for roi in self.ghost_rois.values():
             roi.plot2axes(axis, edgecolor="yellow")
+
+    def plotly_rois(self, fig: go.Figure) -> None:
+        super().plotly_rois(fig)
+        for name, roi in self.ghost_rois.items():
+            roi.plotly(fig, color="yellow", name=name)
 
     @property
     def percent_image_uniformity(self) -> float:
@@ -1011,6 +1072,10 @@ class GeometricDistortionModule(CatPhanModule):
             "width (mm)": prof.field_width_mm,
             "line": line,
         }
+
+    def plotly_rois(self, fig: go.Figure) -> None:
+        for name, profile_data in self.profiles.items():
+            profile_data["line"].plotly(fig, line_width=2, color="blue", name=name)
 
     def plot_rois(self, axis: plt.Axes):
         for name, profile_data in self.profiles.items():
@@ -1187,6 +1252,57 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
         for idx in sorted(to_pop, reverse=True):
             del self.dicom_stack[idx]
             del self.dicom_stack.metadatas[idx]
+
+    def plotly_analyzed_image(
+        self,
+        show: bool = True,
+        show_colorbar: bool = True,
+        show_legend: bool = True,
+        **kwargs,
+    ) -> dict[str, go.Figure]:
+        """Plot the analyzed set of images to Plotly figures.
+
+        Parameters
+        ----------
+        show : bool
+            Whether to show the plot.
+        show_colorbar : bool
+            Whether to show the colorbar on the plot.
+        show_legend : bool
+            Whether to show the legend on the plot.
+        kwargs
+            Additional keyword arguments to pass to the plot.
+
+        Returns
+        -------
+        dict
+            A dictionary of the Plotly figures where the key is the name of the
+            image and the value is the figure.
+        """
+        figs = {}
+        # plot the images
+        for module in (
+            self.slice1,
+            self.geometric_distortion,
+            self.uniformity_module,
+            self.slice11,
+        ):
+            figs[module.common_name] = module.plotly(
+                show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
+            )
+        # side view
+        figs["Side View"] = self.plotly_side_view(offset=-0.2)
+        # mtf
+        fig = go.Figure()
+        self.slice1.row_mtf.plotly(fig=fig, name="Row-wise rMTF")
+        figs["MTF"] = self.slice1.col_mtf.plotly(
+            fig=fig, name="Column-wise rMTF", marker_color="orange"
+        )
+
+        if show:
+            for fig in figs.values():
+                fig.show()
+        return figs
 
     def plot_analyzed_image(self, show: bool = True, **plt_kwargs) -> plt.Figure:
         """Plot the analyzed image

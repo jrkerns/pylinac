@@ -7,9 +7,11 @@ from typing import Callable
 
 import numpy as np
 from matplotlib import pyplot as plt
+from plotly import graph_objects as go
 from pydantic import Field
 
 from .core import pdf
+from .core.plotly_utils import add_title
 from .core.profile import CollapsedCircleProfile
 from .core.roi import DiskROI
 from .core.scale import abs360
@@ -108,6 +110,15 @@ class CheeseModule(CatPhanModule):
         """Plot the ROIs to the axis. We add the ROI # to help the user differentiate"""
         for name, roi in self.rois.items():
             roi.plot2axes(axis, edgecolor="blue", text=name)
+
+    def plotly_rois(self, fig: go.Figure) -> None:
+        """Plot the ROIs to the figure. We add the ROI # to help the user differentiate"""
+        for name, roi in self.rois.items():
+            roi.plotly(
+                fig,
+                name=name,
+                color="blue",
+            )
 
 
 class TomoCheeseModule(CheeseModule):
@@ -291,6 +302,71 @@ class CheesePhantomBase(CatPhanBase, ResultsDataMixin[CheeseResult]):
                 "No low-HU regions found in the outer ROI circle; automatic roll compensation aborted. Setting roll to 0."
             )
             return 0
+
+    def plotly_analyzed_image(
+        self,
+        show: bool = True,
+        show_colorbar: bool = True,
+        show_legend: bool = True,
+        **kwargs,
+    ) -> dict[str, go.Figure]:
+        """Plot the analyzed set of images to Plotly figures.
+
+
+        Parameters
+        ----------
+        show : bool
+            Whether to show the plot.
+        show_colorbar : bool
+            Whether to show the colorbar on the plot.
+        show_legend : bool
+            Whether to show the legend on the plot.
+        kwargs
+            Additional keyword arguments to pass to the plot.
+
+        Returns
+        -------
+        dict
+            A dictionary of the Plotly figures where the key is the name of the
+            image and the value is the figure.
+        """
+        figs = {
+            self.module.common_name: self.module.plotly(
+                show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
+            )
+        }
+
+        # density curve (if densities passed)
+        if self.roi_config:
+            xs = []
+            ys = []
+            for roi_num, roi_data in self.roi_config.items():
+                xs.append(roi_data["density"])
+                ys.append(self.module.rois[roi_num].pixel_value)
+            # sort by HU so it looks like a normal curve; ROI densities can be out of order
+            sorted_args = np.argsort(xs)
+            xs = np.array(xs)[sorted_args]
+            ys = np.array(ys)[sorted_args]
+            # plot
+            density_fig = go.Figure()
+            density_fig.add_scatter(
+                x=xs,
+                y=ys,
+                mode="lines+markers",
+                line_dash="dash",
+                marker_symbol="diamond",
+            )
+            density_fig.update_layout(
+                yaxis_title="HU",
+                xaxis_title="Density",
+            )
+            add_title(density_fig, "Density vs HU curve")
+            figs["Density vs HU curve"] = density_fig
+
+        if show:
+            for fig in figs.values():
+                fig.show()
+        return figs
 
     def plot_analyzed_image(self, show: bool = True, **plt_kwargs: dict) -> None:
         """Plot the images used in the calculation and summary data.

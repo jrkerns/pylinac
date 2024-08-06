@@ -23,6 +23,7 @@ import scipy.ndimage as spf
 from PIL import Image as pImage
 from PIL.PngImagePlugin import PngInfo
 from PIL.TiffTags import TAGS
+from plotly import graph_objects as go
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.errors import InvalidDicomError
 from pydicom.uid import UID, generate_uid
@@ -48,6 +49,7 @@ from .io import (
     retrieve_dicom_file,
     retrieve_filenames,
 )
+from .plotly_utils import add_title
 from .profile import stretch as stretcharray
 from .scale import MachineScale, convert, wrap360
 from .utilities import decode_binary, is_close, simple_round
@@ -493,6 +495,62 @@ class BaseImage:
             except AttributeError:
                 date = "Unknown"
         return date
+
+    def plotly(
+        self,
+        fig: go.Figure | None = None,
+        colorscale: str = "gray",
+        title: str = "",
+        show: bool = True,
+        show_metrics: bool = True,
+        show_colorbar: bool = True,
+        **kwargs,
+    ) -> go.Figure:
+        """Plot the image in a plotly figure.
+
+        Parameters
+        ----------
+        fig: plotly.graph_objects.Figure
+            The figure to plot to. If None, a new figure is created.
+        colorscale: str
+            The colorscale to use on the plot. See https://plotly.com/python/builtin-colorscales/
+        show : bool
+            Whether to show the plot. Set to False if performing later adjustments to the plot.
+        show_metrics : bool
+            Whether to show the metrics on the image.
+        title: str
+            The title of the plot.
+        show_colorbar : bool
+            Whether to show the colorbar on the plot.
+        kwargs
+            Additional keyword arguments to pass to the plot.
+        """
+
+        if fig is None:
+            fig = go.Figure()
+        fig.update_layout(
+            xaxis_showticklabels=False,
+            yaxis_showticklabels=False,
+            # this inverts the y axis so 0 is at the top
+            # note that this will cause later `range=(...)` calls to fail;
+            # appears to be bug in plotly.
+            yaxis_autorange="reversed",
+            yaxis_scaleanchor="x",
+            yaxis_constrain="domain",
+            xaxis_scaleanchor="y",
+            xaxis_constrain="domain",
+            legend={"x": 0},
+            showlegend=kwargs.pop("show_legend", True),
+        )
+        add_title(fig, title)
+        fig.add_heatmap(z=self.array, colorscale=colorscale, **kwargs)
+        fig.update_traces(showscale=show_colorbar)
+        if show_metrics:
+            for metric in self.metrics:
+                metric.plotly(fig)
+        if show:
+            fig.show()
+        return fig
 
     def plot(
         self,

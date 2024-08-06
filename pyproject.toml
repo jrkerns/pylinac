@@ -42,6 +42,7 @@ dependencies = [
     "pydantic>=2.0",
     "eval-type-backport; python_version<='3.8'",
     "quaac",
+    "plotly>=5.0",
 ]
 
 [project.optional-dependencies]

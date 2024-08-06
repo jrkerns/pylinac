@@ -32,6 +32,8 @@ from typing import BinaryIO, Callable, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
+from plotly import graph_objects as go
+from plotly.subplots import make_subplots
 from py_linq import Enumerable
 from pydantic import Field
 from scipy.ndimage import median_filter
@@ -39,12 +41,13 @@ from skimage import exposure, feature, measure
 from skimage.measure._regionprops import RegionProperties
 
 from . import Normalization
-from .core import geometry, image, pdf, validators
+from .core import image, pdf, validators
 from .core.contrast import Contrast
 from .core.decorators import lru_cache
 from .core.geometry import Circle, Point, Rectangle, Vector
 from .core.io import get_url, retrieve_demo_file
 from .core.mtf import MTF
+from .core.plotly_utils import add_title
 from .core.profile import CollapsedCircleProfile, FWXMProfilePhysical
 from .core.roi import DiskROI, HighContrastDiskROI, LowContrastDiskROI, bbox_center
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
@@ -554,22 +557,10 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         outline_settings = list(self.phantom_outline_object.values())[0]
         settings = {}
         if outline_type == "Rectangle":
-            side_a = self.phantom_radius * outline_settings["width ratio"]
-            side_b = self.phantom_radius * outline_settings["height ratio"]
-            half_hyp = np.sqrt(side_a**2 + side_b**2) / 2
-            internal_angle = np.rad2deg(np.arctan(side_b / side_a))
-            new_x = self.phantom_center.x + half_hyp * (
-                geometry.cos(internal_angle)
-                - geometry.cos(internal_angle + self.phantom_angle)
-            )
-            new_y = self.phantom_center.y + half_hyp * (
-                geometry.sin(internal_angle)
-                - geometry.sin(internal_angle + self.phantom_angle)
-            )
             obj = Rectangle(
                 width=self.phantom_radius * outline_settings["width ratio"],
                 height=self.phantom_radius * outline_settings["height ratio"],
-                center=Point(new_x, new_y),
+                center=self.phantom_center,
             )
             settings["angle"] = self.phantom_angle
         elif outline_type == "Circle":
@@ -599,6 +590,96 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             high = roi.percentile(percentiles[1])
             pius.append(percent_integral_uniformity(max=high, min=low))
         return min(pius)
+
+    def plotly_analyzed_images(
+        self,
+        show: bool = True,
+        show_legend: bool = True,
+        show_colorbar: bool = True,
+        **kwargs,
+    ) -> dict[str, go.Figure]:
+        """Plot the analyzed set of images to Plotly figures.
+
+
+        Parameters
+        ----------
+        show : bool
+            Whether to show the plot.
+        show_colorbar : bool
+            Whether to show the colorbar on the plot.
+        show_legend : bool
+            Whether to show the legend on the plot.
+        kwargs
+            Additional keyword arguments to pass to the plot.
+
+        Returns
+        -------
+        dict
+            A dictionary of the Plotly figures where the key is the name of the
+            image and the value is the figure.
+        """
+        figs = {}
+        # plot the marked image
+        image_fig = self.image.plotly(
+            show=False,
+            title=f"{self.common_name} Phantom Analysis",
+            zmin=self.window_floor(),
+            zmax=self.window_ceiling(),
+            show_colorbar=show_colorbar,
+            **kwargs,
+        )
+        figs["Image"] = image_fig
+
+        # plot the outline image
+        if self.phantom_outline_object is not None:
+            outline_obj, settings = self._create_phantom_outline_object()
+            outline_obj.plotly(image_fig, color="blue", name="Outline", **settings)
+        # plot the low contrast background ROIs
+        if self.low_contrast_rois:
+            for idx, roi in enumerate(self.low_contrast_background_rois):
+                roi.plotly(
+                    image_fig,
+                    color="blue",
+                    name=f"LCR{idx}",
+                    showlegend=show_legend,
+                )
+            # plot the low contrast ROIs
+            for idx, roi in enumerate(self.low_contrast_rois):
+                roi.plotly(
+                    image_fig,
+                    color=roi.plot_color,
+                    name=f"LC{idx}",
+                    showlegend=show_legend,
+                )
+        # plot the high-contrast ROIs along w/ pass/fail coloration
+        if self.high_contrast_rois:
+            for idx, (roi, mtf) in enumerate(
+                zip(self.high_contrast_rois, self.mtf.norm_mtfs.values())
+            ):
+                color = "blue" if mtf > self._high_contrast_threshold else "red"
+                roi.plotly(
+                    image_fig,
+                    color=color,
+                    name=f"HC{idx}",
+                    showlegend=show_legend,
+                )
+
+        # plot the low contrast value graph
+        if self.low_contrast_rois:
+            lowcon_fig = make_subplots(specs=[[{"secondary_y": True}]])
+            figs["Low Contrast"] = lowcon_fig
+            self._plotly_lowcontrast_graph(lowcon_fig)
+
+        # plot the high contrast MTF graph
+        if self.high_contrast_rois:
+            hicon_fig = go.Figure()
+            figs["High Contrast"] = hicon_fig
+            self._plotly_highcontrast_graph(hicon_fig)
+
+        if show:
+            for f in figs.values():
+                f.show()
+        return figs
 
     def plot_analyzed_image(
         self,
@@ -700,6 +781,40 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             plt.show()
         return figs, names
 
+    def _plotly_lowcontrast_graph(self, fig: go.Figure):
+        """Plot the low contrast ROIs to an axes."""
+        fig.add_scatter(
+            y=[roi.contrast for roi in self.low_contrast_rois],
+            line={
+                "color": "magenta",
+            },
+            name="Contrast",
+        )
+        fig.add_scatter(
+            secondary_y=True,
+            y=[roi.contrast_to_noise for roi in self.low_contrast_rois],
+            line={
+                "color": "blue",
+            },
+            name="CNR",
+        )
+        add_title(fig, "Low-frequency Contrast")
+        fig.update_xaxes(
+            title_text="ROI #",
+            showspikes=True,
+        )
+        fig.update_yaxes(
+            title_text=f"Contrast ({self._low_contrast_method})",
+            secondary_y=False,
+            showspikes=True,
+        )
+        fig.update_yaxes(
+            title_text=f"CNR ({self._low_contrast_method})",
+            secondary_y=True,
+            showgrid=False,
+            showspikes=True,
+        )
+
     def _plot_lowcontrast_graph(self, axes: plt.Axes):
         """Plot the low contrast ROIs to an axes."""
         (line1,) = axes.plot(
@@ -730,6 +845,24 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         axes.set_title("High-frequency rMTF")
         axes.set_xlabel("Line pairs / mm")
         axes.set_ylabel("relative MTF")
+
+    def _plotly_highcontrast_graph(self, fig: go.Figure) -> None:
+        """Plot the high contrast ROIs to an axes."""
+        fig.add_scatter(
+            y=list(self.mtf.norm_mtfs.values()),
+            x=self.mtf.spacings,
+            line={
+                "color": "black",
+            },
+            name="rMTF",
+        )
+        fig.update_layout(
+            xaxis_showspikes=True,
+            yaxis_showspikes=True,
+            xaxis_title="Line pairs / mm",
+            yaxis_title="relative MTF",
+        )
+        add_title(fig, "High-frequency rMTF")
 
     def results(self, as_list: bool = False) -> str | list[str]:
         """Return the results of the analysis.

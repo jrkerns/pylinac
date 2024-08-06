@@ -12,6 +12,7 @@ import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
+from plotly import graph_objects as go
 from scipy import ndimage, signal
 from scipy.interpolate import InterpolatedUnivariateSpline, UnivariateSpline, interp1d
 from scipy.ndimage import gaussian_filter1d, zoom
@@ -32,7 +33,7 @@ from . import validators
 from .gamma import gamma_1d, gamma_geometric
 from .geometry import Circle, Point
 from .hill import Hill
-from .utilities import convert_to_enum
+from .utilities import TemporaryAttribute, convert_to_enum
 
 # for Hill fits of 2D device data the # of points can be small.
 # This results in optimization warnings about the variance of the fit (the variance isn't of concern for us for that particular item)
@@ -434,6 +435,26 @@ class ProfileBase(ProfileMixin, ABC):
             output_type = self.__class__
         return output_type(values=target_y, x_values=target_x)
 
+    def plotly(
+        self,
+        fig: go.Figure | None = None,
+        show: bool = True,
+        show_field_edges: bool = True,
+        show_grid: bool = True,
+        show_center: bool = True,
+        mirror: Literal["beam", "geometry"] | None = None,
+        name: str = "Profile",
+    ) -> go.Figure:
+        """Plot the profile to a plotly figure."""
+
+        if fig is None:
+            fig = go.Figure()
+        fig.add_scatter(x=self.x_values, y=self.values, name=name)
+
+        if show:
+            fig.show()
+        return fig
+
     def plot(
         self,
         show: bool = True,
@@ -802,7 +823,6 @@ class PhysicalProfileMixin:
         gamma_cap_value: float = 2,
         dose_threshold: float = 5,
         fill_value: float = np.nan,
-        centering: Centering | str = Centering.GEOMETRIC_CENTER,
         return_profiles: bool = False,
     ) -> np.ndarray | (np.ndarray, PhysicalProfileMixin, PhysicalProfileMixin):
         """Compute the gamma index between the profile and a reference profile.
@@ -811,11 +831,6 @@ class PhysicalProfileMixin:
         ----------
         reference_profile : ProfileBase
             The reference profile to compare against.
-        centering
-            The centering method of the profiles. If Manual,
-            no centering is done. It is assumed you have already performed any necessary centering.
-            If Geometric, will center both profiles geometrically.
-            If Beam, will center both profiles at the beam center.
         return_profiles : bool
             Whether to return the gamma index values or the gamma index values and the two profiles.
             The profiles are adjusted to be geometrically centered and thus are not the original profiles.
@@ -832,19 +847,11 @@ class PhysicalProfileMixin:
             raise ValueError("The reference profile must also be a physical profile.")
         evaluation = copy.deepcopy(self)
         reference = copy.deepcopy(reference_profile)
-        # center the profiles
-        center = convert_to_enum(centering, Centering)
-        if center == Centering.GEOMETRIC_CENTER:
-            ref_x = reference.x_values - reference.geometric_center_idx
-            eval_x = evaluation.x_values - evaluation.geometric_center_idx
-            reference.x_values = ref_x
-            evaluation.x_values = eval_x
-        elif center == Centering.BEAM_CENTER:
-            ref_x = reference.x_values - reference.center_idx
-            eval_x = evaluation.x_values - evaluation.center_idx
-            reference.x_values = ref_x
-            evaluation.x_values = eval_x
-        # no action needed for manual
+        # center the profiles geometrically by shifting x-values to the mean
+        ref_x = reference.x_values - reference.geometric_center_idx
+        eval_x = evaluation.x_values - evaluation.geometric_center_idx
+        reference.x_values = ref_x
+        evaluation.x_values = eval_x
 
         gamma = gamma_geometric(
             reference=reference.values,
@@ -870,7 +877,6 @@ class PhysicalProfileMixin:
         gamma_cap_value: float = 2,
         dose_threshold: float = 5,
         fill_value: float = np.nan,
-        centering: Centering | str = Centering.GEOMETRIC_CENTER,
         axis: plt.Axes | None = None,
         show: bool = True,
     ) -> plt.Axes:
@@ -891,7 +897,6 @@ class PhysicalProfileMixin:
             dose_threshold=dose_threshold,
             fill_value=fill_value,
             return_profiles=True,
-            centering=centering,
         )
         if axis is None:
             _, axis = plt.subplots()
@@ -2255,6 +2260,24 @@ class CircleProfile(MultiProfile, Circle):
         self.x_locations = np.roll(self.x_locations, -amount)
         self.y_locations = np.roll(self.y_locations, -amount)
 
+    def plotly(
+        self,
+        fig: go.Figure,
+        color: str = "black",
+        fill: bool = False,
+        plot_peaks: bool = True,
+    ):
+        Circle.plotly(self, fig, color, fill)
+        if plot_peaks:
+            x_locs = [peak.x for peak in self.peaks]
+            y_locs = [peak.y for peak in self.peaks]
+            fig.add_scatter(
+                x=x_locs,
+                y=y_locs,
+                mode="markers",
+                marker=dict(size=10, color=color),
+            )
+
     def plot2axes(
         self,
         axes: plt.Axes = None,
@@ -2382,6 +2405,27 @@ class CollapsedCircleProfile(CircleProfile):
             profile += ndimage.map_coordinates(self.image_array, [y, x], order=0)
         profile /= self.num_profiles
         return profile
+
+    def plotly(
+        self,
+        fig: go.Figure,
+        color: str = "black",
+        fill: bool = False,
+        plot_peaks: bool = True,
+    ):
+        with TemporaryAttribute(self, "radius", self.radius * (1 + self.width_ratio)):
+            super().plotly(fig, color, fill)
+        with TemporaryAttribute(self, "radius", self.radius * (1 - self.width_ratio)):
+            super().plotly(fig, color, fill)
+        if plot_peaks:
+            x_locs = [peak.x for peak in self.peaks]
+            y_locs = [peak.y for peak in self.peaks]
+            fig.add_scatter(
+                x=x_locs,
+                y=y_locs,
+                mode="markers",
+                marker=dict(size=10, color=color),
+            )
 
     def plot2axes(
         self,

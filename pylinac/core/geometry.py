@@ -8,6 +8,7 @@ from typing import Iterable
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
+import plotly.graph_objects as go
 from matplotlib.patches import Circle as mpl_Circle
 from matplotlib.patches import Rectangle as mpl_Rectangle
 from mpl_toolkits.mplot3d.art3d import Line3D
@@ -134,18 +135,15 @@ class Point:
             (self.x - p.x) ** 2 + (self.y - p.y) ** 2 + (self.z - p.z) ** 2
         )
 
-    def as_array(self, only_coords: bool = True) -> np.ndarray:
-        """Return the point as a numpy array."""
-        if only_coords:
-            return np.array([getattr(self, item) for item in self._coord_list])
-        else:
-            return np.array(
-                [
-                    getattr(self, item)
-                    for item in self._attr_list
-                    if (getattr(self, item) is not None)
-                ]
-            )
+    def as_array(self, coords: tuple[str, ...] = ("x", "y", "z")) -> np.ndarray:
+        """Return the point as a numpy array.
+
+        Parameters
+        ----------
+        coords : tuple
+            The coordinate attributes to return in the array.
+        """
+        return np.array([getattr(self, coord) for coord in coords])
 
     def as_vector(self) -> Vector:
         return Vector(x=self.x, y=self.y, z=self.z)
@@ -246,6 +244,27 @@ class Circle:
     def diameter(self) -> float:
         """Get the diameter of the circle."""
         return self.radius * 2
+
+    def plotly(
+        self,
+        fig: go.Figure,
+        color: str = "black",
+        fill: bool = False,
+        **kwargs,
+    ) -> None:
+        """Draw the circle on a plotly figure."""
+        # we use scatter so we can have hovertext/info, etc. Easier
+        # with add_shape but we don't have the same options. Makes interface more consistent.
+        theta = np.linspace(0, 2 * np.pi, 100)
+        fig.add_scatter(
+            x=self.center.x + self.radius * np.cos(theta),
+            y=self.center.y + self.radius * np.sin(theta),
+            mode="lines",
+            line_color=color,
+            fill="toself" if fill else "none",
+            fillcolor=color if fill else "rgba(0,0,0,0)",
+            **kwargs,
+        )
 
     def plot2axes(
         self,
@@ -499,6 +518,16 @@ class Line:
         )
         return lines[0]
 
+    def plotly(self, fig: go.Figure, color: str = "blue", **kwargs) -> None:
+        """Plot the line to a plotly figure."""
+        fig.add_scatter(
+            x=[self.point1.x, self.point2.x],
+            y=[self.point1.y, self.point2.y],
+            mode="lines",
+            line=dict(color=color),
+            **kwargs,
+        )
+
     def dict(self) -> dict:
         """Convert to dict. Shim until convert to dataclass"""
         return {
@@ -593,6 +622,44 @@ class Rectangle:
             as_int=self._as_int,
         )
 
+    def plotly(
+        self,
+        fig: go.Figure,
+        color: str = "black",
+        fill: bool = False,
+        angle: float = 0.0,
+        **kwargs,
+    ) -> None:
+        """Draw the rectangle on a plotly figure."""
+        # we use scatter so we can have hovertext/info, etc. Easier
+        # with add_shape but we don't have the same options. Makes interface more consistent.
+        bl_corner, tl_corner, tr_corner, br_corner = rotate_points(
+            [self.bl_corner, self.tl_corner, self.tr_corner, self.br_corner],
+            angle,
+            self.center,
+        )
+        fig.add_scatter(
+            x=[
+                bl_corner.x,
+                tl_corner.x,
+                tr_corner.x,
+                br_corner.x,
+                bl_corner.x,
+            ],
+            y=[
+                bl_corner.y,
+                tl_corner.y,
+                tr_corner.y,
+                br_corner.y,
+                bl_corner.y,
+            ],
+            mode="lines",
+            line_color=color,
+            fill="toself" if fill else "none",
+            fillcolor=color if fill else "rgba(0,0,0,0)",
+            **kwargs,
+        )
+
     def plot2axes(
         self,
         axes: plt.Axes,
@@ -638,6 +705,7 @@ class Rectangle:
                 (self.bl_corner.x, self.bl_corner.y),
                 width=self.width,
                 height=self.height,
+                rotation_point="center",
                 angle=angle,
                 edgecolor=edgecolor,
                 alpha=alpha,
@@ -657,3 +725,21 @@ class Rectangle:
                 horizontalalignment=ha,
                 verticalalignment=va,
             )
+
+
+def rotate_points(points: list[Point], angle: float, center: Point) -> list[Point]:
+    """Rotate a list of points around a center point."""
+    angle = np.radians(angle - 90)
+    # Rotation matrix
+    rotation_matrix = np.array(
+        [[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]
+    )
+
+    p = np.asarray([p.as_array(("x", "y")) for p in points])
+    # Translate points to origin, apply rotation, translate back
+    translated_points = p - center.as_array(("x", "y"))
+    rotated_points = np.dot(translated_points, rotation_matrix) + center.as_array(
+        ("x", "y")
+    )
+
+    return [Point(x, y) for x, y in rotated_points]

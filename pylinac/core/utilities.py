@@ -194,6 +194,22 @@ def is_iterable(object) -> bool:
     return isinstance(object, Iterable)
 
 
+class TemporaryAttribute:
+    """Context manager to temporarily set a class attribute."""
+
+    def __init__(self, cls, attribute_name, temporary_value):
+        self.cls = cls
+        self.attribute_name = attribute_name
+        self.temporary_value = temporary_value
+        self.original_value = getattr(cls, attribute_name)
+
+    def __enter__(self):
+        setattr(self.cls, self.attribute_name, self.temporary_value)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        setattr(self.cls, self.attribute_name, self.original_value)
+
+
 class Structure:
     """A simple structure that assigns the arguments to the object."""
 
