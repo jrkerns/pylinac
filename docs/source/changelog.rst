@@ -20,6 +20,30 @@ Picket Fence
   to be **relative to the CAX**. Previously, the positions were relative to the left/top of the image. This attribute
   was requested by French sites and this change was also requested by them.
 
+Starshot
+^^^^^^^^
+
+TL;DR: The algorithm is more robust, but manually passing bad starting points will now error.
+
+* :bdg-warning:`Fixed` Sometimes images analyzed with a large radius and/or with recursive analysis would "find" spokes
+  where there were clearly no spokes. This was due to a normalization issue of the sampled ring. The normalization
+  now takes into account the mean value of the central third of the image. This should prevent "ghost" spokes.
+* :bdg-warning:`Fixed` The image is now "grounded" (lowest value set to 0) before analysis. This should prevent
+  issues with images that have a high background value and relatively low signal values.
+* :bdg-primary:`Refactor` Detected spokes that are not within 10mm of the initial starting point will raise an error.
+  This is to prevent poor analyses, most often for gantry starshots, where some spokes are not detected.
+  In combination with ``recursive``, this should provide a more robust analysis.
+
+  .. image:: images/bad_line_match.png
+
+* :bdg-danger:`Change` Due to the internal changes required to fix the above issues, providing a ``start_point`` to the analysis method was usually robust enough to iteratively
+  correct itself. This is no longer the case. Passing a ``start_point`` will now be the only and final point that the ring is
+  centered around. I.e. if you pass a bad starting point you'll get an error most likely. The intent of the
+  start point was to provide a workaround if the automatic centering failed. This is still true but assumes that
+  the user is providing a reasonable starting point (<5mm from the radiation center). A future feature will provide
+  the distance from a start point to the radiation isocenter, allowing the workflow of passing the start point which
+  represents the mechanical isocenter.
+
 Gamma
 ^^^^^
 

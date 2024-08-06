@@ -2080,7 +2080,7 @@ class MultiProfile(ProfileMixin):
         _, peak_props = find_peaks(
             self.values,
             threshold=threshold,
-            min_width=min_distance,
+            peak_separation=min_distance,
             max_number=max_number,
             search_region=search_region,
             peak_sort=peak_sort,
