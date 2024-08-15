@@ -1552,7 +1552,7 @@ class PlanGenerator:
         g_angles_uncorrected = [start_gantry_angle] + (
             start_gantry_angle + gantry_sign * np.cumsum(gantry_deltas)
         ).tolist()
-        gantry_angles = [wrap360(angle) for angle in g_angles_uncorrected]
+        gantry_angles = [round(wrap360(angle), 2) for angle in g_angles_uncorrected]
 
         if sum(gantry_deltas) >= 360:
             raise ValueError(
