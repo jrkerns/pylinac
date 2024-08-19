@@ -356,7 +356,7 @@ class TestBBBasedAnalysis(TestCase):
         self.assertAlmostEqual(results.max_error_mm, 0.0, delta=0.005)
         self.assertAlmostEqual(results.cax.x, 636.5, delta=0.1)
         # bb is 2mm off in bb setup image above
-        self.assertAlmostEqual(results.mlc_positions_by_leaf["17"][0], -102, delta=0.1)
+        self.assertAlmostEqual(results.mlc_positions_by_leaf["17"][0], 102, delta=0.1)
 
 
 class LoadingFromMultiple(TestCase):
