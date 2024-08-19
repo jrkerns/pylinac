@@ -157,7 +157,7 @@ class TestAnalyze(TestCase):
         )  # 36 leaf pairs in the image
         # constancy check
         self.assertAlmostEqual(
-            statistics.mean(data.mlc_positions_by_leaf["17"]), 7.91, delta=0.1
+            statistics.mean(data.mlc_positions_by_leaf["17"]), -7.91, delta=0.1
         )
         # check max error matches a combination of the leaf values
         self.assertEqual(
@@ -174,6 +174,13 @@ class TestAnalyze(TestCase):
         self.assertIsInstance(data_str, str)
         # shouldn't raise
         json.loads(data_str)
+
+        # check signs of leaf positions and picket positions from the CAX are the same.
+        self.assertAlmostEqual(
+            data_dict["mlc_positions_by_leaf"]["17"][0],
+            data_dict["offsets_from_cax_mm"][0],
+            delta=0.1,
+        )
 
     def test_no_measurements_suggests_inversion(self):
         file_loc = get_file_from_cloud_test_repo(
