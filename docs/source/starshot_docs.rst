@@ -159,30 +159,39 @@ Algorithm
 * The image must have at least 6 spokes (3 angles).
 * The center of the "star" must be in the central 1/3 of the image.
 * The radiation spokes must extend to both sides of the center. I.e. the spokes must not end at the center of the circle.
+* Markings like pin pricks or marker dots can cause wild pixel values and analysis errors and should be cropped out if possible.
 
 **Pre-Analysis**
 
-
-* **Check for image noise** -- The image is checked for unreasonable noise by comparing the min and max
-  to the 1/99th percentile pixel values respectively. If there is a large difference then there is likely an artifact
-  and a median filter is applied until the min/max and 1/99th percentiles are similar.
+* **Ground** -- The image is "grounded" by setting the lowest pixel value to 0. This is done to avoid issues with
+  high-background pixel values.
 * **Check image inversion** -- The image is checked for proper inversion using histogram analysis.
-* **Set algorithm starting point** -- Unless the user has manually set the pixel location of the start point,
-  it is automatically found by summing the image along each axis and finding the
-  center of the full-width, 80%-max of each sum. The maximum value point is also located. Of the two points, the
-  one closest to the center of the image is chosen as the starting point.
+* **Set algorithm starting point** -- If the user provided a ``start_point`` to the ``analyze`` method,
+  this value is used. Otherwise, the start point is automatically found by examining the central 1/3 of the image and taking the max of that image window along each axis and finding the
+  center of the full-width, 80%-max of each profile.
 
 **Analysis**
 
 * **Extract circle profile** -- A circular profile is extracted from the image centered around the starting point
   and at the radius given.
-* **Find spokes** -- The circle profile is analyzed for peaks. Optionally, the profile is reanalyzed to find the center
-  of the FWHM. An even number of spokes must be found (1 for each side; e.g. 3 collimator angles should produce 6
-  spokes, one for each side of the CAX).
+* **Find spokes** -- The circle profile is analyzed for peaks (either simple peaks or FWHM peaks depending on the ``fwhm`` parameter).
+  An even number of spokes (1 for each side; e.g. 3 collimator angles should produce 6
+  spokes, one for each side of the CAX) and at least 6 spokes (3 angles) must be found or an error is raised. If ``recursive`` is set to true, this process
+  is repeated for the radii range 0.1-0.95 and from 0.05-0.95 ``min_peak_height``. If no combination of these
+  parameters produces a valid set of spokes, an error is raised.
 * **Match peaks** -- Peaks are matched to their counterparts opposite the CAX to compose a line using a simple peak number offset.
+  After matching, the distances from the lines to the start point is measured. If the distance is greater than 10mm of
+  any line, an error is raised and follows the same logic regarding ``recursive`` as the previous step. This is to
+  avoid issues specifically with gantry starshots. This can also be corrected ahead of time by using a lower ``min_peak_height``.
+
+  .. figure:: images/bad_line_match.png
+
+      The above image has an even number of spokes, but has not caught the low-dose end of the gantry spokes on the right.
+
+
 * **Find wobble** -- Starting at the initial starting point, a Nelder-Mead gradient method is utilized to find the
-  point of minimum distance to all lines. If recursive is set to True and a "reasonable" wobble (<2mm) is not found
-  using the passes settings, the peak height and radius are iterated until a reasonable wobble is found.
+  point of minimum distance to all lines. The wobble is assumed to be found if the wobble diameter is <2mm and is <10 mm from the
+  starting point. If not, the same logic as the previous steps is followed regarding the ``recursive`` parameter.
 
 **Post-Analysis**
 
