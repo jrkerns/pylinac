@@ -171,7 +171,7 @@ class PFResult(ResultBase):
         title="Mean Picket Spacing (mm)",
     )
     offsets_from_cax_mm: list[float] = Field(
-        description="The offsets of each picket from the central axis in mm.",
+        description="The offsets of each picket from the central axis in mm. Positive is to the left.",
         title="Offsets from CAX (mm)",
     )
     passed: bool = Field(
@@ -189,7 +189,7 @@ class PFResult(ResultBase):
         description="The widths of the pickets in mm."
     )
     mlc_positions_by_leaf: dict[str, list[float]] = Field(
-        description="A dictionary where the key is the leaf number and the value is a list of positions in mm **from the CAX**. The distance is from the x-value (or y-value for left-right orientation) of the CAX. "
+        description="A dictionary where the key is the leaf number and the value is a list of positions in mm **from the CAX**. The distance is from the x-value (or y-value for left-right orientation) of the CAX. Positive is to the left."
         "Rotation of the MLCs would affect these distances."
     )
     mlc_errors_by_leaf: dict[str, list[float]] = Field(
@@ -1274,11 +1274,11 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
             leaf_items = list(group_iter)  # group_iter is a generator
             leaf_names = leaf_items[0].full_leaf_nums
             for idx, leaf_name in enumerate(leaf_names):
-                pos_vals = [
-                    m.position_mm[idx] - cax_physical_position for m in leaf_items
+                position_values = [
+                    cax_physical_position - m.position_mm[idx] for m in leaf_items
                 ]
                 error_vals = [m.error[idx] for m in leaf_items]
-                positions_by_leaf[str(leaf_name)] = pos_vals
+                positions_by_leaf[str(leaf_name)] = position_values
                 errors_by_leaf[str(leaf_name)] = error_vals
         errors_by_leaf = dict(
             sorted(errors_by_leaf.items())
