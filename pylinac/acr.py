@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import io
-import math
 import textwrap
 import warnings
 import webbrowser
@@ -15,10 +14,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from scipy import ndimage
 
 from .core import pdf
-from .core.array_utils import find_nearest_idx
+from .core.array_utils import fill_middle_zeros, find_nearest_idx
 from .core.geometry import Line, LineSerialized, Point
 from .core.mtf import MTF
-from .core.profile import FWXMProfilePhysical
+from .core.profile import FWXMProfile
 from .core.roi import HighContrastDiskROI, RectangleROI
 from .core.utilities import QuaacDatum, ResultBase, ResultsDataMixin
 from .ct import (
@@ -998,30 +997,36 @@ class GeometricDistortionModule(CatPhanModule):
     profiles: dict
 
     def _setup_rois(self) -> None:
+        """This is mostly for plotting purposes. This is why we use FWXMProfile
+        instead of FWXMProfilePhysical. The lines to plot should be in pixel coordinates, not physical.
+        We convert to physical just for the field width calculation."""
         self.profiles = {}
         bin_image = self.image.as_binary(threshold=np.percentile(self.image, 60))
         bin_image = ndimage.binary_fill_holes(bin_image).astype(float)
         # calculate horizontal
         data = bin_image[int(self.phan_center.y), :]
-        prof = FWXMProfilePhysical(values=data, dpmm=1 / self.mm_per_pixel)
+        # cutoff 3mm from the search area
+        f_data = fill_middle_zeros(data, cutoff_px=int(round(3 / self.mm_per_pixel)))
+        prof = FWXMProfile(values=f_data)
         line = Line(
             Point(prof.field_edge_idx(side="left"), self.phan_center.y),
             Point(prof.field_edge_idx(side="right"), self.phan_center.y),
         )
 
         self.profiles["horizontal"] = {
-            "width (mm)": prof.field_width_mm,
+            "width (mm)": prof.field_width_px * self.mm_per_pixel,
             "line": line,
         }
         # calculate vertical
         data = bin_image[:, int(self.phan_center.x)]
-        prof = FWXMProfilePhysical(values=data, dpmm=1 / self.mm_per_pixel)
+        f_data = fill_middle_zeros(data, cutoff_px=int(round(3 / self.mm_per_pixel)))
+        prof = FWXMProfile(values=f_data)
         line = Line(
             Point(self.phan_center.x, prof.field_edge_idx(side="left")),
             Point(self.phan_center.x, prof.field_edge_idx(side="right")),
         )
         self.profiles["vertical"] = {
-            "width (mm)": prof.field_width_mm,
+            "width (mm)": prof.field_width_px * self.mm_per_pixel,
             "line": line,
         }
         # calculate negative diagonal
@@ -1031,10 +1036,9 @@ class GeometricDistortionModule(CatPhanModule):
         xs = np.arange(0, self.image.shape[1])
         ys = xs + b
         coords = ndimage.map_coordinates(bin_image, [ys, xs], order=1, mode="mirror")
+        f_data = fill_middle_zeros(coords, cutoff_px=int(round(3 / self.mm_per_pixel)))
         # pixels are now diagonal and thus spacing between pixels is now the hypotenuse
-        prof = FWXMProfilePhysical(
-            values=coords, dpmm=1 / (self.mm_per_pixel * math.sqrt(2))
-        )
+        prof = FWXMProfile(values=f_data)
         line = Line(
             Point(
                 xs[int(round(prof.field_edge_idx(side="left")))],
@@ -1046,7 +1050,7 @@ class GeometricDistortionModule(CatPhanModule):
             ),
         )
         self.profiles["negative diagonal"] = {
-            "width (mm)": prof.field_width_mm,
+            "width (mm)": prof.field_width_px * self.mm_per_pixel,
             "line": line,
         }
         # calculate positive diagonal
@@ -1055,9 +1059,8 @@ class GeometricDistortionModule(CatPhanModule):
         b = self.phan_center.y + self.phan_center.x
         ys = -xs + b
         coords = ndimage.map_coordinates(bin_image, [ys, xs], order=1, mode="mirror")
-        prof = FWXMProfilePhysical(
-            values=coords, dpmm=1 / (self.mm_per_pixel * math.sqrt(2))
-        )
+        f_data = fill_middle_zeros(coords, cutoff_px=int(round(3 / self.mm_per_pixel)))
+        prof = FWXMProfile(values=f_data)
         line = Line(
             Point(
                 xs[int(round(prof.field_edge_idx(side="left")))],
@@ -1069,7 +1072,7 @@ class GeometricDistortionModule(CatPhanModule):
             ),
         )
         self.profiles["positive diagonal"] = {
-            "width (mm)": prof.field_width_mm,
+            "width (mm)": prof.field_width_px * self.mm_per_pixel,
             "line": line,
         }
 

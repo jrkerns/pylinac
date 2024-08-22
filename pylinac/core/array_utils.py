@@ -328,3 +328,43 @@ def create_dicom_files_from_3d_array(
         )
         ds.save_as(out_dir / f"{i}.dcm", write_like_original=False)
     return out_dir
+
+
+@validate(array=(array_not_empty, single_dimension))
+def fill_middle_zeros(array: np.ndarray, cutoff_px: int = 0) -> np.ndarray:
+    """Fills in the middle 0s in a 1D array where "middle" 0s are those that are
+    surrounded by 1s on both sides.
+
+    Parameters
+    ----------
+    array : np.ndarray
+        A 1D numpy array with values 0 and 1.
+    cutoff_px : int
+        The number of pixels to ignore near the edges of the array. This is to
+        account for spurious signal near the edges.
+
+    Returns
+    -------
+    np.ndarray
+        A 1D float NumPy array with the middle 0s filled.
+    """
+    # Ensure the input is an array of 0s and 1s
+    array = array.astype(float)
+    if np.max(array) > 1 or np.min(array) < 0:
+        raise ValueError("Array values must be between 0 and 1")
+    # set edges to 0; this is to account for spurious 1s near the edges
+    array[:cutoff_px] = 0
+    array[-cutoff_px:] = 0
+
+    # Identify the edges where the array transitions from 1 to 0 and 0 to 1
+    edges = np.diff(array)
+
+    # Identify the start and end points of the middle sections (where 0 is surrounded by 1s)
+    left_edge = np.min(np.where(edges > 0.5)[0])
+    right_edge = np.max(np.where(edges < -0.5)[0])
+
+    # Create a copy of the array to modify
+    filled_arr = array.copy()
+    filled_arr[left_edge + 1 : right_edge + 1] = 1.0
+
+    return filled_arr

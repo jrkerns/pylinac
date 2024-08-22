@@ -10,6 +10,17 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.27.0
+--------
+
+ACR MRI
+^^^^^^^
+
+* Phantoms that were not fully filled and/or had air gaps at the top would sometimes
+  cause the geometric distortion analysis to fail. This was caused by the air gap not completing
+  the full circle of the phantom. The algorithm no longer relies on this assumption and
+  is robust to these air gaps for the geometric distortion analysis.
+
 v 3.26.0
 --------
 

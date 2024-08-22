@@ -6,6 +6,7 @@ import numpy as np
 from pylinac.core.array_utils import (
     bit_invert,
     convert_to_dtype,
+    fill_middle_zeros,
     filter,
     geometric_center_idx,
     geometric_center_value,
@@ -44,12 +45,12 @@ class TestGeometricCenter(TestCase):
             geometric_center_value(arr)
 
     def test_geometric_idx_multidim_fails(self):
-        arr1 = np.random.randn(2, 2)
+        arr1 = np.random.randn(2, 2)  # noqa: NPY002
         with self.assertRaises(ValueError):
             geometric_center_idx(arr1)
 
     def test_geometric_value_multidim_fails(self):
-        arr1 = np.random.randn(2, 2)
+        arr1 = np.random.randn(2, 2)  # noqa: NPY002
         with self.assertRaises(ValueError):
             geometric_center_value(arr1)
 
@@ -232,3 +233,40 @@ class TestConvertDataType(TestCase):
         c_arr = convert_to_dtype(arr1, dtype=np.uint16)
         assert np.array_equal(c_arr, [0, 65535])
         self.assertEqual(c_arr.dtype, np.uint16)
+
+
+class TestFillMiddle(TestCase):
+    def test_normal(self):
+        arr = np.array([0, 0, 1, 0, 1, 0, 0])
+        filled = fill_middle_zeros(arr, cutoff_px=1)
+        self.assertEqual(filled.tolist(), [0, 0, 1, 1, 1, 0, 0])
+
+    def test_multiple_gaps(self):
+        arr = np.array([0, 0, 1, 1, 0, 1, 0, 1, 0, 0])
+        filled = fill_middle_zeros(arr, cutoff_px=1)
+        self.assertEqual(filled.tolist(), [0, 0, 1, 1, 1, 1, 1, 1, 0, 0])
+
+    def test_cutoff(self):
+        arr = np.array([1, 0, 1, 0, 1, 0, 1])
+        filled = fill_middle_zeros(arr, cutoff_px=2)
+        self.assertEqual(filled.tolist(), [0, 0, 1, 1, 1, 0, 0])
+
+    def test_max_above_1(self):
+        arr = np.array([0, 0, 10, 0, 10, 0, 0])
+        with self.assertRaises(ValueError):
+            fill_middle_zeros(arr)
+
+    def test_min_below_0(self):
+        arr = np.array([0, 0, -1, 0, 1, 0, 0])
+        with self.assertRaises(ValueError):
+            fill_middle_zeros(arr)
+
+    def test_2d_array_fails(self):
+        arr = np.random.rand(2, 2)  # noqa: NPY002
+        with self.assertRaises(ValueError):
+            fill_middle_zeros(arr)
+
+    def test_empty_fails(self):
+        arr = np.array([])
+        with self.assertRaises(ValueError):
+            fill_middle_zeros(arr)
