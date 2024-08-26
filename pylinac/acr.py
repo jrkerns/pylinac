@@ -1000,13 +1000,14 @@ class GeometricDistortionModule(CatPhanModule):
         """This is mostly for plotting purposes. This is why we use FWXMProfile
         instead of FWXMProfilePhysical. The lines to plot should be in pixel coordinates, not physical.
         We convert to physical just for the field width calculation."""
+        px_to_cut_off = int(round(5 / self.mm_per_pixel))
         self.profiles = {}
         bin_image = self.image.as_binary(threshold=np.percentile(self.image, 60))
         bin_image = ndimage.binary_fill_holes(bin_image).astype(float)
         # calculate horizontal
         data = bin_image[int(self.phan_center.y), :]
         # cutoff 3mm from the search area
-        f_data = fill_middle_zeros(data, cutoff_px=int(round(3 / self.mm_per_pixel)))
+        f_data = fill_middle_zeros(data, cutoff_px=px_to_cut_off)
         prof = FWXMProfile(values=f_data)
         line = Line(
             Point(prof.field_edge_idx(side="left"), self.phan_center.y),
@@ -1019,7 +1020,7 @@ class GeometricDistortionModule(CatPhanModule):
         }
         # calculate vertical
         data = bin_image[:, int(self.phan_center.x)]
-        f_data = fill_middle_zeros(data, cutoff_px=int(round(3 / self.mm_per_pixel)))
+        f_data = fill_middle_zeros(data, cutoff_px=px_to_cut_off)
         prof = FWXMProfile(values=f_data)
         line = Line(
             Point(self.phan_center.x, prof.field_edge_idx(side="left")),
@@ -1036,7 +1037,7 @@ class GeometricDistortionModule(CatPhanModule):
         xs = np.arange(0, self.image.shape[1])
         ys = xs + b
         coords = ndimage.map_coordinates(bin_image, [ys, xs], order=1, mode="mirror")
-        f_data = fill_middle_zeros(coords, cutoff_px=int(round(3 / self.mm_per_pixel)))
+        f_data = fill_middle_zeros(coords, cutoff_px=px_to_cut_off)
         # pixels are now diagonal and thus spacing between pixels is now the hypotenuse
         prof = FWXMProfile(values=f_data)
         line = Line(
@@ -1059,7 +1060,7 @@ class GeometricDistortionModule(CatPhanModule):
         b = self.phan_center.y + self.phan_center.x
         ys = -xs + b
         coords = ndimage.map_coordinates(bin_image, [ys, xs], order=1, mode="mirror")
-        f_data = fill_middle_zeros(coords, cutoff_px=int(round(3 / self.mm_per_pixel)))
+        f_data = fill_middle_zeros(coords, cutoff_px=px_to_cut_off)
         prof = FWXMProfile(values=f_data)
         line = Line(
             Point(

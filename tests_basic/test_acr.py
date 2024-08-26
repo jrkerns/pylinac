@@ -343,7 +343,8 @@ class TestACRMRIQuaac(QuaacTestBase, CloudFileMixin, TestCase):
 class ACRMRMixin(CloudFileMixin):
     dir_path = ["ACR", "MRI"]
     phantom_roll: float = 0
-    mtf_50: float
+    row_mtf_50: float
+    col_mtf_50: float
     slice_thickness: float
     slice1_shift: float
     slice11_shift: float
@@ -361,10 +362,10 @@ class ACRMRMixin(CloudFileMixin):
 
     def test_mtf(self):
         self.assertAlmostEqual(
-            self.mri.slice1.row_mtf.relative_resolution(50), self.mtf_50, delta=0.1
+            self.mri.slice1.row_mtf.relative_resolution(50), self.row_mtf_50, delta=0.1
         )
         self.assertAlmostEqual(
-            self.mri.slice1.col_mtf.relative_resolution(50), self.mtf_50, delta=0.1
+            self.mri.slice1.col_mtf.relative_resolution(50), self.col_mtf_50, delta=0.1
         )
 
     def test_slice_thickness(self):
@@ -397,7 +398,8 @@ class ACRMRMixin(CloudFileMixin):
 
 class ACRT1Single(ACRMRMixin, TestCase):
     file_name = "T1-Single.zip"
-    mtf_50 = 0.96
+    row_mtf_50 = 0.96
+    col_mtf_50 = 0.96
     phantom_roll = -0.5
     slice_thickness = 5
     slice1_shift = -1
@@ -407,7 +409,8 @@ class ACRT1Single(ACRMRMixin, TestCase):
 
 class ACRDualEcho(ACRMRMixin, TestCase):
     file_name = "AXIAL_DUAL_ECHO.zip"
-    mtf_50 = 0.96
+    row_mtf_50 = 0.96
+    col_mtf_50 = 0.96
     phantom_roll = 0
     slice_thickness = 5
     slice1_shift = -1
@@ -417,7 +420,8 @@ class ACRDualEcho(ACRMRMixin, TestCase):
 
 class ACRDualEcho2(ACRMRMixin, TestCase):
     file_name = "AXIAL_DUAL_ECHO.zip"
-    mtf_50 = 0.96
+    row_mtf_50 = 0.96
+    col_mtf_50 = 0.96
     phantom_roll = 0
     slice_thickness = 4.4
     slice1_shift = -1
@@ -435,7 +439,8 @@ class ACRUVMSliceLocation(ACRMRMixin, TestCase):
     """Test that the image patient position is the primary measurement of slice location."""
 
     file_name = "UVM_slice_location_mismatch.zip"
-    mtf_50 = 0.96
+    row_mtf_50 = 0.96
+    col_mtf_50 = 0.96
     phantom_roll = 0
     slice_thickness = 4.5
     slice1_shift = 0.5
@@ -445,7 +450,8 @@ class ACRUVMSliceLocation(ACRMRMixin, TestCase):
 
 class ACRGE3T(ACRMRMixin, TestCase):
     file_name = "GE 3T.zip"
-    mtf_50 = 0.96
+    row_mtf_50 = 0.96
+    col_mtf_50 = 0.96
     phantom_roll = 0
     slice_thickness = 5
     slice1_shift = 0
@@ -498,9 +504,32 @@ class ACRBadProfile(ACRMRMixin, TestCase):
     The only point here is to test the long profile error."""
 
     file_name = "Config rounding.zip"
-    mtf_50 = 0.96
+    row_mtf_50 = 0.96
+    col_mtf_50 = 0.96
     phantom_roll = 0
     slice_thickness = 4.2
     slice1_shift = 1.5
     slice11_shift = 1.95
     psg = 0.3
+
+
+class ACRMRIUnfilled(ACRMRMixin, TestCase):
+    # a phantom with significant air bubbles and also a rotation
+    # results aren't great, but are provided for benchmarking
+    file_name = "Sola.zip"
+    row_mtf_50 = 1
+    col_mtf_50 = 0.1
+    phantom_roll = 0.2
+    slice_thickness = 3
+    slice1_shift = -0.5
+    slice11_shift = 1.5
+    psg = 0.3
+
+    @classmethod
+    def setUpClass(cls):
+        filename = cls.get_filename()
+        cls.mri = ACRMRILarge.from_zip(filename)
+        for img in cls.mri.dicom_stack:
+            img.array = ndimage.rotate(img.array, angle=1, mode="nearest")
+        cls.mri.localize()
+        cls.mri.analyze()
