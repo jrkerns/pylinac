@@ -22,7 +22,13 @@ from pylinac.core.image_generator import (
     PerfectFieldLayer,
     RandomNoiseLayer,
 )
-from pylinac.core.image_generator.layers import Layer, SlopeLayer, clip_add, even_round
+from pylinac.core.image_generator.layers import (
+    ArrayLayer,
+    Layer,
+    SlopeLayer,
+    clip_add,
+    even_round,
+)
 from pylinac.core.image_generator.simulators import Simulator
 from pylinac.core.profile import SingleProfile
 from pylinac.metrics.image import GlobalFieldLocator
@@ -569,6 +575,33 @@ class TestConstantLayer(TestCase):
 class NOOPLayer(Layer):
     def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         return image
+
+
+class TestArrayLayer(TestCase):
+    def test_array_layer_same_size(self):
+        as1200 = AS1200Image(sid=1000)
+        as1200.add_layer(ArrayLayer(np.ones((as1200.shape[0], as1200.shape[1]))))
+        self.assertTrue(np.all(as1200.image == 1))
+
+    def test_smaller_size(self):
+        as1200 = AS1200Image(sid=1000)
+        original_shape = as1200.image.shape
+        as1200.add_layer(ArrayLayer(np.ones((5, 5))))
+        self.assertTrue(np.max(as1200.image) == 1)
+        self.assertTrue(np.min(as1200.image) == 0)
+        # test center is 1
+        self.assertTrue(as1200.image[as1200.shape[0] // 2, as1200.shape[1] // 2] == 1)
+        self.assertEqual(as1200.image.shape, original_shape)
+
+    def test_bigger_size(self):
+        as1200 = AS1200Image(sid=1000)
+        original_shape = as1200.image.shape
+        as1200.add_layer(
+            ArrayLayer(np.ones((as1200.shape[0] + 5, as1200.shape[1] + 5)))
+        )
+        self.assertTrue(np.max(as1200.image) == 1)
+        # test shape didn't change even though the added array was bigger
+        self.assertEqual(as1200.image.shape, original_shape)
 
 
 class SimulatorTestMixin:

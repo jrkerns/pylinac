@@ -13,6 +13,19 @@ Legend
 v 3.27.0
 --------
 
+Plan Generator
+^^^^^^^^^^^^^^
+
+* It is now possible to export generated images from the plan generator to DICOM files.
+  This can useful for end-to-end testing of workflows before delivering the plan itself on the machine.
+  See the new section :ref:`plan_generator_dicom_fluence` for details.
+
+Image Generator
+^^^^^^^^^^^^^^^
+
+* A new layer has been created: :class:`~pylinac.core.image_generator.layers.ArrayLayer`. This layer is for adding
+  existing numpy arrays to a simulator. This can be useful for adding custom array images.
+
 ACR MRI
 ^^^^^^^
 
