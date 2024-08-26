@@ -338,7 +338,7 @@ def fill_middle_zeros(array: np.ndarray, cutoff_px: int = 0) -> np.ndarray:
     Parameters
     ----------
     array : np.ndarray
-        A 1D numpy array with values 0 and 1.
+        A 1D numpy array with values between 0 and 1.
     cutoff_px : int
         The number of pixels to ignore near the edges of the array. This is to
         account for spurious signal near the edges.
@@ -348,7 +348,7 @@ def fill_middle_zeros(array: np.ndarray, cutoff_px: int = 0) -> np.ndarray:
     np.ndarray
         A 1D float NumPy array with the middle 0s filled.
     """
-    # Ensure the input is an array of 0s and 1s
+    # Ensure the input is an array of values between 0-1.
     array = array.astype(float)
     if np.max(array) > 1 or np.min(array) < 0:
         raise ValueError("Array values must be between 0 and 1")
