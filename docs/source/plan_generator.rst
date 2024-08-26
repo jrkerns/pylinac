@@ -111,6 +111,70 @@ See the :ref:`plan_fluence` section for more information.
 
 Once the plan is generated, we can import it back into our TPS.
 
+.. _plan_generator_dicom_fluence:
+
+DICOM Images of Fluence
+-----------------------
+
+.. versionadded:: 3.27
+
+The plan generator can also export the fluence of the generated plan as DICOM images. This can be useful for
+simulating the full end-to-end process of the plan, including imaging and image analysis. In
+contrast to plotting the fluence, which is useful for visual inspection, the DICOM images can be used for
+image analysis. Of course, fluence is not the same as the actual dose delivered but it can
+be useful nonetheless.
+
+.. tip::
+
+    To make the fluence images more realistic, you can apply filters such as a Gaussian filter to the image when saving.
+
+To export the fluences to DICOM datasets, use the :meth:`~pylinac.plan_generator.dicom.PlanGenerator.to_dicom_images` method:
+
+.. note::
+
+    If the simulator image is not the same size as the fluence, the fluence will be centered on the simulator image.
+    If the fluence is too large, it will be centered and then cropped to fit the simulator image. The DICOM
+    images will always be set to SID=1000mm.
+
+.. code-block:: python
+
+    from pylinac.plan_generator.dicom import PlanGenerator
+    from pylinac.core.image_generator import AS1200Image
+
+    generator = PlanGenerator.from_rt_plan_file(...)
+
+    # add fields; generator.add_...
+
+    # export to DICOM datasets
+    datasets = generator.to_dicom_images(
+        simulator=AS1200Image,
+    )
+
+``datasets`` will be a list of DICOM datasets. You can then save these datasets to disk or use them in your image analysis software.
+
+.. code-block:: python
+
+    for i, ds in enumerate(datasets):
+        ds.save_as(f"fluence_{i}.dcm")
+
+Alternatively, you can apply a Gaussian filter to add some realism from fluence->dose:
+
+.. code-block:: python
+
+   for i, ds in enumerate(datasets):
+       img = DicomImage.from_dataset(ds)
+       img.filter(size=0.01, "gaussian")
+       img.save(f"fluence_{i}.dcm")
+
+These files can then be used in your image analysis software to simulate the delivery of the plan.
+
+.. code-block:: python
+
+   from pylinac import PicketFence
+
+   pf = PicketFence("fluence_0.dcm")
+   ...
+
 Delivering the Plan
 -------------------
 
