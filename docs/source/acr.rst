@@ -312,6 +312,20 @@ Restrictions
 * There should be 11 slices per scan (although multiple echo scans are allowed) per the guidance document (section 0.3).
 * The phantom should have very little pitch, yaw, or roll (<1 degree).
 
+Troubleshooting
+^^^^^^^^^^^^^^^
+
+The MRI phantom specifically can suffer from evaporation of the water in the phantom. This causes bubbles to appear physically and
+also creates artifacts in the image. Large enough air in the phantom can cause an analysis to fail and/or
+create shifting issues in the analysis.
+
+.. image::  images/acr_mri_air_bubble.png
+    :width: 400
+    :align: center
+
+If bubbles are present, you can send it to the manufacturer to be fixed, or you can fill it yourself per this YouTube
+video: `Filling the ACR MRI Phantom <https://youtu.be/MH3sj2HC6Xo?si=l0I869rg07Qj4T3H>`_.
+
 .. _acr_analysis:
 
 Analysis

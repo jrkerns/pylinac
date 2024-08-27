@@ -26,6 +26,14 @@ Image Generator
 * A new layer has been created: :class:`~pylinac.core.image_generator.layers.ArrayLayer`. This layer is for adding
   existing numpy arrays to a simulator. This can be useful for adding custom array images.
 
+ACR MRI
+^^^^^^^
+
+* Phantoms that were not fully filled and/or had air gaps at the top would sometimes
+  cause the geometric distortion analysis to fail. This was caused by the air gap not completing
+  the full circle of the phantom. The algorithm no longer relies on this assumption and
+  is robust to these air gaps for the geometric distortion analysis.
+
 v 3.26.0
 --------
 
