@@ -13,8 +13,10 @@ from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
 from pydicom.uid import generate_uid
 
+from ..core.image_generator.layers import ArrayLayer
+from ..core.image_generator.simulators import Simulator
 from ..core.scale import wrap360
-from .fluence import plot_fluences
+from .fluence import generate_fluences, plot_fluences
 from .mlc import MLCShaper
 
 
@@ -1766,6 +1768,41 @@ class PlanGenerator:
         :func:`~pydicom_planar.PlanarImage.plot_fluences`
         """
         return plot_fluences(self.as_dicom(), width_mm, resolution_mm, dtype, show=True)
+
+    def to_dicom_images(
+        self, simulator: type[Simulator], invert: bool = True
+    ) -> list[Dataset]:
+        """Generate simulated DICOM images of the plan. This provides a way to
+        generate an end-to-end simulation of the plan. The images will always be
+        at 1000mm SID.
+
+        Parameters
+        ----------
+        simulator : Simulator
+            The simulator to use to generate the images. This provides the
+            size of the image and the pixel size
+        invert: bool
+            Invert the fluence. Setting to True simulates EPID-style images where
+            dose->lower pixel value.
+        """
+        image_ds = []
+        fluences = generate_fluences(
+            rt_plan=self.as_dicom(),
+            width_mm=simulator.shape[1] * simulator.pixel_size,
+            resolution_mm=simulator.pixel_size,
+        )
+        for beam, fluence in zip(self.ds.BeamSequence, fluences):
+            beam_info = beam.ControlPointSequence[0]
+            sim = simulator(sid=1000)
+            sim.add_layer(ArrayLayer(fluence))
+            ds = sim.as_dicom(
+                gantry_angle=beam_info.GantryAngle,
+                coll_angle=beam_info.BeamLimitingDeviceAngle,
+                table_angle=beam_info.PatientSupportAngle,
+                invert=invert,
+            )
+            image_ds.append(ds)
+        return image_ds
 
     def _update_references(self, mu: float) -> None:
         """Update the other sequences that reference the beam sequence."""

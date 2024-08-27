@@ -298,6 +298,9 @@ Layers
 .. autoclass:: pylinac.core.image_generator.layers.SlopeLayer
         :inherited-members:
 
+.. autoclass:: pylinac.core.image_generator.layers.ArrayLayer
+        :inherited-members:
+
 Simulators
 ^^^^^^^^^^
 

@@ -182,7 +182,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             else:
                 return cls(image_files[0], **kwargs)
 
-    def _get_reasonable_start_point(self) -> Point:
+    def _get_reasonable_start_point(self) -> (Point, float):
         """Set the algorithm starting point automatically.
 
         Notes
@@ -198,8 +198,11 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         right_third = int(left_third * 2)
         central_array = self.image.array[top_third:bottom_third, left_third:right_third]
 
-        x_sum = np.sum(central_array, 0)
-        y_sum = np.sum(central_array, 1)
+        # use max because there is an edge case where multiple spokes
+        # that are nearly vertical or horizontal can cause the sum to be higher than the center
+        # allowing for a dip that can affect the initial center point
+        x_sum = np.max(central_array, 0)
+        y_sum = np.max(central_array, 1)
 
         # Calculate Full-Width, 80% Maximum center
         fwxm_x_point = (
@@ -209,7 +212,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             round(FWXMProfile(values=y_sum, fwxm_height=80).center_idx) + top_third
         )
         center_point = Point(fwxm_x_point, fwxm_y_point)
-        return center_point
+        return center_point, np.percentile(central_array, 90)
 
     @argue.bounds(radius=(0.2, 0.95), min_peak_height=(0.05, 0.95))
     def analyze(
@@ -267,18 +270,20 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         """
         self.tolerance = tolerance
         self.image.check_inversion_by_histogram(percentiles=[4, 50, 96])
+        self.image.ground()
         if invert:
             self.image.invert()
 
+        auto_point, local_max = self._get_reasonable_start_point()
         if start_point is None:
-            start_point = self._get_reasonable_start_point()
+            start_point = auto_point
 
         self._get_reasonable_wobble(
-            start_point, fwhm, min_peak_height, radius, recursive
+            start_point, fwhm, min_peak_height, radius, recursive, local_max
         )
 
     def _get_reasonable_wobble(
-        self, start_point, fwhm, min_peak_height, radius, recursive
+        self, start_point, fwhm, min_peak_height, radius, recursive, local_max
     ):
         """Determine a wobble that is "reasonable". If recursive is false, the first iteration will be passed,
         otherwise the parameters will be tweaked to search for a reasonable wobble."""
@@ -288,14 +293,20 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         radius_gen = get_radius()
         while wobble_unreasonable:
             try:
+                min_height = max(min_peak_height * local_max, 1.01)
                 self.circle_profile = StarProfile(
-                    self.image, focus_point, radius, min_peak_height, fwhm
+                    self.image, focus_point, radius, min_height, fwhm
                 )
+                # must have at least 3 spokes and we must detect an even number (e.g. gantry starshot spokes can fade off)
                 if (len(self.circle_profile.peaks) < 6) or (
                     len(self.circle_profile.peaks) % 2 != 0
                 ):
                     raise ValueError
-                self.lines = LineManager(self.circle_profile.peaks)
+                self.lines = LineManager(
+                    self.circle_profile.peaks,
+                    focus_point=focus_point,
+                    dpmm=self.image.dpmm,
+                )
                 self._find_wobble_minimize()
             except ValueError:
                 if not recursive:
@@ -318,23 +329,19 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
                             )
 
             else:  # if no errors are raised
-                # set the focus point to the wobble minimum
-                # focus_point = self.wobble.center
-                # finally:
                 # stop after first iteration if not recursive
                 if not recursive:
                     wobble_unreasonable = False
                 # otherwise, check if the wobble is reasonable
                 else:
-                    # if so, stop
-                    if self.wobble.diameter_mm < 2:
-                        focus_near_center = (
-                            self.wobble.center.distance_to(focus_point) < 5
-                        )
-                        if focus_near_center:
-                            wobble_unreasonable = False
-                        else:
-                            focus_point = self.wobble.center
+                    # see if the wobble is reasonable and near the center
+                    # if so, we can assume we found the wobble
+                    focus_near_center = (
+                        self.wobble.center.distance_to(focus_point)
+                        < 10 * self.image.dpmm
+                    )
+                    if self.wobble.diameter_mm < 2 and focus_near_center:
+                        wobble_unreasonable = False
                     # otherwise, iterate through peak height
                     else:
                         try:
@@ -669,7 +676,7 @@ class Wobble(Circle):
 class LineManager:
     """Manages the radiation lines found."""
 
-    def __init__(self, points: list[Point]):
+    def __init__(self, points: list[Point], focus_point: Point, dpmm: float):
         """
         Parameters
         ----------
@@ -677,6 +684,8 @@ class LineManager:
             The peak points found by the StarProfile
         """
         self.lines = []
+        self.focus_point = focus_point
+        self.dpmm = dpmm
         self.construct_rad_lines(points)
 
     def __getitem__(self, item):
@@ -704,6 +713,14 @@ class LineManager:
         geometry.Line : returning object
         """
         self.match_points(points)
+        # check that the lines pass near the focus point. If not, we can
+        # still be in a situation where we're missing spoke-halves like a gantry starshot.
+        for line in self.lines:
+            if line.distance_to(self.focus_point) > 10 * self.dpmm:
+                raise ValueError(
+                    "The radiation lines are not near the center of the image. "
+                    "This could be due to missing spoke halves, such as in a gantry starshot."
+                )
 
     def match_points(self, points: list[Point]):
         """Match the peaks found to the same radiation lines.

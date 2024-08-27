@@ -437,6 +437,31 @@ class SlopeLayer(Layer):
         return xy_scaled
 
 
+class ArrayLayer(Layer):
+    """Add an already-existing array as a layer. Useful if the array is already
+    constructed to your liking. Simply passes the array given. It is the caller's
+    responsibility to know the array to pass and that the pixel size has been accounted
+    for already.
+
+    If the passed array is smaller than the simulator's image, it will be centered
+    on the simulator image and added. If the passed array is bigger than the simulator's image, it will
+    be centered, cropped to fit the simulator's array size, and then added.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        The array to add to the simulator image.
+    """
+
+    def __init__(self, image: np.ndarray):
+        self.array = image
+
+    def apply(
+        self, image: np.ndarray, pixel_size: float, mag_factor: float
+    ) -> np.ndarray:
+        return add_centered_array(base_array=image, other_array=self.array)
+
+
 def rotate_point(x: float, y: float, angle: float) -> (float, float):
     """
     Rotate a point (px, py) about the origin by a given angle in degrees.
@@ -517,3 +542,49 @@ def draw_rotated_rectangle(
     # Draw rotated rectangle
     rr, cc = polygon(rotated_coords[:, 1], rotated_coords[:, 0], shape)
     return rr, cc
+
+
+def add_centered_array(base_array: np.ndarray, other_array: np.ndarray) -> np.ndarray:
+    """
+    Adds a 2D array to another 2D array, centering it over the base array.
+    If the other array is larger, it will be cropped to fit within the base array.
+
+    .. warning:: Will cast the other array to the dtype of the base array.
+
+    Parameters
+    ----------
+    base_array : np.ndarray
+        The array that the other array will be added to.
+    other_array : np.ndarray
+        The array that will be added to the base array.
+
+    Returns
+    -------
+    np.ndarray
+        The resulting array after adding the other array centered over the base array.
+    """
+    # Calculate the shapes and start indices
+    base_shape = np.array(base_array.shape)
+    other_shape = np.array(other_array.shape).astype(base_array.dtype)
+
+    start_indices_base = np.maximum((base_shape - other_shape) // 2, 0)
+    start_indices_other = np.maximum((other_shape - base_shape) // 2, 0)
+
+    # Calculate the end indices
+    end_indices_base = np.minimum(start_indices_base + other_shape, base_shape)
+    end_indices_other = np.minimum(start_indices_other + base_shape, other_shape)
+
+    # Calculate the slice ranges
+    base_slice = (
+        slice(start_indices_base[0], end_indices_base[0]),
+        slice(start_indices_base[1], end_indices_base[1]),
+    )
+    other_slice = (
+        slice(start_indices_other[0], end_indices_other[0]),
+        slice(start_indices_other[1], end_indices_other[1]),
+    )
+
+    # Add the sliced arrays
+    base_array[base_slice] += other_array.astype(base_array.dtype)[other_slice]
+
+    return base_array
