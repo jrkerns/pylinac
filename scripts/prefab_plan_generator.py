@@ -85,6 +85,7 @@ for mlc, rt_plan_file in MLCS:
             default_dose_rate=max_dose_rate,
             desired_mu=100,
             fluence_mode=fluence_mode,
+            energy=energy,
         )
 
         # MLC speed
@@ -95,8 +96,8 @@ for mlc, rt_plan_file in MLCS:
             y2=50,
             mu=100,
             default_dose_rate=max_dose_rate,
-            beam_name="MLC Speed",
             fluence_mode=fluence_mode,
+            energy=energy,
         )
 
         # gantry speed
@@ -109,6 +110,7 @@ for mlc, rt_plan_file in MLCS:
             y2=50,
             mu=100,
             fluence_mode=fluence_mode,
+            energy=energy,
         )
 
         # save file

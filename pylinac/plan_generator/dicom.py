@@ -1324,7 +1324,7 @@ class PlanGenerator:
             )
         ref_beam = Beam(
             plan_dataset=self.ds,
-            beam_name="MLC Sp Ref",
+            beam_name=f"{beam_name} Ref",
             beam_type=BeamType.DYNAMIC,
             energy=energy,
             dose_rate=default_dose_rate,
@@ -1410,7 +1410,7 @@ class PlanGenerator:
         dose_rate : int
             The dose rate of the beam.
         axes_positions : Iterable[dict]
-            The positions of the axes. Each dict should have keys 'gantry', 'collimator', and 'couch'.
+            The positions of the axes. Each dict should have keys 'gantry', 'collimator', 'couch', and optionally 'name'.
         couch_vrt : float
             The couch vertical position.
         couch_lng : float
@@ -1440,9 +1440,13 @@ class PlanGenerator:
                 meterset_at_target=1.0,
                 x_outfield_position=x1 - mlc_padding - jaw_padding - 20,
             )
+            beam_name = (
+                axes.get("name")
+                or f"G{axes['gantry']:g}C{axes['collimator']:g}P{axes['couch']:g}"
+            )
             beam = Beam(
                 plan_dataset=self.ds,
-                beam_name=f"G{axes['gantry']:g}C{axes['collimator']:g}P{axes['couch']:g}",
+                beam_name=beam_name,
                 beam_type=BeamType.DYNAMIC,
                 energy=energy,
                 dose_rate=dose_rate,
@@ -1620,7 +1624,7 @@ class PlanGenerator:
         self.add_beam(beam.as_dicom(), mu=mu)
         ref_beam = Beam(
             plan_dataset=self.ds,
-            beam_name="G Sp Ref",
+            beam_name=f"{beam_name} Ref",
             beam_type=BeamType.DYNAMIC,
             energy=energy,
             dose_rate=max_dose_rate,

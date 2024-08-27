@@ -25,24 +25,24 @@ from tests_basic.utils import (
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
     get_file_from_cloud_test_repo,
-    get_folder_from_cloud_test_repo,
+    get_folder_from_cloud_repo,
     save_file,
 )
 
 TEST_DIR = "mlc_logs"
-ANONYMOUS_SOURCE_FOLDER = get_folder_from_cloud_test_repo(["mlc_logs", "_anonbase"])
-ANONYMOUS_DEST_FOLDER = get_folder_from_cloud_test_repo(["mlc_logs", "anonymous"])
-get_folder_from_cloud_test_repo(["mlc_logs", "dlogs", "Bay Area iX"])
-get_folder_from_cloud_test_repo(["mlc_logs", "dlogs", "Katy iX"])
-get_folder_from_cloud_test_repo(["mlc_logs", "tlogs", "Chicago"])
+ANONYMOUS_SOURCE_FOLDER = get_folder_from_cloud_repo(["mlc_logs", "_anonbase"])
+ANONYMOUS_DEST_FOLDER = get_folder_from_cloud_repo(["mlc_logs", "anonymous"])
+get_folder_from_cloud_repo(["mlc_logs", "dlogs", "Bay Area iX"])
+get_folder_from_cloud_repo(["mlc_logs", "dlogs", "Katy iX"])
+get_folder_from_cloud_repo(["mlc_logs", "tlogs", "Chicago"])
 
 
 class TestAnonymizeFunction(TestCase):
     """Test the anonymization method."""
 
     def setUp(self):
-        anon_source = get_folder_from_cloud_test_repo(["mlc_logs", "_anonbase"])
-        anon_dest = get_folder_from_cloud_test_repo(["mlc_logs", "anonymous"])
+        anon_source = get_folder_from_cloud_repo(["mlc_logs", "_anonbase"])
+        anon_dest = get_folder_from_cloud_repo(["mlc_logs", "anonymous"])
         # move over files from other directory, since the filenames get overridden
         for file in os.listdir(anon_source):
             basefile = osp.join(anon_source, file)
@@ -198,14 +198,14 @@ class TestTrajectoryTreatmentTypes(TestCase):
 
 class TestDynalogTreatmentTypes(TestCase):
     def test_vmat_log(self):
-        get_folder_from_cloud_test_repo(["mlc_logs", "dlogs"])
+        get_folder_from_cloud_repo(["mlc_logs", "dlogs"])
         dlog = Dynalog(
             get_file_from_cloud_test_repo(["mlc_logs", "dlogs", "A_vmat.dlg"])
         )
         self.assertTrue(dlog.treatment_type, TreatmentType.VMAT)
 
     def test_static_imrt_log(self):
-        get_folder_from_cloud_test_repo(["mlc_logs", "dlogs"])
+        get_folder_from_cloud_repo(["mlc_logs", "dlogs"])
         dlog = Dynalog(
             get_file_from_cloud_test_repo(["mlc_logs", "dlogs", "A_static_imrt.dlg"])
         )
@@ -239,7 +239,7 @@ class TestLoadLog(TestCase):
         self.assertIsInstance(load_log(url), TrajectoryLog)
 
     def test_dir(self):
-        dlog_dir = get_folder_from_cloud_test_repo(["mlc_logs", "dlogs"])
+        dlog_dir = get_folder_from_cloud_repo(["mlc_logs", "dlogs"])
         self.assertIsInstance(load_log(dlog_dir), MachineLogs)
 
     def test_zip(self):
@@ -325,7 +325,7 @@ class TestTrajectoryLog(
 
     def test_save_utf_8_to_csv(self):
         """Saving a tlog to csv w/ a utf-8 character in the filename should be fine"""
-        get_folder_from_cloud_test_repo(["mlc_logs", "mixed_types"])
+        get_folder_from_cloud_repo(["mlc_logs", "mixed_types"])
         log_file = get_file_from_cloud_test_repo(
             [
                 "mlc_logs",
@@ -346,7 +346,7 @@ class TestTrajectoryLog(
 
     def test_txt_file_also_loads_if_around(self):
         # has a .txt file
-        _ = get_folder_from_cloud_test_repo(["mlc_logs", "mixed_types"])
+        _ = get_folder_from_cloud_repo(["mlc_logs", "mixed_types"])
         log_with_txt = get_file_from_cloud_test_repo(
             [
                 "mlc_logs",
@@ -361,7 +361,7 @@ class TestTrajectoryLog(
         self.assertEqual(log.txt["Patient ID"], "Anonymous")
 
         # DOESN'T have a txt file
-        _ = get_folder_from_cloud_test_repo(["mlc_logs", "tlogs"])
+        _ = get_folder_from_cloud_repo(["mlc_logs", "tlogs"])
         log_no_txt = get_file_from_cloud_test_repo(
             ["mlc_logs", "tlogs", "Anonymous_4DC_Treatment_JS0_TX_20140712095629.bin"]
         )
@@ -371,7 +371,7 @@ class TestTrajectoryLog(
 
     def test_txt_file_loads_in_utf8(self):
         # has a .txt file
-        get_folder_from_cloud_test_repo(["mlc_logs", "mixed_types"])
+        get_folder_from_cloud_repo(["mlc_logs", "mixed_types"])
         log_with_txt = get_file_from_cloud_test_repo(
             [
                 "mlc_logs",
@@ -464,7 +464,7 @@ class TestDynalog(LogPlottingSavingMixin, LogBase, TestCase, FromDemoImageTester
 
     def test_loading_can_find_paired_file(self):
         # get all the test files
-        get_folder_from_cloud_test_repo(["mlc_logs", "dlogs"])
+        get_folder_from_cloud_repo(["mlc_logs", "dlogs"])
 
         # shouldn't raise since it can find B-file
         a_file = get_file_from_cloud_test_repo(["mlc_logs", "dlogs", "Adlog1.dlg"])
@@ -764,7 +764,7 @@ class TestTrajectoryLogDemo(IndividualTrajectoryLog, TestCase):
 class TestMachineLogs(TestCase):
     @property
     def logs_dir(self):
-        return get_folder_from_cloud_test_repo(["mlc_logs", "mixed_types"])
+        return get_folder_from_cloud_repo(["mlc_logs", "mixed_types"])
 
     def test_loading(self):
         # test root level directory
@@ -790,7 +790,7 @@ class TestMachineLogs(TestCase):
         self.assertEqual(logs.num_dlogs, 1)
 
     def test_empty_dir(self):
-        empty_dir = get_folder_from_cloud_test_repo(["mlc_logs", "empty_dir"])
+        empty_dir = get_folder_from_cloud_repo(["mlc_logs", "empty_dir"])
         logs = MachineLogs(empty_dir)
         self.assertEqual(logs.num_logs, 0)
         with self.assertRaises(ValueError):
@@ -798,20 +798,20 @@ class TestMachineLogs(TestCase):
 
     def test_mixed_types(self):
         """test mixed directory (tlogs & dlogs)"""
-        log_dir = get_folder_from_cloud_test_repo(["mlc_logs", "mixed_types"])
+        log_dir = get_folder_from_cloud_repo(["mlc_logs", "mixed_types"])
         logs = MachineLogs(log_dir)
         self.assertEqual(logs.num_logs, 3)
 
     def test_dlog_matches_missing(self):
         """Test that Dlogs without a match are skipped."""
-        log_dir = get_folder_from_cloud_test_repo(["mlc_logs", "some_matches_missing"])
+        log_dir = get_folder_from_cloud_repo(["mlc_logs", "some_matches_missing"])
         logs = MachineLogs(log_dir)
         self.assertEqual(logs.num_logs, 1)
 
     def test_append(self):
         # append a directory
-        logs = MachineLogs(get_folder_from_cloud_test_repo(["mlc_logs", "altdir"]))
-        logs.append(get_folder_from_cloud_test_repo(["mlc_logs", "altdir"]))
+        logs = MachineLogs(get_folder_from_cloud_repo(["mlc_logs", "altdir"]))
+        logs.append(get_folder_from_cloud_repo(["mlc_logs", "altdir"]))
         self.assertEqual(logs.num_logs, 8)
         # append a file string
         single_file = get_file_from_cloud_test_repo(
@@ -850,7 +850,7 @@ class TestMachineLogs(TestCase):
             os.remove(file)
 
     def test_writing_csv_with_no_logs(self):
-        empty_dir = get_folder_from_cloud_test_repo(["mlc_logs", "empty_dir"])
+        empty_dir = get_folder_from_cloud_repo(["mlc_logs", "empty_dir"])
         logs = MachineLogs(empty_dir)
         logs.to_csv()  # shouldn't raise but will print a statement
 

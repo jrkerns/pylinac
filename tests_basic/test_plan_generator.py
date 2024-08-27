@@ -508,7 +508,7 @@ class TestPlanPrefabs(TestCase):
         )
         dcm = self.pg.as_dicom()
         self.assertEqual(len(dcm.BeamSequence), 2)
-        self.assertEqual(dcm.BeamSequence[0].BeamName, "MLC Sp Ref")
+        self.assertEqual(dcm.BeamSequence[0].BeamName, "MLC Speed Ref")
         self.assertEqual(dcm.BeamSequence[1].BeamName, "MLC Speed")
         self.assertEqual(dcm.BeamSequence[0].BeamNumber, 0)
         self.assertEqual(dcm.FractionGroupSequence[0].NumberOfBeams, 2)
@@ -552,7 +552,7 @@ class TestPlanPrefabs(TestCase):
         dcm = self.pg.as_dicom()
         self.assertEqual(len(dcm.BeamSequence), 2)
         self.assertEqual(dcm.BeamSequence[0].BeamName, "GS")
-        self.assertEqual(dcm.BeamSequence[1].BeamName, "G Sp Ref")
+        self.assertEqual(dcm.BeamSequence[1].BeamName, "GS Ref")
         self.assertEqual(dcm.BeamSequence[0].BeamNumber, 0)
         self.assertEqual(dcm.FractionGroupSequence[0].NumberOfBeams, 2)
         self.assertEqual(

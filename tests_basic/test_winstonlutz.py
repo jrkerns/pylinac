@@ -41,7 +41,7 @@ from tests_basic.utils import (
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
     get_file_from_cloud_test_repo,
-    get_folder_from_cloud_test_repo,
+    get_folder_from_cloud_repo,
     save_file,
 )
 
@@ -643,9 +643,7 @@ class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
 
     def test_loading_1_image_fails(self):
         with self.assertRaises(ValueError):
-            folder = get_folder_from_cloud_test_repo(
-                ["Winston-Lutz", "lutz", "1_image"]
-            )
+            folder = get_folder_from_cloud_repo(["Winston-Lutz", "lutz", "1_image"])
             WinstonLutz(folder)
 
     def test_invalid_dir(self):
