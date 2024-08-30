@@ -16,7 +16,7 @@ from tests_basic.utils import (
     CloudFileMixin,
     FromURLTesterMixin,
     get_file_from_cloud_test_repo,
-    get_folder_from_cloud_test_repo,
+    get_folder_from_cloud_repo,
     save_file,
 )
 
@@ -218,7 +218,7 @@ class Multiples(StarMixin, TestCase):
     @classmethod
     def get_filename(cls):
         """Return the canonical path to the file."""
-        return get_folder_from_cloud_test_repo([*cls.dir_path])
+        return get_folder_from_cloud_repo([*cls.dir_path])
 
     def test_loading_from_zip(self):
         img_zip = get_file_from_cloud_test_repo(["Starshot", "multiples.zip"])
@@ -523,7 +523,7 @@ class ChicagoSet(StarMixin, TestCase):
     @classmethod
     def get_filename(cls):
         """Return the canonical path to the file."""
-        return get_folder_from_cloud_test_repo([*cls.dir_path, cls.file_name])
+        return get_folder_from_cloud_repo([*cls.dir_path, cls.file_name])
 
 
 class MarkerDots(StarMixin, TestCase):

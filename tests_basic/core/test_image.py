@@ -36,7 +36,7 @@ from pylinac.core.image import (
 from pylinac.core.io import TemporaryZipDirectory
 from tests_basic.utils import (
     get_file_from_cloud_test_repo,
-    get_folder_from_cloud_test_repo,
+    get_folder_from_cloud_repo,
     save_file,
 )
 
@@ -763,7 +763,7 @@ class TestTiff(TestCase):
 
     def test_all_tiffs_have_tags_and_are_2d(self):
         """Test all tiffs will load. Just raw ingestion"""
-        all_starshot_files = get_folder_from_cloud_test_repo(["Starshot"])
+        all_starshot_files = get_folder_from_cloud_repo(["Starshot"])
         for img in Path(all_starshot_files).iterdir():
             if img.suffix in (".tif", ".tiff"):
                 fimg = FileImage(img)
@@ -896,7 +896,7 @@ class TestTiffToDicom(TestCase):
 
     def test_mass_conversion(self):
         """Mass conversion; shouldn't fail. All images have dpi tag"""
-        all_starshot_files = get_folder_from_cloud_test_repo(["Starshot"])
+        all_starshot_files = get_folder_from_cloud_repo(["Starshot"])
         for img in Path(all_starshot_files).iterdir():
             if img.suffix in (".tif", ".tiff"):
                 tiff_to_dicom(img, sid=1000, gantry=10, coll=11, couch=12)

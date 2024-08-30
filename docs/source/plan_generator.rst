@@ -197,7 +197,33 @@ If you're too "busy" to generate your own plans, you can use the following gener
   be if you used the plan generator itself. On a Varian machine you will need to
   perform a machine override authorization every time.
 
-These plans contain a picket fence at each cardinal gantry angle, a Winston-Lutz batch, dose rate constancy, MLC speed tests, and gantry speed tests.
+These plans contain the following fields:
+
+* "PF 3mm G0": Picket fence, Gantry 0, 3mm strips, 100 MU
+* "PF 3mm G90": Picket fence, Gantry 90, 3mm strips, 100 MU
+* "PF 3mm G180": Picket fence, Gantry 180, 3mm strips, 100 MU
+* "PF 3mm G270": Picket fence, Gantry 270, 3mm strips, 100 MU
+* "G0C0P0": Winston-Lutz, Gantry 0, Collimator 0, Couch 0, 2x2cm, 5 MU, MLC-defined
+* "G90C0P0": Winston-Lutz, Gantry 90, Collimator 0, Couch 0, 2x2cm, 5 MU, MLC-defined
+* "G180C0P0": Winston-Lutz, Gantry 180, Collimator 0, Couch 0, 2x2cm, 5 MU, MLC-defined
+* "G270C0P0": Winston-Lutz, Gantry 270, Collimator 0, Couch 0, 2x2cm, 5 MU, MLC-defined
+* "G0C270P0": Winston-Lutz, Gantry 0, Collimator 270, Couch 0, 2x2cm, 5 MU, MLC-defined
+* "G0C90P0": Winston-Lutz, Gantry 0, Collimator 90, Couch 0, 2x2cm, 5 MU, MLC-defined
+* "G0C315P0": Winston-Lutz, Gantry 0, Collimator 315, Couch 0, 2x2cm, 5 MU, MLC-defined
+* "G0C45P0": Winston-Lutz, Gantry 0, Collimator 45, Couch 0, 2x2cm, 5 MU, MLC-defined
+* "G0C0P45": Winston-Lutz, Gantry 0, Collimator 0, Couch 45, 2x2cm, 5 MU, MLC-defined
+* "G0C0P90": Winston-Lutz, Gantry 0, Collimator 0, Couch 90, 2x2cm, 5 MU, MLC-defined
+* "G0C0P315": Winston-Lutz, Gantry 0, Collimator 0, Couch 315, 2x2cm, 5 MU, MLC-defined
+* "G0C0P270": Winston-Lutz, Gantry 0, Collimator 0, Couch 270, 2x2cm, 5 MU, MLC-defined
+* "G45C15P15": Winston-Lutz, Gantry 45, Collimator 15, Couch 15, 2x2cm, 5 MU, MLC-defined
+* "G5C330P60": Winston-Lutz, Gantry 5, Collimator 330, Couch 60, 2x2cm, 5 MU, MLC-defined
+* "G330C350P350": Winston-Lutz, Gantry 330, Collimator 350, Couch 350, 2x2cm, 5 MU, MLC-defined
+* "DR100-600": Dose Rate Constancy, 4 ROIs, 100, 200, 400, 600 MU/min
+* "DR Ref": Dose Rate Constancy, Reference Field
+* "MLC Speed": MLC Speed, 4 ROIs, 5, 10, 15, 20 mm/s
+* "MLC Speed Ref": MLC Speed, Reference Field
+* "GS": Gantry Speed, 4 ROIs, 1, 2, 3, 4 deg/s
+* "GS Ref": Gantry Speed, Reference Field
 
 .. tab-set::
    :sync-group: mlc-type
@@ -396,6 +422,24 @@ more efficiently. Adding a Winston-Lutz field can be done like so:
     )
 
 This will create 4 open fields of a 1x1cm, MLC-defined WL fields. See the :meth:`~pylinac.plan_generator.dicom.PlanGenerator.add_winston_lutz_beams` method for more information.
+
+.. versionadded:: 3.27
+
+You can pass your own beam name for a given axes position by adding a ``name`` key to the dictionary. If no name
+key is passed the beam name will be of the form "G<gantry>C<collimator>P<couch>".
+
+.. code-block:: python
+
+    pg.add_winston_lutz_beams(
+        axes_positions=(
+            {"gantry": 0, "collimator": 0, "couch": 0, "name": "Ref"},
+            {"gantry": 90, "collimator": 15, "couch": 0},  # auto-name: G90C15P0
+            {"gantry": 180, "collimator": 0, "couch": 90},  # auto-name: G180C0P90
+            {"gantry": 270, "collimator": 0, "couch": 0},  # auto-name: G270C0P0
+        ),
+        ...,
+    )
+
 
 Picket Fence
 ^^^^^^^^^^^^

@@ -234,13 +234,14 @@ definitions:
         name: Plan generator tests
         script:
           - source venv/bin/activate
-          - pytest tests_basic/test_plan_generator.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - pytest tests_basic/test_plan_generator.py tests_basic/test_generated_plans.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
             changesets:
                 includePaths:
                 - "pylinac/core/**"
                 - "pylinac/plan_generator/**"
                 - "tests_basic/test_plan_generator.py"
+                - "scripts/prefab_plan_generator.py"
     - step: &core-module-tests
         name: Run core module tests
         script:

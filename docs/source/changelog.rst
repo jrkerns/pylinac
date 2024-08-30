@@ -19,6 +19,8 @@ Plan Generator
 * It is now possible to export generated images from the plan generator to DICOM files.
   This can useful for end-to-end testing of workflows before delivering the plan itself on the machine.
   See the new section :ref:`plan_generator_dicom_fluence` for details.
+* Manual names can now be passed for Winston-Lutz beams.
+* The R2 prefabricated plan files have been fixed to have the same energy and dose rate for all beams of a given plan.
 
 Image Generator
 ^^^^^^^^^^^^^^^

@@ -52,20 +52,31 @@ def gcp_bucket_object_list(bucket_name: str) -> list:
         return list(storage_client.list_blobs(bucket_name))
 
 
-def get_folder_from_cloud_test_repo(folder: List[str], skip_exists: bool = True) -> str:
-    """Get a folder from GCP.
+def get_folder_from_cloud_repo(
+    folder: List[str],
+    skip_exists: bool = True,
+    local_dir: str | Path = LOCAL_TEST_DIR,
+    cloud_repo: str = GCP_BUCKET_NAME,
+) -> str:
+    """Get a folder from a GCP bucket.
 
     Parameters
     ----------
+    folder: list[str]
+        The folder to get from the GCP bucket.
     skip_exists
         If True, only checks that the destination folder exists and isn't empty.
         This is helpful for avoiding network calls since querying GCP can cost significant time.
+    local_dir
+        The local directory to download the files to.
+    cloud_repo
+        The GCP bucket to download from.
     """
-    dest_folder = Path(LOCAL_TEST_DIR, *folder)
+    dest_folder = Path(local_dir, *folder)
     if skip_exists and dest_folder.exists() and len(list(dest_folder.iterdir())) > 0:
         return str(dest_folder)
     # get the folder data
-    all_blobs = gcp_bucket_object_list(GCP_BUCKET_NAME)
+    all_blobs = gcp_bucket_object_list(cloud_repo)
     blobs = (
         Enumerable(all_blobs)
         .where(lambda b: len(b.name.split("/")) > len(folder))
@@ -77,14 +88,14 @@ def get_folder_from_cloud_test_repo(folder: List[str], skip_exists: bool = True)
     )
 
     # make root folder if need be
-    dest_folder = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *folder)
+    dest_folder = osp.join(osp.dirname(__file__), local_dir, *folder)
     if not osp.isdir(dest_folder):
         os.makedirs(dest_folder)
 
     # make subfolders if need be
     subdirs = [b.name.split("/")[1:-2] for b in blobs if len(b.name.split("/")) > 2]
     dest_sub_folders = [
-        osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *folder, *f) for f in subdirs
+        osp.join(osp.dirname(__file__), local_dir, *folder, *f) for f in subdirs
     ]
     for sdir in dest_sub_folders:
         if not osp.isdir(sdir):
@@ -96,7 +107,7 @@ def get_folder_from_cloud_test_repo(folder: List[str], skip_exists: bool = True)
         if not os.path.exists(path):
             blob.download_to_filename(path)
 
-    return osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *folder)
+    return osp.join(osp.dirname(__file__), local_dir, *folder)
 
 
 def get_file_from_cloud_test_repo(path: List[str], force: bool = False) -> str:
@@ -230,7 +241,7 @@ class InitTesterMixin(MixinTesterBase):
     @property
     def full_init_file(self) -> str:
         if self.is_folder:
-            return get_folder_from_cloud_test_repo(self.init_file)
+            return get_folder_from_cloud_repo(self.init_file)
         else:
             return get_file_from_cloud_test_repo(self.init_file)
 
