@@ -478,6 +478,16 @@ Symmetry is calculated over the specified field width (e.g. 80%) as set in by ``
 Symmetry can be positive or negative. A negative value means the right side is higher.
 A positive value means the left side is higher.
 
+.. danger::
+
+    The official formula is above but due to a bug in pylinac, the actual result returned
+    is missing the 100 multiplication factor. For backwards compatibility, this is being
+    left as-is for now, but may change in a future version. Workarounds include:
+
+    * Multiplying the result by 100.
+    * Use the newer :ref:`field-profile-analysis` module which has the correct formula for
+      the :ref:`point difference quotient <point-difference-quotient>`.
+
 .. _siemens_protocol:
 
 Siemens

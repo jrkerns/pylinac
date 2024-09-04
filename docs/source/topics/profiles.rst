@@ -317,6 +317,8 @@ Example usage:
 .. [#] `Gao et al Eqn 1 <https://aapm.onlinelibrary.wiley.com/doi/epdf/10.1002/acm2.12315>`__
 .. [#] Doselab and SNC call this the "CAX point difference" however Doselab does not multiply by 100. Yet, at least in the case of Doselab, the example assumes the values are ~100. In Pylinac, we often assume values are ~1. In such a scenario, the resulting value is the same.
 
+.. _point-difference-quotient:
+
 Symmetry (Point Difference Quotient)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
