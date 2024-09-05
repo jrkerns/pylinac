@@ -36,6 +36,11 @@ ACR MRI
   the full circle of the phantom. The algorithm no longer relies on this assumption and
   is robust to these air gaps for the geometric distortion analysis.
 
+Core
+^^^^
+
+* Performing :meth:`~pylinac.core.image.BaseImage.crop` on an image now allows for a ``pixels`` input of 0. This allows for a no-op crop.
+
 v 3.26.0
 --------
 

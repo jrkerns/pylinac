@@ -479,6 +479,7 @@ class PFTestMixin(CloudFileMixin):
     abs_median_error = 0
     sag_adjustment = 0
     invert = False
+    crop_mm: int = 3
     passes = True
     log = None
     mean_picket_spacing = 15
@@ -496,7 +497,9 @@ class PFTestMixin(CloudFileMixin):
 
     @classmethod
     def setUpClass(cls):
-        cls.pf = PicketFence(cls.get_filename(), log=cls.get_logfile())
+        cls.pf = PicketFence(
+            cls.get_filename(), log=cls.get_logfile(), crop_mm=cls.crop_mm
+        )
         if cls.pass_num_pickets:
             cls.pf.analyze(
                 sag_adjustment=cls.sag_adjustment,
@@ -581,6 +584,7 @@ class PerfectSimulation(PFTestMixin, TestCase):
     abs_median_error = 0
     num_pickets = 5
     mean_picket_spacing = 20
+    crop_mm = 0
 
 
 class Rotated2Simulation(PFTestMixin, TestCase):

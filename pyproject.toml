@@ -59,6 +59,7 @@ dev = [
     "sphinx-copybutton",
     "pre-commit",
     "hatch",
+    "parameterized",
 ]
 docs = [
     "sphinx",
