@@ -14,6 +14,7 @@ import numpy as np
 import PIL.Image
 import pydicom
 from numpy.testing import assert_array_almost_equal
+from parameterized import parameterized
 from pydicom.uid import UID
 
 from pylinac import settings
@@ -342,9 +343,9 @@ class TestBaseImage(TestCase):
         array = np.arange(42).reshape(6, 7)
         self.arr = image.load(array)
 
-    def test_crop(self):
+    @parameterized.expand([15, 0])
+    def test_crop(self, crop):
         """Remove the edges from a pixel array."""
-        crop = 15
         orig_shape = self.img.shape
         orig_dpi = self.img.dpi
         self.img.crop(crop)
@@ -356,7 +357,7 @@ class TestBaseImage(TestCase):
 
     def test_crop_must_be_positive(self):
         """Crop must be manifestly positive"""
-        crop = 0
+        crop = -1
         with self.assertRaises(ValueError):
             self.img.crop(crop)
 
