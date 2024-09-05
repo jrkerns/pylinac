@@ -333,12 +333,6 @@ class TestLoaders(TestCase):
         )
 
 
-class TT(TestCase):
-    @parameterized.expand([(1,), (2,), (3,)])
-    def test_this(self, thing):
-        self.assertEqual(thing, 1)
-
-
 class TestBaseImage(TestCase):
     """Test the basic methods of BaseImage. Since it's a semi-abstract class, its subclasses (DicomImage,
     ArrayImage, and FileImage) are tested."""
