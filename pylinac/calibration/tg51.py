@@ -9,6 +9,7 @@ Classes include photon and electron calibrations using cylindrical chambers. Pas
 and the class will compute all corrections and corrected readings and dose at 10cm and dmax/dref.
 """
 import webbrowser
+from abc import abstractmethod
 from datetime import datetime
 from typing import Optional
 
@@ -652,6 +653,26 @@ def kq_electron(*, chamber: str, r_50: float) -> float:
 
 
 class TG51Base(Structure):
+    institution: str
+    physicist: str
+    unit: str
+    measurement_date: str
+    temp: float
+    press: float
+    chamber: str
+    n_dw: float
+    p_elec: float
+    electrometer: str
+    energy: int
+    voltage_reference: int
+    voltage_reduced: int
+    m_reference: NumberOrArray
+    m_opposite: NumberOrArray
+    m_reduced: NumberOrArray
+    mu: int
+    tissue_correction: float
+    m_reference_adjusted: NumberOrArray | None = None
+
     @property
     def p_tp(self) -> float:
         """Temperature/Pressure correction."""
@@ -699,6 +720,10 @@ class TG51Base(Structure):
     def output_was_adjusted(self) -> float:
         """Boolean specifiying if output was adjusted."""
         return self.m_reference_adjusted is not None
+
+    @abstractmethod
+    def publish_pdf(self, *args, **kwargs):
+        pass
 
 
 class TG51Photon(TG51Base):
@@ -749,6 +774,11 @@ class TG51Photon(TG51Base):
     tissue_correction : float
         Correction value to calibration to, e.g., muscle. A value of 1.0 means no correction (i.e. water).
     """
+
+    fff: bool
+    measured_pdd10: float | None
+    clinical_pdd10: float
+    lead_foil: str | None
 
     @argue.options(chamber=KQ_PHOTONS.keys(), lead_foil=LEAD_OPTIONS.values())
     def __init__(
@@ -982,6 +1012,12 @@ class TG51ElectronLegacy(TG51Base):
         Correction value to calibration to, e.g., muscle. A value of 1.0 means no correction (i.e. water).
     """
 
+    m_gradient: NumberOrArray
+    cone: str
+    clinical_pdd: float
+    i_50: float
+    k_ecal: float
+
     def __init__(
         self,
         *,
@@ -1163,7 +1199,7 @@ class TG51ElectronLegacy(TG51Base):
         ]
         if was_adjusted == "Yes":
             text.append(
-                f"Adjusted Mraw @ reference voltage (nC): {self.m_reference_adjustment}"
+                f"Adjusted Mraw @ reference voltage (nC): {self.m_reference_adjusted}"
             )
             text.append(
                 f"Adjusted fully corrected M (nC): {self.m_corrected_adjustment:2.3f}"
@@ -1233,6 +1269,10 @@ class TG51ElectronModern(TG51Base):
     tissue_correction : float
         Correction value to calibration to, e.g., muscle. A value of 1.0 means no correction (i.e. water).
     """
+
+    clinical_pdd: float
+    i_50: float
+    cone: str
 
     def __init__(
         self,
@@ -1316,7 +1356,7 @@ class TG51ElectronModern(TG51Base):
         """cGy/MU at the depth of Dref."""
         return (
             self.tissue_correction
-            * self.m_corrected_adjusted
+            * self.m_corrected_adjustment
             * self.kq
             * self.n_dw
             / self.mu

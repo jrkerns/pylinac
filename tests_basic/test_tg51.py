@@ -2,18 +2,18 @@ import copy
 from unittest import TestCase
 
 from argue import BoundsError
+from parameterized import parameterized
 
 from pylinac.calibration import tg51
 from tests_basic.utils import save_file
 
 
 class TestFunctions(TestCase):
-    def test_p_tp(self):
-        temps = (22, 25, 19)
-        press = (101.33, 102.66, 98.66)
-        expected_ptp = (1.0, 0.997, 1.0165)
-        for temp, press, exp in zip(temps, press, expected_ptp):
-            self.assertAlmostEqual(tg51.p_tp(temp=temp, press=press), exp, delta=0.001)
+    @parameterized.expand([(22, 101.33, 1.0), (25, 102.66, 0.997), (19, 98.66, 1.0165)])
+    def test_p_tp(self, temperature, pressure, ptp):
+        self.assertAlmostEqual(
+            tg51.p_tp(temp=temperature, press=pressure), ptp, delta=0.001
+        )
 
     def test_override_p_tp(self):
         original_temp = copy.copy(tg51.MAX_TEMP)
@@ -24,50 +24,38 @@ class TestFunctions(TestCase):
             tg51.p_tp(temp=temp, press=press)
         tg51.MAX_TEMP = original_temp  # set back so other tests don't fail
 
-    def test_p_pol(self):
-        m_ref = (20, -20.2, 19.8)
-        m_opposite = (-20, 19.8, -20.1)
-        expected_ppol = (1.0, 0.99, 1.0075)
-        for ref, opp, exp in zip(m_ref, m_opposite, expected_ppol):
-            self.assertAlmostEqual(
-                tg51.p_pol(m_reference=ref, m_opposite=opp), exp, delta=0.001
-            )
+    @parameterized.expand([(20, -20, 1.0), (-20.2, 19.8, 0.99), (19.8, -20.1, 1.0075)])
+    def test_p_pol(self, m_ref, m_opposite, ppol):
+        self.assertAlmostEqual(
+            tg51.p_pol(m_reference=m_ref, m_opposite=m_opposite), ppol, delta=0.001
+        )
 
-    def test_p_ion(self):
-        low_vals = (20, 20.05)
-        high_vals = (20, 20.1)
-        expected_pion = (1.0, 1.0025)
-        for low, high, exp in zip(low_vals, high_vals, expected_pion):
-            self.assertAlmostEqual(
-                tg51.p_ion(
-                    voltage_reference=300,
-                    voltage_reduced=150,
-                    m_reference=high,
-                    m_reduced=low,
-                ),
-                exp,
-                delta=0.001,
-            )
+    @parameterized.expand([(20, 20, 1.0), (20.05, 20.1, 1.0025)])
+    def test_p_ion(self, m_low, m_high, pion):
+        self.assertAlmostEqual(
+            tg51.p_ion(
+                voltage_reference=300,
+                voltage_reduced=150,
+                m_reference=m_high,
+                m_reduced=m_low,
+            ),
+            pion,
+            delta=0.001,
+        )
 
-    def test_dref(self):
-        i50s = (3, 5, 7)
-        drefs = (1.72, 2.96, 4.19)
-        for i50, dref in zip(i50s, drefs):
-            self.assertAlmostEqual(tg51.d_ref(i_50=i50), dref, delta=0.01)
+    @parameterized.expand([(3, 1.72), (5, 2.96), (7, 4.19)])
+    def test_dref(self, i50, dref):
+        self.assertAlmostEqual(tg51.d_ref(i_50=i50), dref, delta=0.01)
 
-    def test_r50(self):
-        i50s = (3.5, 5.5, 12)
-        r50s = (3.54, 5.60, 18.71)
-        for i50, r50 in zip(i50s, r50s):
-            self.assertAlmostEqual(tg51.r_50(i_50=i50), r50, delta=0.01)
+    @parameterized.expand([(3.5, 3.54), (5.5, 5.60), (12, 18.71)])
+    def test_r50(self, i50, r50):
+        self.assertAlmostEqual(tg51.r_50(i_50=i50), r50, delta=0.01)
 
-    def test_pdd_to_tpr(self):
-        pdds = (0.38 / 0.663, 0.385 / 0.667, 0.527 / 0.793)
-        tprs = (0.6662, 0.6713, 0.7819)
-        for pdd, tpr in zip(pdds, tprs):
-            self.assertAlmostEqual(
-                tg51.tpr2010_from_pdd2010(pdd2010=pdd), tpr, delta=0.01
-            )
+    @parameterized.expand(
+        [(0.38 / 0.663, 0.6662), (0.385 / 0.667, 0.6713), (0.527 / 0.793, 0.7819)]
+    )
+    def test_pdd_to_tpr(self, pdd, tpr):
+        self.assertAlmostEqual(tg51.tpr2010_from_pdd2010(pdd2010=pdd), tpr, delta=0.01)
 
     def test_m_corr(self):
         exp = 20.225
@@ -76,46 +64,44 @@ class TestFunctions(TestCase):
         )
         self.assertAlmostEqual(exp, res, delta=0.002)
 
-    def test_pddx(self):
-        pdds = (66.4, 70.5, 72.8, 73.3, 76.7, 77.1, 77.1, 79.3)
-        energies = (6, 10, 10, 10, 15, 15, 15, 18)
-        pddxs = (66.4, 70.5, 72.8, 73.3, 77.18, 77.57, 78.27, 80.47)
-        foils = (None, "30cm", "50cm", None, None, "50cm", "30cm", None)
-        for pdd, energy, pddx, foil in zip(pdds, energies, pddxs, foils):
-            self.assertAlmostEqual(
-                tg51.pddx(pdd=pdd, energy=energy, lead_foil=foil), pddx, delta=0.01
-            )
+    @parameterized.expand(
+        [
+            (66.4, 6, 66.4, None),
+            (70.5, 10, 70.5, "30cm"),
+            (72.8, 10, 72.8, "50cm"),
+            (73.3, 10, 73.3, None),
+            (76.7, 15, 77.18, None),
+            (77.1, 15, 77.57, "50cm"),
+            (77.1, 15, 78.27, "30cm"),
+            (79.3, 18, 80.47, None),
+        ]
+    )
+    def test_pddx(self, pdd, energy, pddx, foil):
+        self.assertAlmostEqual(
+            tg51.pddx(pdd=pdd, energy=energy, lead_foil=foil), pddx, delta=0.01
+        )
 
-    def test_kq_photon_pdd(self):
-        chambers = ("30010", "A12")
-        pddxs = (66.4, 76.7)
-        kqs = (0.9927, 0.976)
-        for chamber, pddx, kq in zip(chambers, pddxs, kqs):
-            self.assertAlmostEqual(
-                tg51.kq_photon_pddx(chamber=chamber, pddx=pddx), kq, delta=0.001
-            )
+    @parameterized.expand([("30010", 66.4, 0.9927), ("A12", 76.7, 0.976)])
+    def test_kq_photon_pdd(self, chamber, pddx, kq):
+        self.assertAlmostEqual(
+            tg51.kq_photon_pddx(chamber=chamber, pddx=pddx), kq, delta=0.001
+        )
 
-    def test_kq_photon_tpr(self):
-        chambers = ("30010",)
-        tprs = (0.666,)
-        kqs = (0.9927,)
-        for chamber, tpr, kq in zip(chambers, tprs, kqs):
-            self.assertAlmostEqual(
-                tg51.kq_photon_tpr(chamber=chamber, tpr=tpr), kq, delta=0.001
-            )
+    @parameterized.expand([("30010", 0.666, 0.9927)])
+    def test_kq_photon_tpr(self, chamber, tpr, kq):
+        self.assertAlmostEqual(
+            tg51.kq_photon_tpr(chamber=chamber, tpr=tpr), kq, delta=0.001
+        )
 
-    def test_kq_electron(self):
+    @parameterized.expand([("30010", 3, 0.926), ("A12", 5, 0.915)])
+    def test_kq_electron(self, chamber, r_50, kq):
         # Test via PDDs
-        chambers = ("30010", "A12")
-        r_50s = (3, 5, 7)
-        kqs = (0.926, 0.915, 1.0)
-        for chamber, r_50, kq in zip(chambers, r_50s, kqs):
-            self.assertAlmostEqual(
-                tg51.kq_electron(chamber=chamber, r_50=r_50), kq, delta=0.001
-            )
+        self.assertAlmostEqual(
+            tg51.kq_electron(chamber=chamber, r_50=r_50), kq, delta=0.001
+        )
 
 
-class TG51Base:
+class TG51TestBase:
     temperature = 22
     pressure = 760
     chamber = "30013"
@@ -126,13 +112,26 @@ class TG51Base:
     volt_low = -150
     clinical_pdd = 66
     dose_mu_dmax = 1.000
+    dose_mu_dmax_adjusted = None
     tissue_correction = 1.000
     mu = 200
     print_data = False
     open_pdf = False
+    m_reference: float
+    m_reduced: float
+    m_adjusted: float = None
+    tg51: tg51.TG51Base
 
     def test_dose_dmax(self):
         self.assertAlmostEqual(self.dose_mu_dmax, self.tg51.dose_mu_dmax, delta=0.0005)
+
+    def test_dose_dmax_adjusted(self):
+        if self.m_adjusted is not None:
+            self.assertAlmostEqual(
+                self.dose_mu_dmax_adjusted,
+                self.tg51.dose_mu_dmax_adjusted,
+                delta=0.0005,
+            )
 
     def test_pdf(self):
         save_file(self.tg51.publish_pdf)
@@ -140,12 +139,13 @@ class TG51Base:
             self.tg51.publish_pdf("testtg51.pdf", open_file=True)
 
 
-class TG51Photon(TG51Base):
+class TG51PhotonTestBase(TG51TestBase):
     energy = 6
     measured_pdd = 66
     lead_foil = None
     dose_mu_10 = 1.000
     fff = False
+    tg51 = tg51.TG51Photon
 
     def setUp(self):
         self.tg51 = tg51.TG51Photon(
@@ -164,6 +164,7 @@ class TG51Photon(TG51Base):
             m_reference=self.m_reference,
             m_opposite=self.m_opposite,
             m_reduced=self.m_reduced,
+            m_reference_adjusted=self.m_adjusted,
             mu=self.mu,
             tissue_correction=self.tissue_correction,
             fff=self.fff,
@@ -181,14 +182,16 @@ class TG51Photon(TG51Base):
         print("Ptp", self.tg51.p_tp)
 
 
-class TG51ElectronLegacy(TG51Base):
+class TG51ElectronLegacyTestBase(TG51TestBase):
     k_ecal = None
     i_50 = 7.5
     dose_mu_dref = 1.000
     tissue_correction = 1.0
     m_gradient = 0
+    m_opposite: float
     energy = 0
     cone = ""
+    tg51 = tg51.TG51ElectronLegacy
 
     def setUp(self):
         self.tg51 = tg51.TG51ElectronLegacy(
@@ -203,6 +206,7 @@ class TG51ElectronLegacy(TG51Base):
             m_reference=self.m_reference,
             m_opposite=self.m_opposite,
             m_reduced=self.m_reduced,
+            m_reference_adjusted=self.m_adjusted,
             mu=self.mu,
             tissue_correction=self.tissue_correction,
             i_50=self.i_50,
@@ -216,12 +220,13 @@ class TG51ElectronLegacy(TG51Base):
         self.assertAlmostEqual(self.dose_mu_dref, self.tg51.dose_mu_dref, delta=0.0005)
 
 
-class TG51ElectronModern(TG51Base):
+class TG51ElectronModernTestBase(TG51TestBase):
     i_50 = 7.5
     dose_mu_dref = 1.000
     tissue_correction = 1.0
     energy = 0
     cone = ""
+    tg51 = tg51.TG51ElectronModern
 
     def setUp(self):
         self.tg51 = tg51.TG51ElectronModern(
@@ -236,6 +241,7 @@ class TG51ElectronModern(TG51Base):
             m_reference=self.m_reference,
             m_opposite=self.m_reduced,
             m_reduced=self.m_reduced,
+            m_reference_adjusted=self.m_adjusted,
             mu=self.mu,
             tissue_correction=self.tissue_correction,
             i_50=self.i_50,
@@ -247,12 +253,13 @@ class TG51ElectronModern(TG51Base):
         self.assertAlmostEqual(self.dose_mu_dref, self.tg51.dose_mu_dref, delta=0.0005)
 
 
-class MDA_TB2_2015_15x(TG51Photon, TestCase):
+class MDA_TB2_2015_15x(TG51PhotonTestBase, TestCase):
     energy = 15
     temperature = 20.5
     pressure = tg51.mmHg2kPa(760)
     nd_w = 5.444
     p_elec = 1.002
+    m_adjusted = 29.28
     m_reference = 29.28
     m_opposite = -29.33
     m_reduced = 29.10
@@ -260,9 +267,10 @@ class MDA_TB2_2015_15x(TG51Photon, TestCase):
     clinical_pdd10 = 77.4
     dose_mu_10 = 0.779
     dose_mu_dmax = 1.007
+    dose_mu_dmax_adjusted = 1.007
 
 
-class MDA_TB1_2015_10x(TG51Photon, TestCase):
+class MDA_TB1_2015_10x(TG51PhotonTestBase, TestCase):
     energy = 10
     temperature = 21
     pressure = tg51.mmHg2kPa(763)
@@ -278,7 +286,7 @@ class MDA_TB1_2015_10x(TG51Photon, TestCase):
     # print_data = True
 
 
-class ACB5_2011_6x(TG51Photon, TestCase):
+class ACB5_2011_6x(TG51PhotonTestBase, TestCase):
     temperature = 22
     pressure = tg51.mmHg2kPa(751.2)
     nd_w = 5.450
@@ -292,7 +300,7 @@ class ACB5_2011_6x(TG51Photon, TestCase):
     dose_mu_dmax = 1.0064
 
 
-class ACB5_2012_6X(TG51Photon, TestCase):
+class ACB5_2012_6X(TG51PhotonTestBase, TestCase):
     temperature = 21.7
     pressure = tg51.mmHg2kPa(757.2)
     nd_w = 5.446
@@ -306,7 +314,7 @@ class ACB5_2012_6X(TG51Photon, TestCase):
     dose_mu_dmax = 1.0159
 
 
-class ACB5_2012_18X(TG51Photon, TestCase):
+class ACB5_2012_18X(TG51PhotonTestBase, TestCase):
     temperature = 21.7
     pressure = tg51.mmHg2kPa(757.2)
     nd_w = 5.446
@@ -322,7 +330,7 @@ class ACB5_2012_18X(TG51Photon, TestCase):
     dose_mu_dmax = 1.011
 
 
-class IMMCTB_6FFF(TG51Photon, TestCase):
+class IMMCTB_6FFF(TG51PhotonTestBase, TestCase):
     energy = 6
     fff = True
     temperature = 22.5
@@ -339,7 +347,7 @@ class IMMCTB_6FFF(TG51Photon, TestCase):
     # print_data = True
 
 
-class IMMCTB_10FFF(TG51Photon, TestCase):
+class IMMCTB_10FFF(TG51PhotonTestBase, TestCase):
     energy = 10
     fff = True
     temperature = 22.4
@@ -357,7 +365,7 @@ class IMMCTB_10FFF(TG51Photon, TestCase):
     # open_pdf = True
 
 
-class IMMCTB_15X(TG51Photon, TestCase):
+class IMMCTB_15X(TG51PhotonTestBase, TestCase):
     energy = 15
     temperature = 22.4
     pressure = tg51.mmHg2kPa(748.1)
@@ -374,7 +382,7 @@ class IMMCTB_15X(TG51Photon, TestCase):
     # open_pdf = True
 
 
-class IMMC_TB_6E(TG51ElectronLegacy, TestCase):
+class IMMC_TB_6E(TG51ElectronLegacyTestBase, TestCase):
     energy = 6
     cone = "15x15"
     mu = 100
@@ -395,7 +403,7 @@ class IMMC_TB_6E(TG51ElectronLegacy, TestCase):
     # open_pdf = True
 
 
-class IMMC_TB_9E(TG51ElectronLegacy, TestCase):
+class IMMC_TB_9E(TG51ElectronLegacyTestBase, TestCase):
     energy = 9
     cone = "15x15"
     mu = 100
@@ -415,7 +423,7 @@ class IMMC_TB_9E(TG51ElectronLegacy, TestCase):
     dose_mu_dmax = 1.006
 
 
-class IMMC_TB_12E(TG51ElectronLegacy, TestCase):
+class IMMC_TB_12E(TG51ElectronLegacyTestBase, TestCase):
     energy = 12
     cone = "15x15"
     mu = 100
@@ -435,7 +443,7 @@ class IMMC_TB_12E(TG51ElectronLegacy, TestCase):
     dose_mu_dmax = 1.0068
 
 
-class IMMC_TB_20E(TG51ElectronLegacy, TestCase):
+class IMMC_TB_20E(TG51ElectronLegacyTestBase, TestCase):
     energy = 20
     cone = "15x15"
     mu = 100
@@ -455,7 +463,7 @@ class IMMC_TB_20E(TG51ElectronLegacy, TestCase):
     # open_pdf = True
 
 
-class IMMC_TB_20E_Modern(TG51ElectronModern, TestCase):
+class IMMC_TB_20E_Modern(TG51ElectronModernTestBase, TestCase):
     energy = 20
     cone = "15x15"
     mu = 100
