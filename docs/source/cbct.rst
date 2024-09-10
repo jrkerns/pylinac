@@ -319,6 +319,34 @@ The rMTF can be calculated ad hoc like so. Note that CTP528 must be present (see
     ct.analyze()
     ct.ctp528.mtf.relative_resolution(x=40)  # get the rMTF (lp/mm) at 40% resolution
 
+.. _set_hu_variance:
+
+Localization Variance
+^^^^^^^^^^^^^^^^^^^^^
+
+There are some instances where the HU of the phantom density modules are drastically different than the expected values.
+This most often occurs with Elekta linacs and Siemens DirectDensity reconstruction. This will usually
+result in one of two errors: ``No slices were found that resembled the HU linearity module`` or
+``The physical scan extent does not match the module configuration...``.
+
+To workaround this, note the values of the air bubble, teflon HU insert, and the mean HU value of the
+phantom slice (anywhere that's not an HU insert or hole). Set the ``hu_origin_slice_variance`` class
+attribute to the lower of the difference between the air and phantom mean and the teflon and phantom mean.
+
+If, e.g., the air is -1000, the mean value of the phantom is 33, and the Teflon is 350
+set the variance to be <= 317 (350-33). The default is 400. If the HU values are near their correct
+value you should have to do this.
+
+.. code-block:: python
+
+    from pylinac import CatPhan504
+
+    ct = CatPhan504.from_zip(...)
+    ct.hu_origin_slice_variance = 275
+    ct.analyze()
+
+In RadMachine, the "HU localization variance" parameter can be used to fix this. See :ref:`cbct-analysis-parameters`.
+
 Customizing module locations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -391,6 +419,8 @@ As an example, let's override the angles of the ROIs for CTP404.
 .. warning:: If you overload the ``roi_settings`` or ``modules`` attributes, you are responsible for filling it out completely.
              I.e. when you overload it's not partial. In the above example if you want other CTP modules you **must** populate them.
 
+.. _cbct-analysis-parameters:
+
 Analysis Parameters
 -------------------
 
@@ -440,7 +470,7 @@ This applies to the 503, 504, 600, and 604. Model-specific parameters are called
 
       * **Contrast definition**: The method used to calculate the contrast of the low contrast ROIs. See :ref:`contrast`.
       * **Low contrast detection threshold**: The threshold used to determine if a low contrast ROI was "seen". See :ref:`visibility`.
-
+      * **HU localization variance**: The minimum difference between the phantom mean and the air or Teflon HU values. Used for localization only. See :ref:`set_hu_variance`.
 
 .. _cbct-algorithm:
 
@@ -470,6 +500,8 @@ Restrictions
     the :ref:`slice-thickness` section for how to override this to get a valid slice thickness
     in such a situation.
 
+* The HU values of the linearity inserts are within ~30% of their expected values. See :ref:`set_hu_variance` for how to override this.
+  if using an Elekta machine or special reconstruction algorithm.
 
 .. _cbct_pre-analysis:
 
@@ -648,6 +680,18 @@ Most problems in this module revolve around getting the data loaded.
 * The phantom should never touch the edge of an image, see above point.
 * Make sure you're loading the right CatPhan class. I.e. using a CatPhan600 class on a CatPhan504
   scan may result in errors or erroneous results.
+
+.. _cbct_siemens_directdensity:
+
+Siemens DirectDensity
+^^^^^^^^^^^^^^^^^^^^^
+
+If you are using a Siemens scanner with DirectDensity, the HU values of the phantom may be incorrect.
+This is because the algorithm is not designed for man-made materials. See the white paper `here <https://cdn0.scrvt.com/7b8dc61d55f0deedb776692474194f7c/050b210b0661c844/cf975db1545a/siemens-healthineers-CTH-DirectDensity-Whitepaper.PDF>`_,
+specifically page 13, "Compatibility and limitations".
+
+Usually, scans from this type of reconstruction drastically underestimate the HU of Teflon. This
+most often causes a failure to find the HU linearity module. See :ref:`set_hu_variance` for how to correct this.
 
 API Documentation
 -----------------

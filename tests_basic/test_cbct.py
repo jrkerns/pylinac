@@ -346,6 +346,7 @@ class CatPhanMixin(CloudFileMixin):
     dir_path = ["CBCT"]
     hu_tolerance = 40
     scaling_tolerance = 1
+    hu_origin_variance: int | None = None
     zip = True
     expected_roll = 0
     hu_values = {}
@@ -369,6 +370,9 @@ class CatPhanMixin(CloudFileMixin):
             )
         else:
             cls.cbct = cls.catphan(filename, memory_efficient_mode=cls.memory_efficient)
+        # set HU origin variance if needed
+        if cls.hu_origin_variance is not None:
+            cls.cbct.hu_origin_slice_variance = cls.hu_origin_variance
         cls.cbct.analyze(
             cls.hu_tolerance,
             cls.scaling_tolerance,
@@ -1567,6 +1571,33 @@ class CatPhan604wJig2(CatPhan604Mixin, TestCase):
     unif_values = {"Center": 10, "Left": -2, "Right": 9, "Top": 7, "Bottom": 1}
     mtf_values = {50: 0.28}
     lowcon_visible = 2
+
+
+class CatPhan604SiemensDirectDensity(CatPhan604Mixin, TestCase):
+    # the direct density algorithm will skew teflon to be ~400 HU. This will cause an HU-found error
+    # lowering the HU origin variance will resolve this.
+    file_name = "Siemens direct density.zip"
+    expected_roll = -1.25
+    origin_slice = 137
+    slice_thickness = 0.93  # 1mm nominal
+    hu_origin_variance = (
+        250  # important part; we have to set this to get it to analyze.
+    )
+    # these HU values are off due to the direct density reconstruction algorithm
+    hu_values = {
+        "Poly": -24,
+        "Acrylic": 79,
+        "Delrin": 166,
+        "Air": -970,
+        "Teflon": 461,
+        "PMP": -170,
+        "LDPE": -80,
+        "50% Bone": 305,
+        "20% Bone": 98,
+    }
+    unif_values = {"Center": 17, "Left": 18, "Right": 16, "Top": 16, "Bottom": 18}
+    mtf_values = {50: 0.28}
+    lowcon_visible = 1
 
 
 class CatPhan503SliceOverlap(CatPhan503Mixin, TestCase):

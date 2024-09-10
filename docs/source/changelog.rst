@@ -16,30 +16,36 @@ v 3.27.0
 Plan Generator
 ^^^^^^^^^^^^^^
 
-* It is now possible to export generated images from the plan generator to DICOM files.
+* :bdg-success:`Feature` It is now possible to export generated images from the plan generator to DICOM files.
   This can useful for end-to-end testing of workflows before delivering the plan itself on the machine.
   See the new section :ref:`plan_generator_dicom_fluence` for details.
-* Manual names can now be passed for Winston-Lutz beams.
-* The R2 prefabricated plan files have been fixed to have the same energy and dose rate for all beams of a given plan.
+* :bdg-success:`Feature` Manual names can now be passed for Winston-Lutz beams.
+* :bdg-warning:`Fixed` The R2 prefabricated plan files have been fixed to have the same energy and dose rate for all beams of a given plan.
 
 Image Generator
 ^^^^^^^^^^^^^^^
 
-* A new layer has been created: :class:`~pylinac.core.image_generator.layers.ArrayLayer`. This layer is for adding
+* :bdg-success:`Feature` A new layer has been created: :class:`~pylinac.core.image_generator.layers.ArrayLayer`. This layer is for adding
   existing numpy arrays to a simulator. This can be useful for adding custom array images.
 
 ACR MRI
 ^^^^^^^
 
-* Phantoms that were not fully filled and/or had air gaps at the top would sometimes
+* :bdg-warning:`Fixed` Phantoms that were not fully filled and/or had air gaps at the top would sometimes
   cause the geometric distortion analysis to fail. This was caused by the air gap not completing
   the full circle of the phantom. The algorithm no longer relies on this assumption and
   is robust to these air gaps for the geometric distortion analysis.
 
+CT
+^^
+
+* :bdg-success:`Feature` Documentation was added for how to handle the Siemens DirectDensity reconstruction algorithm which causes
+  drastically different HU values. See :ref:`cbct_siemens_directdensity`.
+
 Core
 ^^^^
 
-* Performing :meth:`~pylinac.core.image.BaseImage.crop` on an image now allows for a ``pixels`` input of 0. This allows for a no-op crop.
+* :bdg-primary:`Refactor` Performing :meth:`~pylinac.core.image.BaseImage.crop` on an image now allows for a ``pixels`` input of 0. This allows for a no-op crop.
 
 v 3.26.0
 --------
