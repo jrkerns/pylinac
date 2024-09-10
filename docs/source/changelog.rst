@@ -39,7 +39,7 @@ ACR MRI
 TG-51
 ^^^^^
 
-* A bug was causing the lookup for ``dose_mu_dmax_adjusted`` and ``dose_mu_dref_adjusted`` to error out.
+* :bdg-warning:`Fixed` A bug was causing the lookup for ``dose_mu_dmax_adjusted`` and ``dose_mu_dref_adjusted`` to error out.
 
 CT
 ^^
