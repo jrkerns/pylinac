@@ -36,6 +36,11 @@ ACR MRI
   the full circle of the phantom. The algorithm no longer relies on this assumption and
   is robust to these air gaps for the geometric distortion analysis.
 
+TG-51
+^^^^^
+
+* A bug was causing the lookup for ``dose_mu_dmax_adjusted`` and ``dose_mu_dref_adjusted`` to error out.
+
 CT
 ^^
 
