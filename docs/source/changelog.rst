@@ -46,6 +46,8 @@ CT
 
 * :bdg-success:`Feature` Documentation was added for how to handle the Siemens DirectDensity reconstruction algorithm which causes
   drastically different HU values. See :ref:`cbct_siemens_directdensity`.
+* :bdg-warning:`Fixed` A handful of CatPhan 604 datasets were failing to properly find the
+  "origin slice". This was caused by incorrect wire ramp detection.
 
 Core
 ^^^^

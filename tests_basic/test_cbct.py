@@ -7,6 +7,7 @@ from unittest import TestCase, skip
 
 import matplotlib.pyplot as plt
 import numpy as np
+from pytest import mark
 
 from pylinac import CatPhan503, CatPhan504, CatPhan600, CatPhan604
 from pylinac.core.geometry import Point
@@ -616,6 +617,7 @@ class CatPhan600WaterVial2(CatPhanMixin, TestCase):
         self.assertIn("Vial", self.cbct.ctp404.rois)
 
 
+@mark.catphan604
 class CatPhan604Test(CatPhanMixin, TestCase):
     catphan = CatPhan604
     file_name = "CBCTCatPhan604.zip"
@@ -1488,6 +1490,7 @@ class Siemens5MM(CatPhan504Mixin, TestCase):
     lowcon_visible = 0
 
 
+@mark.catphan604
 @skip("Investigate later")
 class CatPhan604Sen(CatPhan604Mixin, TestCase):
     expected_roll = -0.5
@@ -1510,6 +1513,7 @@ class CatPhan604Sen(CatPhan604Mixin, TestCase):
     lowcon_visible = 2
 
 
+@mark.catphan604
 class CatPhan604Som(CatPhan604Mixin, TestCase):
     file_name = "SiemensSomCatPhan604.zip"
     origin_slice = 179
@@ -1530,6 +1534,7 @@ class CatPhan604Som(CatPhan604Mixin, TestCase):
     slice_thickness = 1
 
 
+@mark.catphan604
 class CatPhan604wJig(CatPhan604Mixin, TestCase):
     file_name = "Catphan604-with-jig.zip"
     origin_slice = 43
@@ -1551,6 +1556,7 @@ class CatPhan604wJig(CatPhan604Mixin, TestCase):
     avg_noise_power = 0.287
 
 
+@mark.catphan604
 class CatPhan604wJig2(CatPhan604Mixin, TestCase):
     file_name = "Catphan604wJig2.zip"
     expected_roll = -0.61
@@ -1622,6 +1628,7 @@ class CatPhan503SliceOverlap(CatPhan503Mixin, TestCase):
     mtf_values = {50: 0.40}
 
 
+@mark.catphan604
 class CatPhan604NegativeSliceOverlap(CatPhan604Mixin, TestCase):
     """Has a negative value for slice overlap. Has to do with stack order, but is irrelevant for our needs:
     https://dicom.innolitics.com/ciods/nm-image/nm-reconstruction/00180088"""
@@ -1645,6 +1652,60 @@ class CatPhan604NegativeSliceOverlap(CatPhan604Mixin, TestCase):
     unif_values = {"Center": 24, "Left": 23, "Right": 22, "Top": 23, "Bottom": 21}
     mtf_values = {50: 0.40}
     lowcon_visible = 6
+
+
+@mark.catphan604
+class CatPhan604WireLocalization(CatPhan604Mixin, TestCase):
+    """Caused detection issues due to the wire not being present in some slices
+    causing noise to be detected as the wire and messing up the localization refinement
+    """
+
+    file_name = "CatPhan 604 - wire localization.zip"
+    expected_roll = 0.4
+    origin_slice = 45
+    hu_values = {
+        "Poly": -40,
+        "Acrylic": 123,
+        "Delrin": 353,
+        "Air": -1000,
+        "Teflon": 953,
+        "PMP": -189,
+        "LDPE": -101,
+        "50% Bone": 679,
+        "20% Bone": 235,
+    }
+    thickness_slice_straddle = 0
+    slice_thickness = 2.7
+    unif_values = {"Center": 0, "Left": 5, "Right": 11, "Top": 6, "Bottom": 11}
+    mtf_values = {50: 0.30}
+    lowcon_visible = 2
+
+
+@mark.catphan604
+class CatPhan604CoCr(CatPhan604Mixin, TestCase):
+    """Caused detection issues due to the wire not being present in some slices
+    causing noise to be detected as the wire and messing up the localization refinement
+    """
+
+    file_name = "CatPhan604CT - CoCr.zip"
+    expected_roll = -0.4
+    origin_slice = 62
+    hu_values = {
+        "Poly": -46,
+        "Acrylic": 129,
+        "Delrin": 398,
+        "Air": -1023,
+        "Teflon": 1075,
+        "PMP": -216,
+        "LDPE": -112,
+        "50% Bone": 740,
+        "20% Bone": 226,
+    }
+    thickness_slice_straddle = 0
+    slice_thickness = 2.35
+    unif_values = {"Center": 14, "Left": 14, "Right": 14, "Top": 14, "Bottom": 14}
+    mtf_values = {50: 0.30}
+    lowcon_visible = 2
 
 
 class CatPhan504NearEdge(CatPhan504Mixin, TestCase):

@@ -2718,6 +2718,15 @@ class CatPhan604(CatPhanBase):
         """The HU plugs are longer than the 'wire section'. This applies a refinement to find the
         slice that has the least angle between the centers of the left and right wires.
 
+        Under normal conditions, we would simply apply an offset to the
+        initial slice. The rods extend 4-5mm past the wire section.
+        Unfortunately, we also sometimes need to account for users with the
+        RM R1-4 jig which will cause localization issues due to the base of the
+        jig touching the phantom.
+        This solution is robust to the jig being present, but can suffer
+        from images where the angle of the wire, due to noise,
+        appears small but doesn't actually represent the wire ramp.
+
         Starting with the initial slice, go +/- 5 slices to find the slice with the least angle
         between the left and right wires.
 
@@ -2770,19 +2779,47 @@ class CatPhan604(CatPhanBase):
                     "angle": angle,
                     "left width": troi["Left"].long_profile.field_width_px,
                     "right width": troi["Right"].long_profile.field_width_px,
+                    "left profile": troi["Left"].long_profile.values,
+                    "right profile": troi["Right"].long_profile.values,
                 }
             )
 
         # some slices might not include the wire
         # we need to drop those; we do so by dropping pairs that have a field width well below the median
+        # or by fields who don't appear to have the wire in them (max value is near median)
         median_width_l = np.median([angle["left width"] for angle in angles])
         median_width_r = np.median([angle["right width"] for angle in angles])
         median_width = (median_width_l + median_width_r) / 2
+        # get median and max pixel values of all the profiles
+        median_left_pixel_val = np.median(
+            np.concatenate([a["left profile"] for a in angles])
+        )
+        median_right_pixel_val = np.median(
+            np.concatenate([a["right profile"] for a in angles])
+        )
+        median_pixel_val = (median_left_pixel_val + median_right_pixel_val) / 2
+        max_left_pixel_val = np.max(np.concatenate([a["left profile"] for a in angles]))
+        max_right_pixel_val = np.max(
+            np.concatenate([a["right profile"] for a in angles])
+        )
+        max_pixel_val = (max_left_pixel_val + max_right_pixel_val) / 2
+
         for angle_set in angles.copy():
+            # field width is well below the median; probably not in the slice; drop it
             if (
                 angle_set["left width"] < median_width * 0.7
                 or angle_set["right width"] < median_width * 0.7
             ):
+                angles.remove(angle_set)
+                continue
+            # if the max pixel value of the angle set is closer to the overall median than the max
+            # it means the wire isn't in the slice; drop it
+            max_pixel = max(
+                angle_set["left profile"].max(), angle_set["right profile"].max()
+            )
+            delta_median = abs(median_pixel_val - max_pixel)
+            delta_max = abs(max_pixel_val - max_pixel)
+            if delta_median < delta_max:
                 angles.remove(angle_set)
 
         # now find the slice with the least angle, accounting for the phantom roll
