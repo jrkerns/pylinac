@@ -329,13 +329,13 @@ This most often occurs with Elekta linacs and Siemens DirectDensity reconstructi
 result in one of two errors: ``No slices were found that resembled the HU linearity module`` or
 ``The physical scan extent does not match the module configuration...``.
 
-To workaround this, note the values of the air bubble, teflon HU insert, and the mean HU value of the
+To work around this, note the values of the air bubble, teflon HU insert, and the mean HU value of the
 phantom slice (anywhere that's not an HU insert or hole). Set the ``hu_origin_slice_variance`` class
 attribute to the lower of the difference between the air and phantom mean and the teflon and phantom mean.
 
 If, e.g., the air is -1000, the mean value of the phantom is 33, and the Teflon is 350
 set the variance to be <= 317 (350-33). The default is 400. If the HU values are near their correct
-value you should have to do this.
+value you shouldn't have to do this.
 
 .. code-block:: python
 
