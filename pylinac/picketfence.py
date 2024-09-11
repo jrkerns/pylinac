@@ -374,12 +374,16 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
         kwargs
             Passed to :func:`~pylinac.core.image.load_multiples` and to the PicketFence constructor.
         """
+        # pop crop here so it's not passed to the combined image; only to the constructor
+        # otherwise it'll double crop
+        crop_mm = kwargs.pop("crop_mm", 3)
         with io.BytesIO() as stream:
             img = image.load_multiples(
                 path_list,
                 stretch_each=stretch_each,
                 method=method,
                 loader=PFDicomImage,
+                crop_mm=0,
                 **kwargs,
             )
             img.save(stream)
@@ -387,7 +391,9 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
             # there is a parameter name mismatch between the PFDicomImage and PicketFence constructors
             # Dicom uses "use_filenames" and PicketFence uses "use_filename" 😖
             use_filename = kwargs.pop("use_filenames", False)
-            return cls(stream, mlc=mlc, use_filename=use_filename, **kwargs)
+            return cls(
+                stream, mlc=mlc, use_filename=use_filename, crop_mm=crop_mm, **kwargs
+            )
 
     @classmethod
     def from_bb_setup(

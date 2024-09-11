@@ -361,6 +361,12 @@ class TestBaseImage(TestCase):
         with self.assertRaises(ValueError):
             self.img.crop(crop)
 
+    def test_crop_too_large(self):
+        """Crop must be less than half the image size"""
+        crop = 1000
+        with self.assertRaises(ValueError):
+            self.img.crop(crop)
+
     def test_filter(self):
         # test integer filter size
         filter_size = 3

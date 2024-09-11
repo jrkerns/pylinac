@@ -22,6 +22,12 @@ Plan Generator
 * Manual names can now be passed for Winston-Lutz beams.
 * The R2 prefabricated plan files have been fixed to have the same energy and dose rate for all beams of a given plan.
 
+Picket Fence
+^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` When loading a picket fence from multiple images (``.from_multiple_images``), the images would
+   be double-cropped due to the ``crop_mm`` keyword argument being applied twice. This has been fixed.
+
 Image Generator
 ^^^^^^^^^^^^^^^
 
@@ -45,6 +51,8 @@ Core
 ^^^^
 
 * Performing :meth:`~pylinac.core.image.BaseImage.crop` on an image now allows for a ``pixels`` input of 0. This allows for a no-op crop.
+* :bdg-warning:`Fixed` Performing :meth:`~pylinac.core.image.BaseImage.crop` with ``pixels`` value too large that would result in an empty array now raises
+  an error.
 
 v 3.26.0
 --------

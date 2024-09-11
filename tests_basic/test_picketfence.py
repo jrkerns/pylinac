@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest import TestCase, skip
 
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy import ndimage
 
 from pylinac.core import image
@@ -382,6 +383,23 @@ class LoadingFromMultiple(TestCase):
         pf = PicketFence.from_multiple_images([path1, path2])
         pf.analyze()
         self.assertAlmostEqual(pf.percent_passing, 100, delta=1)
+
+    def test_no_double_crop(self):
+        # see RAM-3906
+        path1 = get_file_from_cloud_test_repo([TEST_DIR, "combo-jaw.dcm"])
+        path2 = get_file_from_cloud_test_repo([TEST_DIR, "combo-mlc.dcm"])
+        # physical size of the images
+        img_base = image.load_multiples([path1, path2])
+        base_size = img_base.shape
+        # load the PF w/o crop
+        pf = PicketFence.from_multiple_images([path1, path2], crop_mm=0)
+        self.assertEqual(pf.image.shape, base_size)
+
+        # load the PF w/ crop
+        # * 2 because both edges get cropped
+        pixel_diff = int(round(3 * img_base.dpmm)) * 2
+        pf = PicketFence.from_multiple_images([path1, path2], crop_mm=3)
+        np.allclose(np.asarray(pf.image.shape), np.asarray(base_size) - pixel_diff)
 
 
 class TestPlottingSaving(TestCase):
