@@ -2718,8 +2718,8 @@ class CatPhan604(CatPhanBase):
         """The HU plugs are longer than the 'wire section'. This applies a refinement to find the
         slice that has the least angle between the centers of the left and right wires.
 
-        Under normal conditions, we would simply apply and offset to the
-        initial slice. The rods extent 4-5mm past the wire section.
+        Under normal conditions, we would simply apply an offset to the
+        initial slice. The rods extend 4-5mm past the wire section.
         Unfortunately, we also sometimes need to account for users with the
         RM R1-4 jig which will cause localization issues due to the base of the
         jig touching the phantom.
@@ -2791,11 +2791,17 @@ class CatPhan604(CatPhanBase):
         median_width_r = np.median([angle["right width"] for angle in angles])
         median_width = (median_width_l + median_width_r) / 2
         # get median and max pixel values of all the profiles
-        median_left_pixel_val = np.median([a["left profile"] for a in angles])
-        median_right_pixel_val = np.median([a["right profile"] for a in angles])
+        median_left_pixel_val = np.median(
+            np.concatenate([a["left profile"] for a in angles])
+        )
+        median_right_pixel_val = np.median(
+            np.concatenate([a["right profile"] for a in angles])
+        )
         median_pixel_val = (median_left_pixel_val + median_right_pixel_val) / 2
-        max_left_pixel_val = np.max([a["left profile"] for a in angles])
-        max_right_pixel_val = np.max([a["right profile"] for a in angles])
+        max_left_pixel_val = np.max(np.concatenate([a["left profile"] for a in angles]))
+        max_right_pixel_val = np.max(
+            np.concatenate([a["right profile"] for a in angles])
+        )
         max_pixel_val = (max_left_pixel_val + max_right_pixel_val) / 2
 
         for angle_set in angles.copy():
