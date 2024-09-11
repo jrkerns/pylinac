@@ -98,6 +98,9 @@ filterwarnings = [
     "ignore::UserWarning:pydicom",
     "ignore:FigureCanvasAgg.*:UserWarning"
     ]
+markers = [
+    'catphan604',
+]
 
 [tool.coverage.run]
 source = [
