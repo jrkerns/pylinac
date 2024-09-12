@@ -654,6 +654,10 @@ class BaseImage:
             self.array = self.array[:, pixels:]
         if "right" in edges:
             self.array = self.array[:, :-pixels]
+        if self.array.size == 0:
+            raise ValueError(
+                "Too many pixels removed; array is empty. Pass a smaller crop value."
+            )
 
     def flipud(self) -> None:
         """Flip the image array upside down in-place. Wrapper for np.flipud()"""
