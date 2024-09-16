@@ -248,9 +248,6 @@ def array_to_dicom(
         These will override any defaults Pylinac might set.
         E.g. PatientName, etc.
     """
-    # convert floating point arrays; if uint, leave as-is
-    if np.issubdtype(array.dtype, np.floating):
-        array = convert_to_dtype(array, np.uint16)
     file_meta = FileMetaDataset()
     # Main data elements
     ds = Dataset()
@@ -290,7 +287,15 @@ def array_to_dicom(
     ds.GantryAngle = f"{gantry:.2f}"
     ds.BeamLimitingDeviceAngle = f"{coll:.2f}"
     ds.PatientSupportAngle = f"{couch:.2f}"
-    ds.PixelData = array.tobytes()
+    # Although rare, loading certain types of images/files
+    # may declare endian-ness and be different from the system.
+    # We want to ensure it's native to the system.
+    if not array.dtype.isnative:
+        array = array.byteswap().newbyteorder("=")
+    if np.issubdtype(array.dtype, np.floating):
+        ds.FloatPixelData = array.tobytes()
+    else:
+        ds.PixelData = array.tobytes()
 
     ds.file_meta = file_meta
     ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
@@ -339,16 +344,17 @@ def create_dicom_files_from_3d_array(
         )
         ds = array_to_dicom(
             arr,
-            dicom_file=out_dir / f"{i}.dcm",
             sid=1000,
             gantry=0,
             coll=0,
             couch=0,
             dpmm=1,
-            SeriesInstanceUID=series_uid,
-            ImagePositionPatient=image_patient_position,
-            SliceThickness=slice_thickness,
-            PixelSpacing=pixel_spacing,
+            extra_tags={
+                "SeriesInstanceUID": series_uid,
+                "ImagePositionPatient": image_patient_position,
+                "SliceThickness": slice_thickness,
+                "PixelSpacing": pixel_spacing,
+            },
         )
         ds.save_as(out_dir / f"{i}.dcm", write_like_original=False)
     return out_dir

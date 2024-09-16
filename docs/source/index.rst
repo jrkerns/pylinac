@@ -37,7 +37,6 @@
    :hidden:
    :caption: Ancillary Modules
 
-   tool_guide
    core_modules
    image_generator
    plan_generator
@@ -47,6 +46,7 @@
    :hidden:
    :caption: Topics
 
+   topics/tool_guide
    topics/cookbook
    topics/exporting_results
    topics/images

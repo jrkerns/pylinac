@@ -4,6 +4,7 @@ from unittest import TestCase
 
 import numpy as np
 import pydicom
+from parameterized import parameterized
 
 from pylinac.core.array_utils import (
     array_to_dicom,
@@ -281,18 +282,6 @@ class TestArrayToDicom(TestCase):
         with self.assertRaises(ValueError):
             array_to_dicom(arr, sid=100, gantry=0, coll=0, couch=0, dpmm=1)
 
-    def test_uint16_to_dicom(self):
-        arr = np.array([[0, 1], [2, 3]], dtype=np.uint16)
-        ds = array_to_dicom(arr, sid=100, gantry=0, coll=0, couch=0, dpmm=1)
-        assert ds.pixel_array.dtype == np.uint16
-        assert ds.pixel_array.max() == 3
-
-    def test_uint32_to_dicom(self):
-        arr = np.array([[0, 1], [2, 3]], dtype=np.uint32)
-        ds = array_to_dicom(arr, sid=100, gantry=0, coll=0, couch=0, dpmm=1)
-        assert ds.pixel_array.dtype == np.uint32
-        assert ds.pixel_array.max() == 3
-
     def test_override_tag(self):
         # override the patient name tag
         arr = np.array([[0, 1], [2, 3]], dtype=np.uint16)
@@ -320,3 +309,24 @@ class TestArrayToDicom(TestCase):
         assert ds_reload.PatientID == ds.PatientID
         assert ds_reload.PatientBirthDate == ds.PatientBirthDate
         assert ds_reload.PatientSex == ds.PatientSex
+
+    @parameterized.expand(
+        [
+            (np.uint8, np.uint8),
+            (np.uint16, np.uint16),
+            (np.uint32, np.uint32),
+            (np.float32, np.float32),
+            (np.float64, np.float64),
+            (">u2", np.uint16),
+            ("<u2", np.uint16),
+        ]
+    )
+    def test_dtypes(self, input_dtype, output_dtype):
+        arr = np.array([[0, 1], [2, 3]], dtype=input_dtype)
+        ds = array_to_dicom(arr, sid=100, gantry=0, coll=0, couch=0, dpmm=1)
+        with io.BytesIO() as f:
+            ds.save_as(f, write_like_original=False)
+            f.seek(0)
+            ds_reload = pydicom.dcmread(f)
+        self.assertTrue(np.allclose(ds_reload.pixel_array, arr))
+        self.assertEqual(ds_reload.pixel_array.dtype, output_dtype)
