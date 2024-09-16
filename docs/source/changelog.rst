@@ -26,7 +26,7 @@ Picket Fence
 ^^^^^^^^^^^^
 
 * :bdg-warning:`Fixed` When loading a picket fence from multiple images (``.from_multiple_images``), the images would
-   be double-cropped due to the ``crop_mm`` keyword argument being applied twice. This has been fixed.
+  be double-cropped due to the ``crop_mm`` keyword argument being applied twice. This has been fixed.
 
 Image Generator
 ^^^^^^^^^^^^^^^
@@ -61,6 +61,20 @@ Core
 * :bdg-primary:`Refactor` Performing :meth:`~pylinac.core.image.BaseImage.crop` on an image now allows for a ``pixels`` input of 0. This allows for a no-op crop.
 * :bdg-warning:`Fixed` Performing :meth:`~pylinac.core.image.BaseImage.crop` with ``pixels`` value too large that would result in an empty array now raises
   an error.
+* :bdg-success:`Feature` 3 new functions have been added to the ``image`` module for loading .raw images, specifically from VisionRT and CyberKnife
+  platforms. See :ref:`loading-raw-images` for more.
+* :bdg-success:`Feature` All ``...Image`` (ArrayImage, FileImage, etc) classes now have an ``as_dicom`` method that will return a pydicom Dataset.
+* :bdg-success:`Feature` A new documenation section has been added for ad-hoc loading and conversion of various image formats. See :ref:`image_conversion_guide`.
+* :bdg-danger:`Change` The ``array_to_dicom`` function has changed from passing keyword arguments to override
+  tags to using a dictionary of tags with the ``extra_tags`` parameter.
+
+  .. code-block:: python
+
+    # old
+    array_to_dicom(array, **kwargs)
+
+    # new
+    array_to_dicom(array, extra_tags={})
 
 v 3.26.0
 --------

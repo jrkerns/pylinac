@@ -37,6 +37,7 @@
    :hidden:
    :caption: Ancillary Modules
 
+   tool_guide
    core_modules
    image_generator
    plan_generator

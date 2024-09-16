@@ -1,9 +1,12 @@
+import io
 import math
 from unittest import TestCase
 
 import numpy as np
+import pydicom
 
 from pylinac.core.array_utils import (
+    array_to_dicom,
     bit_invert,
     convert_to_dtype,
     fill_middle_zeros,
@@ -270,3 +273,50 @@ class TestFillMiddle(TestCase):
         arr = np.array([])
         with self.assertRaises(ValueError):
             fill_middle_zeros(arr)
+
+
+class TestArrayToDicom(TestCase):
+    def test_single_dimension_fails(self):
+        arr = np.array([0, 1, 2, 3])
+        with self.assertRaises(ValueError):
+            array_to_dicom(arr, sid=100, gantry=0, coll=0, couch=0, dpmm=1)
+
+    def test_uint16_to_dicom(self):
+        arr = np.array([[0, 1], [2, 3]], dtype=np.uint16)
+        ds = array_to_dicom(arr, sid=100, gantry=0, coll=0, couch=0, dpmm=1)
+        assert ds.pixel_array.dtype == np.uint16
+        assert ds.pixel_array.max() == 3
+
+    def test_uint32_to_dicom(self):
+        arr = np.array([[0, 1], [2, 3]], dtype=np.uint32)
+        ds = array_to_dicom(arr, sid=100, gantry=0, coll=0, couch=0, dpmm=1)
+        assert ds.pixel_array.dtype == np.uint32
+        assert ds.pixel_array.max() == 3
+
+    def test_override_tag(self):
+        # override the patient name tag
+        arr = np.array([[0, 1], [2, 3]], dtype=np.uint16)
+        ds = array_to_dicom(
+            arr,
+            sid=100,
+            gantry=0,
+            coll=0,
+            couch=0,
+            dpmm=1,
+            extra_tags={"PatientName": "John Doe"},
+        )
+        assert ds.PatientName == "John Doe"
+
+    def test_can_reread_dicom(self):
+        arr = np.array([[0, 1], [2, 3]], dtype=np.uint16)
+        ds = array_to_dicom(arr, sid=100, gantry=0, coll=0, couch=0, dpmm=1)
+        with io.BytesIO() as f:
+            ds.save_as(f, write_like_original=False)
+            f.seek(0)
+            ds_reload = pydicom.dcmread(f)
+        assert ds_reload.pixel_array.dtype == np.uint16
+        assert ds_reload.pixel_array.max() == 3
+        assert ds_reload.PatientName == ds.PatientName
+        assert ds_reload.PatientID == ds.PatientID
+        assert ds_reload.PatientBirthDate == ds.PatientBirthDate
+        assert ds_reload.PatientSex == ds.PatientSex

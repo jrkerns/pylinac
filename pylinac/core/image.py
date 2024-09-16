@@ -24,15 +24,15 @@ from PIL import Image as pImage
 from PIL.PngImagePlugin import PngInfo
 from PIL.TiffTags import TAGS
 from plotly import graph_objects as go
-from pydicom.dataset import Dataset, FileMetaDataset
+from pydicom.dataset import Dataset
 from pydicom.errors import InvalidDicomError
-from pydicom.uid import UID, generate_uid
 from scipy import ndimage
 from skimage.transform import rotate
 
 from ..metrics.image import MetricBase
 from ..settings import PATH_TRUNCATION_LENGTH, get_dicom_cmap
 from .array_utils import (
+    array_to_dicom,
     bit_invert,
     convert_to_dtype,
     filter,
@@ -41,6 +41,7 @@ from .array_utils import (
     invert,
     normalize,
 )
+from .decorators import validate
 from .geometry import Point
 from .io import (
     TemporaryZipDirectory,
@@ -53,6 +54,7 @@ from .plotly_utils import add_title
 from .profile import stretch as stretcharray
 from .scale import MachineScale, convert, wrap360
 from .utilities import decode_binary, is_close, simple_round
+from .validators import double_dimension
 
 ARRAY = "Array"
 DICOM = "DICOM"
@@ -966,6 +968,22 @@ class BaseImage:
             return metric_data[metrics[0].name]
         return metric_data
 
+    def as_dicom(
+        self, gantry: float, coll: float, couch: float, extra_tags: dict | None = None
+    ) -> Dataset:
+        """Convert the array to a DICOM file."""
+        if self.sid is None:
+            raise ValueError(
+                "The SID must be set to convert the array to a DICOM file."
+            )
+        if self.dpi is None:
+            raise ValueError(
+                "The DPI must be set to convert the array to a DICOM file."
+            )
+        return array_to_dicom(
+            self.array, self.sid, gantry, coll, couch, self.dpi, extra_tags=extra_tags
+        )
+
     @property
     def shape(self) -> (int, int):
         return self.array.shape
@@ -1213,38 +1231,14 @@ class XIM(BaseImage):
             collimator=self.properties["MVCollimatorRtn"],
             rotation=self.properties["CouchRtn"],
         )
-        uint_array = convert_to_dtype(self.array, np.uint16)
-        file_meta = FileMetaDataset()
-        # Main data elements
-        ds = Dataset()
-        ds.SOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.1")  # RT Image
-        ds.SOPInstanceUID = generate_uid()
-        ds.SeriesInstanceUID = generate_uid()
-        ds.Modality = "RTIMAGE"
-        ds.ConversionType = "WSD"
-        ds.PatientName = "Lutz^Test Tool"
-        ds.PatientID = "Someone Important"
-        ds.SamplesPerPixel = 1
-        ds.PhotometricInterpretation = "MONOCHROME2"
-        ds.Rows = self.array.shape[0]
-        ds.Columns = self.array.shape[1]
-        ds.BitsAllocated = 16
-        ds.BitsStored = 16
-        ds.HighBit = 15
-        ds.PixelRepresentation = 0
-        ds.ImagePlanePixelSpacing = [1 / self.dpmm, 1 / self.dpmm]
-        ds.RadiationMachineSAD = "1000.0"
-        ds.RTImageSID = "1000"
-        ds.PrimaryDosimeterUnit = "MU"
-        ds.GantryAngle = f"{iec_g:.2f}"
-        ds.BeamLimitingDeviceAngle = f"{iec_c:.2f}"
-        ds.PatientSupportAngle = f"{iec_p:.2f}"
-        ds.PixelData = uint_array
-
-        ds.file_meta = file_meta
-        ds.is_implicit_VR = True
-        ds.is_little_endian = True
-        return ds
+        return array_to_dicom(
+            array=self.array,
+            dpmm=self.dpmm,
+            gantry=iec_g,
+            coll=iec_c,
+            couch=iec_p,
+            sid=1000,
+        )
 
     def save_as(self, file: str | Path, format: str | None = None) -> None:
         """Save the image to a NORMAL format. PNG is highly suggested. Accepts any format supported by Pillow.
@@ -1967,6 +1961,7 @@ def tiff_to_dicom(
     coll: float,
     couch: float,
     dpi: float | None = None,
+    extra_tags: dict | None = None,
 ) -> Dataset:
     """Converts a TIFF file into a **simplistic** DICOM file. Not meant to be a full-fledged tool. Used for conversion so that tools that are traditionally oriented
     towards DICOM have a path to accept TIFF. Currently used to convert files for WL.
@@ -1989,45 +1984,90 @@ def tiff_to_dicom(
         The collimator value that the image was taken at.
     couch
         The couch value that the image was taken at.
+    extra_tags
+        Additional keyword arguments to pass to the DICOM constructor. These are tags that should be included in the DICOM file.
+        E.g. PatientName, etc.
     """
-    tiff_img = FileImage(tiff_file, dpi=dpi, sid=sid)
-    if not tiff_img.dpmm:
+    file_img = FileImage(tiff_file, dpi=dpi, sid=sid)
+    if not file_img.dpi:
         raise ValueError(
-            "Automatic detection of `dpi` failed. A `dpi` value must be passed to the constructor."
+            "Automatic detection of `dpi` failed. A `dpi` value must be passed."
         )
-    uint_array = convert_to_dtype(tiff_img.array, np.uint16)
-    mm_pixel = 25.4 / tiff_img.dpi
-    file_meta = FileMetaDataset()
-    # Main data elements
-    ds = Dataset()
-    ds.SOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.1")
-    ds.SOPInstanceUID = generate_uid()
-    ds.SeriesInstanceUID = generate_uid()
-    ds.Modality = "RTIMAGE"
-    ds.ConversionType = "WSD"
-    ds.PatientName = "Lutz^Test Tool"
-    ds.PatientID = "Someone Important"
-    ds.SamplesPerPixel = 1
-    ds.PhotometricInterpretation = "MONOCHROME2"
-    ds.Rows = tiff_img.shape[0]
-    ds.Columns = tiff_img.shape[1]
-    ds.BitsAllocated = 16
-    ds.BitsStored = 16
-    ds.HighBit = 15
-    ds.PixelRepresentation = 0
-    ds.ImagePlanePixelSpacing = [mm_pixel, mm_pixel]
-    ds.RadiationMachineSAD = "1000.0"
-    ds.RTImageSID = sid
-    ds.PrimaryDosimeterUnit = "MU"
-    ds.GantryAngle = str(gantry)
-    ds.BeamLimitingDeviceAngle = str(coll)
-    ds.PatientSupportAngle = str(couch)
-    ds.PixelData = uint_array
+    return array_to_dicom(
+        array=file_img.array,
+        sid=sid,
+        gantry=gantry,
+        coll=coll,
+        couch=couch,
+        dpmm=file_img.dpmm,
+        extra_tags=extra_tags,
+    )
 
-    ds.file_meta = file_meta
-    ds.is_implicit_VR = True
-    ds.is_little_endian = True
-    return ds
+
+def load_raw_visionrt(
+    path: str | Path, shape: tuple[int, int], dtype=np.uint32, **kwargs
+) -> ArrayImage:
+    """Load a .raw file from a VisionRT system.
+
+    Parameters
+    ----------
+    path : str, Path
+        The path to the file.
+    shape : tuple
+        The shape of the image.
+    dtype : dtype
+        The datatype of the image.
+    kwargs
+        Additional keyword arguments to pass to the ArrayImage. This most often is SID and DPI.
+    """
+    return load_raw(path, shape, dtype, **kwargs)
+
+
+def load_raw_cyberknife(
+    path: str | Path, shape: tuple[int, int], dtype=np.uint16, **kwargs
+) -> ArrayImage:
+    """Load a CyberKnife image.
+
+    Parameters
+    ----------
+    path : str, Path
+        The path to the file.
+    shape : tuple
+        The shape of the image.
+    dtype : dtype
+        The datatype of the image.
+    kwargs
+        Additional keyword arguments to pass to the ArrayImage. This most often is SID and DPI.
+    """
+    return load_raw(path, shape, dtype, **kwargs)
+
+
+@validate(array=double_dimension)
+def load_raw(
+    path: str | Path, shape: tuple[int, int], dtype: np.dtype, **kwargs
+) -> ArrayImage:
+    """Load a raw file.
+
+    Parameters
+    ----------
+    path : str, Path
+        The path to the file.
+    shape : tuple
+        The shape of the image.
+    dtype : dtype
+        The datatype of the image.
+    kwargs
+        Additional keyword arguments to pass to the ArrayImage. This most often is SID and DPI.
+    """
+
+    with open(path, "rb") as f:
+        data = f.read()
+
+        length = shape[0] * shape[1] * np.dtype(dtype).itemsize
+        image_data = data[-length:]
+
+        image_array = np.frombuffer(image_data, dtype=dtype).reshape(shape)
+        return ArrayImage(image_array, **kwargs)
 
 
 def z_position(metadata: pydicom.Dataset) -> float:

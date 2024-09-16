@@ -1,16 +1,23 @@
 from __future__ import annotations
 
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
 from pydicom import Dataset
 from pydicom.dataset import FileMetaDataset
 from pydicom.multival import MultiValue
-from pydicom.uid import UID, generate_uid
+from pydicom.uid import (
+    ExplicitVRLittleEndian,
+    RTImageStorage,
+    SecondaryCaptureImageStorage,
+    generate_uid,
+)
 from scipy import ndimage
 
 from .decorators import validate
+from .validators import double_dimension
 
 
 def array_not_empty(array: np.ndarray) -> None:
@@ -205,14 +212,15 @@ def find_nearest_idx(array: np.array, value: float) -> int:
     return (np.abs(array - value)).argmin()
 
 
+@validate(array=double_dimension)
 def array_to_dicom(
     array: np.ndarray,
     sid: float,
     gantry: float,
     coll: float,
     couch: float,
-    dpi: float | None = None,
-    **kwargs,
+    dpmm: float,
+    extra_tags: dict | None = None,
 ) -> Dataset:
     """Converts a numpy array into a **simplistic** DICOM file. Not meant to be a full-featured converter. This
     allows for the creation of DICOM files from numpy arrays usually for internal use or image analysis.
@@ -227,55 +235,71 @@ def array_to_dicom(
         The numpy array to be converted. Must be 2 dimensions.
     sid
         The Source-to-Image distance in mm.
-    dpi
-        The dots-per-inch value of the TIFF image.
+    dpmm
+        The dots-per-mm value of the image.
     gantry
         The gantry value that the image was taken at.
     coll
         The collimator value that the image was taken at.
     couch
         The couch value that the image was taken at.
+    extra_tags
+        Additional arguments to pass to the DICOM constructor. These are tags that should be included in the DICOM file.
+        These will override any defaults Pylinac might set.
+        E.g. PatientName, etc.
     """
-    from pylinac.core.image import ArrayImage
-
-    arr_img = ArrayImage(array, dpi=dpi, sid=sid)
-    if not arr_img.dpmm:
-        raise ValueError(
-            "Automatic detection of `dpi` failed. A `dpi` value must be passed to the constructor."
-        )
-    uint_array = convert_to_dtype(arr_img.array, np.uint16)
-    mm_pixel = 25.4 / arr_img.dpi
+    # convert floating point arrays; if uint, leave as-is
+    if np.issubdtype(array.dtype, np.floating):
+        array = convert_to_dtype(array, np.uint16)
     file_meta = FileMetaDataset()
     # Main data elements
     ds = Dataset()
-    ds.SOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.1")
+    ds.SOPClassUID = RTImageStorage
     ds.SOPInstanceUID = generate_uid()
     ds.SeriesInstanceUID = generate_uid()
+    ds.StudyInstanceUID = generate_uid()
+    ds.StudyDate = datetime.now().strftime("%Y%m%d")
+    ds.ContentDate = datetime.now().strftime("%Y%m%d")
+    ds.StudyTime = datetime.now().strftime("%H%M%S")
+    ds.ContentTime = datetime.now().strftime("%H%M%S")
     ds.Modality = "RTIMAGE"
+    ds.OperatorsName = "Pylinac"
     ds.ConversionType = "WSD"
-    ds.PatientName = "Pylinac numpy array"
+    ds.PatientName = "Pylinac array"
     ds.PatientID = "123456789"
+    ds.PatientSex = "O"
+    ds.PatientBirthDate = "20000101"
+    ds.ImageType = ["ORIGINAL", "PRIMARY", "OTHER"]
+    ds.RTImageLabel = "Pylinac image"
+    ds.RTImagePlane = "NORMAL"
+    ds.RadiationMachineName = "Pylinac"
+    ds.RTImagePosition = _rt_image_position(array, dpmm)
     ds.SamplesPerPixel = 1
-    ds.PhotometricInterpretation = "MONOCHROME2"
-    ds.Rows = arr_img.shape[0]
-    ds.Columns = arr_img.shape[1]
-    ds.BitsAllocated = 16
-    ds.BitsStored = 16
-    ds.HighBit = 15
-    ds.PixelRepresentation = 0
-    ds.ImagePlanePixelSpacing = [mm_pixel, mm_pixel]
+    ds.PhotometricInterpretation = "MONOCHROME2"  # 0 is black, max is white
+    ds.Rows = array.shape[0]
+    ds.Columns = array.shape[1]
+    ds.BitsAllocated = array.itemsize * 8
+    ds.BitsStored = array.itemsize * 8
+    ds.HighBit = array.itemsize * 8 - 1
+    ds.PixelRepresentation = 0  # unsigned ints; only other option is 2's complement
+    ds.ImagePlanePixelSpacing = [1 / dpmm, 1 / dpmm]
     ds.RadiationMachineSAD = "1000.0"
     ds.RTImageSID = sid
     ds.PrimaryDosimeterUnit = "MU"
-    ds.GantryAngle = str(gantry)
-    ds.BeamLimitingDeviceAngle = str(coll)
-    ds.PatientSupportAngle = str(couch)
-    ds.PixelData = uint_array
+    ds.Manufacturer = "Pylinac"
+    ds.GantryAngle = f"{gantry:.2f}"
+    ds.BeamLimitingDeviceAngle = f"{coll:.2f}"
+    ds.PatientSupportAngle = f"{couch:.2f}"
+    ds.PixelData = array.tobytes()
 
     ds.file_meta = file_meta
-    ds.is_implicit_VR = True
-    ds.is_little_endian = True
-    for key, value in kwargs.items():
+    ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    ds.file_meta.MediaStorageSOPClassUID = SecondaryCaptureImageStorage
+    ds.file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    ds.file_meta.ImplementationClassUID = generate_uid()
+
+    extra_tags = extra_tags or {}
+    for key, value in extra_tags.items():
         setattr(ds, key, value)
     return ds
 
@@ -320,7 +344,7 @@ def create_dicom_files_from_3d_array(
             gantry=0,
             coll=0,
             couch=0,
-            dpi=25.4,
+            dpmm=1,
             SeriesInstanceUID=series_uid,
             ImagePositionPatient=image_patient_position,
             SliceThickness=slice_thickness,
@@ -368,3 +392,19 @@ def fill_middle_zeros(array: np.ndarray, cutoff_px: int = 0) -> np.ndarray:
     filled_arr[left_edge + 1 : right_edge + 1] = 1.0
 
     return filled_arr
+
+
+def _rt_image_position(array: np.ndarray, dpmm: float) -> list[float, float]:
+    """Calculate the RT Image Position of the array."""
+    rows, cols = array.shape
+    pixel_size_mm = 1.0 / dpmm
+
+    # Calculate total physical size
+    width_mm = cols * pixel_size_mm
+    height_mm = rows * pixel_size_mm
+
+    # Calculate RT Image Position
+    # Origin is at center, so upper-left pixel is offset by half width and height
+    x_position = -(width_mm / 2) + (pixel_size_mm / 2)
+    y_position = -(height_mm / 2) + (pixel_size_mm / 2)
+    return [x_position, y_position]
