@@ -322,7 +322,7 @@ class TestArrayToDicom(TestCase):
         ]
     )
     def test_dtypes(self, input_dtype, output_dtype):
-        arr = np.array([[0, 1], [2, 3]], dtype=input_dtype)
+        arr = np.random.rand(2, 2).astype(input_dtype)  # noqa: NPY002
         ds = array_to_dicom(arr, sid=100, gantry=0, coll=0, couch=0, dpmm=1)
         with io.BytesIO() as f:
             ds.save_as(f, write_like_original=False)

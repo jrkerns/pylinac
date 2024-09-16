@@ -278,7 +278,6 @@ def array_to_dicom(
     ds.BitsAllocated = array.itemsize * 8
     ds.BitsStored = array.itemsize * 8
     ds.HighBit = array.itemsize * 8 - 1
-    ds.PixelRepresentation = 0  # unsigned ints; only other option is 2's complement
     ds.ImagePlanePixelSpacing = [1 / dpmm, 1 / dpmm]
     ds.RadiationMachineSAD = "1000.0"
     ds.RTImageSID = sid
@@ -290,12 +289,15 @@ def array_to_dicom(
     # Although rare, loading certain types of images/files
     # may declare endian-ness and be different from the system.
     # We want to ensure it's native to the system.
+    # See here for recommendations:
+    # https://pydicom.github.io/pydicom/stable/tutorials/pixel_data/creation.html#creating-float-pixel-data-and-double-float-pixel-data
     if not array.dtype.isnative:
         array = array.byteswap().newbyteorder("=")
     if np.issubdtype(array.dtype, np.floating):
         ds.FloatPixelData = array.tobytes()
     else:
         ds.PixelData = array.tobytes()
+        ds.PixelRepresentation = 0  # unsigned ints; only other option is 2's complement
 
     ds.file_meta = file_meta
     ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
