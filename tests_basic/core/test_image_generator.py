@@ -683,11 +683,8 @@ class TestCustomSimulator(SimulatorTestMixin, TestCase):
 
     def test_save_dicom(self):
         sim = self.simulator()
-        with self.assertRaises(NotImplementedError):
-            with tempfile.NamedTemporaryFile(delete=False) as tf:
-                sim.generate_dicom(
-                    tf.name, gantry_angle=12, coll_angle=33, table_angle=5
-                )
+        with tempfile.NamedTemporaryFile(delete=False) as tf:
+            sim.generate_dicom(tf.name, gantry_angle=12, coll_angle=33, table_angle=5)
 
     def test_invert_array(self):
         pass  # method not implemented

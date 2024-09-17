@@ -955,7 +955,7 @@ class TestTiffToDicom(TestCase):
         self.assertEqual(dicom_img.dpi, 150)
         self.assertEqual(dicom_img.dpmm, 150 / 25.4)
 
-    def test_conversion_goes_to_uint16(self):
+    def test_conversion_keeps_datatype(self):
         tiff_img = FileImage(tif_path)
         ds = tiff_to_dicom(
             tif_path,
@@ -967,7 +967,7 @@ class TestTiffToDicom(TestCase):
         )
         self.assertEqual(tiff_img.array.dtype, np.uint8)
         dicom_img = LinacDicomImage.from_dataset(ds)
-        self.assertEqual(dicom_img.array.dtype, np.uint16)
+        self.assertEqual(dicom_img.array.dtype, np.uint8)
 
     def test_mass_conversion(self):
         """Mass conversion; shouldn't fail. All images have dpi tag"""
