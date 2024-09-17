@@ -280,7 +280,7 @@ class TestArrayToDicom(TestCase):
     def test_single_dimension_fails(self):
         arr = np.array([0, 1, 2, 3])
         with self.assertRaises(ValueError):
-            array_to_dicom(arr, sid=100, gantry=0, coll=0, couch=0, dpmm=1)
+            array_to_dicom(arr, sid=100, gantry=0, coll=0, couch=0, dpi=1)
 
     def test_override_tag(self):
         # override the patient name tag
@@ -291,14 +291,14 @@ class TestArrayToDicom(TestCase):
             gantry=0,
             coll=0,
             couch=0,
-            dpmm=1,
+            dpi=1,
             extra_tags={"PatientName": "John Doe"},
         )
         assert ds.PatientName == "John Doe"
 
     def test_can_reread_dicom(self):
         arr = np.array([[0, 1], [2, 3]], dtype=np.uint16)
-        ds = array_to_dicom(arr, sid=100, gantry=0, coll=0, couch=0, dpmm=1)
+        ds = array_to_dicom(arr, sid=100, gantry=0, coll=0, couch=0, dpi=1)
         with io.BytesIO() as f:
             ds.save_as(f, write_like_original=False)
             f.seek(0)
@@ -323,7 +323,7 @@ class TestArrayToDicom(TestCase):
     )
     def test_dtypes(self, input_dtype, output_dtype):
         arr = np.random.rand(2, 2).astype(input_dtype)  # noqa: NPY002
-        ds = array_to_dicom(arr, sid=100, gantry=0, coll=0, couch=0, dpmm=1)
+        ds = array_to_dicom(arr, sid=100, gantry=0, coll=0, couch=0, dpi=1)
         with io.BytesIO() as f:
             ds.save_as(f, write_like_original=False)
             f.seek(0)

@@ -1388,7 +1388,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         right_arr = np.fliplr(left_arr)
         bottom_arr = np.fliplr(top_arr)
         dicom_dir = Path(tempfile.mkdtemp())
-        dpi = 1 / dicom_stack.metadata.PixelSpacing[0]
+        dpi = 25.4 / dicom_stack.metadata.PixelSpacing[0]
         for array, gantry in zip(
             (left_arr, top_arr, right_arr, bottom_arr), (270, 0, 90, 180)
         ):
@@ -1398,7 +1398,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
                 gantry=gantry,
                 coll=0,
                 couch=0,
-                dpmm=dpi,
+                dpi=dpi,
             )
             ds.save_as(dicom_dir / f"G={gantry}", write_like_original=False)
         # now we load these as normal images into the WL algorithm

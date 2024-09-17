@@ -59,7 +59,7 @@ class Simulator(ABC):
             gantry=gantry_angle,
             coll=coll_angle,
             couch=table_angle,
-            dpmm=1 / self.pixel_size,
+            dpi=25.4 / self.pixel_size,
         )
 
     def generate_dicom(self, file_out_name: str, *args, **kwargs) -> None:

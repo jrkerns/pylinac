@@ -219,7 +219,7 @@ def array_to_dicom(
     gantry: float,
     coll: float,
     couch: float,
-    dpmm: float,
+    dpi: float,
     extra_tags: dict | None = None,
 ) -> Dataset:
     """Converts a numpy array into a **simplistic** DICOM file. Not meant to be a full-featured converter. This
@@ -235,8 +235,8 @@ def array_to_dicom(
         The numpy array to be converted. Must be 2 dimensions.
     sid
         The Source-to-Image distance in mm.
-    dpmm
-        The dots-per-mm value of the image.
+    dpi
+        The dots-per-inch value of the image.
     gantry
         The gantry value that the image was taken at.
     coll
@@ -270,7 +270,7 @@ def array_to_dicom(
     ds.RTImageLabel = "Pylinac image"
     ds.RTImagePlane = "NORMAL"
     ds.RadiationMachineName = "Pylinac"
-    ds.RTImagePosition = _rt_image_position(array, dpmm)
+    ds.RTImagePosition = _rt_image_position(array, dpi)
     ds.SamplesPerPixel = 1
     ds.PhotometricInterpretation = "MONOCHROME2"  # 0 is black, max is white
     ds.Rows = array.shape[0]
@@ -278,7 +278,7 @@ def array_to_dicom(
     ds.BitsAllocated = array.itemsize * 8
     ds.BitsStored = array.itemsize * 8
     ds.HighBit = array.itemsize * 8 - 1
-    ds.ImagePlanePixelSpacing = [1 / dpmm, 1 / dpmm]
+    ds.ImagePlanePixelSpacing = [25.4 / dpi, 25.4 / dpi]
     ds.RadiationMachineSAD = "1000.0"
     ds.RTImageSID = sid
     ds.PrimaryDosimeterUnit = "MU"
@@ -350,7 +350,7 @@ def create_dicom_files_from_3d_array(
             gantry=0,
             coll=0,
             couch=0,
-            dpmm=1,
+            dpi=25.4,
             extra_tags={
                 "SeriesInstanceUID": series_uid,
                 "ImagePositionPatient": image_patient_position,

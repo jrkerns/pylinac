@@ -1233,7 +1233,7 @@ class XIM(BaseImage):
         )
         return array_to_dicom(
             array=self.array,
-            dpmm=self.dpmm,
+            dpi=25.4 * self.dpmm,
             gantry=iec_g,
             coll=iec_c,
             couch=iec_p,
@@ -1999,13 +1999,13 @@ def tiff_to_dicom(
         gantry=gantry,
         coll=coll,
         couch=couch,
-        dpmm=file_img.dpmm,
+        dpi=file_img.dpi,
         extra_tags=extra_tags,
     )
 
 
 def load_raw_visionrt(
-    path: str | Path, shape: tuple[int, int], dtype=np.uint32, **kwargs
+    path: str | Path, shape: tuple[int, int] = (960, 600), dtype=np.uint32, **kwargs
 ) -> ArrayImage:
     """Load a .raw file from a VisionRT system.
 
@@ -2014,7 +2014,7 @@ def load_raw_visionrt(
     path : str, Path
         The path to the file.
     shape : tuple
-        The shape of the image.
+        The shape of the image. Default is 960x600.
     dtype : dtype
         The datatype of the image.
     kwargs
@@ -2024,7 +2024,7 @@ def load_raw_visionrt(
 
 
 def load_raw_cyberknife(
-    path: str | Path, shape: tuple[int, int], dtype=np.uint16, **kwargs
+    path: str | Path, shape: tuple[int, int] | None = None, dtype=np.uint16, **kwargs
 ) -> ArrayImage:
     """Load a CyberKnife image.
 
@@ -2033,12 +2033,22 @@ def load_raw_cyberknife(
     path : str, Path
         The path to the file.
     shape : tuple
-        The shape of the image.
+        The shape of the image. If None, will attempt to read the shape from the file.
     dtype : dtype
         The datatype of the image.
     kwargs
         Additional keyword arguments to pass to the ArrayImage. This most often is SID and DPI.
     """
+    if shape is None:
+        with open(path, "rb") as f:
+            try:
+                header = f.read(20).decode("utf-8")
+                _, width, height, *_ = header.split(" ")
+                shape = (int(width), int(height))
+            except Exception:
+                raise ValueError(
+                    "The shape of the image could not be determined. Pass it manually."
+                )
     return load_raw(path, shape, dtype, **kwargs)
 
 

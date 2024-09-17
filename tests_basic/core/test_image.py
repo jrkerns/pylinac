@@ -895,6 +895,22 @@ class TestRawImages(TestCase):
         self.assertEqual(img.array.shape, (1536, 1536))
         self.assertEqual(img.array.dtype, np.uint16)
 
+    def test_cyberknife_auto_shape(self):
+        """Test that a CyberKnife image can be loaded"""
+        path = get_file_from_cloud_test_repo(
+            ["Misc", "Cyberknife_1536_1536_uint16_320.raw"]
+        )
+        img = image.load_raw_cyberknife(path)
+        self.assertIsInstance(img, ArrayImage)
+        self.assertEqual(img.array.shape, (1536, 1536))
+        self.assertEqual(img.array.dtype, np.uint16)
+
+    def test_cyberknife_bad_image(self):
+        # pass a visionrt (no good header) image to test shape error
+        path = get_file_from_cloud_test_repo(["Misc", "VisionRT_960_600_uint32.raw"])
+        with self.assertRaises(ValueError):
+            image.load_raw_cyberknife(path)
+
     def test_sid_is_passed(self):
         path = get_file_from_cloud_test_repo(["Misc", "VisionRT_960_600_uint32.raw"])
         img = image.load_raw_visionrt(path, shape=(960, 600), sid=1000)
