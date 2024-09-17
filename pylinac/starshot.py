@@ -101,6 +101,9 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             Passed to :func:`~pylinac.core.image.load`.
         """
         self.image = image.load(filepath, **kwargs)
+        # normalize to the mean
+        # this will ensure that synthetic and contrived images will still be detected.
+        # Starshots don't depend on the pixel intensities, only the relative intensities.
         self.wobble = Wobble()
         self.tolerance = 1
         if self.image.dpmm is None:
@@ -293,7 +296,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         radius_gen = get_radius()
         while wobble_unreasonable:
             try:
-                min_height = max(min_peak_height * local_max, 1.01)
+                min_height = min_peak_height * local_max
                 self.circle_profile = StarProfile(
                     self.image, focus_point, radius, min_height, fwhm
                 )

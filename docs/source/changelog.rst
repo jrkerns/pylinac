@@ -10,6 +10,14 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.28.0
+--------
+
+Starshot
+^^^^^^^^
+
+* :bdg-warning:`Fixed` Certain types of starshot sets where the pixel values were extremely low would fail to analyze.
+
 v 3.27.0
 --------
 
