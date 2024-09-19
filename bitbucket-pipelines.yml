@@ -7,20 +7,16 @@ definitions:
     precommit: ~/.cache/pre-commit
     uv: ~/.cache/uv
   steps:
-    - step: &pre-commit-checks
-        name: Pre-commit checks
+    - step: &pre-commit-checks-and-setup
+        name: Pre-commit checks & env setup
         script:
           - apt-get update
           - apt-get -y install git
+          - uv sync --frozen
           - uv run pre-commit run --all-files
         caches:
           - precommit
-    - step: &set-up-env
-        name: Set up Env
-        caches:
           - uv
-        script:
-          - uv sync --frozen
         artifacts:
           - .venv/**
     - step: &push-to-github
@@ -249,7 +245,7 @@ pipelines:
 
   custom:
     update-kraken:
-      - step: *set-up-env
+      - step: *pre-commit-checks-and-setup
       - step: *update-dev-kraken
     pypi:
       - step:
@@ -275,9 +271,7 @@ pipelines:
 
   pull-requests:
     '**':
-      - parallel:
-          - step: *set-up-env
-      - step: *pre-commit-checks
+      - step: *pre-commit-checks-and-setup
       - parallel:
           - step: *build-docs
           - step: *cbct-tests
