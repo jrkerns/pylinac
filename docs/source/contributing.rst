@@ -64,3 +64,18 @@ Be sure to ask for help if you need it!
 * If the tests pass, commit your changes: ``git commit -m "my new feature!"``
 * Push your changes to your forked repository: ``git push origin my_new_branch``
 * Make a new pull request to the main pylinac repository.
+
+Building the package
+--------------------
+
+.. note::
+
+    This is for maintainers only.
+
+To build a distributable package of pylinac:
+
+.. code-block:: bash
+
+    uvx hatch version <new version>
+    uv build
+    twine upload dist/pylinac-v<new version>*
