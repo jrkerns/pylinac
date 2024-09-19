@@ -1,4 +1,4 @@
-image: uv:python3.11-bookworm-slim
+image: ghcr.io/astral-sh/uv:python3.11-bookworm-slim
 
 
 definitions:
@@ -277,7 +277,7 @@ pipelines:
     '**':
       - parallel:
           - step: *set-up-env
-          - step: *pre-commit-checks
+      - step: *pre-commit-checks
       - parallel:
           - step: *build-docs
           - step: *cbct-tests
