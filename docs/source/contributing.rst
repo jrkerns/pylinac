@@ -78,4 +78,4 @@ To build a distributable package of pylinac:
 
     uvx hatch version <new version>
     uv build
-    twine upload dist/pylinac-v<new version>*
+    uvx twine upload dist/pylinac-v<new version>*
