@@ -13,7 +13,6 @@ definitions:
           - apt-get update
           - apt-get -y install git
           - uv sync --frozen
-          - uv tool install nox
           - uvx pre-commit run --all-files
         caches:
           - precommit
@@ -31,7 +30,7 @@ definitions:
     - step: &build-docs
         name: Build Docs
         script:
-          - uvx nox -s build_docs
+          - uv run nox -s build_docs
         condition:
           changesets:
             includePaths:
@@ -240,7 +239,7 @@ definitions:
           - tar -xf gcloud_cli.tar.gz
           - ./google-cloud-sdk/install.sh --quiet
           - export PATH="./google-cloud-sdk/bin:$PATH"
-          - uvx nox -s update_dev_kraken
+          - uv run nox -s update_dev_kraken
 
 pipelines:
 

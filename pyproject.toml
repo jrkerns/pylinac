@@ -43,6 +43,7 @@ dependencies = [
     "eval-type-backport; python_version<='3.8'",
     "quaac",
     "plotly>=5.0",
+    "nox>=2024.4.15",
 ]
 
 [build-system]
