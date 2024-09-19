@@ -10,6 +10,27 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.28.0
+--------
+
+Core
+^^^^
+
+* :bdg-success:`Feature` 3 new functions have been added to the ``image`` module for loading .raw images, specifically from VisionRT and CyberKnife
+  platforms. See :ref:`loading-raw-images` for more.
+* :bdg-success:`Feature` All ``...Image`` (ArrayImage, FileImage, etc) classes now have an ``as_dicom`` method that will return a pydicom Dataset.
+* :bdg-success:`Feature` A new documentation section has been added for ad-hoc loading and conversion of various image formats. See :ref:`image_conversion_guide`.
+* :bdg-danger:`Change` The ``array_to_dicom`` and ``tiff_to_dicom`` functions have changed from passing keyword arguments to override
+  specific tags to using a dictionary of tags with the ``extra_tags`` parameter.
+
+  .. code-block:: python
+
+    # old
+    array_to_dicom(array, **kwargs)
+
+    # new
+    array_to_dicom(array, extra_tags={...})
+
 v 3.27.0
 --------
 
@@ -61,20 +82,6 @@ Core
 * :bdg-primary:`Refactor` Performing :meth:`~pylinac.core.image.BaseImage.crop` on an image now allows for a ``pixels`` input of 0. This allows for a no-op crop.
 * :bdg-warning:`Fixed` Performing :meth:`~pylinac.core.image.BaseImage.crop` with ``pixels`` value too large that would result in an empty array now raises
   an error.
-* :bdg-success:`Feature` 3 new functions have been added to the ``image`` module for loading .raw images, specifically from VisionRT and CyberKnife
-  platforms. See :ref:`loading-raw-images` for more.
-* :bdg-success:`Feature` All ``...Image`` (ArrayImage, FileImage, etc) classes now have an ``as_dicom`` method that will return a pydicom Dataset.
-* :bdg-success:`Feature` A new documentation section has been added for ad-hoc loading and conversion of various image formats. See :ref:`image_conversion_guide`.
-* :bdg-danger:`Change` The ``array_to_dicom`` and ``tiff_to_dicom`` functions have changed from passing keyword arguments to override
-  specific tags to using a dictionary of tags with the ``extra_tags`` parameter.
-
-  .. code-block:: python
-
-    # old
-    array_to_dicom(array, **kwargs)
-
-    # new
-    array_to_dicom(array, extra_tags={...})
 
 v 3.26.0
 --------
