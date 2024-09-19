@@ -1,32 +1,28 @@
-image: python:3.11-slim
+image: uv:python3.11-bookworm-slim
 
 
 definitions:
   caches:
     testfiles: tests_basic/test_files
+    precommit: ~/.cache/pre-commit
+    uv: ~/.cache/uv
   steps:
     - step: &pre-commit-checks
         name: Pre-commit checks
-        image: python:3.11-slim
         script:
           - apt-get update
           - apt-get -y install git
-          - pip install pre-commit
           - pre-commit run --all-files
+        caches:
+          - precommit
     - step: &set-up-env
         name: Set up Env
         caches:
-          - pip
+          - uv
         script:
-          - apt-get update
-          - python -m venv venv
-          - source venv/bin/activate
-          - pip install .[dev]
-          - pip install .[docs]
-          - pip uninstall pylinac -y
-          - pip freeze
+          - uv sync --frozen
         artifacts:
-          - venv/**
+          - .venv/**
     - step: &push-to-github
         name: Push to Github
         clone:
@@ -38,8 +34,7 @@ definitions:
     - step: &build-docs
         name: Build Docs
         script:
-          - source venv/bin/activate
-          - nox -s build_docs
+          - uv run nox -s build_docs
         condition:
           changesets:
             includePaths:
@@ -49,8 +44,7 @@ definitions:
         name: Run CBCT Tests
         size: 2x
         script:
-          - source venv/bin/activate
-          - pytest tests_basic/test_cbct.py -n 2 --cov=pylinac.cbct --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_cbct.py -n 2 --cov=pylinac.cbct --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -62,8 +56,7 @@ definitions:
     - step: &quart-tests
         name: Run Quart Tests
         script:
-          - source venv/bin/activate
-          - pytest tests_basic/test_quart.py --cov=pylinac.quart --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_quart.py --cov=pylinac.quart --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -76,8 +69,7 @@ definitions:
     - step: &acr-tests
         name: Run ACR CT/MRI Tests
         script:
-          - source venv/bin/activate
-          - pytest tests_basic/test_acr.py --cov=pylinac.acr --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_acr.py --cov=pylinac.acr --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -90,8 +82,7 @@ definitions:
     - step: &cheese-tests
         name: Run Cheese Phantom Tests
         script:
-          - source venv/bin/activate
-          - pytest tests_basic/test_cheese.py --cov=pylinac.cheese --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_cheese.py --cov=pylinac.cheese --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -104,8 +95,7 @@ definitions:
     - step: &planar-tests
         name: Run Planar Imaging Tests
         script:
-          - source venv/bin/activate
-          - pytest tests_basic/test_planar_imaging.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_planar_imaging.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -117,8 +107,7 @@ definitions:
     - step: &dlg-tests
         name: Run DLG Tests
         script:
-          - source venv/bin/activate
-          - pytest tests_basic/test_dlg.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_dlg.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -130,8 +119,7 @@ definitions:
     - step: &field-analysis-tests
         name: Run Field Analysis Tests
         script:
-          - source venv/bin/activate
-          - pytest tests_basic/test_field_analysis.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_field_analysis.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -143,8 +131,7 @@ definitions:
     - step: &machine-log-tests
         name: Run Machine Logs Tests
         script:
-          - source venv/bin/activate
-          - pytest tests_basic/test_logs.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_logs.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -156,8 +143,7 @@ definitions:
     - step: &picket-fence-tests
         name: Run Picket Fence Tests
         script:
-          - source venv/bin/activate
-          - pytest tests_basic/test_picketfence.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_picketfence.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -169,8 +155,7 @@ definitions:
     - step: &starshot-tests
         name: Run Starshot Tests
         script:
-          - source venv/bin/activate
-          - pytest tests_basic/test_starshot.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_starshot.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -182,8 +167,7 @@ definitions:
     - step: &calibration-tests
         name: Run TG-51/TRS-398 Tests
         script:
-          - source venv/bin/activate
-          - pytest tests_basic/test_tg51.py tests_basic/test_trs398.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_tg51.py tests_basic/test_trs398.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -196,8 +180,7 @@ definitions:
     - step: &vmat-tests
         name: Run VMAT Tests
         script:
-          - source venv/bin/activate
-          - pytest tests_basic/test_vmat.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_vmat.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -210,8 +193,7 @@ definitions:
         name: Run Winston-Lutz Tests
         size: 2x
         script:
-          - source venv/bin/activate
-          - pytest tests_basic/test_winstonlutz.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_winstonlutz.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
           changesets:
             includePaths:
@@ -222,8 +204,7 @@ definitions:
         name: Run Winston-Lutz Multi-Target Multi-Field Tests
         size: 2x
         script:
-          - source venv/bin/activate
-          - pytest tests_basic/test_winstonlutz_mtmf.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_winstonlutz_mtmf.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
           changesets:
             includePaths:
@@ -233,8 +214,7 @@ definitions:
     - step: &plan-generator-tests
         name: Plan generator tests
         script:
-          - source venv/bin/activate
-          - pytest tests_basic/test_plan_generator.py tests_basic/test_generated_plans.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_plan_generator.py tests_basic/test_generated_plans.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
             changesets:
                 includePaths:
@@ -245,8 +225,7 @@ definitions:
     - step: &core-module-tests
         name: Run core module tests
         script:
-          - source venv/bin/activate
-          - pytest tests_basic/core --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/core --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -259,13 +238,12 @@ definitions:
         script:
           - apt-get update
           - apt-get install wget -y
-          - pip install nox
           # Get gcloud CLI
           - wget https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-416.0.0-linux-x86_64.tar.gz -O gcloud_cli.tar.gz
           - tar -xf gcloud_cli.tar.gz
           - ./google-cloud-sdk/install.sh --quiet
           - export PATH="./google-cloud-sdk/bin:$PATH"
-          - nox -s update_dev_kraken
+          - uv run nox -s update_dev_kraken
 
 pipelines:
 
