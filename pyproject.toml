@@ -45,6 +45,18 @@ dependencies = [
     "plotly>=5.0",
 ]
 
+# unfortunately, RTD doesn't support custom installes like `uv sync`. Only "extra" dependencies are supported.
+# this extra dependency entry point shouldn't be used outside of RTD.
+# Use `uv sync` for local development.
+[project.optional-dependencies]
+docs = [
+    "sphinx-autobuild>=2021.3.14",
+    "sphinx-copybutton>=0.5.2",
+    "sphinx-design>=0.5.0",
+    "sphinx>=7.1.2",
+    "furo>=2024.8.6",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
