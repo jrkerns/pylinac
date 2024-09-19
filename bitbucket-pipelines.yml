@@ -12,7 +12,7 @@ definitions:
         script:
           - apt-get update
           - apt-get -y install git
-          - pre-commit run --all-files
+          - uv run pre-commit run --all-files
         caches:
           - precommit
     - step: &set-up-env
