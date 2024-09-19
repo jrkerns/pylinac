@@ -101,9 +101,6 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             Passed to :func:`~pylinac.core.image.load`.
         """
         self.image = image.load(filepath, **kwargs)
-        # normalize to the mean
-        # this will ensure that synthetic and contrived images will still be detected.
-        # Starshots don't depend on the pixel intensities, only the relative intensities.
         self.wobble = Wobble()
         self.tolerance = 1
         if self.image.dpmm is None:
