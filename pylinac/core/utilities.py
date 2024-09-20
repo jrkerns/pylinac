@@ -254,19 +254,19 @@ def decode_binary(
         output = struct.unpack(dtype * num_values, f.read(s))
         if len(output) == 1:
             output = output[0]
-    elif isinstance(dtype, str):
+    elif dtype is str:
         ssize = struct.calcsize("c") * num_values
         output = struct.unpack("c" * num_values, f.read(ssize))
         if strip_empty:
             output = "".join(o.decode() for o in output if o != b"\x00")
         else:
             output = "".join(o.decode() for o in output)
-    elif isinstance(dtype, int):
+    elif dtype is int:
         ssize = struct.calcsize("i") * num_values
         output = np.asarray(struct.unpack("i" * num_values, f.read(ssize)))
         if len(output) == 1:
             output = int(np.squeeze(output))
-    elif isinstance(dtype, float):
+    elif dtype is float:
         ssize = struct.calcsize("f") * num_values
         output = np.asarray(struct.unpack("f" * num_values, f.read(ssize)))
         if len(output) == 1:
