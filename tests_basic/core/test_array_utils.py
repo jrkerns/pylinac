@@ -1,9 +1,13 @@
+import io
 import math
 from unittest import TestCase
 
 import numpy as np
+import pydicom
+from parameterized import parameterized
 
 from pylinac.core.array_utils import (
+    array_to_dicom,
     bit_invert,
     convert_to_dtype,
     fill_middle_zeros,
@@ -270,3 +274,59 @@ class TestFillMiddle(TestCase):
         arr = np.array([])
         with self.assertRaises(ValueError):
             fill_middle_zeros(arr)
+
+
+class TestArrayToDicom(TestCase):
+    def test_single_dimension_fails(self):
+        arr = np.array([0, 1, 2, 3])
+        with self.assertRaises(ValueError):
+            array_to_dicom(arr, sid=100, gantry=0, coll=0, couch=0, dpi=1)
+
+    def test_override_tag(self):
+        # override the patient name tag
+        arr = np.array([[0, 1], [2, 3]], dtype=np.uint16)
+        ds = array_to_dicom(
+            arr,
+            sid=100,
+            gantry=0,
+            coll=0,
+            couch=0,
+            dpi=1,
+            extra_tags={"PatientName": "John Doe"},
+        )
+        assert ds.PatientName == "John Doe"
+
+    def test_can_reread_dicom(self):
+        arr = np.array([[0, 1], [2, 3]], dtype=np.uint16)
+        ds = array_to_dicom(arr, sid=100, gantry=0, coll=0, couch=0, dpi=1)
+        with io.BytesIO() as f:
+            ds.save_as(f, write_like_original=False)
+            f.seek(0)
+            ds_reload = pydicom.dcmread(f)
+        assert ds_reload.pixel_array.dtype == np.uint16
+        assert ds_reload.pixel_array.max() == 3
+        assert ds_reload.PatientName == ds.PatientName
+        assert ds_reload.PatientID == ds.PatientID
+        assert ds_reload.PatientBirthDate == ds.PatientBirthDate
+        assert ds_reload.PatientSex == ds.PatientSex
+
+    @parameterized.expand(
+        [
+            (np.uint8, np.uint8),
+            (np.uint16, np.uint16),
+            (np.uint32, np.uint32),
+            (np.float32, np.float32),
+            (np.float64, np.float64),
+            (">u2", np.uint16),
+            ("<u2", np.uint16),
+        ]
+    )
+    def test_dtypes(self, input_dtype, output_dtype):
+        arr = np.random.rand(2, 2).astype(input_dtype)  # noqa: NPY002
+        ds = array_to_dicom(arr, sid=100, gantry=0, coll=0, couch=0, dpi=1)
+        with io.BytesIO() as f:
+            ds.save_as(f, write_like_original=False)
+            f.seek(0)
+            ds_reload = pydicom.dcmread(f)
+        self.assertTrue(np.allclose(ds_reload.pixel_array, arr))
+        self.assertEqual(ds_reload.pixel_array.dtype, output_dtype)

@@ -104,6 +104,39 @@ the same methods are available as a DICOM. To do so:
 We will now have a file in our working directory named ``my_new_dicom.dcm`` that is, for all intents and purposes,
 a DICOM file. It can be loaded with ``image.load()`` or ``pydicom`` like any normal DICOM.
 
+.. _loading-raw-images:
+
+RAW Images (CyberKnife, VisionRT)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Pylinac can open .raw images generated from CyberKnife and VisionRT images. These are usually .raw files
+that follow simple metadata+pixel information format.
+
+There are 3 functions available: :func:`~pylinac.core.image.load_raw`, :func:`~pylinac.core.image.load_raw_cyberknife`, and :func:`~pylinac.core.image.load_raw_visionrt`.
+The first is a general function that can open any .raw file. The latter two are specialized for CyberKnife and VisionRT images, respectively and use the general function.
+These will generate an :class:`~pylinac.core.image.ArrayImage` object that can be manipulated like any other image.
+
+To open these VisionRT:
+
+.. code-block:: python
+
+    from pylinac import image
+
+    my_raw = image.load_raw_visionrt("path/to/my/image.raw", shape=(960, 600))
+    # OR
+    my_raw = image.load_raw("path/to/my/image.raw", shape=(960, 600), dtype=np.uint32)
+
+To load CyberKnife images:
+
+.. code-block:: python
+
+    from pylinac import image
+
+    my_raw = image.load_raw_cyberknife("path/to/my/image.raw", shape=(512, 512))
+    # OR
+    my_raw = image.load_raw("path/to/my/image.raw", shape=(512, 512), dtype=np.uint16)
+
+
 Gamma
 ^^^^^
 
