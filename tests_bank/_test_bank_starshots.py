@@ -1,4 +1,5 @@
 """Run through the Starshot image bank."""
+
 from unittest import TestCase
 
 from pylinac import Starshot

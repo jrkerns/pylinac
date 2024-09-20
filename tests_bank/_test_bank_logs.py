@@ -1,4 +1,5 @@
 """Run through the Machine Log bank."""
+
 from unittest import TestCase
 
 from pylinac import load_log

@@ -1,4 +1,5 @@
 """Run through the Winston-Lutz image bank."""
+
 from unittest import TestCase
 
 from pylinac import WinstonLutz

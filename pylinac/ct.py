@@ -13,6 +13,7 @@ Features:
 * **Any scan protocol** - Scan your CatPhan with any protocol; even scan it in a regular CT scanner.
   Any field size or field extent is allowed.
 """
+
 from __future__ import annotations
 
 import io
@@ -21,11 +22,12 @@ import os
 import textwrap
 import webbrowser
 import zipfile
+from collections.abc import Sequence
 from functools import cached_property
 from io import BytesIO
 from os import path as osp
 from pathlib import Path
-from typing import BinaryIO, Callable, Sequence
+from typing import BinaryIO, Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1591,23 +1593,23 @@ class CTP515(CatPhanModule):
     def _setup_rois(self):
         # create both background rois dynamically, then create the actual sample ROI as normal
         for name, setting in self.roi_settings.items():
-            self.background_rois[
-                name + "-outer"
-            ] = LowContrastDiskROI.from_phantom_center(
-                self.image,
-                setting["angle_corrected"],
-                self.background_roi_radius_mm / self.mm_per_pixel,
-                setting["distance_pixels"] * (2 - self.background_roi_dist_ratio),
-                self.phan_center,
+            self.background_rois[name + "-outer"] = (
+                LowContrastDiskROI.from_phantom_center(
+                    self.image,
+                    setting["angle_corrected"],
+                    self.background_roi_radius_mm / self.mm_per_pixel,
+                    setting["distance_pixels"] * (2 - self.background_roi_dist_ratio),
+                    self.phan_center,
+                )
             )
-            self.background_rois[
-                name + "-inner"
-            ] = LowContrastDiskROI.from_phantom_center(
-                self.image,
-                setting["angle_corrected"],
-                self.background_roi_radius_mm / self.mm_per_pixel,
-                setting["distance_pixels"] * self.background_roi_dist_ratio,
-                self.phan_center,
+            self.background_rois[name + "-inner"] = (
+                LowContrastDiskROI.from_phantom_center(
+                    self.image,
+                    setting["angle_corrected"],
+                    self.background_roi_radius_mm / self.mm_per_pixel,
+                    setting["distance_pixels"] * self.background_roi_dist_ratio,
+                    self.phan_center,
+                )
             )
             background_val = float(
                 np.mean(

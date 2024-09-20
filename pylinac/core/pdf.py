@@ -1,10 +1,11 @@
 """Module for constructing and interacting with PDF reports for Pylinac."""
+
 from __future__ import annotations
 
 import io
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
-from typing import Sequence
 
 from PIL import Image
 from reportlab.lib.pagesizes import A4

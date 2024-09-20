@@ -1,4 +1,5 @@
 """Run through the 2D planar phantom image bank."""
+
 from unittest import TestCase
 
 # from tests_basic import prep_mpl_testing

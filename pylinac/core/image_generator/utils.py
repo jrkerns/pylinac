@@ -4,7 +4,7 @@ import copy
 import os
 import os.path as osp
 import random
-from typing import Sequence
+from collections.abc import Sequence
 
 from ...picketfence import Orientation
 from ...winston_lutz import bb_projection_with_rotation
@@ -338,8 +338,8 @@ def generate_winstonlutz_multi_bb_single_field(
             else:
                 offset_mm_left = offset[0] + random.uniform(-jitter_mm, jitter_mm)
                 offset_mm_up = offset[1] + random.uniform(-jitter_mm, jitter_mm)
-                offset_mm_in = -offset[2] + random.uniform(
-                    -jitter_mm, jitter_mm
+                offset_mm_in = (
+                    -offset[2] + random.uniform(-jitter_mm, jitter_mm)
                 )  # negative because pixels increase as we go out, so to go in we subtract
             gplane_offset, long_offset = bb_projection_with_rotation(
                 offset_left=offset_mm_left,

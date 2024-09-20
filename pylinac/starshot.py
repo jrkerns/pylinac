@@ -18,6 +18,7 @@ Features:
 * **Adaptive searching** - If you passed pylinac a set of parameters and a good result wasn't found, pylinac can recover and
   do an adaptive search by adjusting parameters to find a "reasonable" wobble.
 """
+
 from __future__ import annotations
 
 import copy

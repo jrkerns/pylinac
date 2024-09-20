@@ -1,5 +1,3 @@
-from typing import List
-
 from .. import StandardImagingFC2
 from ..core.geometry import Point
 from ..metrics.image import SizedDiskLocator
@@ -15,7 +13,7 @@ class QuasarLightRadScaling(StandardImagingFC2):
     bb_size_mm = 5
     field_strip_width_mm = 20
     light_rad_bb_offset_mm = 11
-    scaling_centers: List[Point]
+    scaling_centers: list[Point]
 
     def analyze(
         self, invert: bool = False, fwxm: int = 50, bb_edge_threshold_mm: float = 10
@@ -52,7 +50,7 @@ class QuasarLightRadScaling(StandardImagingFC2):
         }
         return positions_offsets
 
-    def _detect_scaling_centers(self) -> List[Point]:
+    def _detect_scaling_centers(self) -> list[Point]:
         """Sample a 10x10mm square about each BB to detect it. Adjustable using self.bb_sampling_box_size_mm"""
         scaling_centers = self.image.compute(
             SizedDiskLocator.from_center_physical(

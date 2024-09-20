@@ -8,6 +8,7 @@ Dref, and chamber reading corrections. Where Muir & Rogers' values/equations are
 Classes include photon and electron calibrations using cylindrical chambers. Pass all the relevant raw measurements
 and the class will compute all corrections and corrected readings and dose at 10cm and dmax/dref.
 """
+
 import webbrowser
 from abc import abstractmethod
 from datetime import datetime

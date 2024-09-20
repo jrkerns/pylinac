@@ -8,14 +8,16 @@ Features:
 * **Automatic offset correction** - Older VMAT tests had the ROIs offset, newer ones are centered. No worries, pylinac finds the ROIs automatically.
 * **Automatic open/DMLC identification** - Pass in both images--don't worry about naming. Pylinac will automatically identify the right images.
 """
+
 from __future__ import annotations
 
 import copy
 import enum
 import webbrowser
+from collections.abc import Sequence
 from io import BytesIO
 from pathlib import Path
-from typing import BinaryIO, Sequence
+from typing import BinaryIO
 
 import matplotlib.pyplot as plt
 import numpy as np

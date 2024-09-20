@@ -1,4 +1,5 @@
 """I/O helper functions for pylinac."""
+
 from __future__ import annotations
 
 import math

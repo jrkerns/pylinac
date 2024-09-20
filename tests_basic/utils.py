@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import concurrent.futures
 import contextlib
@@ -8,11 +10,12 @@ import os.path as osp
 import pprint
 import shutil
 import time
+from collections.abc import Sequence
 from functools import lru_cache
 from io import BytesIO, StringIO
 from pathlib import Path, PurePosixPath
 from tempfile import TemporaryDirectory
-from typing import Callable, List, Sequence
+from typing import Callable
 from urllib.request import urlopen
 
 from google.cloud import storage
@@ -53,7 +56,7 @@ def gcp_bucket_object_list(bucket_name: str) -> list:
 
 
 def get_folder_from_cloud_repo(
-    folder: List[str],
+    folder: list[str],
     skip_exists: bool = True,
     local_dir: str | Path = LOCAL_TEST_DIR,
     cloud_repo: str = GCP_BUCKET_NAME,
@@ -110,7 +113,7 @@ def get_folder_from_cloud_repo(
     return osp.join(osp.dirname(__file__), local_dir, *folder)
 
 
-def get_file_from_cloud_test_repo(path: List[str], force: bool = False) -> str:
+def get_file_from_cloud_test_repo(path: list[str], force: bool = False) -> str:
     """Get a single file from GCP storage. Returns the path to disk it was downloaded to"""
     local_filename = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *path)
     if osp.isfile(local_filename) and not force:
@@ -215,7 +218,7 @@ class MixinTesterBase:
 
 
 class FromZipTesterMixin(MixinTesterBase):
-    zip: List[str]
+    zip: list[str]
     zip_kwargs: dict = {}
 
     def test_from_zip(self):
@@ -233,7 +236,7 @@ class FromDemoImageTesterMixin(MixinTesterBase):
 
 
 class InitTesterMixin(MixinTesterBase):
-    init_file: List[str]
+    init_file: list[str]
     init_kwargs: dict = {}
     is_folder = False
 

@@ -1,4 +1,5 @@
 """Run through the Picket Fence image bank."""
+
 from unittest import TestCase
 
 from pylinac import PicketFence

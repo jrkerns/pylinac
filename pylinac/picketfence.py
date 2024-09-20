@@ -12,6 +12,7 @@ Features:
 * **Account for panel translation** - Have an off-CAX setup? No problem. Translate your EPID and pylinac knows.
 * **Account for panel sag** - If your EPID sags at certain angles, just tell pylinac and the results will be shifted.
 """
+
 from __future__ import annotations
 
 import copy
@@ -21,11 +22,12 @@ import os.path as osp
 import statistics
 import warnings
 import webbrowser
+from collections.abc import Iterable, Sequence
 from functools import cached_property
 from io import BytesIO
 from itertools import cycle, groupby
 from pathlib import Path
-from typing import BinaryIO, Iterable, Sequence
+from typing import BinaryIO
 
 import matplotlib.pyplot as plt
 import numpy as np

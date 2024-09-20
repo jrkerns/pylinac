@@ -1,9 +1,10 @@
 import io
 import json
 import tempfile
+from collections.abc import Iterable
 from functools import partial
 from pathlib import Path
-from typing import Iterable, Type, Union
+from typing import Union
 from unittest import TestCase
 
 import numpy as np
@@ -34,7 +35,7 @@ within_1 = partial(TestCase().assertAlmostEqual, delta=1)
 
 class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
     demo_load_method = "from_demo_images"
-    klass: Union[Type[DRGS], Type[DRMLC]]
+    klass: Union[type[DRGS], type[DRMLC]]
 
     def test_normal_instantiation(self):
         one = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_1.dcm"])

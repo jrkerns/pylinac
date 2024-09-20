@@ -1,4 +1,5 @@
 """This module holds classes for image loading and manipulation."""
+
 from __future__ import annotations
 
 import copy
@@ -9,11 +10,12 @@ import os.path as osp
 import re
 import warnings
 from collections import Counter
+from collections.abc import Iterable, Sequence
 from datetime import datetime
 from functools import cached_property
 from io import BufferedReader, BytesIO
 from pathlib import Path
-from typing import Any, BinaryIO, Iterable, Sequence, Union
+from typing import Any, BinaryIO, Union
 
 import argue
 import matplotlib.pyplot as plt
@@ -914,7 +916,7 @@ class BaseImage:
             comp_img.normalize()
 
         # invalidate dose values below threshold so gamma doesn't calculate over it
-        ref_img.array[ref_img < threshold * np.max(ref_img)] = np.NaN
+        ref_img.array[ref_img < threshold * np.max(ref_img)] = np.nan
 
         # convert distance value from mm to pixels
         distTA_pixels = self.dpmm * distTA

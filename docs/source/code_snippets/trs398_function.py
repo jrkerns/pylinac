@@ -1,4 +1,5 @@
 """A script to calculate TRS-398 dose using pylinac functions and following the TRS-398 photon form"""
+
 from pylinac.calibration import trs398
 
 TEMP = 22.1

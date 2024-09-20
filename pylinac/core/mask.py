@@ -1,4 +1,5 @@
 """Module for processing "masked" arrays, i.e. binary images."""
+
 from __future__ import annotations
 
 import numpy as np

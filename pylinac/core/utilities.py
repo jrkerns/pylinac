@@ -1,4 +1,5 @@
 """Utility functions for pylinac."""
+
 from __future__ import annotations
 
 import json
@@ -6,12 +7,12 @@ import os
 import os.path as osp
 import struct
 from abc import abstractmethod
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import BinaryIO, Generic, Literal, Sequence, TypeVar
+from typing import BinaryIO, Generic, Literal, TypeVar
 
 import numpy as np
 import pydicom
@@ -253,19 +254,19 @@ def decode_binary(
         output = struct.unpack(dtype * num_values, f.read(s))
         if len(output) == 1:
             output = output[0]
-    elif dtype == str:  # if string
+    elif isinstance(dtype, str):
         ssize = struct.calcsize("c") * num_values
         output = struct.unpack("c" * num_values, f.read(ssize))
         if strip_empty:
             output = "".join(o.decode() for o in output if o != b"\x00")
         else:
             output = "".join(o.decode() for o in output)
-    elif dtype == int:
+    elif isinstance(dtype, int):
         ssize = struct.calcsize("i") * num_values
         output = np.asarray(struct.unpack("i" * num_values, f.read(ssize)))
         if len(output) == 1:
             output = int(np.squeeze(output))
-    elif dtype == float:
+    elif isinstance(dtype, float):
         ssize = struct.calcsize("f") * num_values
         output = np.asarray(struct.unpack("f" * num_values, f.read(ssize)))
         if len(output) == 1:

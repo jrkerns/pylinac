@@ -96,17 +96,14 @@ source = [
     "pylinac"
 ]
 
-[tool.black]
-line-length = 88
-#experimental-string-processing = true  # TODO: enable in the future: https://github.com/psf/black/issues/1802
-
 [tool.ruff]
-select = ['E', 'F', 'I', 'UP', "W", "NPY", "FLY"]
-line-length = 180
-target-version = 'py38'
-ignore = ['E501']
+exclude = ['playground.py']
+lint.select = ['E', 'F', 'I', 'UP', "W", "NPY", "FLY"]
+line-length = 88  # to match black; may change in the future
+target-version = 'py39'
+lint.ignore = ['E501']
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "*/__init__.py" = ["F401"]
 "pylinac/calibration/trs398.py" = ["F401", "I001"]
 "pylinac/core/profile.py" = ['F821']

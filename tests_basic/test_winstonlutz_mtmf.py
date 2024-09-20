@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import shutil
 import tempfile
-from typing import Sequence
+from collections.abc import Sequence
 from unittest import TestCase
 
 import matplotlib.pyplot as plt

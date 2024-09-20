@@ -1,4 +1,5 @@
 """Perform non-linear regression using a Hill function."""
+
 from __future__ import annotations
 
 import math
