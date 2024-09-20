@@ -21,7 +21,7 @@ from .validators import double_dimension
 
 
 def array_not_empty(array: np.ndarray) -> None:
-    """Check an array isn't empty"""
+    """Check an array isn't empty."""
     if not array.size:
         raise ValueError("Array must not be empty")
 

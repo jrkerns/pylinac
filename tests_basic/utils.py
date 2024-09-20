@@ -127,8 +127,7 @@ def get_file_from_cloud_test_repo(path: List[str], force: bool = False) -> str:
         if len(path) > 1:
             for idx in range(1, len(path)):
                 local_dir = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *path[:idx])
-                if not osp.isdir(local_dir):
-                    os.mkdir(local_dir)
+                os.makedirs(local_dir, exist_ok=True)
 
         blob.download_to_filename(local_filename)
         time.sleep(2)

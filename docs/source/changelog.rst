@@ -13,6 +13,12 @@ Legend
 v 3.28.0
 --------
 
+General
+^^^^^^^
+
+* The minimum version of Python supported is now 3.9 as the end-of-life of Python 3.8 is October 2024.
+* Along with this, minimum versions of numpy, scipy, and matplotlib have been bumped to versions that support Python 3.9.
+
 Starshot
 ^^^^^^^^
 
