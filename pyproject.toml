@@ -1,6 +1,6 @@
 [project]
 name = "pylinac"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 description = "A toolkit for performing TG-142 QA-related tasks on a linear accelerator"
 authors = [
     {name = "James Kerns", email = "jkerns100@gmail.com"}
@@ -28,21 +28,22 @@ classifiers=[
 ]
 
 dependencies = [
-    "scikit-image>=0.17.3",
-    "numpy>=0.16,<2",
-    "scipy>=1.1",
+    "scikit-image>=0.18",
+    "numpy>=1.20,<2",
+    "scipy>=1.11",
     "tqdm>=3.8",
     "Pillow>=4.0",
     "argue~=0.3.1",
     "py-linq~=1.4.0",
     "reportlab>=3.3",
     "pydicom>=2.0,<3",
-    "matplotlib>=2.0",
+    "matplotlib>=3.0",
     "tabulate~=0.9.0",
     "pydantic>=2.0",
     "eval-type-backport; python_version<='3.8'",
     "quaac",
     "plotly>=5.0",
+    "sphinx-design>=0.6.0",
 ]
 
 # unfortunately, RTD doesn't support custom installes like `uv sync`. Only "extra" dependencies are supported.
@@ -52,7 +53,7 @@ dependencies = [
 docs = [
     "sphinx-autobuild>=2021.3.14",
     "sphinx-copybutton>=0.5.2",
-    "sphinx-design>=0.5.0",
+    "sphinx-design>=0.6.0",
     "sphinx>=7.1.2",
     "furo>=2024.8.6",
 ]
@@ -122,6 +123,6 @@ dev-dependencies = [
     "pytest>=8.3.2",
     "sphinx-autobuild>=2021.3.14",
     "sphinx-copybutton>=0.5.2",
-    "sphinx-design>=0.5.0",
+    "sphinx-design>=0.6.0",
     "sphinx>=7.1.2",
 ]
