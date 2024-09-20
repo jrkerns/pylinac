@@ -99,9 +99,9 @@ source = [
 [tool.ruff]
 exclude = ['playground.py']
 lint.select = ['E', 'F', 'I', 'UP', "W", "NPY", "FLY"]
+lint.ignore = ['E501']
 line-length = 88  # to match black; may change in the future
 target-version = 'py39'
-lint.ignore = ['E501']
 
 [tool.ruff.lint.per-file-ignores]
 "*/__init__.py" = ["F401"]
