@@ -13,6 +13,11 @@ Legend
 v 3.28.0
 --------
 
+Starshot
+^^^^^^^^
+
+* :bdg-warning:`Fixed` Certain types of starshot sets where the pixel values were extremely low would fail to analyze.
+
 General
 ^^^^^^^
 
