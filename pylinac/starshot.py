@@ -293,7 +293,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         radius_gen = get_radius()
         while wobble_unreasonable:
             try:
-                min_height = max(min_peak_height * local_max, 1.01)
+                min_height = min_peak_height * local_max
                 self.circle_profile = StarProfile(
                     self.image, focus_point, radius, min_height, fwhm
                 )

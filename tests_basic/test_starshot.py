@@ -7,6 +7,7 @@ from unittest import TestCase
 
 import matplotlib.pyplot as plt
 import numpy as np
+from parameterized import parameterized
 
 from pylinac import Starshot
 from pylinac.core.geometry import Point
@@ -63,6 +64,20 @@ class TestStarshotLoading(TestCase, FromURLTesterMixin):
         Starshot.from_url(self.full_url, **self.kwargs)
 
 
+class TestGeneral(TestCase):
+    @parameterized.expand([1e5, 1e4, 1e3, 1e1, 1e1, 1, 1e-1, 1e-2, 1e-3])
+    def test_range_of_pixel_values(self, max_val: float):
+        """Test that the range of values in the image is within a certain range."""
+        star = Starshot.from_demo_image()
+        # normalize so the max is the max_val
+        star.image.ground()
+        star.image.array = star.image.array.astype(float) / star.image.array.max()
+        star.image.array *= max_val
+        star.analyze()
+        self.assertLessEqual(star.wobble.diameter_mm, 0.35)
+        self.assertTrue(star.passed)
+
+
 class TestPlottingSaving(TestCase):
     @classmethod
     def tearDownClass(cls):
@@ -93,6 +108,7 @@ class StarMixin(CloudFileMixin):
     # dir_location = TEST_DIR
     dir_path = ["Starshot"]
     is_dir = False  # whether the starshot is a single file (False) or directory of images to combine (True)
+    is_zip = False
     wobble_diameter_mm = 0
     wobble_center = Point()
     num_rad_lines = 0
@@ -123,6 +139,8 @@ class StarMixin(CloudFileMixin):
         if cls.is_dir:
             files = [osp.join(filename, file) for file in os.listdir(filename)]
             star = Starshot.from_multiple_images(files, **cls.kwargs)
+        elif cls.is_zip:
+            star = Starshot.from_zip(filename, **cls.kwargs)
         else:
             star = Starshot(filename, **cls.kwargs)
         return star
@@ -533,3 +551,11 @@ class MarkerDots(StarMixin, TestCase):
     wobble_tolerance = 0.25
     num_rad_lines = 3
     passes = False
+
+
+class SyntheticLowValues(StarMixin, TestCase):
+    file_name = "synthetic-low-values.zip"
+    is_zip = True
+    wobble_center = Point(593, 593)
+    wobble_diameter_mm = 0.2
+    num_rad_lines = 6
