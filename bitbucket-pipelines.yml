@@ -13,7 +13,7 @@ definitions:
           - apt-get update
           - apt-get -y install git
           - uv sync --frozen
-          - uvx pre-commit run --all-files
+          - uv tool run pre-commit run --all-files
         caches:
           - precommit
           - uv
