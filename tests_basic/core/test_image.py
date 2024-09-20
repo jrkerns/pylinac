@@ -854,6 +854,74 @@ class TestDicomStack(TestCase):
         self.assertAlmostEqual(dstack.slice_spacing, 10, delta=0.001)
 
 
+class TestRawImages(TestCase):
+    def test_3d_shape_fails(self):
+        """Test that a 3D array fails to load"""
+        path = get_file_from_cloud_test_repo(["Misc", "VisionRT_960_600_uint32.raw"])
+        with self.assertRaises(ValueError):
+            image.load_raw(path, shape=(960, 600, 3), dtype=np.uint32)
+
+    def test_path(self):
+        # test a pathlib.Path vs str
+        path = get_file_from_cloud_test_repo(["Misc", "VisionRT_960_600_uint32.raw"])
+        img = image.load_raw_visionrt(Path(path), shape=(960, 600))
+        self.assertIsInstance(img, ArrayImage)
+
+    def test_vision_rt_image(self):
+        """Test that a VisionRT image can be loaded"""
+        path = get_file_from_cloud_test_repo(["Misc", "VisionRT_960_600_uint32.raw"])
+        img = image.load_raw_visionrt(path, shape=(960, 600))
+        self.assertIsInstance(img, ArrayImage)
+        self.assertEqual(img.array.shape, (960, 600))
+        self.assertEqual(img.array.dtype, np.uint32)
+
+    def test_cyberknife_512(self):
+        """Test that a CyberKnife image can be loaded"""
+        path = get_file_from_cloud_test_repo(
+            ["Misc", "Cyberknife_512x512_uint16_320.raw"]
+        )
+        img = image.load_raw_cyberknife(path, shape=(512, 512))
+        self.assertIsInstance(img, ArrayImage)
+        self.assertEqual(img.array.shape, (512, 512))
+        self.assertEqual(img.array.dtype, np.uint16)
+
+    def test_cyberknife_1536(self):
+        """Test that a CyberKnife image can be loaded"""
+        path = get_file_from_cloud_test_repo(
+            ["Misc", "Cyberknife_1536_1536_uint16_320.raw"]
+        )
+        img = image.load_raw_cyberknife(path, shape=(1536, 1536))
+        self.assertIsInstance(img, ArrayImage)
+        self.assertEqual(img.array.shape, (1536, 1536))
+        self.assertEqual(img.array.dtype, np.uint16)
+
+    def test_cyberknife_auto_shape(self):
+        """Test that a CyberKnife image can be loaded"""
+        path = get_file_from_cloud_test_repo(
+            ["Misc", "Cyberknife_1536_1536_uint16_320.raw"]
+        )
+        img = image.load_raw_cyberknife(path)
+        self.assertIsInstance(img, ArrayImage)
+        self.assertEqual(img.array.shape, (1536, 1536))
+        self.assertEqual(img.array.dtype, np.uint16)
+
+    def test_cyberknife_bad_image(self):
+        # pass a visionrt (no good header) image to test shape error
+        path = get_file_from_cloud_test_repo(["Misc", "VisionRT_960_600_uint32.raw"])
+        with self.assertRaises(ValueError):
+            image.load_raw_cyberknife(path)
+
+    def test_sid_is_passed(self):
+        path = get_file_from_cloud_test_repo(["Misc", "VisionRT_960_600_uint32.raw"])
+        img = image.load_raw_visionrt(path, shape=(960, 600), sid=1000)
+        self.assertEqual(img.sid, 1000)
+
+    def test_dpi_is_passed(self):
+        path = get_file_from_cloud_test_repo(["Misc", "VisionRT_960_600_uint32.raw"])
+        img = image.load_raw_visionrt(path, shape=(960, 600), dpi=100)
+        self.assertEqual(img.dpi, 100)
+
+
 class TestTiffToDicom(TestCase):
     def test_conversion_can_be_loaded_as_dicom(self):
         ds = tiff_to_dicom(
@@ -887,7 +955,7 @@ class TestTiffToDicom(TestCase):
         self.assertEqual(dicom_img.dpi, 150)
         self.assertEqual(dicom_img.dpmm, 150 / 25.4)
 
-    def test_conversion_goes_to_uint16(self):
+    def test_conversion_keeps_datatype(self):
         tiff_img = FileImage(tif_path)
         ds = tiff_to_dicom(
             tif_path,
@@ -899,7 +967,7 @@ class TestTiffToDicom(TestCase):
         )
         self.assertEqual(tiff_img.array.dtype, np.uint8)
         dicom_img = LinacDicomImage.from_dataset(ds)
-        self.assertEqual(dicom_img.array.dtype, np.uint16)
+        self.assertEqual(dicom_img.array.dtype, np.uint8)
 
     def test_mass_conversion(self):
         """Mass conversion; shouldn't fail. All images have dpi tag"""

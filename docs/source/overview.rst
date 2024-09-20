@@ -1,7 +1,7 @@
 
-========================
-Pylinac General Overview
-========================
+================
+General Overview
+================
 
 .. image:: images/starshot_analyzed.png
 
