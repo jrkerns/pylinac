@@ -322,7 +322,7 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
             clear_borders=self.clear_borders,
         )
 
-    def plotly_analyzed_image(
+    def plotly_analyzed_images(
         self,
         show: bool = True,
         show_colorbar: bool = True,
@@ -1257,7 +1257,7 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             del self.dicom_stack[idx]
             del self.dicom_stack.metadatas[idx]
 
-    def plotly_analyzed_image(
+    def plotly_analyzed_images(
         self,
         show: bool = True,
         show_colorbar: bool = True,

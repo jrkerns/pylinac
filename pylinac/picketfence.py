@@ -899,7 +899,7 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
             if abs(center) < pixel_range / self.image.dpmm
         ]
 
-    def plotly_analyzed_image(
+    def plotly_analyzed_images(
         self,
         mlc_peaks: bool = True,
         overlay: bool = True,

@@ -1806,7 +1806,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         obj.was_from_zip = True
         return obj
 
-    def plotly_analyzed_image(
+    def plotly_analyzed_images(
         self,
         show: bool = True,
         show_colorbar: bool = True,
