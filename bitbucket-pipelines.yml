@@ -241,10 +241,11 @@ definitions:
           - export PATH="./google-cloud-sdk/bin:$PATH"
           - uv run --locked nox -s update_dev_kraken
     - step: &run-min-python-version
+        name: Run against min Python version
+        image: ghcr.io/astral-sh/uv:python3.9-bookworm-slim
+        size: 2x
         caches:
           - uv
-        image: ghcr.io/astral-sh/uv:python3.9-bookworm-slim
-        name: Run against min Python version
         script:
             - uv run nox -s run_tests
 
