@@ -243,11 +243,10 @@ definitions:
     - step: &run-min-python-version
         name: Run against min Python version
         image: ghcr.io/astral-sh/uv:python3.9-bookworm-slim
-        size: 2x
         caches:
           - uv
         script:
-            - uv run nox -s run_tests
+            - uv run nox -s run_min_version_test
 
 pipelines:
 

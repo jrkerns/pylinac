@@ -5,7 +5,7 @@ import nox
 
 
 @nox.session(python="3.9", reuse_venv=True)
-def run_tests(session):
+def run_min_version_test(session):
     # explicit venv to avoid overwriting local venv if exists
     py_str = "test-venv"
     session.run(
@@ -17,6 +17,7 @@ def run_tests(session):
         "uv",
         "run",
         "pytest",
+        "tests_basic/core",
         env={"UV_PROJECT_ENVIRONMENT": py_str, "VIRTUAL_ENV": py_str},
     )
 
