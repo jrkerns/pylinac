@@ -4,15 +4,13 @@ from pathlib import Path
 import nox
 
 
-@nox.session(python=False)
-@nox.parametrize("py_ver", ["3.9", "3.10", "3.11", "3.12"])
-def run_tests(session, py_ver):
-    py_str = f".venv{py_ver}"
-    session.run("uv", "python", "pin", py_ver)
+@nox.session(python="3.9", reuse_venv=True)
+def run_tests(session):
+    # explicit venv to avoid overwriting local venv if exists
+    py_str = "test-venv"
     session.run(
         "uv",
         "sync",
-        "--quiet",
         env={"UV_PROJECT_ENVIRONMENT": py_str, "VIRTUAL_ENV": py_str},
     )
     session.run(
