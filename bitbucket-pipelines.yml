@@ -244,6 +244,11 @@ definitions:
 pipelines:
 
   custom:
+    run-all-versions:
+      - step:
+          name: Run against all Python versions
+          script:
+              - uv run nox -s run_tests
     update-kraken:
       - step: *pre-commit-checks-and-setup
       - step: *update-dev-kraken
