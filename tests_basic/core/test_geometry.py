@@ -2,7 +2,9 @@
 import math
 import unittest
 
-from pylinac.core.geometry import Circle, Line, Point, Rectangle, direction_to_coords
+from parameterized import parameterized
+
+from pylinac.core.geometry import Circle, Line, Point, Rectangle, direction_to_coords, rotate_points
 from tests_basic.utils import point_equality_validation
 
 
@@ -206,3 +208,20 @@ class TestDestinationCoordinates(unittest.TestCase):
     def test_starting_position(self):
         self.assertAlmostEqual(direction_to_coords(5, 5, 10, 0)[0], 15, places=3)
         self.assertAlmostEqual(direction_to_coords(5, 5, 10, 0)[1], 5, places=3)
+
+
+class TestRotatePoints(unittest.TestCase):
+
+    @parameterized.expand([
+        ("no-op", (0, 0), 0, (0, 0), (0, 0)),
+        ("90-degrees", (1, 0), 90, (0, 0), (0, -1)),
+        ("-90-degrees", (1, 0), -90, (0, 0), (0, 1)),
+        ("no-op offset", (1, 1), 0, (1, 1), (1, 1)),
+        ("180 degrees", (1, 0), 180, (0, 0), (-1, 0)),
+        ("180 offset", (2, 2), 180, (1, 1), (0, 0)),
+    ])
+    def test_point_rotation(self, _, point, angle, center, expected):
+        rotated_points = rotate_points(points=[Point(point)], angle=angle, pivot=Point(center))
+        expected_p = Point(expected)
+        self.assertAlmostEqual(rotated_points[0].x, expected_p.x, places=3)
+        self.assertAlmostEqual(rotated_points[0].y, expected_p.y, places=3)
