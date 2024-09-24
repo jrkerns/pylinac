@@ -727,9 +727,19 @@ class Rectangle:
             )
 
 
-def rotate_points(points: list[Point], angle: float, center: Point) -> list[Point]:
-    """Rotate a list of points around a center point."""
-    angle = np.radians(angle - 90)
+def rotate_points(points: list[Point], angle: float, pivot: Point) -> list[Point]:
+    """Rotate a list of points around a pivot point. Rotation is clockwise.
+
+    Parameters
+    ----------
+    points : list of Point
+        The points to rotate.
+    angle : float
+        The angle to rotate the points in degrees clockwise.
+    pivot : Point
+        The pivot point.
+    """
+    angle = np.radians(angle)
     # Rotation matrix
     rotation_matrix = np.array(
         [[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]
@@ -737,8 +747,8 @@ def rotate_points(points: list[Point], angle: float, center: Point) -> list[Poin
 
     p = np.asarray([p.as_array(("x", "y")) for p in points])
     # Translate points to origin, apply rotation, translate back
-    translated_points = p - center.as_array(("x", "y"))
-    rotated_points = np.dot(translated_points, rotation_matrix) + center.as_array(
+    translated_points = p - pivot.as_array(("x", "y"))
+    rotated_points = np.dot(translated_points, rotation_matrix) + pivot.as_array(
         ("x", "y")
     )
 

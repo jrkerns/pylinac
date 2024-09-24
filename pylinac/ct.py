@@ -872,7 +872,7 @@ class CTP404CP504(CatPhanModule):
 
     def plotly_rois(self, fig: go.Figure) -> None:
         super().plotly_rois(fig)
-        # plot thickness ROIs
+        # plot slice thickness / ramp ROIs
         for name, roi in self.thickness_rois.items():
             roi.plotly(fig, color="blue", name=f"Ramp {name}")
         # plot geometry lines
@@ -1806,7 +1806,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         obj.was_from_zip = True
         return obj
 
-    def plotly_analyzed_image(
+    def plotly_analyzed_images(
         self,
         show: bool = True,
         show_colorbar: bool = True,

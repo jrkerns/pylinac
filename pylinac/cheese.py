@@ -303,7 +303,7 @@ class CheesePhantomBase(CatPhanBase, ResultsDataMixin[CheeseResult]):
             )
             return 0
 
-    def plotly_analyzed_image(
+    def plotly_analyzed_images(
         self,
         show: bool = True,
         show_colorbar: bool = True,
