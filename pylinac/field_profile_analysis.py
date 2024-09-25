@@ -3,8 +3,9 @@ from __future__ import annotations
 import copy
 import io
 import webbrowser
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Literal, Sequence
+from typing import Literal, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -82,9 +83,9 @@ PROFILES = {
     Edge.INFLECTION_HILL: HillProfilePhysical,
     Edge.INFLECTION_DERIVATIVE: InflectionDerivativeProfilePhysical,
 }
-PROFILE_TYPE = (
-    FWXMProfilePhysical | HillProfilePhysical | InflectionDerivativeProfilePhysical
-)
+PROFILE_TYPE = Union[
+    FWXMProfilePhysical, HillProfilePhysical, InflectionDerivativeProfilePhysical
+]
 
 
 class FieldProfileAnalysis(ResultsDataMixin[FieldProfileResult]):

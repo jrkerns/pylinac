@@ -1,4 +1,5 @@
 """Module for performing analysis of images or 2D arrays for parameters such as flatness and symmetry."""
+
 from __future__ import annotations
 
 import io

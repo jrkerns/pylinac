@@ -6,7 +6,8 @@ import math
 import warnings
 from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import Any, Iterable, Literal, Sequence
+from typing import Any, Literal
+from collections.abc import Iterable, Sequence
 
 import argue
 import matplotlib.pyplot as plt
@@ -922,7 +923,7 @@ class PhysicalProfileMixin:
         gamma_ax.set_ylabel("Gamma Index")
         axis.set_xlabel("Physical (mm)")
         axis.set_title(
-            f"\N{Greek Small Letter Gamma} Analysis | {np.nansum(gamma < 1) / np.sum(~np.isnan(gamma)) * 100:.2f}% pass rate | {np.nanmean(gamma):.3f} mean \N{Greek Small Letter Gamma}"
+            f"\N{GREEK SMALL LETTER GAMMA} Analysis | {np.nansum(gamma < 1) / np.sum(~np.isnan(gamma)) * 100:.2f}% pass rate | {np.nanmean(gamma):.3f} mean \N{GREEK SMALL LETTER GAMMA}"
         )
         axis.grid()
         if show:

@@ -3,7 +3,7 @@ from __future__ import annotations
 import functools
 import inspect
 import weakref
-from typing import Iterable
+from collections.abc import Iterable
 
 
 def lru_cache(*lru_args, **lru_kwargs):

@@ -1,4 +1,5 @@
 """A script to calculate TRS-398 dose using pylinac classes and following the TRS-398 photon form"""
+
 from pylinac.calibration import trs398
 
 ENERGY = 6

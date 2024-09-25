@@ -1,4 +1,5 @@
 """Test suite for the pylinac.io module."""
+
 import os
 import os.path as osp
 import unittest

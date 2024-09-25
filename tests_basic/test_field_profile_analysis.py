@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import io
 import json
 import os.path as osp
@@ -95,7 +97,7 @@ class FieldProfileAnalysisBase(CloudFileMixin):
     def test_metrics(self):
         data = self.fa.results_data()
         for metric in self.metric_tests:
-            if isinstance(metric.value, float | int):
+            if isinstance(metric.value, (float, int)):
                 self.assertAlmostEqual(
                     data.y_metrics[metric.metric.full_name],
                     metric.value,

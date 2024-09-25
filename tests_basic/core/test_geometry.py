@@ -1,4 +1,5 @@
 """Test the various geometric patterns in the pylinac.core.geometry module."""
+
 import math
 import unittest
 

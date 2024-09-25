@@ -240,10 +240,19 @@ definitions:
           - ./google-cloud-sdk/install.sh --quiet
           - export PATH="./google-cloud-sdk/bin:$PATH"
           - uv run --locked nox -s update_dev_kraken
+    - step: &run-min-python-version
+        name: Run against min Python version
+        image: ghcr.io/astral-sh/uv:python3.9-bookworm-slim
+        caches:
+          - uv
+        script:
+            - uv run nox -s run_min_version_test
 
 pipelines:
 
   custom:
+    run-min-python-version:
+      - step: *run-min-python-version
     update-kraken:
       - step: *pre-commit-checks-and-setup
       - step: *update-dev-kraken
@@ -293,6 +302,7 @@ pipelines:
 
   branches:
     release*:
+      - step: *run-min-python-version
       - step: *push-to-github
     master:
       - step: *push-to-github

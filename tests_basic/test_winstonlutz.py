@@ -5,8 +5,8 @@ import io
 import math
 import shutil
 import tempfile
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 from unittest import TestCase
 
 import matplotlib.pyplot as plt

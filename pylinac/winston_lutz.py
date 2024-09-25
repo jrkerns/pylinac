@@ -17,6 +17,7 @@ Features:
 * **File name interpretation** - Rename DICOM filenames to include axis information for linacs that don't include
   such information in the DICOM tags. E.g. "myWL_gantry45_coll0_couch315.dcm".
 """
+
 from __future__ import annotations
 
 import dataclasses
@@ -27,11 +28,12 @@ import os.path as osp
 import statistics
 import tempfile
 import webbrowser
+from collections.abc import Iterable, Sequence
 from functools import cached_property
 from itertools import zip_longest
 from pathlib import Path
 from textwrap import wrap
-from typing import BinaryIO, Iterable, Sequence
+from typing import BinaryIO
 
 import argue
 import matplotlib.pyplot as plt
@@ -246,27 +248,21 @@ class BBFieldMatch:
     def field_epid_vector_mm(self) -> Vector:
         """The vector from the field CAX to the EPID center *IN COORDINATE SPACE*."""
         v = (self.field - self.epid) / self.dpmm
-        v.y = (
-            -v.y
-        )  # invert the y-axis; positive is down in image space but negative in coordinate space
+        v.y = -v.y  # invert the y-axis; positive is down in image space but negative in coordinate space
         return v
 
     @property
     def bb_field_vector_mm(self) -> Vector:
         """The vector from the BB to the field CAX *IN COORDINATE SPACE*."""
         v = (self.bb - self.field) / self.dpmm
-        v.y = (
-            -v.y
-        )  # invert the y-axis; positive is down in image space but negative in coordinate space
+        v.y = -v.y  # invert the y-axis; positive is down in image space but negative in coordinate space
         return v
 
     @property
     def bb_epid_vector_mm(self) -> Vector:
         """The vector from the BB to the field CAX *IN COORDINATE SPACE*."""
         v = (self.bb - self.epid) / self.dpmm
-        v.y = (
-            -v.y
-        )  # invert the y-axis; positive is down in image space but negative in coordinate space
+        v.y = -v.y  # invert the y-axis; positive is down in image space but negative in coordinate space
         return v
 
     @property

@@ -19,6 +19,7 @@ Features:
 * **High and low contrast determination** - Analyze both low and high contrast ROIs. Set thresholds
   as you see fit.
 """
+
 from __future__ import annotations
 
 import io

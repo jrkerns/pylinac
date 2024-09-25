@@ -4,10 +4,22 @@ from pathlib import Path
 import nox
 
 
-@nox.session(python=["3.6", "3.9"], reuse_venv=False)
-def run_tests(session):
-    session.install("-r", "requirements-dev.txt")
-    session.run("pytest", "-n", "5")
+@nox.session(python="3.9", reuse_venv=True)
+def run_min_version_test(session):
+    # explicit venv to avoid overwriting local venv if exists
+    py_str = "test-venv"
+    session.run(
+        "uv",
+        "sync",
+        env={"UV_PROJECT_ENVIRONMENT": py_str, "VIRTUAL_ENV": py_str},
+    )
+    session.run(
+        "uv",
+        "run",
+        "pytest",
+        "tests_basic/core",
+        env={"UV_PROJECT_ENVIRONMENT": py_str, "VIRTUAL_ENV": py_str},
+    )
 
 
 @nox.session(python=False)

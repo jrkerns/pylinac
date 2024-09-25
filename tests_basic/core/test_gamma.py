@@ -150,9 +150,9 @@ class TestGamma2D(TestCase):
         # check inverted pattern is mirrored (checks off-by-one errors)
         ref = np.ones((5, 5))
         eval = np.ones((5, 5))
-        eval[
-            (-1, -1, -2, -2), (-1, -2, -2, -1)
-        ] = 1.03  # set bottom right corner to 3% off
+        eval[(-1, -1, -2, -2), (-1, -2, -2, -1)] = (
+            1.03  # set bottom right corner to 3% off
+        )
         gamma = gamma_2d(
             reference=ref,
             evaluation=eval,

@@ -1,9 +1,11 @@
 """Module for classes that represent common geometric objects or patterns."""
+
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from itertools import zip_longest
-from typing import Iterable
+from typing import Annotated
 
 import argue
 import matplotlib.pyplot as plt
@@ -13,7 +15,6 @@ from matplotlib.patches import Circle as mpl_Circle
 from matplotlib.patches import Rectangle as mpl_Rectangle
 from mpl_toolkits.mplot3d.art3d import Line3D
 from pydantic import PlainSerializer
-from typing_extensions import Annotated
 
 from .utilities import is_iterable
 

@@ -8,10 +8,12 @@ Dref, and chamber reading corrections. Where Muir & Rogers' values/equations are
 Classes include photon and electron calibrations using cylindrical chambers. Pass all the relevant raw measurements
 and the class will compute all corrections and corrected readings and dose at 10cm and dmax/dref.
 """
+
+from __future__ import annotations
+
 import webbrowser
 from abc import abstractmethod
 from datetime import datetime
-from typing import Optional
 
 import argue
 import numpy as np
@@ -553,7 +555,7 @@ def m_corrected(
 
 @argue.bounds(pdd=(62.7, 89.0))
 @argue.options(lead_foil=LEAD_OPTIONS.values())
-def pddx(*, pdd: float, energy: int, lead_foil: Optional[str] = None) -> float:
+def pddx(*, pdd: float, energy: int, lead_foil: str | None = None) -> float:
     """Calculate PDDx based on the PDD.
 
     Parameters
@@ -794,8 +796,8 @@ class TG51Photon(TG51Base):
         n_dw: float,
         p_elec: float,
         electrometer: str = "",
-        measured_pdd10: Optional[float] = None,
-        lead_foil: Optional[str] = None,
+        measured_pdd10: float | None = None,
+        lead_foil: str | None = None,
         clinical_pdd10: float,
         energy: int,
         fff: bool = False,
@@ -806,7 +808,7 @@ class TG51Photon(TG51Base):
         m_reduced: NumberOrArray,
         mu: int,
         tissue_correction: float = 1.0,
-        m_reference_adjusted: Optional[NumberOrArray] = None,
+        m_reference_adjusted: NumberOrArray | None = None,
     ):
         super().__init__(
             temp=temp,
@@ -876,9 +878,9 @@ class TG51Photon(TG51Base):
     def publish_pdf(
         self,
         filename: str,
-        notes: Optional[list] = None,
+        notes: list | None = None,
         open_file: bool = False,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
@@ -1130,9 +1132,9 @@ class TG51ElectronLegacy(TG51Base):
     def publish_pdf(
         self,
         filename: str,
-        notes: Optional[list] = None,
+        notes: list | None = None,
         open_file: bool = False,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
@@ -1370,9 +1372,9 @@ class TG51ElectronModern(TG51Base):
     def publish_pdf(
         self,
         filename: str,
-        notes: Optional[list] = None,
+        notes: list | None = None,
         open_file: bool = False,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ):
         """Publish (print) a PDF containing the analysis and quantitative results.
 

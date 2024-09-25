@@ -530,8 +530,9 @@ class Dmax(ProfileMetric):
     ) -> (UnivariateSpline, np.ndarray):
         """Fit a spline to the profile of a given window at the passed depth."""
         half_window = window_mm / 2
-        start, end = max(depth_mm - half_window, 0), min(
-            depth_mm + half_window, self.profile.x_values.max()
+        start, end = (
+            max(depth_mm - half_window, 0),
+            min(depth_mm + half_window, self.profile.x_values.max()),
         )
         if abs(start - end) <= half_window or start > end:
             raise ValueError(

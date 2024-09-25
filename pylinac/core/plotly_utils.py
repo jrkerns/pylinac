@@ -1,4 +1,4 @@
-from typing import Sequence
+from collections.abc import Sequence
 
 from plotly import graph_objects as go
 

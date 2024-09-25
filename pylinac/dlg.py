@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from math import ceil, floor
-from typing import Sequence
 
 import numpy as np
 from matplotlib import pyplot as plt

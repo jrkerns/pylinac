@@ -1,4 +1,5 @@
 """Tests for the flatsym module of pylinac."""
+
 import enum
 import io
 import json

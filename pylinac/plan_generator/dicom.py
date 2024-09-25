@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import datetime
 import math
+from collections.abc import Iterable
 from enum import Enum
 from pathlib import Path
-from typing import Iterable
 
 import numpy as np
 import pydicom

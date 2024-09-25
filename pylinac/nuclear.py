@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import json
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
-from typing import Sequence
 
 import numpy as np
 from matplotlib import pyplot as plt

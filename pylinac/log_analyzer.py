@@ -19,6 +19,7 @@ Features:
 * **Anonymize logs** - Both dynalogs and trajectory logs can be "anonymized" by removing the Patient ID from the filename(s)
   and file data.
 """
+
 from __future__ import annotations
 
 import collections
@@ -34,10 +35,11 @@ import os.path as osp
 import shutil
 import webbrowser
 import zipfile
+from collections.abc import Iterable, Sequence
 from functools import cached_property
 from io import BufferedReader, BytesIO
 from pathlib import Path
-from typing import BinaryIO, Iterable, Sequence
+from typing import BinaryIO
 
 import argue
 import matplotlib.pyplot as plt
@@ -962,7 +964,7 @@ class MLC:
         threshold = 0.01
         indices = ()
         for leaf_num, leafdata in self.leaf_axes.items():
-            if type(self) == TrajectoryLog:
+            if isinstance(self, TrajectoryLog):
                 leaf_stdev = np.std(leafdata.actual[self.subbeams[-1]._snapshots])
             else:
                 leaf_stdev = np.std(leafdata.actual[self.snapshot_idx])

@@ -333,7 +333,7 @@ class TestTrajectoryLog(
                 "Anonymous_4DC Treatment_JST90_TX_20140712094246.bin",
             ]
         )
-        log_w_utf_char = str(Path(log_file).with_stem("ABC\u723BXYZ"))
+        log_w_utf_char = str(Path(log_file).with_stem("ABC\u723bXYZ"))
         shutil.copy(log_file, log_w_utf_char)
 
         log = TrajectoryLog(log_w_utf_char)
@@ -341,7 +341,7 @@ class TestTrajectoryLog(
         log.to_csv(csv_filename)
         with open(csv_filename, encoding="utf-8") as csv_file:
             data = csv_file.readlines()
-        self.assertIn("ABC\u723BXYZ", data[0])
+        self.assertIn("ABC\u723bXYZ", data[0])
         os.remove(log_w_utf_char)
 
     def test_txt_file_also_loads_if_around(self):
@@ -392,14 +392,14 @@ class TestTrajectoryLog(
         shutil.copy(txt_file, txt_file2)
         with open(txt_file2) as tfile:
             data = tfile.readlines()
-        data[0] = "Patient ID:\t\u723B\n"
+        data[0] = "Patient ID:\t\u723b\n"
         with open(txt_file2, mode="w", encoding="utf-8") as utffile:
             utffile.writelines(data)
 
         log = TrajectoryLog(log2)
         self.assertIsNotNone(log.txt)
         self.assertIsInstance(log.txt, dict)
-        self.assertEqual(log.txt["Patient ID"], "\u723B")
+        self.assertEqual(log.txt["Patient ID"], "\u723b")
         os.remove(log2)
         os.remove(txt_file2)
 
@@ -455,7 +455,7 @@ class TestDynalog(LogPlottingSavingMixin, LogBase, TestCase, FromDemoImageTester
         # add some utf-8 characters
         with open(a_file) as file:
             data = file.readlines()
-        data[1] = "Patient ID: \u723B\n"
+        data[1] = "Patient ID: \u723b\n"
         with open("newfile.txt", mode="w", encoding="utf-8") as utffile:
             utffile.writelines(data)
 

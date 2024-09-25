@@ -1,4 +1,5 @@
 """Run through the CBCT image bank. Since the criteria and analysis are different than the default DataBankMixin, we must create our own."""
+
 import os.path as osp
 from unittest import TestCase
 from zipfile import BadZipfile
