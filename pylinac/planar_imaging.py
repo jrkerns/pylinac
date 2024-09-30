@@ -627,6 +627,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             zmin=self.window_floor(),
             zmax=self.window_ceiling(),
             show_colorbar=show_colorbar,
+            show_legend=show_legend,
             **kwargs,
         )
         figs["Image"] = image_fig
@@ -634,7 +635,14 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         # plot the outline image
         if self.phantom_outline_object is not None:
             outline_obj, settings = self._create_phantom_outline_object()
-            outline_obj.plotly(image_fig, color="blue", name="Outline", **settings)
+            # we do CCW here because the image is rendered with the y-axis origin at the top.
+            outline_obj.plotly(
+                image_fig,
+                line_color="blue",
+                name="Outline",
+                direction="ccw",
+                **settings,
+            )
         # plot the low contrast background ROIs
         if self.low_contrast_rois:
             for idx, roi in enumerate(self.low_contrast_background_rois):
@@ -669,7 +677,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         if self.low_contrast_rois:
             lowcon_fig = make_subplots(specs=[[{"secondary_y": True}]])
             figs["Low Contrast"] = lowcon_fig
-            self._plotly_lowcontrast_graph(lowcon_fig)
+            self._plotly_lowcontrast_graph(lowcon_fig, show_legend=show_legend)
 
         # plot the high contrast MTF graph
         if self.high_contrast_rois:
@@ -782,7 +790,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             plt.show()
         return figs, names
 
-    def _plotly_lowcontrast_graph(self, fig: go.Figure):
+    def _plotly_lowcontrast_graph(self, fig: go.Figure, show_legend: bool) -> None:
         """Plot the low contrast ROIs to an axes."""
         fig.add_scatter(
             y=[roi.contrast for roi in self.low_contrast_rois],
@@ -800,6 +808,9 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             name="CNR",
         )
         add_title(fig, "Low-frequency Contrast")
+        fig.update_layout(
+            showlegend=show_legend,
+        )
         fig.update_xaxes(
             title_text="ROI #",
             showspikes=True,

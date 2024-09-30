@@ -22,6 +22,7 @@ def add_vertical_line(
     width: int = 1,
     opacity: float = 1,
     name: str = "",
+    apply_autorange: bool = True,
 ) -> None:
     """Add a vertical line to a plotly figure."""
     # get the current data limits
@@ -40,6 +41,23 @@ def add_vertical_line(
             opacity=opacity,
             name=name,
         )
+    else:
+        # it's a simple plot, just use paper reference
+        fig.add_shape(
+            dict(
+                type="line",
+                x0=x,
+                x1=x,
+                y0=0,
+                y1=1,
+                xref="x",
+                yref="paper",
+                line=dict(color=color, width=width),
+                opacity=opacity,
+                name=name,
+            )
+        )
+    fig.update_layout(yaxis_autorange=apply_autorange)
 
 
 def add_horizontal_line(
@@ -49,6 +67,7 @@ def add_horizontal_line(
     width: int = 1,
     opacity: float = 1,
     name: str = "",
+    apply_autorange: bool = True,
 ) -> None:
     """Add a horizontal line to a plotly figure."""
     d = None
@@ -87,3 +106,4 @@ def add_horizontal_line(
                 name=name,
             )
         )
+    fig.update_layout(yaxis_autorange=apply_autorange)
