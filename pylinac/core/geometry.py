@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable
 from itertools import zip_longest
-from typing import Annotated
+from typing import Annotated, Literal
 
 import argue
 import matplotlib.pyplot as plt
@@ -626,9 +626,9 @@ class Rectangle:
     def plotly(
         self,
         fig: go.Figure,
-        color: str = "black",
         fill: bool = False,
         angle: float = 0.0,
+        direction: Literal["cw", "ccw"] = "cw",
         **kwargs,
     ) -> None:
         """Draw the rectangle on a plotly figure."""
@@ -638,6 +638,7 @@ class Rectangle:
             [self.bl_corner, self.tl_corner, self.tr_corner, self.br_corner],
             angle,
             self.center,
+            direction=direction,
         )
         fig.add_scatter(
             x=[
@@ -655,9 +656,7 @@ class Rectangle:
                 bl_corner.y,
             ],
             mode="lines",
-            line_color=color,
             fill="toself" if fill else "none",
-            fillcolor=color if fill else "rgba(0,0,0,0)",
             **kwargs,
         )
 
@@ -728,8 +727,13 @@ class Rectangle:
             )
 
 
-def rotate_points(points: list[Point], angle: float, pivot: Point) -> list[Point]:
-    """Rotate a list of points around a pivot point. Rotation is clockwise.
+def rotate_points(
+    points: list[Point],
+    angle: float,
+    pivot: Point,
+    direction: Literal["cw", "ccw"] = "cw",
+) -> list[Point]:
+    """Rotate a list of points around a pivot point.
 
     Parameters
     ----------
@@ -739,8 +743,12 @@ def rotate_points(points: list[Point], angle: float, pivot: Point) -> list[Point
         The angle to rotate the points in degrees clockwise.
     pivot : Point
         The pivot point.
+    direction : {'cw', 'ccw'}
+        The direction to rotate the points.
     """
     angle = np.radians(angle)
+    if direction == "ccw":
+        angle = -angle
     # Rotation matrix
     rotation_matrix = np.array(
         [[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]

@@ -786,7 +786,9 @@ class CTP404CP504(CatPhanModule):
             / (self.rois["LDPE"].std + self.rois["Poly"].std)
         )
 
-    def plotly_linearity(self, plot_delta: bool = True) -> go.Figure:
+    def plotly_linearity(
+        self, plot_delta: bool = True, show_legend: bool = True
+    ) -> go.Figure:
         fig = go.Figure()
         nominal_x_values = [roi.nominal_val for roi in self.rois.values()]
         if plot_delta:
@@ -825,7 +827,9 @@ class CTP404CP504(CatPhanModule):
             name="Lower Tolerance",
             line=dict(dash="dash", color="red"),
         )
-        fig.update_layout(xaxis_title="Nominal Values", yaxis_title=ylabel)
+        fig.update_layout(
+            xaxis_title="Nominal Values", yaxis_title=ylabel, showlegend=show_legend
+        )
         add_title(fig, "HU Linearity")
         return fig
 
@@ -876,7 +880,7 @@ class CTP404CP504(CatPhanModule):
         super().plotly_rois(fig)
         # plot slice thickness / ramp ROIs
         for name, roi in self.thickness_rois.items():
-            roi.plotly(fig, color="blue", name=f"Ramp {name}")
+            roi.plotly(fig, line_color="blue", name=f"Ramp {name}")
         # plot geometry lines
         for name, line in self.lines.items():
             line.plotly(fig, color=line.pass_fail_color, name=f"Geometry {name}")
@@ -1143,7 +1147,9 @@ class CTP486(CatPhanModule):
     def plotly(self, **kwargs) -> go.Figure:
         fig = super().plotly(**kwargs)
         for name, nps_roi in self.nps_rois.items():
-            nps_roi.plotly(fig, color="green", line_dash="dash", name=f"NPS {name}")
+            nps_roi.plotly(
+                fig, line_color="green", line_dash="dash", name=f"NPS {name}"
+            )
         return fig
 
     @property
@@ -1836,16 +1842,26 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             image and the value is the figure.
         """
         figs = {}
-        figs["CTP404"] = self.ctp404.plotly()
-        figs["HU Linearity"] = self.ctp404.plotly_linearity()
+        figs["CTP404"] = self.ctp404.plotly(
+            show_legend=show_legend, show_colorbar=show_colorbar
+        )
+        figs["HU Linearity"] = self.ctp404.plotly_linearity(show_legend=show_legend)
         figs["Side View"] = self.plotly_side_view()
         if self._has_module(CTP486):
-            figs["CTP486"] = self.ctp486.plotly()
+            figs["CTP486"] = self.ctp486.plotly(
+                show_legend=show_legend, show_colorbar=show_colorbar
+            )
         if self._has_module(CTP528CP504):
-            figs["CTP528"] = self.ctp528.plotly()
-            figs["MTF"] = self.ctp528.mtf.plotly()
+            figs["CTP528"] = self.ctp528.plotly(
+                show_legend=show_legend, show_colorbar=show_colorbar
+            )
+            figs["MTF"] = self.ctp528.mtf.plotly(
+                show_legend=show_legend, show_colorbar=show_colorbar
+            )
         if self._has_module(CTP515):
-            figs["CTP515"] = self.ctp515.plotly()
+            figs["CTP515"] = self.ctp515.plotly(
+                show_legend=show_legend, show_colorbar=show_colorbar
+            )
 
         if show:
             for fig in figs.values():

@@ -120,6 +120,10 @@ class MTF:
         ----------
         """
         fig = fig or go.Figure()
+        fig.update_layout(
+            showlegend=kwargs.pop("show_legend", True),
+        )
+        fig.update_traces(showscale=kwargs.pop("show_colorbar", True))
         fig.add_scatter(
             x=list(self.norm_mtfs.keys()),
             y=list(self.norm_mtfs.values()),
@@ -132,9 +136,6 @@ class MTF:
             yaxis_title=y_label,
         )
         add_title(fig, title)
-        fig.update_layout(
-            showlegend=True,
-        )
         return fig
 
     def plot(

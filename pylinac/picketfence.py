@@ -41,7 +41,7 @@ from . import Normalization
 from .core import image, pdf
 from .core.geometry import Line, Point, PointSerialized, Rectangle
 from .core.io import get_url, retrieve_demo_file
-from .core.plotly_utils import add_title, add_vertical_line
+from .core.plotly_utils import add_horizontal_line, add_title, add_vertical_line
 from .core.profile import FWXMProfilePhysical, MultiProfile
 from .core.utilities import (
     QuaacDatum,
@@ -1074,30 +1074,62 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
         leaf_nums = np.asarray(
             Enumerable(self.mlc_meas).select(lambda m: m.leaf_num).to_list(), dtype=int
         )
-        # 2 figs; one for absolute errors and another for signed errors
-        signed_fig, abs_fig = go.Figure(), go.Figure()
-        add_title(signed_fig, "Signed Leaf Error (mm) | Pair")
-        add_title(abs_fig, "Absolute Leaf Error (mm) | Pair")
-        for leaf_num in set(leaf_nums):
-            idxs = np.argwhere(leaf_nums == leaf_num)
-            errs = error_items[idxs].squeeze()
-            signed_fig.add_box(
-                y=errs,
-                x=[leaf_num] * len(idxs),
-                name=str(leaf_num),
-                fillcolor="blue",
-                line_color="black",
-                marker_color="black",
-            )
-            abs_fig.add_box(
-                y=np.abs(errs),
-                x=[leaf_num] * len(idxs),
-                name=str(leaf_num),
-                fillcolor="blue",
-                line_color="black",
-                marker_color="black",
-            )
-        return {"error signed": signed_fig, "error absolute": abs_fig}
+        figs = {}
+        if not self.separate_leaves:
+            titles = ["Pair"]
+            columns = [0]
+        else:
+            titles = ["A bank", "B bank"]
+            columns = [0, 1]
+        for title, column in zip(titles, columns):
+            # 2 figs; one for absolute errors and another for signed errors
+            signed_fig, abs_fig = go.Figure(), go.Figure()
+            add_title(signed_fig, f"Signed Leaf Error (mm) | {title}")
+            add_title(abs_fig, f"Absolute Leaf Error (mm) | {title}")
+            for leaf_num in set(leaf_nums):
+                idxs = np.argwhere(leaf_nums == leaf_num)
+                errs = error_items[idxs].transpose().squeeze(axis=1)
+                signed_fig.add_box(
+                    y=errs[column],
+                    x=[leaf_num] * len(idxs),
+                    name=str(leaf_num),
+                    fillcolor="blue",
+                    line_color="black",
+                    marker_color="black",
+                )
+                add_horizontal_line(signed_fig, y=self.tolerance, color="red", width=3)
+                add_horizontal_line(signed_fig, y=-self.tolerance, color="red", width=3)
+                if self.action_tolerance:
+                    add_horizontal_line(
+                        signed_fig, y=self.action_tolerance, color="magenta", width=3
+                    )
+                    add_horizontal_line(
+                        signed_fig, y=-self.action_tolerance, color="magenta", width=3
+                    )
+                signed_fig.update_layout(
+                    xaxis_title="Leaf",
+                    yaxis_title="Signed Error (mm)",
+                )
+                abs_fig.add_box(
+                    y=np.abs(errs[column]),
+                    x=[leaf_num] * len(idxs),
+                    name=str(leaf_num),
+                    fillcolor="blue",
+                    line_color="black",
+                    marker_color="black",
+                )
+                add_horizontal_line(abs_fig, y=self.tolerance, color="red", width=3)
+                if self.action_tolerance:
+                    add_horizontal_line(
+                        abs_fig, y=self.action_tolerance, color="magenta", width=3
+                    )
+                abs_fig.update_layout(
+                    xaxis_title="Leaf",
+                    yaxis_title="Absolute Error (mm)",
+                )
+            figs[f"{title} error signed"] = signed_fig
+            figs[f"{title} error absolute"] = abs_fig
+        return figs
 
     def _add_leaf_error_subplot(self, ax: plt.Axes, barplot_kwargs: dict) -> None:
         """Add a bar subplot showing the leaf error."""
@@ -1746,7 +1778,7 @@ class MLCValue:
                 fig,
                 fill=True,
                 opacity=1,
-                color=self.bg_color[idx],
+                line_color=self.bg_color[idx],
                 showlegend=False,
             )
 
@@ -1937,10 +1969,18 @@ class Picket:
                 )
             else:
                 fig.add_scatter(
-                    mode="lines", x=x_data, y=left(x_data), line_color="green"
+                    mode="lines",
+                    x=x_data,
+                    y=left(x_data),
+                    line_color="green",
+                    name=f"Lower Guard Rail - {picket}",
                 )
                 fig.add_scatter(
-                    mode="lines", x=x_data, y=right(x_data), line_color="green"
+                    mode="lines",
+                    x=x_data,
+                    y=right(x_data),
+                    line_color="green",
+                    name=f"Upper Guard Rail - {picket}",
                 )
 
     def add_guards_to_axes(
