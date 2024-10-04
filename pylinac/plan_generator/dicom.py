@@ -744,6 +744,8 @@ class PlanGenerator:
         ds: Dataset,
         plan_label: str,
         plan_name: str,
+        patient_name: str | None = None,
+        patient_id: str | None = None,
         x_width_mm: float = 400,
         max_mlc_speed: float = 25,
         max_gantry_speed: float = 4.8,
@@ -761,6 +763,10 @@ class PlanGenerator:
             The label of the new plan.
         plan_name : str
             The name of the new plan.
+        patient_name : str, optional
+            The name of the patient. If not provided, it will be taken from the RTPLAN file.
+        patient_id : str, optional
+            The ID of the patient. If not provided, it will be taken from the RTPLAN file.
         x_width_mm : float
             The overall width of the MLC movement in the x-direction. Generally, this is the x field size.
         max_mlc_speed : float
@@ -785,8 +791,16 @@ class PlanGenerator:
         self.max_gantry_speed = max_gantry_speed
         self.sacrificial_gap = sacrificial_gap_mm
         self.max_sacrificial_move = max_sacrificial_move_mm
-        if not hasattr(ds, "PatientName") or not hasattr(ds, "PatientID"):
-            raise ValueError("RTPLAN file must have PatientName and PatientID")
+        patient_name = patient_name or getattr(ds, "PatientName", None)
+        if not patient_name:
+            raise ValueError(
+                "RTPLAN file must have PatientName or pass it via `patient_name`"
+            )
+        patient_id = patient_id or getattr(ds, "PatientID", None)
+        if not patient_id:
+            raise ValueError(
+                "RTPLAN file must have PatientID or pass it via `patient_id`"
+            )
         if not hasattr(ds, "ToleranceTableSequence"):
             raise ValueError("RTPLAN file must have ToleranceTableSequence")
         if not hasattr(ds, "BeamSequence") or not hasattr(
@@ -797,7 +811,8 @@ class PlanGenerator:
         self.ds = ds
 
         ######  Clear/initialize the metadata for the new plan
-
+        self.ds.PatientName = patient_name
+        self.ds.PatientID = patient_id
         self.ds.RTPlanLabel = plan_label
         self.ds.RTPlanName = plan_name
         date = datetime.datetime.now().strftime("%Y%m%d")
@@ -1841,6 +1856,8 @@ class HalcyonPlanGenerator(PlanGenerator):
         ds: Dataset,
         plan_label: str,
         plan_name: str,
+        patient_name: str | None = None,
+        patient_id: str | None = None,
         x_width_mm: float = 280,
         max_mlc_speed: float = 25,
         max_gantry_speed: float = 4.8,
@@ -1852,6 +1869,8 @@ class HalcyonPlanGenerator(PlanGenerator):
             ds,
             plan_label,
             plan_name,
+            patient_name,
+            patient_id,
             x_width_mm,
             max_mlc_speed,
             max_gantry_speed,

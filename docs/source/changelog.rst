@@ -19,6 +19,12 @@ General
 * The minimum version of Python supported is now 3.9 as the end-of-life of Python 3.8 is October 2024.
 * Along with this, minimum versions of numpy, scipy, and matplotlib have been bumped to versions that support Python 3.9.
 
+Plan Generator
+^^^^^^^^^^^^^^
+
+* The patient name and patient ID can now be passed to the :class:`~pylinac.plan_generator.dicom.PlanGenerator` and :class:`~pylinac.plan_generator.dicom.HalcyonPlanGenerator` classes. This is useful for
+  setting the patient name and ID in the generated DICOM files.
+
 Starshot
 ^^^^^^^^
 
