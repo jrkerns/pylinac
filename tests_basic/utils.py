@@ -15,7 +15,7 @@ from functools import lru_cache
 from io import BytesIO, StringIO
 from pathlib import Path, PurePosixPath
 from tempfile import TemporaryDirectory
-from typing import Callable
+from typing import Callable, TypedDict
 from urllib.request import urlopen
 
 from google.cloud import storage
@@ -349,3 +349,41 @@ class DataBankMixin:
                     for file in fails:
                         f.write(file + "\n")
                 print("Failures written to file")
+
+
+class FigData(TypedDict):
+    title: str
+    num_traces: int
+    x_label: str
+    y_label: str
+    has_legend: bool
+
+
+class PlotlyTestMixin:
+    instance: Callable
+    num_figs: int
+    fig_data: dict[int, FigData] = {}
+
+    def test_plotly_render(self):
+        figs = self.instance.plotly_analyzed_images(show=False)
+        self.assertEqual(len(figs), self.num_figs)
+        keys = list(figs.keys())
+        for f_num, f_data in self.fig_data.items():
+            fig = figs[keys[f_num]]
+            if f_data["num_traces"]:
+                self.assertEqual(len(fig.data), f_data["num_traces"])
+            self.assertEqual(fig.layout.title.text, f_data["title"])
+            if f_data.get("has_legend", True):
+                self.assertEqual(fig.layout.showlegend, True)
+            if f_data.get("x_label"):
+                self.assertEqual(fig.layout.xaxis.title.text, f_data["x_label"])
+            if f_data.get("y_label"):
+                self.assertEqual(fig.layout.yaxis.title.text, f_data["y_label"])
+
+    def test_plotly_options(self):
+        figs = self.instance.plotly_analyzed_images(
+            show=False, show_legend=False, show_colorbar=False
+        )
+        for fig in figs.values():
+            # depending on the plot type, showlegend might be False or None
+            self.assertNotEqual(fig.layout.showlegend, True)

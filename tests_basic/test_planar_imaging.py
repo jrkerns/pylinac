@@ -35,7 +35,12 @@ from pylinac.planar_imaging import (
     percent_integral_uniformity,
 )
 from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
-from tests_basic.utils import CloudFileMixin, get_file_from_cloud_test_repo, save_file
+from tests_basic.utils import (
+    CloudFileMixin,
+    PlotlyTestMixin,
+    get_file_from_cloud_test_repo,
+    save_file,
+)
 
 TEST_DIR = "planar_imaging"
 
@@ -192,7 +197,7 @@ class GeneralTests(TestCase):
         self.assertAlmostEqual(phan.results_data().phantom_area, 17760.9, delta=0.3)
 
 
-class PlanarPhantomMixin(QuaacTestBase, CloudFileMixin):
+class PlanarPhantomMixin(QuaacTestBase, CloudFileMixin, PlotlyTestMixin):
     klass: Callable
     dir_path = ["planar_imaging"]
     mtf_50 = None
@@ -203,6 +208,7 @@ class PlanarPhantomMixin(QuaacTestBase, CloudFileMixin):
     file_name = None
     rois_seen = None
     piu = None
+    num_figs = 3
 
     @classmethod
     def setUpClass(cls):
@@ -300,6 +306,10 @@ class PlanarPhantomMixin(QuaacTestBase, CloudFileMixin):
 class LeedsMixin(PlanarPhantomMixin):
     klass = LeedsTOR
     dir_path = ["planar_imaging", "Leeds"]
+    num_figs = 3
+    fig_data = {
+        0: {"title": "Leeds Phantom Analysis", "type": "image", "num_traces": 36}
+    }
 
 
 class LeedsDemo(LeedsMixin, TestCase):
@@ -416,6 +426,13 @@ class SIQC3_2(PlanarPhantomMixin, TestCase):
 class LasVegasTestMixin(PlanarPhantomMixin):
     klass = LasVegas
     phantom_angle = 0
+    num_figs = 2
+    fig_data = {
+        0: {
+            "title": "Las Vegas Phantom Analysis",
+            "num_traces": 26,
+        }
+    }
 
     def test_plotting(self):
         self.instance.plot_analyzed_image()
@@ -842,6 +859,7 @@ class FC2Mixin(PlanarPhantomMixin):
     field_bb_offset_x_mm = 0
     field_bb_offset_y_mm = 0
     fwxm = 50
+    num_figs = 1
 
     @classmethod
     def setUpClass(cls):
@@ -989,6 +1007,7 @@ class FC2BBDownRight1mm(FC2Mixin, TestCase):
 class DoselabRLfMixin(FC2Mixin):
     klass = DoselabRLf
     dir_path = ["planar_imaging", "Doselab RLf"]
+    fig_data = {0: {"title": "Doselab RLf Phantom Analysis", "num_traces": 9}}
 
 
 class DoselabRLfDemo(DoselabRLfMixin, TestCase):

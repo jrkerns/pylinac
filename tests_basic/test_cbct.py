@@ -22,6 +22,7 @@ from tests_basic.utils import (
     FromURLTesterMixin,
     FromZipTesterMixin,
     InitTesterMixin,
+    PlotlyTestMixin,
     get_file_from_cloud_test_repo,
     save_file,
 )
@@ -846,7 +847,7 @@ class CBCT1(CatPhan504Mixin, TestCase):
             )
 
 
-class CBCT2(CatPhan504Mixin, TestCase):
+class CBCT2(CatPhan504Mixin, PlotlyTestMixin, TestCase):
     """A Varian CBCT dataset"""
 
     file_name = "CBCT_2.zip"
@@ -867,6 +868,10 @@ class CBCT2(CatPhan504Mixin, TestCase):
     avg_line_length = 49.9
     slice_thickness = 2.4
     avg_noise_power = 0.395
+    num_figs = 5
+    # fig_data = {
+    #     0:
+    # }
 
 
 class CBCT3(CatPhan504Mixin, TestCase):

@@ -472,14 +472,16 @@ class QuartDVT(CatPhanBase, ResultsDataMixin[QuartDVTResult]):
         figs[self.hu_module.common_name] = self.hu_module.plotly(
             show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
         )
-        figs["HU Linearity plot"] = self.hu_module.plotly_linearity()
+        figs["HU Linearity plot"] = self.hu_module.plotly_linearity(
+            show_legend=show_legend
+        )
         figs[self.uniformity_module.common_name] = self.uniformity_module.plotly(
             show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
         )
         figs[self.geometry_module.common_name] = self.geometry_module.plotly(
             show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
         )
-        figs["Side View"] = self.plotly_side_view(offset=-5)
+        figs["Side View"] = self.plotly_side_view(show_legend=show_legend)
 
         if show:
             for fig in figs.values():

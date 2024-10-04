@@ -376,8 +376,9 @@ class Slice:
             raise ValueError(
                 "No edges were found in the image that look like the phantom"
             )
+        arr = self.image.array.clip(max=1000)
         larr, regionprops, num_roi = get_regions(
-            self, fill_holes=True, threshold="otsu", clear_borders=self.clear_borders
+            arr, fill_holes=True, threshold="otsu", clear_borders=self.clear_borders
         )
         # check that there is at least 1 ROI
         if num_roi < 1 or num_roi is None:
@@ -540,9 +541,9 @@ class CatPhanModule(Slice):
 
     def plotly_rois(self, fig: go.Figure) -> None:
         for name, roi in self.rois.items():
-            roi.plotly(fig, color=roi.plot_color, name=name)
+            roi.plotly(fig, line_color=roi.plot_color, name=name)
         for name, roi in self.background_rois.items():
-            roi.plotly(fig, color="blue", name=f"{name} Background")
+            roi.plotly(fig, line_color="blue", name=f"{name} Background")
 
     def plot(self, axis: plt.Axes):
         """Plot the image along with ROIs to an axis"""
@@ -1846,7 +1847,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             show_legend=show_legend, show_colorbar=show_colorbar
         )
         figs["HU Linearity"] = self.ctp404.plotly_linearity(show_legend=show_legend)
-        figs["Side View"] = self.plotly_side_view()
+        figs["Side View"] = self.plotly_side_view(show_legend=show_legend)
         if self._has_module(CTP486):
             figs["CTP486"] = self.ctp486.plotly(
                 show_legend=show_legend, show_colorbar=show_colorbar
@@ -2331,7 +2332,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             except Exception:
                 pass
 
-    def plotly_side_view(self, offset: float = -10) -> go.Figure:
+    def plotly_side_view(self, show_legend: bool) -> go.Figure:
         fig = go.Figure()
         side_array = self.dicom_stack.side_view(axis=1)
         add_title(fig, "Side View")
@@ -2345,6 +2346,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
                 color="blue",
                 name=module.common_name,
             )
+        fig.update_layout(showlegend=show_legend)
         return fig
 
     def plot_side_view(self, axis: Axes) -> None:
