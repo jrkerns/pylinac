@@ -376,9 +376,8 @@ class Slice:
             raise ValueError(
                 "No edges were found in the image that look like the phantom"
             )
-        arr = self.image.array.clip(max=1000)
         larr, regionprops, num_roi = get_regions(
-            arr, fill_holes=True, threshold="otsu", clear_borders=self.clear_borders
+            self, fill_holes=True, threshold="otsu", clear_borders=self.clear_borders
         )
         # check that there is at least 1 ROI
         if num_roi < 1 or num_roi is None:
