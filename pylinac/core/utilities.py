@@ -16,9 +16,10 @@ from typing import BinaryIO, Generic, Literal, TypeVar
 
 import numpy as np
 import pydicom
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from quaac import Attachment, DataPoint, Document, Equipment, User
 
+from .warnings import WarningCollectorMixin
 from .. import __version__, version
 from .scale import wrap360
 
@@ -58,12 +59,23 @@ class ResultBase(BaseModel):
         title="Date of Analysis",
         description="The date the analysis was performed.",
     )
+    warnings: list[dict] = Field(
+        title="Warnings",
+        description="Warnings that occurred during the analysis.",
+    )
+
+    # @model_validator(mode='after')
+    # def populate_warnings(cls, values):
+    #     # Implement logic to collect warnings
+    #     # For demonstration, returning a static list
+    #     values.warnings = cls.compute_warnings()
+    #     return values
 
 
 T = TypeVar("T")
 
 
-class ResultsDataMixin(Generic[T]):
+class ResultsDataMixin(Generic[T], WarningCollectorMixin):
     """A mixin for classes that generate results data. This mixin is used to generate the results data and present it in different formats.
     The generic types allow correct type hinting of the results data."""
 
