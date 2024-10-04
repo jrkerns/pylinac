@@ -197,11 +197,9 @@ class CheeseMixin(CloudFileMixin):
 
     def test_HU_values(self):
         """Test HU values."""
-        self.assertEqual(len(self.cheese.module.rois.values()), len(self.hu_values))
-        for name, roi in self.cheese.module.rois.items():
-            exp_val = self.hu_values[name]
-            meas_val = roi.pixel_value
-            self.assertAlmostEqual(exp_val, meas_val, delta=5)
+        for roi_num, expected_hu in self.hu_values.items():
+            meas_hu = self.cheese.module.rois[roi_num].pixel_value
+            self.assertAlmostEqual(expected_hu, meas_hu, delta=5)
 
     def test_pdf(self):
         save_file(self.cheese.publish_pdf, "temp")
@@ -237,6 +235,19 @@ class TestTomoCheeseDemo(CheeseMixin, TestCase):
     def setUpClass(cls):
         cls.cheese = TomoCheese.from_demo_images()
         cls.cheese.analyze()
+
+
+class TestHighHURodTomo(CheeseMixin, TestCase):
+    dir_path = ["Tomo"]
+    file_name = "High HU rod tomo.zip"
+    origin_slice = 38
+    expected_roll = -0.23
+    hu_values = {
+        "1": -501,
+        "2": -24,
+        "11": -616,
+        "16": 437,
+    }
 
 
 class TestCIRS062MErogluer(CheeseMixin, TestCase):

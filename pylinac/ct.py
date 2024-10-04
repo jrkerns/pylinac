@@ -376,8 +376,18 @@ class Slice:
             raise ValueError(
                 "No edges were found in the image that look like the phantom"
             )
+        # we clip the image to avoid issues where
+        # very high or very low HU values cause
+        # thresholding problems. E.g. a very high HU bb
+        # can make the region detection not see the phantom
+        # I can see this causing problems in the future if the
+        # HU values are insanely off.
+        clipped_arr = np.clip(self.image.array, a_min=-1000, a_max=1000)
         larr, regionprops, num_roi = get_regions(
-            self, fill_holes=True, threshold="otsu", clear_borders=self.clear_borders
+            clipped_arr,
+            fill_holes=True,
+            threshold="otsu",
+            clear_borders=self.clear_borders,
         )
         # check that there is at least 1 ROI
         if num_roi < 1 or num_roi is None:
