@@ -55,6 +55,7 @@ from .core.plotly_utils import add_title, add_vertical_line
 from .core.profile import CollapsedCircleProfile, FWXMProfile
 from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
+from .metrics.features import is_symmetric
 
 # The ramp angle ratio is from the Catphan manual ("Scan slice geometry" section)
 # and represents the fact that the wire is at an oblique angle (23°), making it appear
@@ -397,9 +398,10 @@ class Slice:
         catphan_region = sorted(
             regionprops, key=lambda x: np.abs(x.filled_area - self.catphan_size)
         )[0]
-        if (self.catphan_size * 1.3 < catphan_region.filled_area) or (
-            catphan_region.filled_area < self.catphan_size / 1.3
-        ):
+        is_too_large = self.catphan_size * 1.3 < catphan_region.filled_area
+        is_too_small = catphan_region.filled_area < self.catphan_size / 1.3
+        not_symmetric = not is_symmetric(catphan_region)
+        if is_too_small or is_too_large or not_symmetric:
             raise ValueError("Unable to find ROI of expected size of the phantom")
         return catphan_region
 
