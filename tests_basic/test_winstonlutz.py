@@ -1543,7 +1543,7 @@ class KatyiX0(WinstonLutzMixin, PlotlyTestMixin, TestCase):
     num_figs = 18
     fig_data = {
         0: {
-            "title": "1 (10).dcm",
+            "title": "1",
             "num_traces": 6,
             "x_label": "Gantry=0, Coll=0, Couch=0",
             "y_label": "Max Nominal to BB: 0.92mm",

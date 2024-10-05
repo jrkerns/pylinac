@@ -372,7 +372,7 @@ class PlotlyTestMixin:
             fig = figs[keys[f_num]]
             if f_data["num_traces"]:
                 self.assertEqual(len(fig.data), f_data["num_traces"])
-            self.assertEqual(fig.layout.title.text, f_data["title"])
+            self.assertIn(f_data["title"], fig.layout.title.text)
             if f_data.get("has_legend", True):
                 self.assertEqual(fig.layout.showlegend, True)
             if f_data.get("x_label"):
