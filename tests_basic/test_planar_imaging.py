@@ -307,9 +307,7 @@ class LeedsMixin(PlanarPhantomMixin):
     klass = LeedsTOR
     dir_path = ["planar_imaging", "Leeds"]
     num_figs = 3
-    fig_data = {
-        0: {"title": "Leeds Phantom Analysis", "type": "image", "num_traces": 36}
-    }
+    fig_data = {0: {"title": "Leeds Phantom Analysis", "num_traces": 36}}
 
 
 class LeedsDemo(LeedsMixin, TestCase):
@@ -353,6 +351,7 @@ class LeedsBlue(LeedsMixin, TestCase):
     ssd = "auto"
     file_name = "Leeds_Blue.dcm"
     piu = 97
+    fig_data = {0: {"title": "Leeds (Blue) Phantom Analysis", "num_traces": 36}}
 
 
 class LeedsBlueRotated(LeedsMixin, TestCase):
@@ -361,6 +360,7 @@ class LeedsBlueRotated(LeedsMixin, TestCase):
     ssd = "auto"
     file_name = "Leeds_Blue.dcm"
     piu = 97
+    fig_data = {0: {"title": "Leeds (Blue) Phantom Analysis", "num_traces": 36}}
 
     @classmethod
     def preprocess(cls, instance):
@@ -588,6 +588,12 @@ class LasVegasTB1(LasVegasTestMixin, TestCase):
 class ElektaLasVegasMixin(LasVegasTestMixin):
     dir_path = ["planar_imaging", "Elekta Las Vegas"]
     klass = ElektaLasVegas
+    fig_data = {
+        0: {
+            "title": "Elekta Las Vegas Phantom Analysis",
+            "num_traces": 28,
+        }
+    }
 
     @classmethod
     def setUpClass(cls):

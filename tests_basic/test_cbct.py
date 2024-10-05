@@ -868,10 +868,41 @@ class CBCT2(CatPhan504Mixin, PlotlyTestMixin, TestCase):
     avg_line_length = 49.9
     slice_thickness = 2.4
     avg_noise_power = 0.395
-    num_figs = 5
-    # fig_data = {
-    #     0:
-    # }
+    num_figs = 7
+    fig_data = {
+        0: {
+            "title": "HU Linearity",
+            "num_traces": 20,
+        },
+        1: {
+            "title": "HU Linearity",
+            "num_traces": 4,
+        },
+        2: {
+            "title": "Side View",
+            "num_traces": 5,
+        },
+        3: {
+            "title": "HU Uniformity",
+            "num_traces": 11,
+        },
+        4: {
+            "title": "Spatial Resolution",
+            "num_traces": 5,
+            "has_legend": False,
+        },
+        5: {
+            "title": "Relative MTF",
+            "num_traces": 1,
+        },
+        6: {
+            "title": "Low Contrast",
+            "num_traces": 19,
+        },
+    }
+
+    def setUp(self) -> None:
+        self.instance = self.cbct
 
 
 class CBCT3(CatPhan504Mixin, TestCase):

@@ -1855,9 +1855,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             figs["CTP528"] = self.ctp528.plotly(
                 show_legend=show_legend, show_colorbar=show_colorbar
             )
-            figs["MTF"] = self.ctp528.mtf.plotly(
-                show_legend=show_legend, show_colorbar=show_colorbar
-            )
+            figs["MTF"] = self.ctp528.mtf.plotly(show_legend=show_legend)
         if self._has_module(CTP515):
             figs["CTP515"] = self.ctp515.plotly(
                 show_legend=show_legend, show_colorbar=show_colorbar
