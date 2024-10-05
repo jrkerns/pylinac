@@ -281,8 +281,8 @@ class TestQuartPelvis(QuartDVTMixin, TestCase):
     phantom_roll = 0.2
     slice_thickness = 1.9
     origin_slice = 61
-    snr = 171.9  # changed due to better axis-fitting function; was previously including the back few slices of the phantom
-    cnr = 28.3
+    snr = 176.5  # changed due to better axis-fitting function; was previously including the back few slices of the phantom
+    cnr = 28.0
     horiz_dist = 159.3
     vert_dist = 159.6
     high_contrast_distance = 0.82

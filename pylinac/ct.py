@@ -55,7 +55,6 @@ from .core.plotly_utils import add_title, add_vertical_line
 from .core.profile import CollapsedCircleProfile, FWXMProfile
 from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
-from .metrics.features import is_symmetric
 
 # The ramp angle ratio is from the Catphan manual ("Scan slice geometry" section)
 # and represents the fact that the wire is at an oblique angle (23°), making it appear
@@ -2892,6 +2891,16 @@ class CatPhan600(CatPhanBase):
         """
         angle = super().find_phantom_roll(lambda x: -x.centroid[0])
         return angle + 75
+
+
+def is_symmetric(region: RegionProperties, tolerance: float = 0.3) -> bool:
+    """Check symmetry of ROI by comparing x-axis size to y-axis size"""
+    ymin, xmin, ymax, xmax = region.bbox
+    y = abs(ymax - ymin)
+    x = abs(xmax - xmin)
+    if x > y * (1 + tolerance) or x < y * (1 - tolerance):
+        return False
+    return True
 
 
 def get_regions(
