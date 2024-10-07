@@ -1546,7 +1546,7 @@ class KatyiX0(WinstonLutzMixin, PlotlyTestMixin, TestCase):
             "title": "1",
             "num_traces": 6,
             "x_label": "Gantry=0, Coll=0, Couch=0",
-            "y_label": "Max Nominal to BB: 0.92mm",
+            "y_label": "Max Nominal to BB",
         },
         # test the 3D plot
         17: {

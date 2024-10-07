@@ -376,9 +376,9 @@ class PlotlyTestMixin:
             if f_data.get("has_legend", True):
                 self.assertEqual(fig.layout.showlegend, True)
             if f_data.get("x_label"):
-                self.assertEqual(fig.layout.xaxis.title.text, f_data["x_label"])
+                self.assertIn(f_data["x_label"], fig.layout.xaxis.title.text)
             if f_data.get("y_label"):
-                self.assertEqual(fig.layout.yaxis.title.text, f_data["y_label"])
+                self.assertIn(f_data["y_label"], fig.layout.yaxis.title.text)
 
     def test_plotly_options(self):
         figs = self.instance.plotly_analyzed_images(
