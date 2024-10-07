@@ -387,7 +387,7 @@ class Slice:
         if self.clip_in_localization:
             clipped_arr = np.clip(self.image.array, a_min=-1000, a_max=1000)
         else:
-            clipped_arr = self.image.array
+            clipped_arr = self
         larr, regionprops, num_roi = get_regions(
             clipped_arr,
             fill_holes=True,
