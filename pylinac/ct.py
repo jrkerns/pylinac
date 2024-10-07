@@ -540,9 +540,9 @@ class CatPhanModule(Slice):
 
     def plotly_rois(self, fig: go.Figure) -> None:
         for name, roi in self.rois.items():
-            roi.plotly(fig, color=roi.plot_color, name=name)
+            roi.plotly(fig, line_color=roi.plot_color, name=name)
         for name, roi in self.background_rois.items():
-            roi.plotly(fig, color="blue", name=f"{name} Background")
+            roi.plotly(fig, line_color="blue", name=f"{name} Background")
 
     def plot(self, axis: plt.Axes):
         """Plot the image along with ROIs to an axis"""
@@ -1846,7 +1846,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             show_legend=show_legend, show_colorbar=show_colorbar
         )
         figs["HU Linearity"] = self.ctp404.plotly_linearity(show_legend=show_legend)
-        figs["Side View"] = self.plotly_side_view()
+        figs["Side View"] = self.plotly_side_view(show_legend=show_legend)
         if self._has_module(CTP486):
             figs["CTP486"] = self.ctp486.plotly(
                 show_legend=show_legend, show_colorbar=show_colorbar
@@ -1855,9 +1855,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             figs["CTP528"] = self.ctp528.plotly(
                 show_legend=show_legend, show_colorbar=show_colorbar
             )
-            figs["MTF"] = self.ctp528.mtf.plotly(
-                show_legend=show_legend, show_colorbar=show_colorbar
-            )
+            figs["MTF"] = self.ctp528.mtf.plotly(show_legend=show_legend)
         if self._has_module(CTP515):
             figs["CTP515"] = self.ctp515.plotly(
                 show_legend=show_legend, show_colorbar=show_colorbar
@@ -2331,7 +2329,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             except Exception:
                 pass
 
-    def plotly_side_view(self, offset: float = -10) -> go.Figure:
+    def plotly_side_view(self, show_legend: bool) -> go.Figure:
         fig = go.Figure()
         side_array = self.dicom_stack.side_view(axis=1)
         add_title(fig, "Side View")
@@ -2345,6 +2343,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
                 color="blue",
                 name=module.common_name,
             )
+        fig.update_layout(showlegend=show_legend)
         return fig
 
     def plot_side_view(self, axis: Axes) -> None:

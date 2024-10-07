@@ -932,7 +932,11 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
         # plot the image
         figs = {}
         fig = self.image.plotly(
-            show=False, show_legend=show_legend, show_colorbar=show_colorbar, **kwargs
+            title="Picket Fence Analysis",
+            show=False,
+            show_legend=show_legend,
+            show_colorbar=show_colorbar,
+            **kwargs,
         )
         for idx, picket in enumerate(self.pickets):
             picket.plotly_guardrails(fig=fig, picket=idx)
@@ -972,7 +976,7 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
             add_vertical_line(
                 histogram_fig, -self.action_tolerance, color="magenta", width=3
             )
-        add_title(histogram_fig, "Leaf error histogram")
+        add_title(histogram_fig, "Leaf Error Histogram")
         min_x = min(min(errors), -self.tolerance * 1.1)
         max_x = max(max(errors), self.tolerance * 1.1)
         histogram_fig.update_layout(
@@ -983,7 +987,7 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
         figs["Histogram"] = histogram_fig
 
         # leaf error plot
-        figs |= self._plotly_leaf_error_plots()
+        figs |= self._plotly_leaf_error_plots(show_legend=show_legend)
 
         if show:
             for fig in figs.values():
@@ -1067,7 +1071,7 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
         if show:
             plt.show()
 
-    def _plotly_leaf_error_plots(self) -> dict[str, go.Figure]:
+    def _plotly_leaf_error_plots(self, show_legend: bool) -> dict[str, go.Figure]:
         error_items = np.asarray(
             Enumerable(self.mlc_meas).select(lambda m: m.error).to_list()
         )
@@ -1106,10 +1110,6 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
                     add_horizontal_line(
                         signed_fig, y=-self.action_tolerance, color="magenta", width=3
                     )
-                signed_fig.update_layout(
-                    xaxis_title="Leaf",
-                    yaxis_title="Signed Error (mm)",
-                )
                 abs_fig.add_box(
                     y=np.abs(errs[column]),
                     x=[leaf_num] * len(idxs),
@@ -1123,10 +1123,16 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
                     add_horizontal_line(
                         abs_fig, y=self.action_tolerance, color="magenta", width=3
                     )
-                abs_fig.update_layout(
-                    xaxis_title="Leaf",
-                    yaxis_title="Absolute Error (mm)",
-                )
+            signed_fig.update_layout(
+                xaxis_title="Leaf",
+                yaxis_title="Signed Error (mm)",
+                showlegend=show_legend,
+            )
+            abs_fig.update_layout(
+                xaxis_title="Leaf",
+                yaxis_title="Absolute Error (mm)",
+                showlegend=show_legend,
+            )
             figs[f"{title} error signed"] = signed_fig
             figs[f"{title} error absolute"] = abs_fig
         return figs

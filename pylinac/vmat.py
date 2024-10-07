@@ -594,7 +594,7 @@ class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
         for segment, roi_name in zip(self.segments, self.roi_config.keys()):
             segment.plotly(
                 fig,
-                color=segment.get_bg_color(),
+                line_color=segment.get_bg_color(),
                 name=f"{roi_name} ({segment.r_dev:2.2f}%)",
             )
 

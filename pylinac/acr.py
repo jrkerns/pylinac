@@ -187,7 +187,7 @@ class SpatialResolutionModule(CatPhanModule):
 
     def plotly_rois(self, fig: go.Figure) -> None:
         for name, roi in self.rois.items():
-            roi.plotly(fig, color="green", name=name)
+            roi.plotly(fig, line_color="green", name=name)
 
     def plot_rois(self, axis: plt.Axes) -> None:
         """Plot the ROIs to the axis. Override to set the color"""
@@ -352,8 +352,10 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
             figs[module.common_name] = module.plotly(
                 show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
             )
-        figs["MTF"] = self.spatial_resolution_module.mtf.plotly(**kwargs)
-        figs["Side View"] = self.plotly_side_view(offset=-0.5)
+        figs["MTF"] = self.spatial_resolution_module.mtf.plotly(
+            show_legend=show_legend, **kwargs
+        )
+        figs["Side View"] = self.plotly_side_view(show_legend=show_legend)
 
         if show:
             for fig in figs.values():
@@ -691,7 +693,7 @@ class MRSlice11PositionModule(CatPhanModule):
 
     def plotly_rois(self, fig: go.Figure) -> None:
         for name, roi in self.rois.items():
-            roi.plotly(fig, color="blue", name=name)
+            roi.plotly(fig, line_color="blue", name=name)
 
 
 class MRSlice11ModuleOutput(BaseModel):
@@ -788,11 +790,11 @@ class MRSlice1Module(CatPhanModule):
 
     def plotly_rois(self, fig: go.Figure) -> None:
         for name, roi in self.position_rois.items():
-            roi.plotly(fig, color="blue", name=name)
+            roi.plotly(fig, line_color="blue", name=name)
         for name, roi in self.thickness_rois.items():
-            roi.plotly(fig, color="blue", name=name)
+            roi.plotly(fig, line_color="blue", name=name)
         for name, roi in self.rois.items():
-            roi.plotly(fig, color="green", name=name)
+            roi.plotly(fig, line_color="green", name=name)
 
     @property
     def bar_difference_mm(self) -> float:
@@ -918,7 +920,7 @@ class MRUniformityModule(CatPhanModule):
     def plotly_rois(self, fig: go.Figure) -> None:
         super().plotly_rois(fig)
         for name, roi in self.ghost_rois.items():
-            roi.plotly(fig, color="yellow", name=name)
+            roi.plotly(fig, line_color="yellow", name=name)
 
     @property
     def percent_image_uniformity(self) -> float:
@@ -1295,12 +1297,15 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
                 show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
             )
         # side view
-        figs["Side View"] = self.plotly_side_view(offset=-0.2)
+        figs["Side View"] = self.plotly_side_view(show_legend=show_legend)
         # mtf
         fig = go.Figure()
         self.slice1.row_mtf.plotly(fig=fig, name="Row-wise rMTF")
         figs["MTF"] = self.slice1.col_mtf.plotly(
-            fig=fig, name="Column-wise rMTF", marker_color="orange"
+            show_legend=show_legend,
+            fig=fig,
+            name="Column-wise rMTF",
+            marker_color="orange",
         )
 
         if show:

@@ -29,6 +29,7 @@ from tests_basic.utils import (
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
     InitTesterMixin,
+    PlotlyTestMixin,
     get_file_from_cloud_test_repo,
     save_file,
 )
@@ -765,13 +766,39 @@ class AS500(PFTestMixin, TestCase):
     abs_median_error = 0.04
 
 
-class AS5002(PFTestMixin, TestCase):
+class AS5002(PFTestMixin, TestCase, PlotlyTestMixin):
     """Tests for the AS500#2 image."""
 
     file_name = "AS500#2.dcm"
     max_error = 0.12
     abs_median_error = 0.03
     mlc_skew = -0.3
+    num_figs = 4
+    fig_data = {
+        0: {
+            "title": "Picket Fence Analysis",
+            "num_traces": 782,
+        },
+        1: {
+            "title": "Leaf Error Histogram",
+            "has_legend": False,
+            "num_traces": 1,
+            "x_label": "Error (mm)",
+            "y_label": "Counts",
+        },
+        2: {
+            "title": "Signed Leaf Error (mm) | Pair",
+            "num_traces": 38,
+            "x_label": "Leaf",
+            "y_label": "Signed Error (mm)",
+        },
+    }
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.instance = cls.pf
+        return cls
 
 
 class AS5003(PFTestMixin, TestCase):

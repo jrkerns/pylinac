@@ -117,7 +117,7 @@ class CheeseModule(CatPhanModule):
             roi.plotly(
                 fig,
                 name=name,
-                color="blue",
+                line_color="blue",
             )
 
 
