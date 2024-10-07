@@ -123,7 +123,6 @@ class MTF:
         fig.update_layout(
             showlegend=kwargs.pop("show_legend", True),
         )
-        fig.update_traces(showscale=kwargs.pop("show_colorbar", True))
         fig.add_scatter(
             x=list(self.norm_mtfs.keys()),
             y=list(self.norm_mtfs.values()),

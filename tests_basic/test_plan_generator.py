@@ -72,6 +72,22 @@ class TestPlanGenerator(TestCase):
         with self.assertRaises(ValueError):
             PlanGenerator(ds, plan_label="label", plan_name="my name")
 
+    def test_pass_patient_name(self):
+        ds = pydicom.dcmread(RT_PLAN_FILE)
+        pg = PlanGenerator(
+            ds, plan_label="label", plan_name="my name", patient_name="Jimbo Jones"
+        )
+        pg_dcm = pg.as_dicom()
+        self.assertEqual(pg_dcm.PatientName, "Jimbo Jones")
+
+    def test_pass_patient_id(self):
+        ds = pydicom.dcmread(RT_PLAN_FILE)
+        pg = PlanGenerator(
+            ds, plan_label="label", plan_name="my name", patient_id="12345"
+        )
+        pg_dcm = pg.as_dicom()
+        self.assertEqual(pg_dcm.PatientID, "12345")
+
     def test_no_tolerance_table(self):
         ds = pydicom.dcmread(RT_PLAN_FILE)
         ds.pop("ToleranceTableSequence")

@@ -551,9 +551,9 @@ class CatPhanModule(Slice):
 
     def plotly_rois(self, fig: go.Figure) -> None:
         for name, roi in self.rois.items():
-            roi.plotly(fig, color=roi.plot_color, name=name)
+            roi.plotly(fig, line_color=roi.plot_color, name=name)
         for name, roi in self.background_rois.items():
-            roi.plotly(fig, color="blue", name=f"{name} Background")
+            roi.plotly(fig, line_color="blue", name=f"{name} Background")
 
     def plot(self, axis: plt.Axes):
         """Plot the image along with ROIs to an axis"""
@@ -760,8 +760,18 @@ class CTP404CP504(CatPhanModule):
         xbounds = (int(self.phan_center.x - boxsize), int(self.phan_center.x + boxsize))
         ybounds = (int(self.phan_center.y - boxsize), int(self.phan_center.y + boxsize))
         geo_img = self.image[ybounds[0] : ybounds[1], xbounds[0] : xbounds[1]]
+        # clip to the nearest of the two extremes
+        # this can arise from direct density scans. In that case the
+        # 1 teflon node will not get detected as the edge intensity is much less than the other nodes (unlike normal)
+        # So, we clip the sub-image to the nearest extreme to the median.
+        # This does very little to normal scans. RAM-4056
+        median = np.median(geo_img)
+        nearest_extreme = min(abs(median - geo_img.max()), abs(median - geo_img.min()))
+        geo_clipped = np.clip(
+            geo_img, a_min=median - nearest_extreme, a_max=median + nearest_extreme
+        )
         larr, regionprops, num_roi = get_regions(
-            geo_img, fill_holes=True, clear_borders=False
+            geo_clipped, fill_holes=True, clear_borders=False
         )
         # check that there is at least 1 ROI
         if num_roi < 4:
@@ -1857,7 +1867,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             show_legend=show_legend, show_colorbar=show_colorbar
         )
         figs["HU Linearity"] = self.ctp404.plotly_linearity(show_legend=show_legend)
-        figs["Side View"] = self.plotly_side_view()
+        figs["Side View"] = self.plotly_side_view(show_legend=show_legend)
         if self._has_module(CTP486):
             figs["CTP486"] = self.ctp486.plotly(
                 show_legend=show_legend, show_colorbar=show_colorbar
@@ -1866,9 +1876,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             figs["CTP528"] = self.ctp528.plotly(
                 show_legend=show_legend, show_colorbar=show_colorbar
             )
-            figs["MTF"] = self.ctp528.mtf.plotly(
-                show_legend=show_legend, show_colorbar=show_colorbar
-            )
+            figs["MTF"] = self.ctp528.mtf.plotly(show_legend=show_legend)
         if self._has_module(CTP515):
             figs["CTP515"] = self.ctp515.plotly(
                 show_legend=show_legend, show_colorbar=show_colorbar
@@ -2342,7 +2350,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             except Exception:
                 pass
 
-    def plotly_side_view(self, offset: float = -10) -> go.Figure:
+    def plotly_side_view(self, show_legend: bool) -> go.Figure:
         fig = go.Figure()
         side_array = self.dicom_stack.side_view(axis=1)
         add_title(fig, "Side View")
@@ -2356,6 +2364,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
                 color="blue",
                 name=module.common_name,
             )
+        fig.update_layout(showlegend=show_legend)
         return fig
 
     def plot_side_view(self, axis: Axes) -> None:
@@ -2888,8 +2897,15 @@ class CatPhan600(CatPhanBase):
         It may also find the top air ROI if the water vial isn't there.
         We use the below lambda to select the bottom air and teflon ROIs consistently.
         These two ROIs are at 75 degrees from cardinal. We thus offset the default outcome by 75.
+
+        HOWEVER, for direct density scans, the Teflon ROI might not register because of the reduced
+        HU. 🤦‍♂️. We make a best guess depending on the detected roll. If it's ~75 degrees,
+        we have caught the bottom Air and Teflon. If it's near zero, we have
+        caught the top and bottom Air ROIs.
         """
         angle = super().find_phantom_roll(lambda x: -x.centroid[0])
+        if abs(angle) < 10:
+            return angle
         return angle + 75
 
 

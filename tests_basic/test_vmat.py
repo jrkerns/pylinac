@@ -23,6 +23,7 @@ from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
 from tests_basic.utils import (
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
+    PlotlyTestMixin,
     get_file_from_cloud_test_repo,
     save_file,
 )
@@ -319,7 +320,7 @@ class TestDRMLC105(VMATMixin, TestCase):
     passes = False
 
 
-class TestDRGS105(VMATMixin, TestCase):
+class TestDRGS105(VMATMixin, PlotlyTestMixin, TestCase):
     """Tests of the result values of DRMLC images at 105cm SID."""
 
     filepaths = ("DRGSopen-105-example.dcm", "DRGSdmlc-105-example.dcm")
@@ -334,6 +335,27 @@ class TestDRGS105(VMATMixin, TestCase):
     }
     avg_abs_r_deviation = 0.68
     max_r_deviation = 1.38
+    num_figs = 3
+    fig_data = {
+        0: {
+            "title": "Open Image",
+            "num_traces": 8,
+        },
+        1: {
+            "title": "DMLC Image",
+            "num_traces": 8,
+        },
+        2: {
+            "title": "Median Profiles",
+            "num_traces": 2,
+            "x_label": "Pixel",
+            "y_label": "Normalized Response",
+        },
+    }
+
+    def setUp(self):
+        super().setUp()
+        self.instance = self.vmat
 
 
 class TestDRMLC2(VMATMixin, TestCase):

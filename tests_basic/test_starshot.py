@@ -16,6 +16,7 @@ from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
     FromURLTesterMixin,
+    PlotlyTestMixin,
     get_file_from_cloud_test_repo,
     get_folder_from_cloud_repo,
     save_file,
@@ -245,12 +246,18 @@ class Multiples(StarMixin, TestCase):
         star.analyze()
 
 
-class Starshot1(StarMixin, TestCase):
+class Starshot1(StarMixin, PlotlyTestMixin, TestCase):
     file_name = "Starshot-1.tif"
     wobble_center = Point(508, 683)
     wobble_diameter_mm = 0.23
     num_rad_lines = 4
     # outside 0.20-0.27mm
+    num_figs = 2
+    fig_data = {0: {"title": "Starshot Analysis", "num_traces": 6}}
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.instance = self.star
 
 
 class StarshotPerfect30Deg(StarMixin, TestCase):

@@ -14,6 +14,7 @@ from tests_basic.utils import (
     FromURLTesterMixin,
     FromZipTesterMixin,
     InitTesterMixin,
+    PlotlyTestMixin,
     save_file,
 )
 
@@ -205,7 +206,7 @@ class CheeseMixin(CloudFileMixin):
         save_file(self.cheese.publish_pdf, "temp")
 
 
-class TestTomoCheeseDemo(CheeseMixin, TestCase):
+class TestTomoCheeseDemo(CheeseMixin, PlotlyTestMixin, TestCase):
     origin_slice = 24
     expected_roll = -0.23
     hu_values = {
@@ -230,6 +231,16 @@ class TestTomoCheeseDemo(CheeseMixin, TestCase):
         "19": 269,
         "20": 14,
     }
+    num_figs = 1
+    fig_data = {
+        0: {
+            "title": "Tomo Cheese",
+            "num_traces": 21,
+        }
+    }
+
+    def setUp(self) -> None:
+        self.instance = self.cheese
 
     @classmethod
     def setUpClass(cls):

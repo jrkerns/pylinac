@@ -16,6 +16,7 @@ from tests_basic.utils import (
     CloudFileMixin,
     FromZipTesterMixin,
     InitTesterMixin,
+    PlotlyTestMixin,
     get_file_from_cloud_test_repo,
     save_file,
 )
@@ -206,7 +207,7 @@ class QuartDVTMixin(CloudFileMixin):
             self.assertAlmostEqual(exp_val, meas_val, delta=5)
 
 
-class TestQuartHead(QuartDVTMixin, TestCase):
+class TestQuartHead(QuartDVTMixin, PlotlyTestMixin, TestCase):
     file_name = "Head_Quart.zip"
     phantom_roll = 0.2
     slice_thickness = 1.9
@@ -218,6 +219,34 @@ class TestQuartHead(QuartDVTMixin, TestCase):
     vert_dist = 159.6
     hu_values = {"Poly": POLY, "Acrylic": 126, "Air": -999, "Teflon": 981}
     unif_values = {"Center": 114, "Left": 114, "Right": 136, "Top": 125, "Bottom": 127}
+    num_figs = 5
+    fig_data = {
+        0: {
+            "title": "HU Linearity",
+            "num_traces": 7,
+        },
+        1: {
+            "title": "HU Linearity",
+            "num_traces": 4,
+            "x_label": "Nominal Values",
+            "y_label": "HU Delta",
+        },
+        2: {
+            "title": "HU Uniformity",
+            "num_traces": 11,
+        },
+        3: {
+            "title": "Geometric Distortion",
+            "num_traces": 3,
+        },
+        4: {
+            "title": "Side View",
+            "num_traces": 4,
+        },
+    }
+
+    def setUp(self) -> None:
+        self.instance = self.quart
 
 
 class TestQuartHeadOffset(QuartDVTMixin, TestCase):

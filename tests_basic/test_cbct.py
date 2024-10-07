@@ -22,6 +22,7 @@ from tests_basic.utils import (
     FromURLTesterMixin,
     FromZipTesterMixin,
     InitTesterMixin,
+    PlotlyTestMixin,
     get_file_from_cloud_test_repo,
     save_file,
 )
@@ -619,6 +620,33 @@ class CatPhan600WaterVial2(CatPhanMixin, TestCase):
         self.assertIn("Vial", self.cbct.ctp404.rois)
 
 
+class CatPhan600DirectDensity(CatPhanMixin, TestCase):
+    """Direct density scan."""
+
+    catphan = CatPhan600
+    dir_path = ["CBCT", "CatPhan_600"]
+    file_name = "Catphan600 direct density.zip"
+    hu_origin_variance = 200
+    expected_roll = -0.25
+    origin_slice = 105
+    hu_values = {
+        "Poly": -35,
+        "Acrylic": 123,
+        "Delrin": 150,
+        "Air": -994,
+        "Teflon": 431,
+        "PMP": -182,
+        "LDPE": -92,
+        "Vial": 63,
+    }
+    hu_passed = False
+    unif_values = {"Center": 11, "Left": 11, "Right": 11, "Top": 11, "Bottom": 11}
+    mtf_values = {50: 0.31}
+    avg_line_length = 50
+    slice_thickness = 2.1
+    lowcon_visible = 6
+
+
 @mark.catphan604
 class CatPhan604Test(CatPhanMixin, TestCase):
     catphan = CatPhan604
@@ -846,7 +874,7 @@ class CBCT1(CatPhan504Mixin, TestCase):
             )
 
 
-class CBCT2(CatPhan504Mixin, TestCase):
+class CBCT2(CatPhan504Mixin, PlotlyTestMixin, TestCase):
     """A Varian CBCT dataset"""
 
     file_name = "CBCT_2.zip"
@@ -867,6 +895,41 @@ class CBCT2(CatPhan504Mixin, TestCase):
     avg_line_length = 49.9
     slice_thickness = 2.4
     avg_noise_power = 0.395
+    num_figs = 7
+    fig_data = {
+        0: {
+            "title": "HU Linearity",
+            "num_traces": 20,
+        },
+        1: {
+            "title": "HU Linearity",
+            "num_traces": 4,
+        },
+        2: {
+            "title": "Side View",
+            "num_traces": 5,
+        },
+        3: {
+            "title": "HU Uniformity",
+            "num_traces": 11,
+        },
+        4: {
+            "title": "Spatial Resolution",
+            "num_traces": 5,
+            "has_legend": False,
+        },
+        5: {
+            "title": "Relative MTF",
+            "num_traces": 1,
+        },
+        6: {
+            "title": "Low Contrast",
+            "num_traces": 19,
+        },
+    }
+
+    def setUp(self) -> None:
+        self.instance = self.cbct
 
 
 class CBCT3(CatPhan504Mixin, TestCase):

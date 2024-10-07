@@ -648,7 +648,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             for idx, roi in enumerate(self.low_contrast_background_rois):
                 roi.plotly(
                     image_fig,
-                    color="blue",
+                    line_color="blue",
                     name=f"LCR{idx}",
                     showlegend=show_legend,
                 )
@@ -656,7 +656,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             for idx, roi in enumerate(self.low_contrast_rois):
                 roi.plotly(
                     image_fig,
-                    color=roi.plot_color,
+                    line_color=roi.plot_color,
                     name=f"LC{idx}",
                     showlegend=show_legend,
                 )
@@ -668,7 +668,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                 color = "blue" if mtf > self._high_contrast_threshold else "red"
                 roi.plotly(
                     image_fig,
-                    color=color,
+                    line_color=color,
                     name=f"HC{idx}",
                     showlegend=show_legend,
                 )

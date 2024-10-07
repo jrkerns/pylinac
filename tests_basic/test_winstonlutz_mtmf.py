@@ -17,7 +17,7 @@ from pylinac.core.image_generator import (
 )
 from pylinac.winston_lutz import BBArrangement, BBConfig
 from tests_basic.core.test_utilities import ResultsDataBase
-from tests_basic.utils import CloudFileMixin
+from tests_basic.utils import CloudFileMixin, PlotlyTestMixin
 
 TEST_DIR = "Winston-Lutz"
 
@@ -272,7 +272,7 @@ class SyntheticPerfect1BB(SyntheticMultiMetMixin, TestCase):
     mean_2d_distance = 0
 
 
-class Synthetic1BBOffsetIn(SyntheticMultiMetMixin, TestCase):
+class Synthetic1BBOffsetIn(SyntheticMultiMetMixin, PlotlyTestMixin, TestCase):
     arrangement = (
         BBConfig(
             name="Iso",
@@ -291,6 +291,17 @@ class Synthetic1BBOffsetIn(SyntheticMultiMetMixin, TestCase):
     median_2d_distance = 1
     mean_2d_distance = 1
     bb_shift_vector = Vector(0, -1, 0)  # vector is opposite of offset
+    num_figs = 9
+    fig_data = {
+        0: {
+            "title": "WL G=0, C=0, P=0; Field=(20,\n20)mm (shifts=[(0, 0, 0)]);\nBB=5mm @ left=0.00, in=1.00,\nup=0.00; Gantry tilt=0, Gantry\nsag=0.dcm",
+            "num_traces": 6,
+        }
+    }
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.instance = self.wl
 
 
 class Synthetic1BBOffsetLeft(SyntheticMultiMetMixin, TestCase):

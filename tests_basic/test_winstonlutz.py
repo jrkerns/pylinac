@@ -40,6 +40,7 @@ from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
+    PlotlyTestMixin,
     get_file_from_cloud_test_repo,
     get_folder_from_cloud_repo,
     save_file,
@@ -1526,7 +1527,7 @@ class WLBadFilenames(TestCase):
             wl.analyze()
 
 
-class KatyiX0(WinstonLutzMixin, TestCase):
+class KatyiX0(WinstonLutzMixin, PlotlyTestMixin, TestCase):
     # independently verified
     file_name = ["Katy iX", "0.zip"]
     num_images = 17
@@ -1539,6 +1540,23 @@ class KatyiX0(WinstonLutzMixin, TestCase):
     machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=-0.4, y=0.15, z=-0.5)
     print_results = True
+    num_figs = 18
+    fig_data = {
+        0: {
+            "title": "1",
+            "num_traces": 6,
+            "x_label": "Gantry=0, Coll=0, Couch=0",
+            "y_label": "Max Nominal to BB",
+        },
+        # test the 3D plot
+        17: {
+            "title": "3D Isocenter visualization",
+            "num_traces": 8,
+        },
+    }
+
+    def setUp(self) -> None:
+        self.instance = self.wl
 
 
 class KatyiX1(WinstonLutzMixin, TestCase):
