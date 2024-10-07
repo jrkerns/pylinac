@@ -354,6 +354,7 @@ class Slice:
         self.catphan_size = catphan.catphan_size
         self.mm_per_pixel = catphan.mm_per_pixel
         self.clear_borders = clear_borders
+        self.clip_in_localization = catphan.clip_in_localization
         if catphan._phantom_center_func:
             self._phantom_center_func = catphan._phantom_center_func
 
@@ -376,8 +377,22 @@ class Slice:
             raise ValueError(
                 "No edges were found in the image that look like the phantom"
             )
+        # we clip the image to avoid issues where
+        # very high or very low HU values cause
+        # thresholding problems. E.g. a very high HU bb
+        # can make the region detection not see the phantom
+        # I can see this causing problems in the future if the
+        # HU values are insanely off. This also causes issues
+        # with MRI images, which aren't HU values, hence the flag.
+        if self.clip_in_localization:
+            clipped_arr = np.clip(self.image.array, a_min=-1000, a_max=1000)
+        else:
+            clipped_arr = self
         larr, regionprops, num_roi = get_regions(
-            self, fill_holes=True, threshold="otsu", clear_borders=self.clear_borders
+            clipped_arr,
+            fill_holes=True,
+            threshold="otsu",
+            clear_borders=self.clear_borders,
         )
         # check that there is at least 1 ROI
         if num_roi < 1 or num_roi is None:
@@ -387,9 +402,10 @@ class Slice:
         catphan_region = sorted(
             regionprops, key=lambda x: np.abs(x.filled_area - self.catphan_size)
         )[0]
-        if (self.catphan_size * 1.3 < catphan_region.filled_area) or (
-            catphan_region.filled_area < self.catphan_size / 1.3
-        ):
+        is_too_large = self.catphan_size * 1.3 < catphan_region.filled_area
+        is_too_small = catphan_region.filled_area < self.catphan_size / 1.3
+        not_symmetric = not is_symmetric(catphan_region)
+        if is_too_small or is_too_large or not_symmetric:
             raise ValueError("Unable to find ROI of expected size of the phantom")
         return catphan_region
 
@@ -1731,6 +1747,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
     _phantom_center_func: tuple[Callable, Callable] | None = None
     modules: dict[CatPhanModule, dict[str, int]]
     dicom_stack: image.DicomImageStack | image.LazyDicomImageStack
+    clip_in_localization: bool = False
 
     def __init__(
         self,
@@ -2896,6 +2913,16 @@ class CatPhan600(CatPhanBase):
         if abs(angle) < 10:
             return angle
         return angle + 75
+
+
+def is_symmetric(region: RegionProperties, tolerance: float = 0.3) -> bool:
+    """Check symmetry of ROI by comparing x-axis size to y-axis size"""
+    ymin, xmin, ymax, xmax = region.bbox
+    y = abs(ymax - ymin)
+    x = abs(xmax - xmin)
+    if x > y * (1 + tolerance) or x < y * (1 - tolerance):
+        return False
+    return True
 
 
 def get_regions(

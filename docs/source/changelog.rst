@@ -30,6 +30,14 @@ Starshot
 
 * :bdg-warning:`Fixed` Certain types of starshot sets where the pixel values were extremely low would fail to analyze.
 
+CT
+^^
+
+* The Tomo and CatPhan localization algorithm has changed slightly to handle very high HU values such as
+  bbs and metal rods. In some instances, the HU values were so high the localization algorithm did not
+  detect the phantom as it appeared at a background level. Values are now capped to -1000 and +1000 HU.
+  Note this is only relevant for localization. HU values are not changed or capped in the analysis itself.
+
 Core
 ^^^^
 

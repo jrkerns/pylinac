@@ -171,6 +171,9 @@ class QuartDVTMixin(CloudFileMixin):
             self.quart.hu_module.contrast_to_noise, self.cnr, delta=0.2
         )
 
+    def test_origin_slice(self):
+        self.assertEqual(self.quart.origin_slice, self.origin_slice)
+
     def test_distances(self):
         self.assertAlmostEqual(
             self.horiz_dist,
@@ -209,6 +212,7 @@ class TestQuartHead(QuartDVTMixin, PlotlyTestMixin, TestCase):
     phantom_roll = 0.2
     slice_thickness = 1.9
     high_contrast_distance = 0.9
+    origin_slice = 61
     snr = 50
     cnr = 6.45
     horiz_dist = 159.3
@@ -253,6 +257,7 @@ class TestQuartHeadOffset(QuartDVTMixin, TestCase):
 
     file_name = "Head_Quart.zip"
     phantom_roll = 0.2
+    origin_slice = 61
     slice_thickness = 1.9
     horiz_dist = 159.3
     vert_dist = 159.6
@@ -281,6 +286,7 @@ class TestQuartHeadRotated(QuartDVTMixin, TestCase):
     file_name = "Head_Quart.zip"
     phantom_roll = -2.8
     slice_thickness = 1.9
+    origin_slice = 61
     horiz_dist = 159.3
     vert_dist = 159.6
     high_contrast_distance = 0.80
@@ -303,6 +309,7 @@ class TestQuartPelvis(QuartDVTMixin, TestCase):
     file_name = "Pelvis_Quart.zip"
     phantom_roll = 0.2
     slice_thickness = 1.9
+    origin_slice = 61
     snr = 173.8
     cnr = 28.0
     horiz_dist = 159.3
@@ -316,6 +323,7 @@ class TestHypersightQuart(QuartDVTMixin, TestCase):
     file_name = "Hypersight Quart (w water).zip"
     phantom_roll = 0.0
     slice_thickness = 1.9
+    origin_slice = 18
     snr = 400
     cnr = 56.0
     horiz_dist = 159.7
@@ -331,6 +339,7 @@ class TestTableQuart(QuartDVTMixin, TestCase):
     file_name = "Jan-Quart.zip"
     phantom_roll = 0.0
     slice_thickness = 1.87
+    origin_slice = 31
     snr = 37
     cnr = 6.2
     horiz_dist = 159.3
