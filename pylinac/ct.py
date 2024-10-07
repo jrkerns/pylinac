@@ -749,8 +749,18 @@ class CTP404CP504(CatPhanModule):
         xbounds = (int(self.phan_center.x - boxsize), int(self.phan_center.x + boxsize))
         ybounds = (int(self.phan_center.y - boxsize), int(self.phan_center.y + boxsize))
         geo_img = self.image[ybounds[0] : ybounds[1], xbounds[0] : xbounds[1]]
+        # clip to the nearest of the two extremes
+        # this can arise from direct density scans. In that case the
+        # 1 teflon node will not get detected as the edge intensity is much less than the other nodes (unlike normal)
+        # So, we clip the sub-image to the nearest extreme to the median.
+        # This does very little to normal scans. RAM-4056
+        median = np.median(geo_img)
+        nearest_extreme = min(abs(median - geo_img.max()), abs(median - geo_img.min()))
+        geo_clipped = np.clip(
+            geo_img, a_min=median - nearest_extreme, a_max=median + nearest_extreme
+        )
         larr, regionprops, num_roi = get_regions(
-            geo_img, fill_holes=True, clear_borders=False
+            geo_clipped, fill_holes=True, clear_borders=False
         )
         # check that there is at least 1 ROI
         if num_roi < 4:
@@ -2876,8 +2886,15 @@ class CatPhan600(CatPhanBase):
         It may also find the top air ROI if the water vial isn't there.
         We use the below lambda to select the bottom air and teflon ROIs consistently.
         These two ROIs are at 75 degrees from cardinal. We thus offset the default outcome by 75.
+
+        HOWEVER, for direct density scans, the Teflon ROI might not register because of the reduced
+        HU. 🤦‍♂️. We make a best guess depending on the detected roll. If it's ~75 degrees,
+        we have caught the bottom Air and Teflon. If it's near zero, we have
+        caught the top and bottom Air ROIs.
         """
         angle = super().find_phantom_roll(lambda x: -x.centroid[0])
+        if abs(angle) < 10:
+            return angle
         return angle + 75
 
 

@@ -620,6 +620,33 @@ class CatPhan600WaterVial2(CatPhanMixin, TestCase):
         self.assertIn("Vial", self.cbct.ctp404.rois)
 
 
+class CatPhan600DirectDensity(CatPhanMixin, TestCase):
+    """Direct density scan."""
+
+    catphan = CatPhan600
+    dir_path = ["CBCT", "CatPhan_600"]
+    file_name = "Catphan600 direct density.zip"
+    hu_origin_variance = 200
+    expected_roll = -0.25
+    origin_slice = 105
+    hu_values = {
+        "Poly": -35,
+        "Acrylic": 123,
+        "Delrin": 150,
+        "Air": -994,
+        "Teflon": 431,
+        "PMP": -182,
+        "LDPE": -92,
+        "Vial": 63,
+    }
+    hu_passed = False
+    unif_values = {"Center": 11, "Left": 11, "Right": 11, "Top": 11, "Bottom": 11}
+    mtf_values = {50: 0.31}
+    avg_line_length = 50
+    slice_thickness = 2.1
+    lowcon_visible = 6
+
+
 @mark.catphan604
 class CatPhan604Test(CatPhanMixin, TestCase):
     catphan = CatPhan604
