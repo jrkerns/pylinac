@@ -1146,6 +1146,7 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
     geometric_distortion = GeometricDistortionModule
     uniformity_module = MRUniformityModule
     slice11 = MRSlice11PositionModule
+    clip_in_localization = False
 
     def plot_analyzed_subimage(self, *args, **kwargs):
         raise NotImplementedError("Use `plot_images`")

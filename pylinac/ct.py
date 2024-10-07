@@ -354,6 +354,7 @@ class Slice:
         self.catphan_size = catphan.catphan_size
         self.mm_per_pixel = catphan.mm_per_pixel
         self.clear_borders = clear_borders
+        self.clip_in_localization = catphan.clip_in_localization
         if catphan._phantom_center_func:
             self._phantom_center_func = catphan._phantom_center_func
 
@@ -381,8 +382,12 @@ class Slice:
         # thresholding problems. E.g. a very high HU bb
         # can make the region detection not see the phantom
         # I can see this causing problems in the future if the
-        # HU values are insanely off.
-        clipped_arr = np.clip(self.image.array, a_min=-1000, a_max=1000)
+        # HU values are insanely off. This also causes issues
+        # with MRI images, which aren't HU values, hence the flag.
+        if self.clip_in_localization:
+            clipped_arr = np.clip(self.image.array, a_min=-1000, a_max=1000)
+        else:
+            clipped_arr = self.image.array
         larr, regionprops, num_roi = get_regions(
             clipped_arr,
             fill_holes=True,
@@ -1742,6 +1747,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
     _phantom_center_func: tuple[Callable, Callable] | None = None
     modules: dict[CatPhanModule, dict[str, int]]
     dicom_stack: image.DicomImageStack | image.LazyDicomImageStack
+    clip_in_localization: bool = False
 
     def __init__(
         self,
