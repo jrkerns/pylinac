@@ -8,7 +8,9 @@ import json
 import os
 import os.path as osp
 import re
+import shutil
 import warnings
+import zipfile
 from collections import Counter
 from collections.abc import Iterable, Sequence
 from datetime import datetime
@@ -16,6 +18,7 @@ from functools import cached_property
 from io import BufferedReader, BytesIO
 from pathlib import Path
 from typing import Any, BinaryIO, Union
+from zipfile import ZIP_LZMA, ZipFile
 
 import argue
 import matplotlib.pyplot as plt
@@ -1692,7 +1695,7 @@ class ArrayImage(BaseImage):
 
 
 class LazyDicomImageStack:
-    _image_path_keys: list[Path]
+    _image_path_keys: list[Path | str]
     metadatas: list[pydicom.Dataset]
 
     def __init__(
@@ -1743,7 +1746,7 @@ class LazyDicomImageStack:
         self._image_path_keys = [paths[i] for i in order]
 
     @classmethod
-    def from_zip(cls, zip_path: str | Path, dtype: np.dtype | None = None):
+    def from_zip(cls, zip_path: str | Path, dtype: np.dtype | None = None, **kwargs):
         """Load a DICOM ZIP archive.
 
         Parameters
@@ -1754,7 +1757,7 @@ class LazyDicomImageStack:
             The data type to cast the image data as. If None, will use whatever raw image format is.
         """
         with TemporaryZipDirectory(zip_path, delete=False) as tmpzip:
-            obj = cls(tmpzip, dtype)
+            obj = cls(tmpzip, dtype, **kwargs)
         return obj
 
     def _get_common_uid_imgs(
@@ -1823,6 +1826,127 @@ class LazyDicomImageStack:
 
     def __len__(self):
         return len(self._image_path_keys)
+
+
+class LazyZipDicomImageStack(LazyDicomImageStack):
+    """A variant of the lazy stack where a .zip archive is passed and
+    the archive is NOT extracted to disk. The most memory-efficient for use cases
+    like Cloud Run where disk=memory"""
+
+    # @profile
+    def __init__(
+        self,
+        folder: str | Path,
+        dtype: np.dtype | None = None,
+        min_number: int = 39,
+        check_uid: bool = True,
+    ):
+        """Load a folder with DICOM CT images. This variant is more memory efficient than the standard DicomImageStack.
+
+        This is done by loading images from disk on the fly. This assumes all images remain on disk for the lifetime of the instance. This does not
+        need to be true for the original implementation.
+
+        See the documentation for DicomImageStack for parameter descriptions.
+        """
+        self.dtype = dtype
+        self.zip_archive = folder
+        with ZipFile(folder) as zfile:
+            paths = zfile.namelist()
+        # we only want to read the metadata once
+        # so we read it here and then filter and sort
+        metadatas, paths = self._get_path_metadatas(paths)
+
+        # check that at least 1 image was loaded
+        if len(paths) < 1:
+            raise FileNotFoundError(
+                f"No files were found in the specified location: {folder}"
+            )
+
+        # error checking
+        if check_uid:
+            most_common_uid = self._get_common_uid_imgs(metadatas, min_number)
+            metadatas = [m for m in metadatas if m.SeriesInstanceUID == most_common_uid]
+            paths = [
+                p
+                for p, m in zip(paths, metadatas)
+                if m.SeriesInstanceUID == most_common_uid
+            ]
+        # sort according to physical order
+        order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
+        self.metadatas = [metadatas[i] for i in order]
+        self._image_path_keys = [paths[i] for i in order]
+
+    @classmethod
+    def from_zip(cls, zip_path: str | Path, dtype: np.dtype | None = None, **kwargs):
+        # the zip lazy stack assumes a zip file is passed
+        return cls(zip_path, dtype, **kwargs)
+
+    # @profile
+    def _get_path_metadatas(
+        self, names: list[str]
+    ) -> (list[pydicom.Dataset], list[str]):
+        """Get the metadata for the images. This also filters out non-image files."""
+        metadata = []
+        matched_paths = []
+        zfile = ZipFile(self.zip_archive)
+        for name in names:
+            with zfile.open(name) as f:
+                try:
+                    ds = pydicom.dcmread(f, force=True, stop_before_pixels=True)
+                    if "Image Storage" in ds.SOPClassUID.name:
+                        metadata.append(ds)
+                        matched_paths.append(name)
+                except (InvalidDicomError, AttributeError, MemoryError):
+                    pass
+        return metadata, matched_paths
+
+    def __getitem__(self, item: int) -> DicomImage:
+        with ZipFile(self.zip_archive) as zfile:
+            with io.BytesIO(zfile.open(self._image_path_keys[item]).read()) as f:
+                return DicomImage(f, dtype=self.dtype)
+
+    def __setitem__(self, key: int, value: DicomImage):
+        """Save the passed image to disk in place of the current image."""
+        zip_archive_path = self._image_path_keys[key]
+        temp_zip_path = self.zip_archive + ".temp"
+
+        with zipfile.ZipFile(self.zip_archive, "r") as zin:
+            with zipfile.ZipFile(temp_zip_path, "w", compression=ZIP_LZMA) as zout:
+                # Iterate over the original ZIP file
+                for item in zin.infolist():
+                    if item.filename != zip_archive_path:
+                        # Copy original files except the target file
+                        buffer = zin.read(item.filename)
+                        zout.writestr(item, buffer)
+                    else:
+                        # Add the replacement file
+                        with io.BytesIO() as stream:
+                            value.save(stream)
+                            zout.writestr(
+                                data=stream.getvalue(),
+                                zinfo_or_arcname=zip_archive_path,
+                            )
+
+        # Replace the original ZIP with the updated ZIP
+        shutil.move(temp_zip_path, self.zip_archive)
+
+    def __delitem__(self, key):
+        """Delete the image from the stack and OS."""
+        to_delete_path = self._image_path_keys[key]
+        temp_zip_path = self.zip_archive + ".temp"
+
+        with zipfile.ZipFile(self.zip_archive, "r") as zin:
+            with zipfile.ZipFile(temp_zip_path, "w", compression=ZIP_LZMA) as zout:
+                # Iterate over the original ZIP file
+                for item in zin.infolist():
+                    if item.filename != to_delete_path:
+                        # Copy original files except the target file
+                        buffer = zin.read(item.filename)
+                        zout.writestr(item, buffer)
+
+        # Replace the original ZIP with the updated ZIP
+        shutil.move(temp_zip_path, self.zip_archive)
+        self._image_path_keys.pop(key)
 
 
 class DicomImageStack(LazyDicomImageStack):
