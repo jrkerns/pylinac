@@ -404,8 +404,7 @@ class Slice:
         )[0]
         is_too_large = self.catphan_size * 1.3 < catphan_region.filled_area
         is_too_small = catphan_region.filled_area < self.catphan_size / 1.3
-        not_symmetric = not is_symmetric(catphan_region)
-        if is_too_small or is_too_large or not_symmetric:
+        if is_too_small or is_too_large:
             raise ValueError("Unable to find ROI of expected size of the phantom")
         return catphan_region
 
@@ -2913,16 +2912,6 @@ class CatPhan600(CatPhanBase):
         if abs(angle) < 10:
             return angle
         return angle + 75
-
-
-def is_symmetric(region: RegionProperties, tolerance: float = 0.3) -> bool:
-    """Check symmetry of ROI by comparing x-axis size to y-axis size"""
-    ymin, xmin, ymax, xmax = region.bbox
-    y = abs(ymax - ymin)
-    x = abs(xmax - xmin)
-    if x > y * (1 + tolerance) or x < y * (1 - tolerance):
-        return False
-    return True
 
 
 def get_regions(

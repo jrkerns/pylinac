@@ -395,3 +395,16 @@ class TestCIRS062MButsonEmptyButoOuter(CheeseMixin, TestCase):
         "16": 214,
         "17": 856,
     }
+
+
+class TestCIRS062MShifted(CheeseMixin, TestCase):
+    model = CIRS062M
+    origin_slice = 30
+    dir_path = ["Tomo", "CIRS062M"]
+    file_name = "CIRS bad, shifted.zip"
+    expected_roll = -0.55
+    hu_values = {
+        "1": -3,
+        "8": 45,
+        "17": -489,
+    }
