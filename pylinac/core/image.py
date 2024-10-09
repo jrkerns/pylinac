@@ -11,6 +11,7 @@ import re
 import shutil
 import warnings
 import zipfile
+import zlib
 from collections import Counter
 from collections.abc import Iterable, Sequence
 from datetime import datetime
@@ -1849,8 +1850,9 @@ class LazyZipDicomImageStack(LazyDicomImageStack):
         See the documentation for DicomImageStack for parameter descriptions.
         """
         self.dtype = dtype
-        self.zip_archive = folder
-        with ZipFile(folder) as zfile:
+        self.zip_archive = Path(folder)
+        self.shadow_images = {}
+        with ZipFile(self.zip_archive) as zfile:
             paths = zfile.namelist()
         # we only want to read the metadata once
         # so we read it here and then filter and sort
@@ -1875,13 +1877,22 @@ class LazyZipDicomImageStack(LazyDicomImageStack):
         order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
         self.metadatas = [metadatas[i] for i in order]
         self._image_path_keys = [paths[i] for i in order]
+        self.create_shadow(paths)
 
     @classmethod
     def from_zip(cls, zip_path: str | Path, dtype: np.dtype | None = None, **kwargs):
         # the zip lazy stack assumes a zip file is passed
         return cls(zip_path, dtype, **kwargs)
 
-    # @profile
+    def create_shadow(self, paths: list[str]):
+        with ZipFile(self.zip_archive) as zfile:
+            for path in paths:
+                with zfile.open(path) as file:
+                    data = file.read()
+                    self.shadow_images[path] = {
+                        "data": zlib.compress(data),
+                    }
+
     def _get_path_metadatas(
         self, names: list[str]
     ) -> (list[pydicom.Dataset], list[str]):
@@ -1901,34 +1912,17 @@ class LazyZipDicomImageStack(LazyDicomImageStack):
         return metadata, matched_paths
 
     def __getitem__(self, item: int) -> DicomImage:
-        with ZipFile(self.zip_archive) as zfile:
-            with io.BytesIO(zfile.open(self._image_path_keys[item]).read()) as f:
-                return DicomImage(f, dtype=self.dtype)
+        data = self.shadow_images[self._image_path_keys[item]]
+        image = io.BytesIO(zlib.decompress(data["data"]))
+        return DicomImage(image, dtype=self.dtype)
 
     def __setitem__(self, key: int, value: DicomImage):
         """Save the passed image to disk in place of the current image."""
-        zip_archive_path = self._image_path_keys[key]
-        temp_zip_path = self.zip_archive + ".temp"
-
-        with zipfile.ZipFile(self.zip_archive, "r") as zin:
-            with zipfile.ZipFile(temp_zip_path, "w", compression=ZIP_LZMA) as zout:
-                # Iterate over the original ZIP file
-                for item in zin.infolist():
-                    if item.filename != zip_archive_path:
-                        # Copy original files except the target file
-                        buffer = zin.read(item.filename)
-                        zout.writestr(item, buffer)
-                    else:
-                        # Add the replacement file
-                        with io.BytesIO() as stream:
-                            value.save(stream)
-                            zout.writestr(
-                                data=stream.getvalue(),
-                                zinfo_or_arcname=zip_archive_path,
-                            )
-
-        # Replace the original ZIP with the updated ZIP
-        shutil.move(temp_zip_path, self.zip_archive)
+        with io.BytesIO() as stream:
+            value.save(stream)
+            self.shadow_images[self._image_path_keys[key]] = {
+                "data": zlib.compress(stream.getvalue()),
+            }
 
     def __delitem__(self, key):
         """Delete the image from the stack and OS."""
