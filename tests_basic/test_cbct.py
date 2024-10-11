@@ -1773,6 +1773,86 @@ class CatPhan604CoCr(CatPhan604Mixin, TestCase):
     lowcon_visible = 2
 
 
+@mark.directdensity
+@mark.catphan604
+class CatPhan604SliceRefinementLocalization(CatPhan604Mixin, TestCase):
+    """A crazy scenario where the refinement algorithm failed due to the wire being at the edge of the
+    "long_profile". Also, this is a direct density scan.
+    """
+
+    file_name = "CatPhan604 - ramp edge.zip"
+    hu_origin_variance = 200
+    origin_slice = 71
+    hu_values = {
+        "Poly": -67,
+        "Acrylic": 94,
+        "Delrin": 114,
+        "Air": -997,
+        "Teflon": 364,
+        "PMP": -212,
+        "LDPE": -129,
+        "50% Bone": 335,
+        "20% Bone": 104,
+    }
+    thickness_slice_straddle = 0
+    slice_thickness = 2.35
+    unif_values = {"Center": -18, "Left": -17, "Right": -17, "Top": -17, "Bottom": -18}
+    mtf_values = {50: 0.30}
+    lowcon_visible = 6
+
+
+@mark.directdensity
+@mark.catphan604
+class CatPhan604DD2(CatPhan604Mixin, TestCase):
+    """Direct density scan"""
+
+    file_name = "CatPhan604 - DD2.zip"
+    hu_origin_variance = 200
+    origin_slice = 74
+    hu_values = {
+        "Poly": -36,
+        "Acrylic": 118,
+        "Delrin": 191,
+        "Air": -1017,
+        "Teflon": 540,
+        "PMP": -187,
+        "LDPE": -97,
+        "50% Bone": 380,
+        "20% Bone": 124,
+    }
+    thickness_slice_straddle = 0
+    slice_thickness = 2.35
+    unif_values = {"Center": 9, "Left": 9, "Right": 9, "Top": 9, "Bottom": 9}
+    mtf_values = {50: 0.30}
+    lowcon_visible = 6
+
+
+@mark.directdensity
+@mark.catphan604
+class CatPhan604DD3(CatPhan604Mixin, TestCase):
+    """Direct density scan"""
+
+    file_name = "CatPhan604 - DD3.zip"
+    hu_origin_variance = 200
+    origin_slice = 71
+    hu_values = {
+        "Poly": -65,
+        "Acrylic": 95,
+        "Delrin": 115,
+        "Air": -999,
+        "Teflon": 363,
+        "PMP": -212,
+        "LDPE": -125,
+        "50% Bone": 335,
+        "20% Bone": 105,
+    }
+    thickness_slice_straddle = 0
+    slice_thickness = 2.35
+    unif_values = {"Center": -20, "Left": -20, "Right": -20, "Top": -20, "Bottom": -20}
+    mtf_values = {50: 0.30}
+    lowcon_visible = 6
+
+
 class CatPhan504NearEdge(CatPhan504Mixin, TestCase):
     file_name = "phantom_edge.zip"
     expected_roll = 1.4

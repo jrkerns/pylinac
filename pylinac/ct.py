@@ -404,8 +404,7 @@ class Slice:
         )[0]
         is_too_large = self.catphan_size * 1.3 < catphan_region.filled_area
         is_too_small = catphan_region.filled_area < self.catphan_size / 1.3
-        not_symmetric = not is_symmetric(catphan_region)
-        if is_too_small or is_too_large or not_symmetric:
+        if is_too_small or is_too_large:
             raise ValueError("Unable to find ROI of expected size of the phantom")
         return catphan_region
 
@@ -2823,6 +2822,9 @@ class CatPhan604(CatPhanBase):
                     "angle": angle,
                     "left width": troi["Left"].long_profile.field_width_px,
                     "right width": troi["Right"].long_profile.field_width_px,
+                    # the values AT the FWXM
+                    "left center": troi["Left"].long_profile.y_at_x(left_wire),
+                    "right center": troi["Right"].long_profile.y_at_x(right_wire),
                     "left profile": troi["Left"].long_profile.values,
                     "right profile": troi["Right"].long_profile.values,
                 }
@@ -2858,11 +2860,9 @@ class CatPhan604(CatPhanBase):
                 continue
             # if the max pixel value of the angle set is closer to the overall median than the max
             # it means the wire isn't in the slice; drop it
-            max_pixel = max(
-                angle_set["left profile"].max(), angle_set["right profile"].max()
-            )
-            delta_median = abs(median_pixel_val - max_pixel)
-            delta_max = abs(max_pixel_val - max_pixel)
+            fwxm_pixel = np.mean((angle_set["left center"], angle_set["right center"]))
+            delta_median = abs(median_pixel_val - fwxm_pixel)
+            delta_max = abs(max_pixel_val - fwxm_pixel)
             if delta_median < delta_max:
                 angles.remove(angle_set)
 
@@ -2913,16 +2913,6 @@ class CatPhan600(CatPhanBase):
         if abs(angle) < 10:
             return angle
         return angle + 75
-
-
-def is_symmetric(region: RegionProperties, tolerance: float = 0.3) -> bool:
-    """Check symmetry of ROI by comparing x-axis size to y-axis size"""
-    ymin, xmin, ymax, xmax = region.bbox
-    y = abs(ymax - ymin)
-    x = abs(xmax - xmin)
-    if x > y * (1 + tolerance) or x < y * (1 - tolerance):
-        return False
-    return True
 
 
 def get_regions(
