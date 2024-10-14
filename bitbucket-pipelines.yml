@@ -39,7 +39,7 @@ definitions:
     - step: &cbct-tests
         name: Run CBCT Tests
         script:
-          - uv run --locked pytest tests_basic/test_cbct.py -n 4 --cov=pylinac.cbct --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_cbct.py -n 4 --cov=pylinac.cbct --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -51,7 +51,7 @@ definitions:
     - step: &quart-tests
         name: Run Quart Tests
         script:
-          - uv run --locked pytest tests_basic/test_quart.py --cov=pylinac.quart --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_quart.py --cov=pylinac.quart --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -64,7 +64,7 @@ definitions:
     - step: &acr-tests
         name: Run ACR CT/MRI Tests
         script:
-          - uv run --locked pytest tests_basic/test_acr.py --cov=pylinac.acr --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_acr.py --cov=pylinac.acr --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -77,7 +77,7 @@ definitions:
     - step: &cheese-tests
         name: Run Cheese Phantom Tests
         script:
-          - uv run --locked pytest tests_basic/test_cheese.py --cov=pylinac.cheese --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_cheese.py --cov=pylinac.cheese --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -90,7 +90,7 @@ definitions:
     - step: &planar-tests
         name: Run Planar Imaging Tests
         script:
-          - uv run --locked pytest tests_basic/test_planar_imaging.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_planar_imaging.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -102,7 +102,7 @@ definitions:
     - step: &dlg-tests
         name: Run DLG Tests
         script:
-          - uv run --locked pytest tests_basic/test_dlg.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_dlg.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -114,7 +114,7 @@ definitions:
     - step: &field-analysis-tests
         name: Run Field Analysis Tests
         script:
-          - uv run --locked pytest tests_basic/test_field_analysis.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_field_analysis.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -126,7 +126,7 @@ definitions:
     - step: &machine-log-tests
         name: Run Machine Logs Tests
         script:
-          - uv run --locked pytest tests_basic/test_logs.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_logs.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -138,7 +138,7 @@ definitions:
     - step: &picket-fence-tests
         name: Run Picket Fence Tests
         script:
-          - uv run --locked pytest tests_basic/test_picketfence.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_picketfence.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -150,7 +150,7 @@ definitions:
     - step: &starshot-tests
         name: Run Starshot Tests
         script:
-          - uv run --locked pytest tests_basic/test_starshot.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_starshot.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -162,7 +162,7 @@ definitions:
     - step: &calibration-tests
         name: Run TG-51/TRS-398 Tests
         script:
-          - uv run --locked pytest tests_basic/test_tg51.py tests_basic/test_trs398.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_tg51.py tests_basic/test_trs398.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -175,7 +175,7 @@ definitions:
     - step: &vmat-tests
         name: Run VMAT Tests
         script:
-          - uv run --locked pytest tests_basic/test_vmat.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_vmat.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -188,7 +188,7 @@ definitions:
         name: Run Winston-Lutz Tests
         size: 2x
         script:
-          - uv run --locked pytest tests_basic/test_winstonlutz.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_winstonlutz.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
           changesets:
             includePaths:
@@ -199,7 +199,7 @@ definitions:
         name: Run Winston-Lutz Multi-Target Multi-Field Tests
         size: 2x
         script:
-          - uv run --locked pytest tests_basic/test_winstonlutz_mtmf.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_winstonlutz_mtmf.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
           changesets:
             includePaths:
@@ -209,7 +209,7 @@ definitions:
     - step: &plan-generator-tests
         name: Plan generator tests
         script:
-          - uv run --locked pytest tests_basic/test_plan_generator.py tests_basic/test_generated_plans.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_plan_generator.py tests_basic/test_generated_plans.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
             changesets:
                 includePaths:
@@ -220,7 +220,7 @@ definitions:
     - step: &core-module-tests
         name: Run core module tests
         script:
-          - uv run --locked pytest tests_basic/core --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/core --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -238,7 +238,7 @@ definitions:
           - tar -xf gcloud_cli.tar.gz
           - ./google-cloud-sdk/install.sh --quiet
           - export PATH="./google-cloud-sdk/bin:$PATH"
-          - uv run --locked nox -s update_dev_kraken
+          - uv run nox -s update_dev_kraken
     - step: &run-min-python-version
         name: Run against min Python version
         image: ghcr.io/astral-sh/uv:python3.9-bookworm-slim
