@@ -1,13 +1,13 @@
 import sys
-from functools import wraps
 import types
-
 import warnings
+from functools import wraps
 from threading import Lock
 
 
 class WarningCollectorMixin:
     """A mixin class that captures warnings emitted by its methods."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._captured_warnings: list[dict] = []
@@ -27,8 +27,10 @@ class WarningCollectorMixin:
         with self._warnings_lock:
             self._captured_warnings.clear()
 
+
 def capture_warnings_method_wrapper(method: callable) -> callable:
     """Decorator to capture warnings emitted by the decorated method."""
+
     @wraps(method)
     def wrapper(self, *args, **kwargs):
         with warnings.catch_warnings(record=True) as w:
@@ -40,11 +42,11 @@ def capture_warnings_method_wrapper(method: callable) -> callable:
             captured = []
             for warning in w:
                 warning_info = {
-                    'message': str(warning.message),
-                    'category': warning.category.__name__,
-                    'filename': warning.filename,
-                    'lineno': warning.lineno,
-                    'line': warning.line
+                    "message": str(warning.message),
+                    "category": warning.category.__name__,
+                    "filename": warning.filename,
+                    "lineno": warning.lineno,
+                    "line": warning.line,
                 }
                 captured.append(warning_info)
             # Add captured warnings to the mixin's list
@@ -58,9 +60,10 @@ def capture_warnings_method_wrapper(method: callable) -> callable:
                 filename=warning.filename,
                 lineno=warning.lineno,
                 file=sys.stderr,
-                line=warning.line
+                line=warning.line,
             )
         return result
+
     return wrapper
 
 

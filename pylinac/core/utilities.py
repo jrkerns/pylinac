@@ -16,12 +16,12 @@ from typing import BinaryIO, Generic, Literal, TypeVar
 
 import numpy as np
 import pydicom
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 from quaac import Attachment, DataPoint, Document, Equipment, User
 
-from .warnings import WarningCollectorMixin
 from .. import __version__, version
 from .scale import wrap360
+from .warnings import WarningCollectorMixin
 
 
 def convert_to_enum(value: str | Enum | None, enum: type[Enum]) -> Enum:
@@ -61,15 +61,9 @@ class ResultBase(BaseModel):
     )
     warnings: list[dict] = Field(
         title="Warnings",
-        description="Warnings that occurred during the analysis.",
+        description="Code warnings that occurred during the analysis.",
+        default_factory=list,
     )
-
-    # @model_validator(mode='after')
-    # def populate_warnings(cls, values):
-    #     # Implement logic to collect warnings
-    #     # For demonstration, returning a static list
-    #     values.warnings = cls.compute_warnings()
-    #     return values
 
 
 T = TypeVar("T")
