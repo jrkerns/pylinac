@@ -2,6 +2,7 @@ import math
 from unittest import TestCase, skip
 
 import numpy as np
+from parameterized import parameterized
 
 from pylinac.core.gamma import _compute_distance, gamma_1d, gamma_2d, gamma_geometric
 from pylinac.core.image import DicomImage
@@ -439,6 +440,53 @@ class TestGammaGeometric(TestCase):
         eval = np.ones((5, 5))
         with self.assertRaises(ValueError):
             gamma_geometric(reference=ref, evaluation=eval)
+
+    @parameterized.expand(
+        [
+            (1, 50),
+            (2, 50),
+            (3, 100),
+            (4, 100),
+            (5, 100),
+        ]
+    )
+    def test_distance_scaling(self, dist: float, pass_rate: float):
+        # see RAM-3754
+        ref = np.asarray([0, 0.5, 1, 1, 1, 1])
+        # eval is 3mm off. We want to test that gamma is <100 <3mm, then goes to 100 when we reach >=3mm
+        eval = np.asarray([0, 0, 0, 0, 0.5, 1])
+        # for dist in range(1, 5):
+        gamma = gamma_geometric(
+            reference=ref,
+            evaluation=eval,
+            dose_to_agreement=0.1,  # large dose to ensure it's not the limiting factor
+            distance_to_agreement=dist,
+        )
+        valid_elements = gamma[~np.isnan(gamma)]
+        measured_pass_rate = 100 * (np.sum(valid_elements < 1) / len(valid_elements))
+        self.assertAlmostEqual(measured_pass_rate, pass_rate, delta=1)
+
+    def test_positive_distance_to_agreement(self):
+        ref = np.ones(5)
+        eval = np.ones(5)
+        with self.assertRaises(ValueError):
+            gamma_geometric(
+                reference=ref,
+                evaluation=eval,
+                dose_to_agreement=1,
+                distance_to_agreement=-1,
+            )
+
+    def test_postive_dose_to_agreement(self):
+        ref = np.ones(5)
+        eval = np.ones(5)
+        with self.assertRaises(ValueError):
+            gamma_geometric(
+                reference=ref,
+                evaluation=eval,
+                dose_to_agreement=-1,
+                distance_to_agreement=1,
+            )
 
 
 class TestGamma1D(TestCase):
