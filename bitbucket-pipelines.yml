@@ -38,7 +38,6 @@ definitions:
               - "*.rst"
     - step: &cbct-tests
         name: Run CBCT Tests
-        size: 2x
         script:
           - uv run --locked pytest tests_basic/test_cbct.py -n 2 --cov=pylinac.cbct --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
