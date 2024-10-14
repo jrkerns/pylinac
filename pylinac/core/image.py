@@ -8,9 +8,7 @@ import json
 import os
 import os.path as osp
 import re
-import shutil
 import warnings
-import zipfile
 import zlib
 from collections import Counter
 from collections.abc import Iterable, Sequence
@@ -19,7 +17,7 @@ from functools import cached_property
 from io import BufferedReader, BytesIO
 from pathlib import Path
 from typing import Any, BinaryIO, Union
-from zipfile import ZIP_LZMA, ZipFile
+from zipfile import ZipFile
 
 import argue
 import matplotlib.pyplot as plt
@@ -1834,7 +1832,6 @@ class LazyZipDicomImageStack(LazyDicomImageStack):
     the archive is NOT extracted to disk. The most memory-efficient for use cases
     like Cloud Run where disk=memory"""
 
-    # @profile
     def __init__(
         self,
         folder: str | Path,
@@ -1924,23 +1921,10 @@ class LazyZipDicomImageStack(LazyDicomImageStack):
                 "data": zlib.compress(stream.getvalue()),
             }
 
-    def __delitem__(self, key):
-        """Delete the image from the stack and OS."""
-        to_delete_path = self._image_path_keys[key]
-        temp_zip_path = self.zip_archive + ".temp"
-
-        with zipfile.ZipFile(self.zip_archive, "r") as zin:
-            with zipfile.ZipFile(temp_zip_path, "w", compression=ZIP_LZMA) as zout:
-                # Iterate over the original ZIP file
-                for item in zin.infolist():
-                    if item.filename != to_delete_path:
-                        # Copy original files except the target file
-                        buffer = zin.read(item.filename)
-                        zout.writestr(item, buffer)
-
-        # Replace the original ZIP with the updated ZIP
-        shutil.move(temp_zip_path, self.zip_archive)
-        self._image_path_keys.pop(key)
+    def __delitem__(self, key: int):
+        """Delete the image from the shadow object"""
+        full_key = self._image_path_keys.pop(key)
+        self.shadow_images.pop(full_key)
 
 
 class DicomImageStack(LazyDicomImageStack):

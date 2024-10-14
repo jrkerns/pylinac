@@ -1779,11 +1779,12 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         if isinstance(folderpath, (str, Path)) and not is_zip:
             if not osp.isdir(folderpath):
                 raise NotADirectoryError("Path given was not a Directory/Folder")
-        stack = (
-            image.DicomImageStack
-            if not memory_efficient_mode
-            else image.LazyZipDicomImageStack
-        )
+        if not memory_efficient_mode:
+            stack = image.DicomImageStack
+        elif memory_efficient_mode and is_zip:
+            stack = image.LazyZipDicomImageStack
+        else:
+            stack = image.LazyDicomImageStack
         if is_zip:
             self.dicom_stack = stack.from_zip(
                 folderpath, check_uid=check_uid, min_number=self.min_num_images
@@ -1794,10 +1795,10 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             )
 
     @classmethod
-    def from_demo_images(cls, memory_efficient_mode: bool = False):
+    def from_demo_images(cls):
         """Construct a CBCT object from the demo images."""
         demo_file = retrieve_demo_file(name=cls._demo_url)
-        return cls.from_zip(demo_file, memory_efficient_mode=memory_efficient_mode)
+        return cls.from_zip(demo_file)
 
     @classmethod
     def from_url(cls, url: str, check_uid: bool = True):

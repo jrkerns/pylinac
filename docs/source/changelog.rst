@@ -10,6 +10,16 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.29.0
+--------
+
+CT
+^^
+
+* There is a new parameter for CT-like constructor classes: ``is_zip``. This is mostly an internal
+  flag and is used when calling the ``.from_zip`` method. The default is ``False``. This is backwards-compatible
+  and should not affect users. This was done for internal refactoring reasons.
+
 v 3.28.0
 --------
 
