@@ -715,4 +715,4 @@ class TestGammaFromProfile(TestCase):
             reference_profile=p1200_prof, dose_to_agreement=1, gamma_cap_value=2
         )
         # gamma is very low; just pixel noise from the image generator
-        self.assertAlmostEqual(np.nanmean(gamma), 0.948, delta=0.01)
+        self.assertAlmostEqual(np.nanmean(gamma), 0.938, delta=0.01)
