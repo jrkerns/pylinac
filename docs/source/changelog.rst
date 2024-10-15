@@ -18,7 +18,7 @@ TRS-398
 
 * :bdg-danger:`Change` The air reference value for ``k_tp`` has been changed to 20C from 22C. Previously,
   the reference value was assumed to be the same from AAPM TG-51, but this is incorrect per Table 9.
-  TRS-398 ``k_tp`` values will be different: 0.7% lower. A user warning has also been added when calling
+  TRS-398 ``k_tp`` values will be different: 0.7% lower. This results in an absorbed dose increase of ~0.7% at dmax. A user warning has also been added when calling
   ``k_tp`` describing this change.
 
   .. danger::

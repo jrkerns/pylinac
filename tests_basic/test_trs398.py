@@ -180,8 +180,8 @@ class MDA_TB2_2015_15x(TRS398Photon, TestCase):
     m_reference = 29.28
     m_opposite = -29.33
     m_reduced = 29.10
-    dose_mu_zref = 0.779
-    dose_mu_zmax = 1.007
+    dose_mu_zref = 0.785
+    dose_mu_zmax = 1.014
     clinical_pdd_zref = 77.4
     tpr2010 = 0.762
 
@@ -196,8 +196,8 @@ class MDA_TB1_2015_10x(TRS398Photon, TestCase):
     m_opposite = 27.784
     m_reduced = 27.635
     clinical_pdd_zref = 73.5
-    dose_mu_zref = 0.734
-    dose_mu_zmax = 0.998
+    dose_mu_zref = 0.7386
+    dose_mu_zmax = 1.005
     tpr2010 = (73.42 / 73.7) * trs398.tpr2010_from_pdd2010(pdd2010=46.3 / 73.7)
     # open_pdf = True
     # print_data = True
@@ -213,16 +213,16 @@ class ACB5_2011_6x(TRS398Photon, TestCase):
     m_reduced = 24.79
     clinical_pdd_zref = 66.8
     tissue_correction = 0.99
-    dose_mu_zref = 0.673
-    dose_mu_zmax = 1.007
+    dose_mu_zref = 0.677
+    dose_mu_zmax = 1.014
 
     def test_zmax_adjusted(self):
         self.trs398.m_reference_adjusted = 24.65
-        self.assertAlmostEqual(self.trs398.dose_mu_zmax_adjusted, 1.000, delta=0.0005)
+        self.assertAlmostEqual(self.trs398.dose_mu_zmax_adjusted, 1.007, delta=0.0005)
 
     def test_zref_adjusted(self):
         self.trs398.m_reference_adjusted = 24.65
-        self.assertAlmostEqual(self.trs398.dose_mu_zref_adjusted, 0.668, delta=0.0005)
+        self.assertAlmostEqual(self.trs398.dose_mu_zref_adjusted, 0.6725, delta=0.0005)
 
 
 class ACB5_2012_6X(TRS398Photon, TestCase):
@@ -235,8 +235,8 @@ class ACB5_2012_6X(TRS398Photon, TestCase):
     clinical_pdd_zref = 66.8
     tpr2010 = trs398.tpr2010_from_pdd2010(pdd2010=38.4 / 66.8)
     tissue_correction = 0.99
-    dose_mu_zref = 0.679
-    dose_mu_zmax = 1.0159
+    dose_mu_zref = 0.683
+    dose_mu_zmax = 1.023
 
 
 class ACB5_2012_18X(TRS398Photon, TestCase):
@@ -250,8 +250,8 @@ class ACB5_2012_18X(TRS398Photon, TestCase):
     m_reduced = 30.50
     clinical_pdd_zref = 79.7
     tissue_correction = 0.99
-    dose_mu_zref = 0.807
-    dose_mu_zmax = 1.0125
+    dose_mu_zref = 0.813
+    dose_mu_zmax = 1.0198
 
 
 class IMMCTB_6FFF(TRS398Photon, TestCase):
@@ -266,8 +266,8 @@ class IMMCTB_6FFF(TRS398Photon, TestCase):
     m_reduced = 11.533
     clinical_pdd_zref = 63.5
     mu = 100
-    dose_mu_zref = 0.638
-    dose_mu_zmax = 1.005
+    dose_mu_zref = 0.642
+    dose_mu_zmax = 1.0116
     print_data = True
 
 
@@ -283,8 +283,8 @@ class IMMCTB_10FFF(TRS398Photon, TestCase):
     tpr2010 = trs398.tpr2010_from_pdd2010(pdd2010=(43 / 71.2))
     clinical_pdd_zref = 71.1
     mu = 100
-    dose_mu_zref = 0.712
-    dose_mu_zmax = 1.0005
+    dose_mu_zref = 0.7165
+    dose_mu_zmax = 1.0077
     # open_pdf = True
 
 
@@ -299,8 +299,8 @@ class IMMCTB_15X(TRS398Photon, TestCase):
     clinical_pdd_zref = 76.7
     tpr2010 = trs398.tpr2010_from_pdd2010(pdd2010=(49.9 / 76.9)) * (76.79 / 76.9)
     mu = 100
-    dose_mu_zref = 0.770
-    dose_mu_zmax = 1.004
+    dose_mu_zref = 0.775
+    dose_mu_zmax = 1.011
     # print_data = True
     # open_pdf = True
 
@@ -318,5 +318,5 @@ class IMMC_TB_20E(TRS398Electron, TestCase):
     m_reduced = 19.437 * 0.99354
     i_50 = 8.22
     clinical_pdd_zref = 96.8
-    dose_mu_zref = 0.972
-    dose_mu_zmax = 1.004
+    dose_mu_zref = 0.979
+    dose_mu_zmax = 1.011
