@@ -89,7 +89,7 @@ class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
         self.assertIsInstance(data, VMATResult)
         self.assertEqual(data.test_type, instance._result_header)
         data_dict = instance.results_data(as_dict=True)
-        self.assertEqual(len(data_dict), 9)
+        self.assertEqual(len(data_dict), 10)
 
         data_dict = instance.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
