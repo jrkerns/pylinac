@@ -43,7 +43,7 @@ Gamma
 
 * :bdg-warning:`Fixed` Geometric gamma was incorrectly calculating the minimum threshold to evaluate over due to scaling of the dataset by the
   dose to agreement. E.g. if the dose to agreement was 2mm, the minimum threshold for evaluating gamma
-  would be 20% of the dose. This would cause evaluation over the dataset than desired.
+  would be 20% of the dose. This would cause the evaluation points calculated over to be fewer than desired.
 * :bdg-warning:`Fixed` Geometric gamma was incorrectly calculating the gamma value for the distance to agreement due to a lack of scaling
   by the distance to agreement. This would cause gamma values to be much higher than expected and thus gamma
   pass rates to be lower than expected.
