@@ -2,6 +2,7 @@ import copy
 from unittest import TestCase
 
 from argue import BoundsError
+from parameterized import parameterized
 
 from pylinac.calibration import trs398
 from tests_basic.utils import save_file
@@ -57,6 +58,18 @@ class TestFunctions(TestCase):
             self.assertAlmostEqual(
                 trs398.kq_electron(chamber=model, r_50=r_50), kq, delta=0.001
             )
+
+    @parameterized.expand(
+        [
+            (15, 101.3, 0.983),
+            (18, 101.3, 0.993),
+            (22, 101.3, 1.007),
+            (26, 101.3, 1.020),
+            (20, 110, 0.921),
+        ]
+    )
+    def test_k_tp(self, temp, press, ktp):
+        self.assertAlmostEqual(trs398.k_tp(temp=temp, press=press), ktp, delta=0.001)
 
 
 class TRS398Base:

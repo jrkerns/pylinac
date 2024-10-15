@@ -1,3 +1,4 @@
+import warnings
 import webbrowser
 from abc import ABC
 from datetime import datetime
@@ -10,7 +11,13 @@ from ..core.pdf import PylinacCanvas
 from ..core.typing import NumberOrArray
 from ..core.utilities import Structure, is_close
 from . import tg51 as _tg51
-from .tg51 import MAX_PPOL  # make available to module
+from .tg51 import (
+    MAX_PPOL,
+    MIN_TEMP,
+    MAX_TEMP,
+    MIN_PRESSURE,
+    MAX_PRESSURE,
+)  # make available to module
 from .tg51 import (
     MAX_PELEC,
     MAX_PION,
@@ -560,10 +567,45 @@ KQ_ELECTRON_CHAMBERS = {
 }
 
 # Rename common functions from TG-51
-k_tp = _tg51.p_tp
 k_pol = _tg51.p_pol
 z_ref = _tg51.d_ref
 r_50 = _tg51.r_50
+
+
+def k_tp(*, temp: float, press: float) -> float:
+    """Calculate the temperature & pressure correction per TRS-398.
+
+    .. note::
+
+        Per Table 9 the reference air temperature is 20°C. This is difference than AAPM TG-51.
+
+    .. versionchanged:: 3.29
+
+        The reference air temperature is now 20°C from 22
+
+    Parameters
+    ----------
+    temp : float (17-27)
+        The temperature in degrees Celsius.
+    press : float (91-111)
+        The value of pressure in kPa. Can be converted from mmHg and mbar;
+        see :func:`~pylinac.calibration.tg51.mmHg2kPa` and :func:`~pylinac.calibration.tg51.mbar2kPa`.
+    """
+    warnings.warn(
+        "In pylinac v3.29 the reference air temperature was changed from 22 to 20°C to match TRS-398 protocol. This changes k_tp values down by 0.7%.",
+        UserWarning,
+    )
+    argue.verify_bounds(
+        temp,
+        bounds=(MIN_TEMP, MAX_TEMP),
+        message="Temperature {:2.2f} out of range. Did you use Fahrenheit? Consider using the utility function fahrenheit2celsius()",
+    )
+    argue.verify_bounds(
+        press,
+        bounds=(MIN_PRESSURE, MAX_PRESSURE),
+        message="Pressure {:2.2f} out of range. Did you use kPa? Consider using the utility functions mmHg2kPa() or mbar2kPa()",
+    )
+    return ((273.2 + temp) / 293.2) * (101.33 / press)
 
 
 def k_s(

@@ -10,6 +10,23 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.29.0
+--------
+
+TRS-398
+^^^^^^^
+
+* :bdg-danger:`Change` The air reference value for ``k_tp`` has been changed to 20C from 22C. Previously,
+  the reference value was assumed to be the same from AAPM TG-51, but this is incorrect per Table 9.
+  TRS-398 ``k_tp`` values will be different: 0.7% lower. A user warning has also been added when calling
+  ``k_tp`` describing this change.
+
+  .. danger::
+
+    This change will affect all TRS-398 calculations. If you are using TRS-398, please verify that your
+    results are still accurate. We apologize for this oversight; while we try to accurate, bugs to happen.
+    As with any software and and vendor, performing independent validation is critical.
+
 v 3.28.0
 --------
 
