@@ -16,13 +16,13 @@ v 3.28.0
 General
 ^^^^^^^
 
-* The minimum version of Python supported is now 3.9 as the end-of-life of Python 3.8 is October 2024.
-* Along with this, minimum versions of numpy, scipy, and matplotlib have been bumped to versions that support Python 3.9.
+* :bdg-danger:`Change` The minimum version of Python supported is now 3.9 as the end-of-life of Python 3.8 is October 2024.
+* :bdg-danger:`Change` Along with this, minimum versions of numpy, scipy, and matplotlib have been bumped to versions that support Python 3.9.
 
 Plan Generator
 ^^^^^^^^^^^^^^
 
-* The patient name and patient ID can now be passed to the :class:`~pylinac.plan_generator.dicom.PlanGenerator` and :class:`~pylinac.plan_generator.dicom.HalcyonPlanGenerator` classes. This is useful for
+* :bdg-success:`Feature` The patient name and patient ID can now be passed to the :class:`~pylinac.plan_generator.dicom.PlanGenerator` and :class:`~pylinac.plan_generator.dicom.HalcyonPlanGenerator` classes. This is useful for
   setting the patient name and ID in the generated DICOM files.
 
 Starshot
@@ -33,10 +33,21 @@ Starshot
 CT
 ^^
 
-* The Tomo and CatPhan localization algorithm has changed slightly to handle very high HU values such as
+* :bdg-warning:`Fixed` The Tomo and CatPhan localization algorithm has changed slightly to handle very high HU values such as
   bbs and metal rods. In some instances, the HU values were so high the localization algorithm did not
   detect the phantom as it appeared at a background level. Values are now capped to -1000 and +1000 HU.
   Note this is only relevant for localization. HU values are not changed or capped in the analysis itself.
+
+Gamma
+^^^^^
+
+* :bdg-warning:`Fixed` Geometric gamma was incorrectly calculating the minimum threshold to evaluate over due to scaling of the dataset by the
+  dose to agreement. E.g. if the dose to agreement was 2mm, the minimum threshold for evaluating gamma
+  would be 20% of the dose. This would cause the evaluation points calculated over to be fewer than desired.
+* :bdg-warning:`Fixed` Geometric gamma was incorrectly calculating the gamma value for the distance to agreement due to a lack of scaling
+  by the distance to agreement. This would cause gamma values to be much higher than expected and thus gamma
+  pass rates to be lower than expected.
+* :bdg-warning:`Fixed` Dose to agreement and distance to agreement must be greater than 0.
 
 Core
 ^^^^
