@@ -117,7 +117,7 @@ class CheeseModule(CatPhanModule):
             roi.plotly(
                 fig,
                 name=name,
-                color="blue",
+                line_color="blue",
             )
 
 
@@ -248,6 +248,7 @@ class CheesePhantomBase(CatPhanBase, ResultsDataMixin[CheeseResult]):
     roi_config: dict
     module_class: type[CheeseModule]
     module: CheeseModule
+    clip_in_localization = True
 
     def analyze(self, roi_config: dict | None = None) -> None:
         """Analyze the Tomo Cheese phantom.

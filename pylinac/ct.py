@@ -354,6 +354,7 @@ class Slice:
         self.catphan_size = catphan.catphan_size
         self.mm_per_pixel = catphan.mm_per_pixel
         self.clear_borders = clear_borders
+        self.clip_in_localization = catphan.clip_in_localization
         if catphan._phantom_center_func:
             self._phantom_center_func = catphan._phantom_center_func
 
@@ -376,8 +377,22 @@ class Slice:
             raise ValueError(
                 "No edges were found in the image that look like the phantom"
             )
+        # we clip the image to avoid issues where
+        # very high or very low HU values cause
+        # thresholding problems. E.g. a very high HU bb
+        # can make the region detection not see the phantom
+        # I can see this causing problems in the future if the
+        # HU values are insanely off. This also causes issues
+        # with MRI images, which aren't HU values, hence the flag.
+        if self.clip_in_localization:
+            clipped_arr = np.clip(self.image.array, a_min=-1000, a_max=1000)
+        else:
+            clipped_arr = self
         larr, regionprops, num_roi = get_regions(
-            self, fill_holes=True, threshold="otsu", clear_borders=self.clear_borders
+            clipped_arr,
+            fill_holes=True,
+            threshold="otsu",
+            clear_borders=self.clear_borders,
         )
         # check that there is at least 1 ROI
         if num_roi < 1 or num_roi is None:
@@ -387,9 +402,9 @@ class Slice:
         catphan_region = sorted(
             regionprops, key=lambda x: np.abs(x.filled_area - self.catphan_size)
         )[0]
-        if (self.catphan_size * 1.3 < catphan_region.filled_area) or (
-            catphan_region.filled_area < self.catphan_size / 1.3
-        ):
+        is_too_large = self.catphan_size * 1.3 < catphan_region.filled_area
+        is_too_small = catphan_region.filled_area < self.catphan_size / 1.3
+        if is_too_small or is_too_large:
             raise ValueError("Unable to find ROI of expected size of the phantom")
         return catphan_region
 
@@ -540,9 +555,9 @@ class CatPhanModule(Slice):
 
     def plotly_rois(self, fig: go.Figure) -> None:
         for name, roi in self.rois.items():
-            roi.plotly(fig, color=roi.plot_color, name=name)
+            roi.plotly(fig, line_color=roi.plot_color, name=name)
         for name, roi in self.background_rois.items():
-            roi.plotly(fig, color="blue", name=f"{name} Background")
+            roi.plotly(fig, line_color="blue", name=f"{name} Background")
 
     def plot(self, axis: plt.Axes):
         """Plot the image along with ROIs to an axis"""
@@ -749,8 +764,18 @@ class CTP404CP504(CatPhanModule):
         xbounds = (int(self.phan_center.x - boxsize), int(self.phan_center.x + boxsize))
         ybounds = (int(self.phan_center.y - boxsize), int(self.phan_center.y + boxsize))
         geo_img = self.image[ybounds[0] : ybounds[1], xbounds[0] : xbounds[1]]
+        # clip to the nearest of the two extremes
+        # this can arise from direct density scans. In that case the
+        # 1 teflon node will not get detected as the edge intensity is much less than the other nodes (unlike normal)
+        # So, we clip the sub-image to the nearest extreme to the median.
+        # This does very little to normal scans. RAM-4056
+        median = np.median(geo_img)
+        nearest_extreme = min(abs(median - geo_img.max()), abs(median - geo_img.min()))
+        geo_clipped = np.clip(
+            geo_img, a_min=median - nearest_extreme, a_max=median + nearest_extreme
+        )
         larr, regionprops, num_roi = get_regions(
-            geo_img, fill_holes=True, clear_borders=False
+            geo_clipped, fill_holes=True, clear_borders=False
         )
         # check that there is at least 1 ROI
         if num_roi < 4:
@@ -1721,6 +1746,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
     _phantom_center_func: tuple[Callable, Callable] | None = None
     modules: dict[CatPhanModule, dict[str, int]]
     dicom_stack: image.DicomImageStack | image.LazyDicomImageStack
+    clip_in_localization: bool = False
 
     def __init__(
         self,
@@ -1846,7 +1872,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             show_legend=show_legend, show_colorbar=show_colorbar
         )
         figs["HU Linearity"] = self.ctp404.plotly_linearity(show_legend=show_legend)
-        figs["Side View"] = self.plotly_side_view()
+        figs["Side View"] = self.plotly_side_view(show_legend=show_legend)
         if self._has_module(CTP486):
             figs["CTP486"] = self.ctp486.plotly(
                 show_legend=show_legend, show_colorbar=show_colorbar
@@ -1855,9 +1881,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             figs["CTP528"] = self.ctp528.plotly(
                 show_legend=show_legend, show_colorbar=show_colorbar
             )
-            figs["MTF"] = self.ctp528.mtf.plotly(
-                show_legend=show_legend, show_colorbar=show_colorbar
-            )
+            figs["MTF"] = self.ctp528.mtf.plotly(show_legend=show_legend)
         if self._has_module(CTP515):
             figs["CTP515"] = self.ctp515.plotly(
                 show_legend=show_legend, show_colorbar=show_colorbar
@@ -2331,7 +2355,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             except Exception:
                 pass
 
-    def plotly_side_view(self, offset: float = -10) -> go.Figure:
+    def plotly_side_view(self, show_legend: bool) -> go.Figure:
         fig = go.Figure()
         side_array = self.dicom_stack.side_view(axis=1)
         add_title(fig, "Side View")
@@ -2345,6 +2369,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
                 color="blue",
                 name=module.common_name,
             )
+        fig.update_layout(showlegend=show_legend)
         return fig
 
     def plot_side_view(self, axis: Axes) -> None:
@@ -2797,6 +2822,9 @@ class CatPhan604(CatPhanBase):
                     "angle": angle,
                     "left width": troi["Left"].long_profile.field_width_px,
                     "right width": troi["Right"].long_profile.field_width_px,
+                    # the values AT the FWXM
+                    "left center": troi["Left"].long_profile.y_at_x(left_wire),
+                    "right center": troi["Right"].long_profile.y_at_x(right_wire),
                     "left profile": troi["Left"].long_profile.values,
                     "right profile": troi["Right"].long_profile.values,
                 }
@@ -2832,11 +2860,9 @@ class CatPhan604(CatPhanBase):
                 continue
             # if the max pixel value of the angle set is closer to the overall median than the max
             # it means the wire isn't in the slice; drop it
-            max_pixel = max(
-                angle_set["left profile"].max(), angle_set["right profile"].max()
-            )
-            delta_median = abs(median_pixel_val - max_pixel)
-            delta_max = abs(max_pixel_val - max_pixel)
+            fwxm_pixel = np.mean((angle_set["left center"], angle_set["right center"]))
+            delta_median = abs(median_pixel_val - fwxm_pixel)
+            delta_max = abs(max_pixel_val - fwxm_pixel)
             if delta_median < delta_max:
                 angles.remove(angle_set)
 
@@ -2877,8 +2903,15 @@ class CatPhan600(CatPhanBase):
         It may also find the top air ROI if the water vial isn't there.
         We use the below lambda to select the bottom air and teflon ROIs consistently.
         These two ROIs are at 75 degrees from cardinal. We thus offset the default outcome by 75.
+
+        HOWEVER, for direct density scans, the Teflon ROI might not register because of the reduced
+        HU. 🤦‍♂️. We make a best guess depending on the detected roll. If it's ~75 degrees,
+        we have caught the bottom Air and Teflon. If it's near zero, we have
+        caught the top and bottom Air ROIs.
         """
         angle = super().find_phantom_roll(lambda x: -x.centroid[0])
+        if abs(angle) < 10:
+            return angle
         return angle + 75
 
 

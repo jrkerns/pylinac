@@ -463,6 +463,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         figs = {}
         for name, zoom in zip(("Image", "Wobble"), (False, True)):
             fig = self.image.plotly(
+                title="Starshot Analysis",
                 show=False,
                 show_legend=show_legend,
                 show_colorbar=show_colorbar,
@@ -472,7 +473,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
                 line.plotly(fig, color="blue", showlegend=False)
             self.wobble.plotly(
                 fig,
-                color="green",
+                line_color="green",
                 name=f"Wobble Circle {self.wobble.diameter_mm:2.2f}mm",
                 hoverinfo="text",
                 hovertext=f"Wobble diameter: {self.wobble.diameter_mm:2.2f} mm",

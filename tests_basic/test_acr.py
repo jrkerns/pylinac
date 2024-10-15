@@ -15,6 +15,7 @@ from tests_basic.utils import (
     CloudFileMixin,
     FromZipTesterMixin,
     InitTesterMixin,
+    PlotlyTestMixin,
     get_file_from_cloud_test_repo,
     save_file,
 )
@@ -158,12 +159,44 @@ class ACRCTMixin(CloudFileMixin):
             self.assertAlmostEqual(exp_val, meas_val, delta=5)
 
 
-class ACRPhilips(ACRCTMixin, TestCase):
+class ACRPhilips(ACRCTMixin, PlotlyTestMixin, TestCase):
     file_name = "Philips.zip"
     mtf_50 = 0.54
     phantom_roll = -0.3
     hu_values = {"Poly": -87, "Acrylic": 126, "Bone": 904, "Air": -987, "Water": 4}
     unif_values = {"Center": 1, "Left": 1, "Right": 1, "Top": 1, "Bottom": 1}
+    num_figs = 6
+    fig_data = {
+        0: {
+            "title": "HU Linearity",
+            "num_traces": 6,
+        },
+        1: {
+            "title": "HU Uniformity",
+            "num_traces": 6,
+        },
+        2: {
+            "title": "Spatial Resolution",
+            "num_traces": 9,
+        },
+        3: {
+            "title": "Low Contrast",
+            "num_traces": 3,
+        },
+        4: {
+            "title": "Relative MTF",
+            "num_traces": 1,
+            "x_label": "Line pairs / mm",
+            "y_label": "Relative MTF",
+        },
+        5: {
+            "title": "Side View",
+            "num_traces": 5,
+        },
+    }
+
+    def setUp(self) -> None:
+        self.instance = self.ct
 
 
 class ACRPhilipsOffset(ACRCTMixin, TestCase):
@@ -395,7 +428,7 @@ class ACRMRMixin(CloudFileMixin):
             self.assertIn(result, results)
 
 
-class ACRT1Single(ACRMRMixin, TestCase):
+class ACRT1Single(ACRMRMixin, PlotlyTestMixin, TestCase):
     file_name = "T1-Single.zip"
     row_mtf_50 = 0.96
     col_mtf_50 = 0.96
@@ -404,6 +437,20 @@ class ACRT1Single(ACRMRMixin, TestCase):
     slice1_shift = -1
     slice11_shift = 0
     psg = 0.3
+    num_figs = 6
+    fig_data = {
+        0: {"title": "Slice 1 (Thickness, Offset, Resolution)", "num_traces": 13},
+        1: {"title": "Geometric Distortion", "num_traces": 5},
+        5: {
+            "title": "Relative MTF",
+            "num_traces": 2,
+            "x_label": "Line pairs / mm",
+            "y_label": "Relative MTF",
+        },
+    }
+
+    def setUp(self) -> None:
+        self.instance = self.mri
 
 
 class ACRDualEcho(ACRMRMixin, TestCase):

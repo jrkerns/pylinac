@@ -14,6 +14,7 @@ from tests_basic.utils import (
     FromURLTesterMixin,
     FromZipTesterMixin,
     InitTesterMixin,
+    PlotlyTestMixin,
     save_file,
 )
 
@@ -197,17 +198,15 @@ class CheeseMixin(CloudFileMixin):
 
     def test_HU_values(self):
         """Test HU values."""
-        self.assertEqual(len(self.cheese.module.rois.values()), len(self.hu_values))
-        for name, roi in self.cheese.module.rois.items():
-            exp_val = self.hu_values[name]
-            meas_val = roi.pixel_value
-            self.assertAlmostEqual(exp_val, meas_val, delta=5)
+        for roi_num, expected_hu in self.hu_values.items():
+            meas_hu = self.cheese.module.rois[roi_num].pixel_value
+            self.assertAlmostEqual(expected_hu, meas_hu, delta=5)
 
     def test_pdf(self):
         save_file(self.cheese.publish_pdf, "temp")
 
 
-class TestTomoCheeseDemo(CheeseMixin, TestCase):
+class TestTomoCheeseDemo(CheeseMixin, PlotlyTestMixin, TestCase):
     origin_slice = 24
     expected_roll = -0.23
     hu_values = {
@@ -232,11 +231,34 @@ class TestTomoCheeseDemo(CheeseMixin, TestCase):
         "19": 269,
         "20": 14,
     }
+    num_figs = 1
+    fig_data = {
+        0: {
+            "title": "Tomo Cheese",
+            "num_traces": 21,
+        }
+    }
+
+    def setUp(self) -> None:
+        self.instance = self.cheese
 
     @classmethod
     def setUpClass(cls):
         cls.cheese = TomoCheese.from_demo_images()
         cls.cheese.analyze()
+
+
+class TestHighHURodTomo(CheeseMixin, TestCase):
+    dir_path = ["Tomo"]
+    file_name = "High HU rod tomo.zip"
+    origin_slice = 38
+    expected_roll = -0.23
+    hu_values = {
+        "1": -501,
+        "2": -24,
+        "11": -616,
+        "16": 437,
+    }
 
 
 class TestCIRS062MErogluer(CheeseMixin, TestCase):
@@ -372,4 +394,17 @@ class TestCIRS062MButsonEmptyButoOuter(CheeseMixin, TestCase):
         "15": 44,
         "16": 214,
         "17": 856,
+    }
+
+
+class TestCIRS062MShifted(CheeseMixin, TestCase):
+    model = CIRS062M
+    origin_slice = 30
+    dir_path = ["Tomo", "CIRS062M"]
+    file_name = "CIRS bad, shifted.zip"
+    expected_roll = -0.55
+    hu_values = {
+        "1": -3,
+        "8": 45,
+        "17": -489,
     }

@@ -22,6 +22,7 @@ from tests_basic.utils import (
     FromURLTesterMixin,
     FromZipTesterMixin,
     InitTesterMixin,
+    PlotlyTestMixin,
     get_file_from_cloud_test_repo,
     save_file,
 )
@@ -619,6 +620,33 @@ class CatPhan600WaterVial2(CatPhanMixin, TestCase):
         self.assertIn("Vial", self.cbct.ctp404.rois)
 
 
+class CatPhan600DirectDensity(CatPhanMixin, TestCase):
+    """Direct density scan."""
+
+    catphan = CatPhan600
+    dir_path = ["CBCT", "CatPhan_600"]
+    file_name = "Catphan600 direct density.zip"
+    hu_origin_variance = 200
+    expected_roll = -0.25
+    origin_slice = 105
+    hu_values = {
+        "Poly": -35,
+        "Acrylic": 123,
+        "Delrin": 150,
+        "Air": -994,
+        "Teflon": 431,
+        "PMP": -182,
+        "LDPE": -92,
+        "Vial": 63,
+    }
+    hu_passed = False
+    unif_values = {"Center": 11, "Left": 11, "Right": 11, "Top": 11, "Bottom": 11}
+    mtf_values = {50: 0.31}
+    avg_line_length = 50
+    slice_thickness = 2.1
+    lowcon_visible = 6
+
+
 @mark.catphan604
 class CatPhan604Test(CatPhanMixin, TestCase):
     catphan = CatPhan604
@@ -846,7 +874,7 @@ class CBCT1(CatPhan504Mixin, TestCase):
             )
 
 
-class CBCT2(CatPhan504Mixin, TestCase):
+class CBCT2(CatPhan504Mixin, PlotlyTestMixin, TestCase):
     """A Varian CBCT dataset"""
 
     file_name = "CBCT_2.zip"
@@ -867,6 +895,41 @@ class CBCT2(CatPhan504Mixin, TestCase):
     avg_line_length = 49.9
     slice_thickness = 2.4
     avg_noise_power = 0.395
+    num_figs = 7
+    fig_data = {
+        0: {
+            "title": "HU Linearity",
+            "num_traces": 20,
+        },
+        1: {
+            "title": "HU Linearity",
+            "num_traces": 4,
+        },
+        2: {
+            "title": "Side View",
+            "num_traces": 5,
+        },
+        3: {
+            "title": "HU Uniformity",
+            "num_traces": 11,
+        },
+        4: {
+            "title": "Spatial Resolution",
+            "num_traces": 5,
+            "has_legend": False,
+        },
+        5: {
+            "title": "Relative MTF",
+            "num_traces": 1,
+        },
+        6: {
+            "title": "Low Contrast",
+            "num_traces": 19,
+        },
+    }
+
+    def setUp(self) -> None:
+        self.instance = self.cbct
 
 
 class CBCT3(CatPhan504Mixin, TestCase):
@@ -1708,6 +1771,86 @@ class CatPhan604CoCr(CatPhan604Mixin, TestCase):
     unif_values = {"Center": 14, "Left": 14, "Right": 14, "Top": 14, "Bottom": 14}
     mtf_values = {50: 0.30}
     lowcon_visible = 2
+
+
+@mark.directdensity
+@mark.catphan604
+class CatPhan604SliceRefinementLocalization(CatPhan604Mixin, TestCase):
+    """A crazy scenario where the refinement algorithm failed due to the wire being at the edge of the
+    "long_profile". Also, this is a direct density scan.
+    """
+
+    file_name = "CatPhan604 - ramp edge.zip"
+    hu_origin_variance = 200
+    origin_slice = 71
+    hu_values = {
+        "Poly": -67,
+        "Acrylic": 94,
+        "Delrin": 114,
+        "Air": -997,
+        "Teflon": 364,
+        "PMP": -212,
+        "LDPE": -129,
+        "50% Bone": 335,
+        "20% Bone": 104,
+    }
+    thickness_slice_straddle = 0
+    slice_thickness = 2.35
+    unif_values = {"Center": -18, "Left": -17, "Right": -17, "Top": -17, "Bottom": -18}
+    mtf_values = {50: 0.30}
+    lowcon_visible = 6
+
+
+@mark.directdensity
+@mark.catphan604
+class CatPhan604DD2(CatPhan604Mixin, TestCase):
+    """Direct density scan"""
+
+    file_name = "CatPhan604 - DD2.zip"
+    hu_origin_variance = 200
+    origin_slice = 74
+    hu_values = {
+        "Poly": -36,
+        "Acrylic": 118,
+        "Delrin": 191,
+        "Air": -1017,
+        "Teflon": 540,
+        "PMP": -187,
+        "LDPE": -97,
+        "50% Bone": 380,
+        "20% Bone": 124,
+    }
+    thickness_slice_straddle = 0
+    slice_thickness = 2.35
+    unif_values = {"Center": 9, "Left": 9, "Right": 9, "Top": 9, "Bottom": 9}
+    mtf_values = {50: 0.30}
+    lowcon_visible = 6
+
+
+@mark.directdensity
+@mark.catphan604
+class CatPhan604DD3(CatPhan604Mixin, TestCase):
+    """Direct density scan"""
+
+    file_name = "CatPhan604 - DD3.zip"
+    hu_origin_variance = 200
+    origin_slice = 71
+    hu_values = {
+        "Poly": -65,
+        "Acrylic": 95,
+        "Delrin": 115,
+        "Air": -999,
+        "Teflon": 363,
+        "PMP": -212,
+        "LDPE": -125,
+        "50% Bone": 335,
+        "20% Bone": 105,
+    }
+    thickness_slice_straddle = 0
+    slice_thickness = 2.35
+    unif_values = {"Center": -20, "Left": -20, "Right": -20, "Top": -20, "Bottom": -20}
+    mtf_values = {50: 0.30}
+    lowcon_visible = 6
 
 
 class CatPhan504NearEdge(CatPhan504Mixin, TestCase):

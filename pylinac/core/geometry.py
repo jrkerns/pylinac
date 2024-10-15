@@ -249,11 +249,13 @@ class Circle:
     def plotly(
         self,
         fig: go.Figure,
-        color: str = "black",
+        line_color: str = "black",
         fill: bool = False,
         **kwargs,
     ) -> None:
         """Draw the circle on a plotly figure."""
+        # calls to rectangle have this; for duck typing we pop this to avoid plotly errors.
+        kwargs.pop("direction", None)
         # we use scatter so we can have hovertext/info, etc. Easier
         # with add_shape but we don't have the same options. Makes interface more consistent.
         theta = np.linspace(0, 2 * np.pi, 100)
@@ -261,9 +263,9 @@ class Circle:
             x=self.center.x + self.radius * np.cos(theta),
             y=self.center.y + self.radius * np.sin(theta),
             mode="lines",
-            line_color=color,
             fill="toself" if fill else "none",
-            fillcolor=color if fill else "rgba(0,0,0,0)",
+            fillcolor=line_color if fill else "rgba(0,0,0,0)",
+            line_color=line_color,
             **kwargs,
         )
 
