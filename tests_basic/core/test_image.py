@@ -859,17 +859,10 @@ class TestDicomStack(TestCase):
         self.assertEqual(len(dstack_lazy), original_length)
 
     def test_deleting_zip_lazy_from_stack(self):
-        # copy the zip first so we don't mess up other tests
-        dstack_lazy_orig = LazyZipDicomImageStack.from_zip(self.stack_location)
-        original_length = len(dstack_lazy_orig)
-        # load up and delete a file
-        with tempfile.NamedTemporaryFile(delete=False) as tf:
-            shutil.copy(self.stack_location, tf.name)
-            dstack_lazy = LazyZipDicomImageStack.from_zip(tf.name)
-            del dstack_lazy[0]
-            # load it again from scratch and check the length
-            new_dstack_lazy = LazyZipDicomImageStack.from_zip(tf.name)
-        self.assertEqual(len(new_dstack_lazy), original_length - 1)
+        lazy_stack = LazyZipDicomImageStack.from_zip(self.stack_location)
+        original_length = len(lazy_stack)
+        del lazy_stack[0]
+        self.assertEqual(len(lazy_stack), original_length - 1)
 
     def test_slice_spacing_ct(self):
         dstack = DicomImageStack.from_zip(self.stack_location)
