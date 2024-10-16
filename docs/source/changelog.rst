@@ -23,7 +23,7 @@ TRS-398
 
   .. danger::
 
-    This change will affect all TRS-398 calculations. If you are using TRS-398, please verify that your
+    This change will affect absorbed dose TRS-398 calculations if you rely on the ``k_tp`` function. If you are using TRS-398, please verify that your
     results are still accurate. We apologize for this oversight; while we try to accurate, bugs to happen.
     As with any software and and vendor, performing independent validation is critical.
 

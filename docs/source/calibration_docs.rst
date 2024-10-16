@@ -199,7 +199,15 @@ Equation Definitions
 
 * Ktp (Temp/Pressure correction):
 
-  .. math:: \frac{273.2+T}{273.2+22} * \frac{101.33}{P}
+  .. math:: \frac{273.2+T}{273.2+20} * \frac{101.33}{P}
+
+  .. danger::
+
+    In v3.29 the equation was changed to have an air reference of 20C from 22C. This is in line with Table 9
+    of the TRS-398 protocol. However, there is a footnote of the table that some countries use 22C.
+    If you still want to use 22C as the reference temperature you should define your own function. If you
+    had always wanted to use 20C we apologize for the oversight. Your absorbed dose values will be different
+    by 0.7%.
 
   .. warning:: Temperature is in Celsius and pressure is in kPa. Use the helper functions fahrenheit2celsius, mmHg2kPa, and mbar2kPa as needed.
 
