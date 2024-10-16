@@ -101,6 +101,12 @@ class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
         # shouldn't raise
         json.loads(data_str)
 
+    def test_results_warnings(self):
+        instance = self.klass.from_demo_images()
+        instance.analyze()
+        data = instance.results_data()
+        self.assertEqual(len(data.warnings), 0)
+
     def test_custom_roi_config(self):
         my_drgs = DRGS.from_demo_images()
         my_drgs.analyze(roi_config={"DR: 150 MU/min": {"offset_mm": 0}})

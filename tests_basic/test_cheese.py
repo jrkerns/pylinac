@@ -64,6 +64,11 @@ class TestResults(TestCase, ResultsDataBase):
         # shouldn't raise
         json.loads(data_json)
 
+    def test_results_warnings(self):
+        self.cheese.analyze()
+        data = self.cheese.results_data()
+        self.assertEqual(len(data.warnings), 0)
+
 
 class TestGeneral(TestCase):
     def test_demo(self):

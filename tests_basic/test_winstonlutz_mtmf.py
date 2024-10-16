@@ -65,6 +65,11 @@ class TestWLMultiImage(TestCase):
         self.assertEqual(results.bb_maxes["Iso"], 0.0)
         self.assertEqual(results.num_total_images, 4)
 
+    def test_results_warnings(self):
+        self.wl.analyze(bb_arrangement=BBArrangement.DEMO)
+        data = self.wl.results_data()
+        self.assertEqual(len(data.warnings), 0)
+
     def test_no_gantry_iso_size(self):
         with self.assertRaises(NotImplementedError):
             self.wl.gantry_iso_size

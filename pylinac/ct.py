@@ -55,6 +55,7 @@ from .core.plotly_utils import add_title, add_vertical_line
 from .core.profile import CollapsedCircleProfile, FWXMProfile
 from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
+from .core.warnings import capture_warnings
 
 # The ramp angle ratio is from the Catphan manual ("Scan slice geometry" section)
 # and represents the fact that the wire is at an oblique angle (23°), making it appear
@@ -2685,6 +2686,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         return data
 
 
+@capture_warnings
 class CatPhan503(CatPhanBase):
     """A class for loading and analyzing CT DICOM files of a CatPhan 503.
     Analyzes: Uniformity (CTP486), High-Contrast Spatial Resolution (CTP528), Image Scaling & HU Linearity (CTP404).
@@ -2708,6 +2710,7 @@ class CatPhan503(CatPhanBase):
         cbct.plot_analyzed_image(show)
 
 
+@capture_warnings
 class CatPhan504(CatPhanBase):
     """A class for loading and analyzing CT DICOM files of a CatPhan 504. Can be from a CBCT or CT scanner
     Analyzes: Uniformity (CTP486), High-Contrast Spatial Resolution (CTP528),
@@ -2733,6 +2736,7 @@ class CatPhan504(CatPhanBase):
         cbct.plot_analyzed_image(show)
 
 
+@capture_warnings
 class CatPhan604(CatPhanBase):
     """A class for loading and analyzing CT DICOM files of a CatPhan 604. Can be from a CBCT or CT scanner
     Analyzes: Uniformity (CTP486), High-Contrast Spatial Resolution (CTP528),
@@ -2872,6 +2876,7 @@ class CatPhan604(CatPhanBase):
         return refined_slice
 
 
+@capture_warnings
 class CatPhan600(CatPhanBase):
     """A class for loading and analyzing CT DICOM files of a CatPhan 600.
     Analyzes: Uniformity (CTP486), High-Contrast Spatial Resolution (CTP528),

@@ -52,6 +52,7 @@ from .core.plotly_utils import add_title
 from .core.profile import CollapsedCircleProfile, FWXMProfilePhysical
 from .core.roi import DiskROI, HighContrastDiskROI, LowContrastDiskROI, bbox_center
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
+from .core.warnings import capture_warnings
 from .metrics.image import SizedDiskLocator
 
 
@@ -1112,6 +1113,7 @@ class LightRadResult(ResultBase):
     )
 
 
+@capture_warnings
 class StandardImagingFC2(ImagePhantomBase):
     common_name = "SI FC-2"
     _demo_filename = "fc2.dcm"
@@ -1484,6 +1486,7 @@ class StandardImagingFC2(ImagePhantomBase):
         return is_near_horizontal_edge or is_near_vertical_edge
 
 
+@capture_warnings
 class IMTLRad(StandardImagingFC2):
     """The IMT light/rad phantom: https://www.imtqa.com/products/l-rad"""
 
@@ -1498,6 +1501,7 @@ class IMTLRad(StandardImagingFC2):
         return self.center_only_bb
 
 
+@capture_warnings
 class DoselabRLf(StandardImagingFC2):
     """The Doselab light/rad phantom"""
 
@@ -1529,6 +1533,7 @@ class DoselabRLf(StandardImagingFC2):
         dl.plot_analyzed_image()
 
 
+@capture_warnings
 class IsoAlign(StandardImagingFC2):
     """The PTW Iso-Align light/rad phantom"""
 
@@ -1555,6 +1560,7 @@ class IsoAlign(StandardImagingFC2):
         al.plot_analyzed_image()
 
 
+@capture_warnings
 class SNCFSQA(StandardImagingFC2):
     """SNC light/rad phantom. See the 'FSQA' phantom and specs: https://www.sunnuclear.com/products/suncheck-machine.
 
@@ -1584,6 +1590,7 @@ class SNCFSQA(StandardImagingFC2):
         return self.bb_centers["Virtual Center"]
 
 
+@capture_warnings
 class LasVegas(ImagePhantomBase):
     _demo_filename = "lasvegas.dcm"
     common_name = "Las Vegas"
@@ -1749,6 +1756,7 @@ class LasVegas(ImagePhantomBase):
         )
 
 
+@capture_warnings
 class ElektaLasVegas(LasVegas):
     """Elekta's variant of the Las Vegas."""
 
@@ -1824,6 +1832,7 @@ class ElektaLasVegas(LasVegas):
         lv.plot_analyzed_image()
 
 
+@capture_warnings
 class PTWEPIDQC(ImagePhantomBase):
     _demo_filename = "PTW-EPID-QC.dcm"
     common_name = "PTW EPID QC"
@@ -1931,6 +1940,7 @@ class PTWEPIDQC(ImagePhantomBase):
             self.image.invert()
 
 
+@capture_warnings
 class IBAPrimusA(ImagePhantomBase):
     common_name = "IBA Primus A"
     _demo_filename = "iba_primus.dcm"
@@ -2128,6 +2138,7 @@ class IBAPrimusA(ImagePhantomBase):
         primus.plot_analyzed_image()
 
 
+@capture_warnings
 class StandardImagingQC3(ImagePhantomBase):
     _demo_filename = "qc3.dcm"
     common_name = "SI QC-3"
@@ -2223,6 +2234,7 @@ class StandardImagingQC3(ImagePhantomBase):
             )
 
 
+@capture_warnings
 class StandardImagingQCkV(StandardImagingQC3):
     _demo_filename = "SI-QC-kV.dcm"
     common_name = "SI QC-kV"
@@ -2290,6 +2302,7 @@ class StandardImagingQCkV(StandardImagingQC3):
         return math.sqrt(self.phantom_ski_region.bbox_area) * 0.0989
 
 
+@capture_warnings
 class SNCkV(ImagePhantomBase):
     _demo_filename = "SNC-kV.dcm"
     common_name = "SNC kV-QA"
@@ -2369,6 +2382,7 @@ class SNCkV(ImagePhantomBase):
             )
 
 
+@capture_warnings
 class SNCMV(SNCkV):
     _demo_filename = "SNC-MV.dcm"
     common_name = "SNC MV-QA"
@@ -2440,6 +2454,7 @@ class SNCMV(SNCkV):
         return math.sqrt(self.phantom_ski_region.bbox_area) * 0.095
 
 
+@capture_warnings
 class SNCMV12510(SNCMV):
     """The older SNC MV QA phantom w/ model number 1251000"""
 
@@ -2495,6 +2510,7 @@ class SNCMV12510(SNCMV):
         return math.sqrt(self.phantom_ski_region.bbox_area) * 0.105
 
 
+@capture_warnings
 class LeedsTOR(ImagePhantomBase):
     _demo_filename = "leeds.dcm"
     common_name = "Leeds"
@@ -2776,6 +2792,7 @@ class LeedsTOR(ImagePhantomBase):
             self.image.invert()
 
 
+@capture_warnings
 class LeedsTORBlue(LeedsTOR):
     """The Leeds TOR (Blue) is for analyzing older Leeds phantoms which have slightly offset ROIs compared to the newer, red-ring variant."""
 
@@ -2888,6 +2905,7 @@ class LeedsTORBlue(LeedsTOR):
         raise NotImplementedError("There is no demo file for this analysis")
 
 
+@capture_warnings
 class DoselabMC2kV(ImagePhantomBase):
     common_name = "Doselab MC2 kV"
     _demo_filename = "Doselab_kV.dcm"
@@ -2953,6 +2971,7 @@ class DoselabMC2kV(ImagePhantomBase):
         return angle
 
 
+@capture_warnings
 class DoselabMC2MV(DoselabMC2kV):
     common_name = "Doselab MC2 MV"
     _demo_filename = "Doselab_MV.dcm"

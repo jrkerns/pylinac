@@ -340,6 +340,11 @@ class GeneralTests(Demo, TestCase):
         self.assertEqual(fig.bbox_inches.height, 11)
         self.assertEqual(fig.bbox_inches.width, 7)
 
+    def test_results_warnings(self):
+        data = self.star.results_data()
+        self.assertIsInstance(data.warnings, list)
+        self.assertEqual(len(data.warnings), 0)
+
 
 class Starshot2(StarMixin, TestCase):
     file_name = "Starshot#2.tif"

@@ -69,6 +69,11 @@ class TestCTGeneral(TestCase):
         # check the additional modules got added
         self.assertIsInstance(data.ct_module.rois, dict)
 
+    def test_results_warnings(self):
+        self.ct.analyze()
+        data = self.ct.results_data()
+        self.assertEqual(len(data.warnings), 0)
+
     def test_lazy_is_same_as_default(self):
         self.ct.analyze()
         lazy_ct = ACRCT.from_zip(self.path, memory_efficient_mode=True)
@@ -295,6 +300,11 @@ class TestMRGeneral(TestCase):
 
         # check the additional modules got added
         self.assertIsInstance(data.slice11.rois, dict)
+
+    def test_results_warnings(self):
+        self.mri.analyze()
+        data = self.mri.results_data()
+        self.assertEqual(len(data.warnings), 0)
 
     def test_echo_number(self):
         """Test analyzing a specific echo number works"""

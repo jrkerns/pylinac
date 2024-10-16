@@ -806,6 +806,11 @@ class GeneralTests(TestCase):
         data_json = self.wl.results_data(as_json=True)
         self.assertIsInstance(data_json, str)
 
+    def test_results_warnings(self):
+        self.wl.analyze()
+        data = self.wl.results_data()
+        self.assertEqual(len(data.warnings), 0)
+
     def test_results_data_individual_keys_duplicate(self):
         # lucky for us, the demo set has duplicates already
         data_dict = self.wl.results_data(as_dict=True)
