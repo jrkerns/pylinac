@@ -61,15 +61,18 @@ class TestFunctions(TestCase):
 
     @parameterized.expand(
         [
-            (15, 101.3, 0.983),
-            (18, 101.3, 0.993),
-            (22, 101.3, 1.007),
-            (26, 101.3, 1.020),
-            (20, 110, 0.921),
+            (15, 101.3, 20, 0.983),
+            (18, 101.3, 20, 0.993),
+            (22, 101.3, 20, 1.007),
+            (26, 101.3, 20, 1.020),
+            (20, 110, 20, 0.921),
+            (22, 101.3, 22, 1.000),
         ]
     )
-    def test_k_tp(self, temp, press, ktp):
-        self.assertAlmostEqual(trs398.k_tp(temp=temp, press=press), ktp, delta=0.001)
+    def test_k_tp(self, temp, press, ref_temp, ktp):
+        self.assertAlmostEqual(
+            trs398.k_tp(temp=temp, press=press, ref_temp=ref_temp), ktp, delta=0.001
+        )
 
 
 class TRS398Base:

@@ -21,11 +21,13 @@ TRS-398
   TRS-398 ``k_tp`` values will be different: 0.7% lower. This results in an absorbed dose increase of ~0.7% at dmax. A user warning has also been added when calling
   ``k_tp`` describing this change.
 
+  A new parameter has been added: ``ref_temp`` with a default of 20C. If you are in a country that
+  uses 22C as the reference temperature you can pass ``ref_temp=22`` to the ``k_tp`` function.
+
   .. danger::
 
     This change will affect absorbed dose TRS-398 calculations if you rely on the ``k_tp`` function. If you are using TRS-398, please verify that your
-    results are still accurate. We apologize for this oversight; while we try to accurate, bugs to happen.
-    As with any software and and vendor, performing independent validation is critical.
+    results are still accurate. We apologize for this oversight.
 
 v 3.28.0
 --------

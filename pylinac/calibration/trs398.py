@@ -572,7 +572,7 @@ z_ref = _tg51.d_ref
 r_50 = _tg51.r_50
 
 
-def k_tp(*, temp: float, press: float) -> float:
+def k_tp(*, temp: float, press: float, ref_temp: float = 20) -> float:
     """Calculate the temperature & pressure correction per TRS-398.
 
     .. note::
@@ -581,7 +581,8 @@ def k_tp(*, temp: float, press: float) -> float:
 
     .. versionchanged:: 3.29
 
-        The reference air temperature is now 20°C from 22
+        The reference air temperature is now 20°C from 22. The ``ref_temp`` parameter default is 20 but
+        can be changed via ``ref_temp``.
 
     Parameters
     ----------
@@ -590,6 +591,8 @@ def k_tp(*, temp: float, press: float) -> float:
     press : float (91-111)
         The value of pressure in kPa. Can be converted from mmHg and mbar;
         see :func:`~pylinac.calibration.tg51.mmHg2kPa` and :func:`~pylinac.calibration.tg51.mbar2kPa`.
+    ref_temp: float
+        The reference temperature. Default is 20°C.
     """
     warnings.warn(
         "In pylinac v3.29 the reference air temperature was changed from 22 to 20°C to match TRS-398 protocol. This changes k_tp values down by 0.7%.",
@@ -605,7 +608,7 @@ def k_tp(*, temp: float, press: float) -> float:
         bounds=(MIN_PRESSURE, MAX_PRESSURE),
         message="Pressure {:2.2f} out of range. Did you use kPa? Consider using the utility functions mmHg2kPa() or mbar2kPa()",
     )
-    return ((273.2 + temp) / 293.2) * (101.33 / press)
+    return ((273.2 + temp) / (273.2 + ref_temp)) * (101.33 / press)
 
 
 def k_s(
