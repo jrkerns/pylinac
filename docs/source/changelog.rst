@@ -23,6 +23,7 @@ TRS-398
 
   A new parameter has been added: ``ref_temp`` with a default of 20C. If you are in a country that
   uses 22C as the reference temperature you can pass ``ref_temp=22`` to the ``k_tp`` function.
+  Also, if you want to retain the old behavior, you can pass ``ref_temp=22``.
 
   .. danger::
 
