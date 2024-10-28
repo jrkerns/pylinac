@@ -1852,6 +1852,101 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         add_title(iso_fig, "3D Isocenter visualization")
         figs["Isocenter Visualization"] = iso_fig
 
+        # polar plot and POV plots
+        for axis, start_angle, clock in zip(
+            (Axis.GANTRY, Axis.COLLIMATOR, Axis.COUCH),
+            (90, 270, 270),
+            ("clockwise", "counterclockwise", "counterclockwise"),
+        ):
+            # get axis images, angles, and shifts
+            imgs = [
+                image
+                for image in self.images
+                if image.variable_axis in (axis, Axis.REFERENCE)
+            ]
+            angles = [getattr(image, f"{axis.value.lower()}_angle") for image in imgs]
+            xz_sag = np.array([img.cax2bb_vector.x for img in imgs])
+            y_sag = np.array([img.cax2bb_vector.y for img in imgs])
+            rms = np.sqrt(xz_sag**2 + y_sag**2)
+            # append the first point to the end to close the loop
+            angles = np.append(angles, angles[0])
+            xz_sag = np.append(xz_sag, xz_sag[0])
+            y_sag = np.append(y_sag, y_sag[0])
+            rms = np.append(rms, rms[0])
+
+            # X/Y POV plots
+            fig = go.Figure()
+            title = f"{axis.value} POV displacement"
+            fig.add_scatter(
+                x=xz_sag,
+                y=y_sag,
+                hovertext=[
+                    f"Angle: {angle}\N{DEGREE SIGN}; Total: {r:.3f}mm"
+                    for angle, r in zip(angles, rms)
+                ],
+                hoverinfo="text+x+y",
+                mode="lines+markers",
+                name="BB positions",
+            )
+            fig.add_scatter(
+                x=[0],
+                y=[0],
+                name="Field Center",
+                mode="markers",
+            )
+            fig.add_scatter(
+                x=[xz_sag.mean()],
+                y=[y_sag.mean()],
+                hoverinfo="text+x+y",
+                hovertext=f"Displacement: {math.hypot(xz_sag.mean(), y_sag.mean()):.3f}mm",
+                name="BB Centroid",
+                mode="markers",
+            )
+            add_title(fig, title)
+            add_vertical_line(fig, 0, "black", name="y=0")
+            add_horizontal_line(fig, 0, "black", name="x=0")
+            fig.update_layout(
+                showlegend=show_legend,
+                xaxis_title="X (+Left) (mm)",
+                yaxis_title="Y (+In) (mm)",
+            )
+            figs[title] = fig
+
+            # polar plots
+            fig = go.Figure()
+            title = f"In-plane {axis.value} displacement"
+            for name, data in zip(
+                ["Y-axis (In/Out)", "X/Z-axis (Gantry plane)", "RMS"],
+                [y_sag, xz_sag, rms],
+            ):
+                fig.add_scatterpolar(
+                    r=data,
+                    theta=angles,
+                    name=name,
+                )
+                add_title(fig, f"{axis.value} Error Plot")
+                fig.update_layout(
+                    title=title,
+                    showlegend=show_legend,
+                    polar=dict(
+                        angularaxis=dict(
+                            rotation=start_angle,
+                            direction=clock,  # Change the direction to clockwise (can also be 'counterclockwise')
+                        ),
+                        radialaxis=dict(
+                            title="Displacement from Field (mm)", visible=True
+                        ),
+                    ),
+                )
+            # add 0-value highlight
+            fig.add_scatterpolar(
+                r=[0] * 100,
+                theta=np.linspace(0, 360, 100),
+                mode="lines",
+                name="0-line",
+            )
+            figs[title] = fig
+
         if show:
             for f in figs.values():
                 f.show()
