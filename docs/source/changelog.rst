@@ -10,6 +10,26 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.29.0
+--------
+
+TRS-398
+^^^^^^^
+
+* :bdg-danger:`Change` The air reference value for ``k_tp`` has been changed to 20C from 22C. Previously,
+  the reference value was assumed to be the same as AAPM TG-51, but this is incorrect per Table 9.
+  TRS-398 ``k_tp`` values will be different: 0.7% lower. This results in an absorbed dose increase of ~0.7% at dmax. A user warning has also been added when calling
+  ``k_tp`` describing this change.
+
+  A new parameter has been added: ``ref_temp`` with a default of 20C. If you are in a country that
+  uses 22C as the reference temperature you can pass ``ref_temp=22`` to the ``k_tp`` function.
+  Also, if you want to retain the old behavior, you can pass ``ref_temp=22``.
+
+  .. danger::
+
+    This change will affect absorbed dose TRS-398 calculations if you rely on the ``k_tp`` function. If you are using TRS-398, please verify that your
+    results are still accurate. We apologize for this oversight.
+
 v 3.28.0
 --------
 
