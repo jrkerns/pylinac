@@ -1853,20 +1853,29 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         figs["Isocenter Visualization"] = iso_fig
 
         # polar plot and POV plots
-        for axis, start_angle, clock in zip(
-            (Axis.GANTRY, Axis.COLLIMATOR, Axis.COUCH),
-            (90, 270, 270),
-            ("clockwise", "counterclockwise", "counterclockwise"),
+        for axis, start_angle, clock, marker_name in zip(
+            (Axis.GANTRY, Axis.COLLIMATOR, Axis.COUCH, Axis.EPID),
+            (90, 270, 270, 90),
+            ("clockwise", "counterclockwise", "counterclockwise", "clockwise"),
+            ("BB", "BB", "BB", "EPID"),
         ):
+            if axis == Axis.EPID:
+                attr = "cax2epid_vector"
+                variable_axis = Axis.GANTRY
+            else:
+                attr = "cax2bb_vector"
+                variable_axis = axis
             # get axis images, angles, and shifts
             imgs = [
                 image
                 for image in self.images
-                if image.variable_axis in (axis, Axis.REFERENCE)
+                if image.variable_axis in (variable_axis, Axis.REFERENCE)
             ]
-            angles = [getattr(image, f"{axis.value.lower()}_angle") for image in imgs]
-            xz_sag = np.array([img.cax2bb_vector.x for img in imgs])
-            y_sag = np.array([img.cax2bb_vector.y for img in imgs])
+            angles = [
+                getattr(image, f"{variable_axis.value.lower()}_angle") for image in imgs
+            ]
+            xz_sag = np.array([getattr(img, attr).x for img in imgs])
+            y_sag = np.array([getattr(img, attr).y for img in imgs])
             rms = np.sqrt(xz_sag**2 + y_sag**2)
             # append the first point to the end to close the loop
             angles = np.append(angles, angles[0])
@@ -1886,7 +1895,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
                 ],
                 hoverinfo="text+x+y",
                 mode="lines+markers",
-                name="BB positions",
+                name=f"{marker_name} positions",
             )
             fig.add_scatter(
                 x=[0],
@@ -1899,7 +1908,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
                 y=[y_sag.mean()],
                 hoverinfo="text+x+y",
                 hovertext=f"Displacement: {math.hypot(xz_sag.mean(), y_sag.mean()):.3f}mm",
-                name="BB Centroid",
+                name=f"{marker_name} Centroid",
                 mode="markers",
             )
             add_title(fig, title)
@@ -1909,6 +1918,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
                 showlegend=show_legend,
                 xaxis_title="X (+Left) (mm)",
                 yaxis_title="Y (+In) (mm)",
+                xaxis_scaleanchor="y",
             )
             figs[title] = fig
 
