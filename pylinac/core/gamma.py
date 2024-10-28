@@ -190,14 +190,19 @@ def gamma_geometric(
         if eval_point < threshold:
             continue
         simplex_distances = []
-        # we need to grab the vertices just beyond the edge of the DTA
-        # so we evaluate within the entire DTA range
-        left_idx = np.argmin(
-            np.abs(normalized_reference_x - (eval_x - distance_to_agreement))
-        )
-        right_idx = np.argmin(
-            np.abs(normalized_reference_x - (eval_x + distance_to_agreement))
-        )
+        # We don't want to calculate gamma for all simplexs of the entire profile,
+        # so we slice the vertices just beyond the edges of the DTA from the eval point.
+        # For cases where the measurement spacing is 2x or larger than the DTA this
+        # leads to the left and right indices being the same. We evaluate an extra
+        # index for safety (+1/-1). This adds a small amount of computation but ensures we
+        # are always evaluating a range of simplexes. Extra simplex vertices will
+        # not change the gamma calculation.
+        # This sub-sampling of the vertices is all for computational efficiency.
+        left_diffs = np.abs(normalized_reference_x - (eval_x - distance_to_agreement))
+        # we need to ensure we don't go out of bounds if evaluating at the edge, hence the max/min
+        left_idx = max(np.argmin(left_diffs) - 1, 0)
+        right_diffs = np.abs(normalized_reference_x - (eval_x + distance_to_agreement))
+        right_idx = min(np.argmin(right_diffs) + 1, len(normalized_reference) - 1)
         # the vertices are the (x, y) pairs of the reference profile
         vertices_x = normalized_reference_x[left_idx : right_idx + 1].tolist()
         vertices_y = normalized_reference[left_idx : right_idx + 1].tolist()
