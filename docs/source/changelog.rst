@@ -30,6 +30,13 @@ TRS-398
     This change will affect absorbed dose TRS-398 calculations if you rely on the ``k_tp`` function. If you are using TRS-398, please verify that your
     results are still accurate. We apologize for this oversight.
 
+CT
+^^
+
+* There is a new parameter for CT-like constructor classes: ``is_zip``. This is mostly an internal
+  flag and is used when calling the ``.from_zip`` method. The default is ``False``. This is backwards-compatible
+  and should not affect users. This was done for internal refactoring reasons.
+
 v 3.28.0
 --------
 
