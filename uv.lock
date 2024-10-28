@@ -1326,7 +1326,7 @@ wheels = [
 
 [[package]]
 name = "pylinac"
-version = "3.27.0"
+version = "3.28.0"
 source = { editable = "." }
 dependencies = [
     { name = "argue" },
@@ -1348,6 +1348,7 @@ dependencies = [
 
 [package.optional-dependencies]
 docs = [
+    { name = "autodoc-pydantic" },
     { name = "furo" },
     { name = "sphinx" },
     { name = "sphinx-autobuild" },
@@ -1374,6 +1375,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "argue", specifier = "~=0.3.1" },
+    { name = "autodoc-pydantic", marker = "extra == 'docs'", specifier = ">=2.1.0" },
     { name = "eval-type-backport", marker = "python_full_version < '3.10'" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2024.8.6" },
     { name = "matplotlib", specifier = ">=3.0" },

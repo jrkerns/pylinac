@@ -144,6 +144,10 @@ def gamma_geometric(
         raise ValueError(
             f"Reference and evaluation arrays must be 1D. Got reference: {reference.ndim} and evaluation: {evaluation.ndim}"
         )
+    if distance_to_agreement <= 0:
+        raise ValueError("Dose to agreement must be greater than 0")
+    if dose_to_agreement <= 0:
+        raise ValueError("Distance to agreement must be greater than 0")
     if reference_coordinates is None:
         reference_coordinates = np.arange(len(reference), dtype=float)
     if len(reference) != len(reference_coordinates):
@@ -165,18 +169,22 @@ def gamma_geometric(
         raise ValueError(
             "The evaluation x-values must be within the range of the reference x-values"
         )
-    threshold = float(dose_threshold)
-    # convert dose to normalized distance of dose to agreement. I.e. D/delta(D)
+    # normalize the dose threshold by the DTA
+    threshold = float(dose_threshold) / float(dose_to_agreement)
+    # convert dose to normalized distance of dose to agreement. I.e. D/delta(D) in Figure 1.
     normalized_reference = (
         reference.astype(float) * 100 / (reference.max() * dose_to_agreement)
     )
     normalized_evaluation = (
         evaluation.astype(float) * 100 / (reference.max() * dose_to_agreement)
     )
+    # normalize the x-values; i.e. X/delta(d) in Figure 1.
+    normalized_reference_x = reference_coordinates / distance_to_agreement
+    normalized_evaluation_x = evaluation_coordinates / distance_to_agreement
 
     gamma = np.full(len(evaluation), fill_value)
     for idx, (eval_x, eval_point) in enumerate(
-        zip(evaluation_coordinates, normalized_evaluation)
+        zip(normalized_evaluation_x, normalized_evaluation)
     ):
         # skip if below dose threshold
         if eval_point < threshold:
@@ -185,13 +193,13 @@ def gamma_geometric(
         # we need to grab the vertices just beyond the edge of the DTA
         # so we evaluate within the entire DTA range
         left_idx = np.argmin(
-            np.abs(reference_coordinates - (eval_x - distance_to_agreement))
+            np.abs(normalized_reference_x - (eval_x - distance_to_agreement))
         )
         right_idx = np.argmin(
-            np.abs(reference_coordinates - (eval_x + distance_to_agreement))
+            np.abs(normalized_reference_x - (eval_x + distance_to_agreement))
         )
         # the vertices are the (x, y) pairs of the reference profile
-        vertices_x = reference_coordinates[left_idx : right_idx + 1].tolist()
+        vertices_x = normalized_reference_x[left_idx : right_idx + 1].tolist()
         vertices_y = normalized_reference[left_idx : right_idx + 1].tolist()
         vertices = list(np.array((x, y)) for x, y in zip(vertices_x, vertices_y))
         # iterate in pairs of x, y
