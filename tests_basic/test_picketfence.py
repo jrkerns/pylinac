@@ -170,7 +170,7 @@ class TestAnalyze(TestCase):
         data_dict = self.pf.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
         self.assertIn("pylinac_version", data_dict)
-        self.assertEqual(len(data_dict), 19)
+        self.assertEqual(len(data_dict), 20)
 
         data_str = self.pf.results_data(as_json=True)
         self.assertIsInstance(data_str, str)

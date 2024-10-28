@@ -21,6 +21,7 @@ from quaac import Attachment, DataPoint, Document, Equipment, User
 
 from .. import __version__, version
 from .scale import wrap360
+from .warnings import WarningCollectorMixin
 
 
 def convert_to_enum(value: str | Enum | None, enum: type[Enum]) -> Enum:
@@ -58,12 +59,17 @@ class ResultBase(BaseModel):
         title="Date of Analysis",
         description="The date the analysis was performed.",
     )
+    warnings: list[dict] = Field(
+        title="Warnings",
+        description="Code warnings that occurred during the analysis.",
+        default_factory=list,
+    )
 
 
 T = TypeVar("T")
 
 
-class ResultsDataMixin(Generic[T]):
+class ResultsDataMixin(Generic[T], WarningCollectorMixin):
     """A mixin for classes that generate results data. This mixin is used to generate the results data and present it in different formats.
     The generic types allow correct type hinting of the results data."""
 
