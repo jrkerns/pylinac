@@ -72,6 +72,7 @@ from .core.utilities import (
     convert_to_enum,
     is_close_degrees,
 )
+from .core.warnings import capture_warnings
 from .metrics.features import (
     is_right_circumference,
     is_right_size_bb,
@@ -1044,6 +1045,7 @@ class WLBaseImage(image.LinacDicomImage):
             safety_stop -= 1
 
 
+@capture_warnings
 class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
     """Holds individual Winston-Lutz EPID images, image properties, and automatically finds the field CAX and BB."""
 
@@ -1137,6 +1139,7 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
         )
 
 
+@capture_warnings
 class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
     """Class for performing a Winston-Lutz test of the radiation isocenter."""
 
@@ -1186,6 +1189,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         sid
             The Source-to-Image distance in mm. Only needed when using TIFF images.
         """
+        super().__init__()
         self.images = []
         if axis_mapping and not use_filenames:
             for filename, (gantry, coll, couch) in axis_mapping.items():
@@ -2575,6 +2579,7 @@ class WinstonLutzMultiTargetMultiFieldImage(WLBaseImage):
         return centers
 
 
+@capture_warnings
 class WinstonLutzMultiTargetMultiField(WinstonLutz):
     machine_scale: MachineScale  #:
     images: Sequence[WinstonLutzMultiTargetMultiFieldImage]  #:

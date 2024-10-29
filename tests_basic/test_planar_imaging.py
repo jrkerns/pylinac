@@ -115,6 +115,12 @@ class GeneralTests(TestCase):
         # shouldn't raise
         json.loads(data_json)
 
+    def test_results_warnings(self):
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        data = phan.results_data()
+        self.assertEqual(len(data.warnings), 0)
+
     def test_results_data_no_mtf(self):
         phan = LasVegas.from_demo_image()
         phan.analyze()

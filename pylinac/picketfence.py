@@ -50,6 +50,7 @@ from .core.utilities import (
     ResultsDataMixin,
     convert_to_enum,
 )
+from .core.warnings import capture_warnings
 from .log_analyzer import load_log
 from .metrics.image import SizedDiskLocator
 
@@ -259,6 +260,7 @@ class PFDicomImage(image.LinacDicomImage):
             return super().center
 
 
+@capture_warnings
 class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
     """A class used for analyzing EPID images where radiation strips have been formed by the
     MLCs. The strips are assumed to be parallel to one another and normal to the image edge;
@@ -309,7 +311,7 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
             These need to be cleaned up first. For Varian images, this really shouldn't make a difference unless the pickets are
             very close to the edge. Generally speaking, they shouldn't be for the best accuracy.
         """
-
+        super().__init__()
         if filename is not None:
             img_kwargs = image_kwargs or {}
             self.image = PFDicomImage(

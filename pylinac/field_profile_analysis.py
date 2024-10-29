@@ -24,6 +24,7 @@ from .core.profile import (
 )
 from .core.roi import RectangleROI
 from .core.utilities import ResultBase, ResultsDataMixin, convert_to_enum
+from .core.warnings import capture_warnings
 from .metrics.profile import (
     CAXToLeftEdgeMetric,
     CAXToRightEdgeMetric,
@@ -88,6 +89,7 @@ PROFILE_TYPE = Union[
 ]
 
 
+@capture_warnings
 class FieldProfileAnalysis(ResultsDataMixin[FieldProfileResult]):
     x_profile: PROFILE_TYPE
     y_profile: PROFILE_TYPE

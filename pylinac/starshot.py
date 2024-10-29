@@ -40,8 +40,10 @@ from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.plotly_utils import set_axis_range
 from .core.profile import CollapsedCircleProfile, FWXMProfile
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
+from .core.warnings import capture_warnings
 
 
+@capture_warnings
 class StarshotResults(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
