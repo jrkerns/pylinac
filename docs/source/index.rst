@@ -56,6 +56,7 @@
    topics/nps
    topics/mtf
    topics/scale
+   topics/memory
    topics/profiles
    topics/image_metrics
    topics/fluence

@@ -73,9 +73,6 @@ def capture_warnings(cls):
     to all methods of the class that are not private or special methods.
     """
     for attr_name, attr in cls.__dict__.items():
-        # Skip private and special methods
-        # if attr_name.startswith("_"):
-        #     continue
         # Only decorate callable attributes (methods)
         if isinstance(attr, (types.FunctionType, types.MethodType)):
             setattr(cls, attr_name, capture_warnings_method_wrapper(attr))

@@ -13,6 +13,11 @@ from pytest import mark
 
 from pylinac import CatPhan503, CatPhan504, CatPhan600, CatPhan604
 from pylinac.core.geometry import Point
+from pylinac.core.image import (
+    DicomImageStack,
+    LazyDicomImageStack,
+    LazyZipDicomImageStack,
+)
 from pylinac.core.io import TemporaryZipDirectory
 from pylinac.ct import CTP404CP503, CTP404CP504, CTP528CP503, CTP528CP504, CatphanResult
 from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
@@ -56,6 +61,25 @@ class TestInstantiation(
             paths = [osp.join(zfolder, f) for f in os.listdir(zfolder)]
             paths = [io.BytesIO(open(p, "rb").read()) for p in paths]
             CatPhan504(paths)
+
+    def test_stack_type_default(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
+        with TemporaryZipDirectory(path) as zfolder:
+            paths = [osp.join(zfolder, f) for f in os.listdir(zfolder)]
+            ct = CatPhan504(paths)
+            self.assertIsInstance(ct.dicom_stack, DicomImageStack)
+
+    def test_stack_type_lazy(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
+        with TemporaryZipDirectory(path) as zfolder:
+            paths = [osp.join(zfolder, f) for f in os.listdir(zfolder)]
+            ct = CatPhan504(paths, memory_efficient_mode=True)
+            self.assertIsInstance(ct.dicom_stack, LazyDicomImageStack)
+
+    def test_shadow_object_type(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
+        ct = CatPhan504.from_zip(path, memory_efficient_mode=True)
+        self.assertIsInstance(ct.dicom_stack, LazyZipDicomImageStack)
 
 
 class TestCBCT504ResultsData(TestCase, ResultsDataBase):

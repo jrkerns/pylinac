@@ -27,6 +27,7 @@ from pylinac.core.image import (
     DicomImageStack,
     FileImage,
     LazyDicomImageStack,
+    LazyZipDicomImageStack,
     LinacDicomImage,
     _rescale_dicom_values,
     _unscale_dicom_values,
@@ -843,6 +844,25 @@ class TestDicomStack(TestCase):
         manipulated_offset = np.copy(dstack_lazy[0].array)
         # assert that writing back to the stack works
         assert_array_almost_equal(manipulated_offset, original_offset)
+
+    def test_writing_back_to_zip_lazy_stack(self):
+        dstack_lazy = LazyZipDicomImageStack.from_zip(self.stack_location)
+        original_length = len(dstack_lazy)
+        original_offset = np.copy(dstack_lazy[0].array) + 50
+        first_img = dstack_lazy[0]
+        first_img.array += 50
+        dstack_lazy[0] = first_img
+        manipulated_offset = np.copy(dstack_lazy[0].array)
+        # assert that writing back to the stack works
+        assert_array_almost_equal(manipulated_offset, original_offset)
+        # also check the number of files has not changed
+        self.assertEqual(len(dstack_lazy), original_length)
+
+    def test_deleting_zip_lazy_from_stack(self):
+        lazy_stack = LazyZipDicomImageStack.from_zip(self.stack_location)
+        original_length = len(lazy_stack)
+        del lazy_stack[0]
+        self.assertEqual(len(lazy_stack), original_length - 1)
 
     def test_slice_spacing_ct(self):
         dstack = DicomImageStack.from_zip(self.stack_location)

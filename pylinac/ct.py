@@ -43,7 +43,7 @@ from .core import image, pdf
 from .core.contrast import Contrast
 from .core.geometry import Line, Point
 from .core.image import ArrayImage, DicomImageStack, ImageLike, z_position
-from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
+from .core.io import get_url, retrieve_demo_file
 from .core.mtf import MTF
 from .core.nps import (
     average_power,
@@ -1754,6 +1754,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         folderpath: str | Sequence[str] | Path | Sequence[Path] | Sequence[BytesIO],
         check_uid: bool = True,
         memory_efficient_mode: bool = False,
+        is_zip: bool = False,
     ):
         """
         Parameters
@@ -1776,17 +1777,23 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         super().__init__()
         self.origin_slice = 0
         self.catphan_roll = 0
-        if isinstance(folderpath, (str, Path)):
+        if isinstance(folderpath, (str, Path)) and not is_zip:
             if not osp.isdir(folderpath):
                 raise NotADirectoryError("Path given was not a Directory/Folder")
-        stack = (
-            image.DicomImageStack
-            if not memory_efficient_mode
-            else image.LazyDicomImageStack
-        )
-        self.dicom_stack = stack(
-            folderpath, check_uid=check_uid, min_number=self.min_num_images
-        )
+        if not memory_efficient_mode:
+            stack = image.DicomImageStack
+        elif memory_efficient_mode and is_zip:
+            stack = image.LazyZipDicomImageStack
+        else:
+            stack = image.LazyDicomImageStack
+        if is_zip:
+            self.dicom_stack = stack.from_zip(
+                folderpath, check_uid=check_uid, min_number=self.min_num_images
+            )
+        else:
+            self.dicom_stack = stack(
+                folderpath, check_uid=check_uid, min_number=self.min_num_images
+            )
 
     @classmethod
     def from_demo_images(cls):
@@ -1832,15 +1839,12 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         FileExistsError : If zip_file passed was not a legitimate zip file.
         FileNotFoundError : If no CT images are found in the folder
         """
-        delete = not memory_efficient_mode
-        with TemporaryZipDirectory(zip_file, delete=delete) as temp_zip:
-            obj = cls(
-                temp_zip,
-                check_uid=check_uid,
-                memory_efficient_mode=memory_efficient_mode,
-            )
-        obj.was_from_zip = True
-        return obj
+        return cls(
+            folderpath=zip_file,
+            check_uid=check_uid,
+            memory_efficient_mode=memory_efficient_mode,
+            is_zip=True,
+        )
 
     def plotly_analyzed_images(
         self,

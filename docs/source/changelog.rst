@@ -10,19 +10,46 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.29.0
+--------
+
+TRS-398
+^^^^^^^
+
+* :bdg-danger:`Change` The air reference value for ``k_tp`` has been changed to 20C from 22C. Previously,
+  the reference value was assumed to be the same as AAPM TG-51, but this is incorrect per Table 9.
+  TRS-398 ``k_tp`` values will be different: 0.7% lower. This results in an absorbed dose increase of ~0.7% at dmax. A user warning has also been added when calling
+  ``k_tp`` describing this change.
+
+  A new parameter has been added: ``ref_temp`` with a default of 20C. If you are in a country that
+  uses 22C as the reference temperature you can pass ``ref_temp=22`` to the ``k_tp`` function.
+  Also, if you want to retain the old behavior, you can pass ``ref_temp=22``.
+
+  .. danger::
+
+    This change will affect absorbed dose TRS-398 calculations if you rely on the ``k_tp`` function. If you are using TRS-398, please verify that your
+    results are still accurate. We apologize for this oversight.
+
+CT
+^^
+
+* There is a new parameter for CT-like constructor classes: ``is_zip``. This is mostly an internal
+  flag and is used when calling the ``.from_zip`` method. The default is ``False``. This is backwards-compatible
+  and should not affect users. This was done for internal refactoring reasons.
+
 v 3.28.0
 --------
 
 General
 ^^^^^^^
 
-* The minimum version of Python supported is now 3.9 as the end-of-life of Python 3.8 is October 2024.
-* Along with this, minimum versions of numpy, scipy, and matplotlib have been bumped to versions that support Python 3.9.
+* :bdg-danger:`Change` The minimum version of Python supported is now 3.9 as the end-of-life of Python 3.8 is October 2024.
+* :bdg-danger:`Change` Along with this, minimum versions of numpy, scipy, and matplotlib have been bumped to versions that support Python 3.9.
 
 Plan Generator
 ^^^^^^^^^^^^^^
 
-* The patient name and patient ID can now be passed to the :class:`~pylinac.plan_generator.dicom.PlanGenerator` and :class:`~pylinac.plan_generator.dicom.HalcyonPlanGenerator` classes. This is useful for
+* :bdg-success:`Feature` The patient name and patient ID can now be passed to the :class:`~pylinac.plan_generator.dicom.PlanGenerator` and :class:`~pylinac.plan_generator.dicom.HalcyonPlanGenerator` classes. This is useful for
   setting the patient name and ID in the generated DICOM files.
 
 Starshot
@@ -33,10 +60,21 @@ Starshot
 CT
 ^^
 
-* The Tomo and CatPhan localization algorithm has changed slightly to handle very high HU values such as
+* :bdg-warning:`Fixed` The Tomo and CatPhan localization algorithm has changed slightly to handle very high HU values such as
   bbs and metal rods. In some instances, the HU values were so high the localization algorithm did not
   detect the phantom as it appeared at a background level. Values are now capped to -1000 and +1000 HU.
   Note this is only relevant for localization. HU values are not changed or capped in the analysis itself.
+
+Gamma
+^^^^^
+
+* :bdg-warning:`Fixed` Geometric gamma was incorrectly calculating the minimum threshold to evaluate over due to scaling of the dataset by the
+  dose to agreement. E.g. if the dose to agreement was 2mm, the minimum threshold for evaluating gamma
+  would be 20% of the dose. This would cause the evaluation points calculated over to be fewer than desired.
+* :bdg-warning:`Fixed` Geometric gamma was incorrectly calculating the gamma value for the distance to agreement due to a lack of scaling
+  by the distance to agreement. This would cause gamma values to be much higher than expected and thus gamma
+  pass rates to be lower than expected.
+* :bdg-warning:`Fixed` Dose to agreement and distance to agreement must be greater than 0.
 
 Core
 ^^^^
