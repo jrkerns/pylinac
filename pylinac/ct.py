@@ -1773,6 +1773,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         FileNotFoundError
             If no CT images are found in the folder
         """
+        super().__init__()
         self.origin_slice = 0
         self.catphan_roll = 0
         if isinstance(folderpath, (str, Path)):

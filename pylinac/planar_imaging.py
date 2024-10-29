@@ -207,6 +207,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         image_kwargs : dict
             Keywords passed to the image load function; this would include things like DPI or SID if applicable
         """
+        super().__init__()
         img_kwargs = image_kwargs or {}
         self.image = image.load(filepath, **img_kwargs)
         if normalize:
