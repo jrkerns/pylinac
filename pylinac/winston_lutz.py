@@ -1189,6 +1189,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         sid
             The Source-to-Image distance in mm. Only needed when using TIFF images.
         """
+        super().__init__()
         self.images = []
         if axis_mapping and not use_filenames:
             for filename, (gantry, coll, couch) in axis_mapping.items():

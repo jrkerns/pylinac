@@ -406,6 +406,7 @@ class BaseImage:
         path : str
             The path to the image.
         """
+        super().__init__()
         self.metrics = []
         self.metric_values = {}
         if isinstance(path, (str, Path)) and not osp.isfile(path):
