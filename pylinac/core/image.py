@@ -1835,7 +1835,7 @@ class LazyZipDicomImageStack(LazyDicomImageStack):
 
     def __init__(
         self,
-        folder: str | Path,
+        folder: str | Path | BinaryIO,
         dtype: np.dtype | None = None,
         min_number: int = 39,
         check_uid: bool = True,
@@ -1848,7 +1848,7 @@ class LazyZipDicomImageStack(LazyDicomImageStack):
         See the documentation for DicomImageStack for parameter descriptions.
         """
         self.dtype = dtype
-        self.zip_archive = Path(folder)
+        self.zip_archive = folder
         self.shadow_images = {}
         with ZipFile(self.zip_archive) as zfile:
             paths = zfile.namelist()
@@ -1878,7 +1878,9 @@ class LazyZipDicomImageStack(LazyDicomImageStack):
         self.create_shadow(paths)
 
     @classmethod
-    def from_zip(cls, zip_path: str | Path, dtype: np.dtype | None = None, **kwargs):
+    def from_zip(
+        cls, zip_path: str | Path | BinaryIO, dtype: np.dtype | None = None, **kwargs
+    ):
         # the zip lazy stack assumes a zip file is passed
         return cls(zip_path, dtype, **kwargs)
 
