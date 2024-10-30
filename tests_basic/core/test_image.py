@@ -858,6 +858,11 @@ class TestDicomStack(TestCase):
         # also check the number of files has not changed
         self.assertEqual(len(dstack_lazy), original_length)
 
+    def test_loading_lazy_zip_from_stream(self):
+        # shouldn't raise
+        with open(self.stack_location, "rb") as f:
+            LazyZipDicomImageStack.from_zip(f)
+
     def test_deleting_zip_lazy_from_stack(self):
         lazy_stack = LazyZipDicomImageStack.from_zip(self.stack_location)
         original_length = len(lazy_stack)
