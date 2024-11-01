@@ -675,7 +675,7 @@ class CIRS062M(CheesePhantomBase):
 
     See Also
     --------
-    https://www.cirsinc.com/products/radiation-therapy/electron-density-phantom/
+    https://www.cirsinc.com/products/all/24/electron-density-phantom/
     """
 
     model = "CIRS Electron Density (062M)"
