@@ -37,6 +37,12 @@ CT
   flag and is used when calling the ``.from_zip`` method. The default is ``False``. This is backwards-compatible
   and should not affect users. This was done for internal refactoring reasons.
 
+Core
+^^^^
+
+* :bdg-warning:`Fixed` The ``load_raw_visionrt`` function had a default shape of ``(960, 600)`` but should've had
+  a default of ``(600, 960)``. This has been fixed.
+
 v 3.28.0
 --------
 
