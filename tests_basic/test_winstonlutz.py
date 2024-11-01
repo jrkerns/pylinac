@@ -1545,7 +1545,7 @@ class KatyiX0(WinstonLutzMixin, PlotlyTestMixin, TestCase):
     machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=-0.4, y=0.15, z=-0.5)
     print_results = True
-    num_figs = 18
+    num_figs = 26
     fig_data = {
         0: {
             "title": "1",
