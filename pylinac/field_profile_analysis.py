@@ -110,6 +110,7 @@ class FieldProfileAnalysis(ResultsDataMixin[FieldProfileResult]):
         kwargs
             Keyword arguments to pass to the image loader.
         """
+        super().__init__()
         self.image: ImageLike = image.load(path, **kwargs)
         self.image.check_inversion_by_histogram()
 

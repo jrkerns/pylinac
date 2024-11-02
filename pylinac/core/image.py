@@ -2112,7 +2112,7 @@ def tiff_to_dicom(
 
 
 def load_raw_visionrt(
-    path: str | Path, shape: tuple[int, int] = (960, 600), dtype=np.uint32, **kwargs
+    path: str | Path, shape: tuple[int, int] = (600, 960), dtype=np.uint32, **kwargs
 ) -> ArrayImage:
     """Load a .raw file from a VisionRT system.
 
