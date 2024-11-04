@@ -92,6 +92,11 @@ The class can be used interchangeably with the normal class and throughout this 
 Advanced Use
 ------------
 
+Adjusting ROI locations
+^^^^^^^^^^^^^^^^^^^^^^^
+
+To adjust ROI locations, see the sister section for CT analysis: :ref:`adjusting-roi-locations`.
+
 Using ``results_data``
 ^^^^^^^^^^^^^^^^^^^^^^
 

@@ -210,6 +210,11 @@ Continuing from above:
     data_dict["ct_module"]["roi_radius_mm"]
     ...
 
+Adjusting ROI locations
+^^^^^^^^^^^^^^^^^^^^^^^
+
+To adjust ROI locations, see the sister section for CT analysis: :ref:`adjusting-roi-locations`.
+
 CT Analysis Parameters
 ----------------------
 

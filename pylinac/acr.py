@@ -302,8 +302,41 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
     def save_analyzed_subimage(self, *args, **kwargs):
         raise NotImplementedError("Use `save_images`")
 
-    def analyze(self) -> None:
-        """Analyze the ACR CT phantom"""
+    def analyze(
+        self,
+        x_adjustment: float = 0,
+        y_adjustment: float = 0,
+        angle_adjustment: float = 0,
+        roi_size_factor: float = 1,
+        scaling_factor: float = 1,
+    ) -> None:
+        """Analyze the ACR CT phantom
+
+        Parameters
+        ----------
+        x_adjustment: float
+            A fine-tuning adjustment to the detected x-coordinate of the phantom center. This will move the
+            detected phantom position by this amount in the x-direction in mm. Positive values move the phantom to the right.
+        y_adjustment: float
+            A fine-tuning adjustment to the detected y-coordinate of the phantom center. This will move the
+            detected phantom position by this amount in the y-direction in mm. Positive values move the phantom down.
+        angle_adjustment: float
+            A fine-tuning adjustment to the detected angle of the phantom. This will rotate the phantom by this amount in degrees.
+            Positive values rotate the phantom clockwise.
+        roi_size_factor: float
+            A fine-tuning adjustment to the ROI sizes of the phantom. This will scale the ROIs by this amount.
+            Positive values increase the ROI sizes. In contrast to the scaling adjustment, this
+            adjustment effectively makes the ROIs bigger or smaller, but does not adjust their position.
+        scaling_factor: float
+            A fine-tuning adjustment to the detected magnification of the phantom. This will zoom the ROIs and phantom outline (if applicable) by this amount.
+            In contrast to the roi size adjustment, the scaling adjustment effectively moves the phantom and ROIs
+            closer or further from the phantom center. I.e. this zooms the outline and ROI positions, but not ROI size.
+        """
+        self.x_adjustment = x_adjustment
+        self.y_adjustment = y_adjustment
+        self.angle_adjustment = angle_adjustment
+        self.roi_size_factor = roi_size_factor
+        self.scaling_factor = scaling_factor
         self.localize()
         self.ct_calibration_module = self.ct_calibration_module(
             self, offset=0, clear_borders=self.clear_borders
@@ -1159,7 +1192,7 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
 
     def localize(self) -> None:
         self._phantom_center_func = self.find_phantom_axis()
-        self.catphan_roll = self.find_phantom_roll()
+        self.catphan_roll = self.find_phantom_roll() + self.angle_adjustment
         # now that we have the origin slice, ensure we have scanned all linked modules
         if not self._ensure_physical_scan_extent():
             raise ValueError(
@@ -1213,14 +1246,44 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
                 "Could not determine the roll of the phantom. Ensure the 20mm top-left circle is visible on Slice 1"
             )
 
-    def analyze(self, echo_number: int | None = None) -> None:
+    def analyze(
+        self,
+        echo_number: int | None = None,
+        x_adjustment: float = 0,
+        y_adjustment: float = 0,
+        angle_adjustment: float = 0,
+        roi_size_factor: float = 1,
+        scaling_factor: float = 1,
+    ) -> None:
         """Analyze the ACR CT phantom
 
         Parameters
         ----------
         echo_number:
             The echo to analyze. If not passed, uses the minimum echo number found.
+        x_adjustment: float
+            A fine-tuning adjustment to the detected x-coordinate of the phantom center. This will move the
+            detected phantom position by this amount in the x-direction in mm. Positive values move the phantom to the right.
+        y_adjustment: float
+            A fine-tuning adjustment to the detected y-coordinate of the phantom center. This will move the
+            detected phantom position by this amount in the y-direction in mm. Positive values move the phantom down.
+        angle_adjustment: float
+            A fine-tuning adjustment to the detected angle of the phantom. This will rotate the phantom by this amount in degrees.
+            Positive values rotate the phantom clockwise.
+        roi_size_factor: float
+            A fine-tuning adjustment to the ROI sizes of the phantom. This will scale the ROIs by this amount.
+            Positive values increase the ROI sizes. In contrast to the scaling adjustment, this
+            adjustment effectively makes the ROIs bigger or smaller, but does not adjust their position.
+        scaling_factor: float
+            A fine-tuning adjustment to the detected magnification of the phantom. This will zoom the ROIs and phantom outline (if applicable) by this amount.
+            In contrast to the roi size adjustment, the scaling adjustment effectively moves the phantom and ROIs
+            closer or further from the phantom center. I.e. this zooms the outline and ROI positions, but not ROI size.
         """
+        self.x_adjustment = x_adjustment
+        self.y_adjustment = y_adjustment
+        self.angle_adjustment = angle_adjustment
+        self.roi_size_factor = roi_size_factor
+        self.scaling_factor = scaling_factor
         self._select_echo_images(echo_number)
         self.localize()
         self.slice1 = self.slice1(self, offset=0)

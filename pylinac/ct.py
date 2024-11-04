@@ -454,6 +454,8 @@ class CatPhanModule(Slice):
         self.slice_thickness = catphan.dicom_stack.metadata.SliceThickness
         self.slice_spacing = catphan.dicom_stack.slice_spacing
         self.catphan_roll = catphan.catphan_roll
+        self.roi_size_factor = catphan.roi_size_factor
+        self.scaling_factor = catphan.scaling_factor
         self.mm_per_pixel = catphan.mm_per_pixel
         self.rois: dict[str, HUDiskROI] = {}
         self.background_rois: dict[str, HUDiskROI] = {}
@@ -477,7 +479,9 @@ class CatPhanModule(Slice):
                 if isinstance(settings, dict):
                     if settings.get("distance") is not None:
                         settings["distance_pixels"] = (
-                            settings["distance"] / self.mm_per_pixel
+                            settings["distance"]
+                            * self.scaling_factor
+                            / self.mm_per_pixel
                         )
                     if settings.get("angle") is not None:
                         settings["angle_corrected"] = (
@@ -485,13 +489,19 @@ class CatPhanModule(Slice):
                         )
                     if settings.get("radius") is not None:
                         settings["radius_pixels"] = (
-                            settings["radius"] / self.mm_per_pixel
+                            settings["radius"]
+                            * self.roi_size_factor
+                            / self.mm_per_pixel
                         )
                     if settings.get("width") is not None:
-                        settings["width_pixels"] = settings["width"] / self.mm_per_pixel
+                        settings["width_pixels"] = (
+                            settings["width"] * self.roi_size_factor / self.mm_per_pixel
+                        )
                     if settings.get("height") is not None:
                         settings["height_pixels"] = (
-                            settings["height"] / self.mm_per_pixel
+                            settings["height"]
+                            * self.roi_size_factor
+                            / self.mm_per_pixel
                         )
 
     def preprocess(self, catphan):
@@ -1376,7 +1386,7 @@ class CTP528CP504(CatPhanModule):
     @property
     def radius2linepairs(self) -> float:
         """Radius from the phantom center to the line-pair region, corrected for pixel spacing."""
-        return self.radius2linepairs_mm / self.mm_per_pixel
+        return self.radius2linepairs_mm * self.scaling_factor / self.mm_per_pixel
 
     def plotly_rois(self, fig: go.Figure) -> None:
         self.circle_profile.plotly(fig, color="blue", plot_peaks=False)
@@ -1401,7 +1411,7 @@ class CTP528CP504(CatPhanModule):
             self.radius2linepairs,
             image_array=self.image,
             start_angle=self.start_angle + np.deg2rad(self.catphan_roll),
-            width_ratio=0.04,
+            width_ratio=0.04 * self.roi_size_factor,
             sampling_ratio=2,
             ccw=self.ccw,
         )
@@ -1748,6 +1758,11 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
     modules: dict[CatPhanModule, dict[str, int]]
     dicom_stack: image.DicomImageStack | image.LazyDicomImageStack
     clip_in_localization: bool = False
+    x_adjustment: float
+    y_adjustment: float
+    roi_size_factor: float
+    scaling_factor: float
+    angle_adjustment: float
 
     def __init__(
         self,
@@ -2057,7 +2072,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         """Find the slice number of the catphan's HU linearity module and roll angle"""
         self._phantom_center_func = self.find_phantom_axis()
         self.origin_slice = self.find_origin_slice()
-        self.catphan_roll = self.find_phantom_roll()
+        self.catphan_roll = self.find_phantom_roll() + self.angle_adjustment
         self.origin_slice = self.refine_origin_slice(
             initial_slice_num=self.origin_slice
         )
@@ -2119,8 +2134,8 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
                 center_x.append(roi.centroid[1])
         # clip to exclude any crazy values
         zs = np.array(z)
-        center_xs = np.array(center_x)
-        center_ys = np.array(center_y)
+        center_xs = np.array(center_x) + self.x_adjustment
+        center_ys = np.array(center_y) + self.y_adjustment
         # gives an absolute and relative range so tight ranges are all included
         # but extreme values are excluded. Sometimes the range is very tight
         # and thus percentiles are not a sure thing
@@ -2410,6 +2425,11 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         visibility_threshold: float = 0.15,
         thickness_slice_straddle: str | int = "auto",
         expected_hu_values: dict[str, int | float] | None = None,
+        x_adjustment: float = 0,
+        y_adjustment: float = 0,
+        angle_adjustment: float = 0,
+        roi_size_factor: float = 1,
+        scaling_factor: float = 1,
     ):
         """Single-method full analysis of CBCT DICOM files.
 
@@ -2454,8 +2474,29 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         expected_hu_values
             An optional dictionary of the expected HU values for the HU linearity module. The keys are the ROI names and the values
             are the expected HU values. If a key is not present or the parameter is None, the default values will be used.
-
+        x_adjustment: float
+            A fine-tuning adjustment to the detected x-coordinate of the phantom center. This will move the
+            detected phantom position by this amount in the x-direction in mm. Positive values move the phantom to the right.
+        y_adjustment: float
+            A fine-tuning adjustment to the detected y-coordinate of the phantom center. This will move the
+            detected phantom position by this amount in the y-direction in mm. Positive values move the phantom down.
+        angle_adjustment: float
+            A fine-tuning adjustment to the detected angle of the phantom. This will rotate the phantom by this amount in degrees.
+            Positive values rotate the phantom clockwise.
+        roi_size_factor: float
+            A fine-tuning adjustment to the ROI sizes of the phantom. This will scale the ROIs by this amount.
+            Positive values increase the ROI sizes. In contrast to the scaling adjustment, this
+            adjustment effectively makes the ROIs bigger or smaller, but does not adjust their position.
+        scaling_factor: float
+            A fine-tuning adjustment to the detected magnification of the phantom. This will zoom the ROIs and phantom outline (if applicable) by this amount.
+            In contrast to the roi size adjustment, the scaling adjustment effectively moves the phantom and ROIs
+            closer or further from the phantom center. I.e. this zooms the outline and ROI positions, but not ROI size.
         """
+        self.x_adjustment = x_adjustment
+        self.y_adjustment = y_adjustment
+        self.angle_adjustment = angle_adjustment
+        self.roi_size_factor = roi_size_factor
+        self.scaling_factor = scaling_factor
         self.localize()
         ctp404, offset = self._get_module(CTP404CP504, raise_empty=True)
         self.ctp404 = ctp404(

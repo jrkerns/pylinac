@@ -393,6 +393,11 @@ class CatPhanMixin(CloudFileMixin):
     print_debug = False
     avg_noise_power = None
     max_noise_power_frequency = 0
+    x_adjustment: float
+    y_adjustment: float
+    angle_adjustment: float
+    roi_size_factor: float
+    scaling_factor: float
 
     @classmethod
     def setUpClass(cls):
@@ -410,6 +415,11 @@ class CatPhanMixin(CloudFileMixin):
             cls.hu_tolerance,
             cls.scaling_tolerance,
             thickness_slice_straddle=cls.thickness_slice_straddle,
+            x_adjustment=cls.x_adjustment,
+            y_adjustment=cls.y_adjustment,
+            angle_adjustment=cls.angle_adjustment,
+            roi_size_factor=cls.roi_size_factor,
+            scaling_factor=cls.scaling_factor,
         )
         if cls.print_debug:
             print(cls.cbct._results())
@@ -696,6 +706,28 @@ class CatPhan604Test(CatPhanMixin, TestCase):
     mtf_values = {50: 0.43}
     lowcon_visible = 1  # changed w/ visibility refactor in v3.0
     avg_noise_power = 0.252
+
+
+@mark.catphan604
+class CatPhan604TestROIOffsets(CatPhan604Test):
+    # random, arbitrary offsets applied for a constancy test against adjustment changes
+    hu_values = {
+        "Poly": -31,
+        "Acrylic": 95,
+        "Delrin": 73,
+        "Air": 21,
+        "Teflon": 69,
+        "PMP": 28,
+        "LDPE": 15,
+        "50% Bone": 63,
+        "20% Bone": 145,
+    }
+    expected_roll = 5.27
+    x_adjustment = 5
+    y_adjustment = -2
+    angle_adjustment = 5
+    roi_size_factor = 1.1
+    scaling_factor = 1.03
 
 
 class CatPhan504Mixin(CatPhanMixin):

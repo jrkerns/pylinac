@@ -182,12 +182,23 @@ class CheeseMixin(CloudFileMixin):
     dir_path = ["Tomo"]
     hu_values = {}
     expected_roll = -0.2
+    x_adjustment = 0
+    y_adjustment = 0
+    roi_size_factor = 1
+    scaling_factor = 1
+    angle_adjustment = 0
 
     @classmethod
     def setUpClass(cls):
         filename = cls.get_filename()
         cls.cheese = cls.model.from_zip(filename)
-        cls.cheese.analyze()
+        cls.cheese.analyze(
+            x_adjustment=cls.x_adjustment,
+            y_adjustment=cls.y_adjustment,
+            roi_size_factor=cls.roi_size_factor,
+            scaling_factor=cls.scaling_factor,
+            angle_adjustment=cls.angle_adjustment,
+        )
 
     @classmethod
     def tearDownClass(cls):
@@ -413,3 +424,24 @@ class TestCIRS062MShifted(CheeseMixin, TestCase):
         "8": 45,
         "17": -489,
     }
+
+
+class TestCIRS062MApplyShifts(CheeseMixin, TestCase):
+    # we apply some crazy shifts that will cause the ROIs to be off but also border
+    # the ROI edges. This should make testing constancy robust since any small change
+    # of the adjustments will cause a large difference in the results.
+    model = CIRS062M
+    origin_slice = 30
+    dir_path = ["Tomo", "CIRS062M"]
+    file_name = "CIRS bad, shifted.zip"
+    expected_roll = 4.44
+    hu_values = {
+        "2": -741,  # air roi
+        "3": -505,  # air roi
+        "17": -345,
+    }
+    x_adjustment = 1
+    y_adjustment = -2
+    angle_adjustment = 5
+    roi_size_factor = 1.2
+    scaling_factor = 1.03

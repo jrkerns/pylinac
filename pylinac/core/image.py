@@ -2011,6 +2011,12 @@ class DicomImageStack(LazyDicomImageStack):
         for img in self.images:
             img.roll(direction, amount)
 
+    def crop(
+        self, pixels: int, edges: tuple[str, ...] = ("top", "bottom", "left", "right")
+    ):
+        for img in self.images:
+            img.crop(pixels, edges=edges)
+
     def __getitem__(self, item) -> DicomImage:
         return self.images[item]
 

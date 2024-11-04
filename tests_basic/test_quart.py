@@ -158,12 +158,23 @@ class QuartDVTMixin(CloudFileMixin):
         "Top": ACRYLIC,
         "Bottom": ACRYLIC,
     }
+    x_adjustment = 0
+    y_adjustment = 0
+    angle_adjustment = 0
+    roi_size_factor = 1
+    scaling_factor = 1
 
     @classmethod
     def setUpClass(cls):
         filename = cls.get_filename()
         cls.quart = QuartDVT.from_zip(filename, memory_efficient_mode=True)
-        cls.quart.analyze()
+        cls.quart.analyze(
+            x_adjustment=cls.x_adjustment,
+            y_adjustment=cls.y_adjustment,
+            angle_adjustment=cls.angle_adjustment,
+            roi_size_factor=cls.roi_size_factor,
+            scaling_factor=cls.scaling_factor,
+        )
 
     def test_roll(self):
         self.assertAlmostEqual(self.quart.catphan_roll, self.phantom_roll, delta=0.3)
@@ -252,6 +263,21 @@ class TestQuartHead(QuartDVTMixin, PlotlyTestMixin, TestCase):
 
     def setUp(self) -> None:
         self.instance = self.quart
+
+
+class TestQuartROIOffsets(TestQuartHead):
+    # apply random offsets to the ROIs for constancy testing in the future
+    x_adjustment = 5
+    y_adjustment = -4
+    angle_adjustment = 3
+    roi_size_factor = 0.8
+    scaling_factor = 1.03
+    cnr = 4.35
+    high_contrast_distance = 0.78
+    phantom_roll = 3.18
+    snr = 13
+    hu_values = {"Poly": 34, "Acrylic": 126, "Air": 106, "Teflon": 192}
+    unif_values = {"Center": 121, "Left": 115, "Right": 136, "Top": 125, "Bottom": 127}
 
 
 class TestQuartHeadOffset(QuartDVTMixin, TestCase):

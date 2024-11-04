@@ -166,6 +166,11 @@ This will plot a simple HU vs density graph.
 
     Not all ROI densities have to be defined. Any ROI between 1 and 20 can be set.
 
+Adjusting ROI locations
+-----------------------
+
+To adjust ROI locations, see the sister section for CT analysis: :ref:`adjusting-roi-locations`.
+
 .. _extending_cheese_phantom:
 
 Extending for other phantoms
