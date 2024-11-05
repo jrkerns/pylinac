@@ -1875,6 +1875,8 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
                 for image in self.images
                 if image.variable_axis in (variable_axis, Axis.REFERENCE)
             ]
+            if not imgs:
+                continue
             angles = [
                 getattr(image, f"{variable_axis.value.lower()}_angle") for image in imgs
             ]

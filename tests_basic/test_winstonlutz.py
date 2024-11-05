@@ -1506,10 +1506,12 @@ class WLDontUseFileNames(WinstonLutzMixin, TestCase):
     }
 
 
-class WLUseFileNames(WinstonLutzMixin, TestCase):
+class WLUseFileNames(WinstonLutzMixin, PlotlyTestMixin, TestCase):
     file_name = "Naming.zip"
     use_filenames = True
     num_images = 4
+    # For below, note that gantry, couch, and epid POV plots are not made due to lack of isolated-axis images. This is on purpose.
+    num_figs = 7
     collimator_iso_size = 1.2
     cax2bb_max_distance = 0.9
     cax2bb_median_distance = 0.8
@@ -1521,6 +1523,9 @@ class WLUseFileNames(WinstonLutzMixin, TestCase):
         2: Axis.COLLIMATOR,
         3: Axis.COLLIMATOR,
     }
+
+    def setUp(self) -> None:
+        self.instance = self.wl
 
 
 class WLBadFilenames(TestCase):
