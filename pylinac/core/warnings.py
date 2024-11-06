@@ -3,6 +3,9 @@ import types
 import warnings
 from functools import wraps
 from threading import Lock
+from typing import Any, TypeVar
+
+T = TypeVar("T", bound=type[Any])  # Class type
 
 
 class WarningCollectorMixin:
@@ -67,7 +70,7 @@ def capture_warnings_method_wrapper(method: callable) -> callable:
     return wrapper
 
 
-def capture_warnings(cls):
+def capture_warnings(cls: type[T]) -> type[T]:
     """
     Class decorator to automatically apply the capture_warnings decorator
     to all methods of the class that are not private or special methods.
