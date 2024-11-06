@@ -839,7 +839,7 @@ Interpreting Results
 
 This section explains what is returned in the ``results_data`` object.
 This is also the same information that is given in the RadMachine results
-section.
+section. This is the same information as described in the :class:`~pylinac.picketfence.PFResult` class.
 
 * ``tolerance_mm`` -- The tolerance used to determine if the picket is passing or failing in mm.
 * ``action_tolerance_mm`` -- The tolerance used to determine if the picket is failing and requires action in mm.
@@ -855,8 +855,8 @@ section.
 * ``failed_leaves`` -- A list of leaf numbers that failed. If using ``separate_leaves=False``, this will be the leaf pairs (10, 22, etc). If using ``separate_leaves=True`` this will be the bank-specific leaves; A10, B22, A22, etc.
 * ``mlc_skew`` -- The skew of the MLC stack in degrees. This is the angle of the MLCs from the nearest cardinal direction.
 * ``picket_widths`` -- The widths of the pickets in mm.
-* ``mlc_positions_by_leaf`` -- A dictionary where the key is the leaf number and the value is a list of positions in mm **from the left or top of the image**.
-* ``mlc_errors_by_leaf`` -- A dictionary where the key is the leaf number and the value is a list of errors in mm.
+* ``mlc_positions_by_leaf`` -- A dictionary where the key is the leaf number and the value is a list of positions in mm **from the CAX position**.
+* ``mlc_errors_by_leaf`` -- A dictionary where the key is the leaf number and the value is a list of errors in mm. The error value is the distance from the leaf to the picket at that same position.
 
 Troubleshooting
 ---------------
