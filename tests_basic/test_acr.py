@@ -133,11 +133,11 @@ class ACRCTMixin(CloudFileMixin):
     slice_thickness: float
     hu_values: dict
     unif_values: dict
-    x_adjustment: float
-    y_adjustment: float
-    angle_adjustment: float
-    roi_size_factor: float
-    scaling_factor: float
+    x_adjustment: float = 0
+    y_adjustment: float = 0
+    angle_adjustment: float = 0
+    roi_size_factor: float = 1
+    scaling_factor: float = 1
 
     @classmethod
     def setUpClass(cls):
@@ -245,7 +245,6 @@ class ACRPhilipsOffset(ACRCTMixin, TestCase):
         cls.ct = ACRCT.from_zip(filename)
         for img in cls.ct.dicom_stack:
             img.roll(direction="x", amount=5)
-        cls.ct.localize()
         cls.ct.analyze()
 
 
@@ -267,7 +266,6 @@ class ACRPhilipsRotated(ACRCTMixin, TestCase):
         cls.ct = ACRCT.from_zip(filename)
         for img in cls.ct.dicom_stack:
             img.array = ndimage.rotate(img.array, angle=3, mode="nearest")
-        cls.ct.localize()
         cls.ct.analyze()
 
 
@@ -415,11 +413,11 @@ class ACRMRMixin(CloudFileMixin):
     slice11_shift: float
     psg: float
     results: list[str] = []
-    x_adjustment: float
-    y_adjustment: float
-    angle_adjustment: float
-    roi_size_factor: float
-    scaling_factor: float
+    x_adjustment: float = 0
+    y_adjustment: float = 0
+    angle_adjustment: float = 0
+    roi_size_factor: float = 1
+    scaling_factor: float = 1
 
     @classmethod
     def setUpClass(cls):
@@ -576,7 +574,6 @@ class ACRGE3TOffset(ACRGE3T):
         cls.mri = ACRMRILarge.from_zip(filename)
         for img in cls.mri.dicom_stack:
             img.roll(direction="x", amount=5)
-        cls.mri.localize()
         cls.mri.analyze()
 
 
@@ -596,7 +593,6 @@ class ACRGE3TRotated(ACRGE3T):
         cls.mri = ACRMRILarge.from_zip(filename)
         for img in cls.mri.dicom_stack:
             img.array = ndimage.rotate(img.array, angle=0.5, mode="nearest")
-        cls.mri.localize()
         cls.mri.analyze()
 
 
@@ -635,5 +631,4 @@ class ACRMRIUnfilled(ACRMRMixin, TestCase):
         cls.mri = ACRMRILarge.from_zip(filename)
         for img in cls.mri.dicom_stack:
             img.array = ndimage.rotate(img.array, angle=1, mode="nearest")
-        cls.mri.localize()
         cls.mri.analyze()

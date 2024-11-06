@@ -393,11 +393,11 @@ class CatPhanMixin(CloudFileMixin):
     print_debug = False
     avg_noise_power = None
     max_noise_power_frequency = 0
-    x_adjustment: float
-    y_adjustment: float
-    angle_adjustment: float
-    roi_size_factor: float
-    scaling_factor: float
+    x_adjustment: float = 0
+    y_adjustment: float = 0
+    angle_adjustment: float = 0
+    roi_size_factor: float = 1
+    scaling_factor: float = 1
 
     @classmethod
     def setUpClass(cls):

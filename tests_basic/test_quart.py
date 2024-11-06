@@ -158,11 +158,11 @@ class QuartDVTMixin(CloudFileMixin):
         "Top": ACRYLIC,
         "Bottom": ACRYLIC,
     }
-    x_adjustment = 0
-    y_adjustment = 0
-    angle_adjustment = 0
-    roi_size_factor = 1
-    scaling_factor = 1
+    x_adjustment: float = 0
+    y_adjustment: float = 0
+    angle_adjustment: float = 0
+    roi_size_factor: float = 1
+    scaling_factor: float = 1
 
     @classmethod
     def setUpClass(cls):
@@ -304,7 +304,6 @@ class TestQuartHeadOffset(QuartDVTMixin, TestCase):
         cls.quart = QuartDVT.from_zip(filename)
         for img in cls.quart.dicom_stack:
             img.roll(direction="x", amount=40)
-        cls.quart.localize()
         cls.quart.analyze()
 
 
@@ -332,7 +331,6 @@ class TestQuartHeadRotated(QuartDVTMixin, TestCase):
         cls.quart = QuartDVT.from_zip(filename)
         for img in cls.quart.dicom_stack:
             img.array = ndimage.rotate(img.array, angle=3, mode="nearest")
-        cls.quart.localize()
         cls.quart.analyze()
 
 
