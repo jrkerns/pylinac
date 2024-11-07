@@ -37,6 +37,13 @@ CT
   flag and is used when calling the ``.from_zip`` method. The default is ``False``. This is backwards-compatible
   and should not affect users. This was done for internal refactoring reasons.
 
+Gamma
+^^^^^
+
+* :bdg-warning:`Fixed` Evaluating gamma on a profile that had at least one x-spacing that was double the distance-to-agreement
+  parameter would result in an error. This is because for computational speed, only nearby simplexes were included in the
+  evaluation. However, if the x-spacing was too large, the nearest simplex would end up being the same point as the evaluation.
+
 v 3.28.0
 --------
 
