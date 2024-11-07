@@ -32,6 +32,7 @@ from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.pdf import PylinacCanvas
 from .core.profile import FWXMProfile
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
+from .core.warnings import capture_warnings
 
 
 class ImageType(enum.Enum):
@@ -714,6 +715,7 @@ class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
         return image1, image2
 
 
+@capture_warnings
 class DRGS(VMATBase):
     """Class representing a Dose-Rate, Gantry-speed VMAT test. Will accept, analyze, and return the results."""
 
@@ -739,6 +741,7 @@ class DRGS(VMATBase):
         vmat.plot_analyzed_image()
 
 
+@capture_warnings
 class DRMLC(VMATBase):
     """Class representing a Dose-Rate, MLC speed VMAT test. Will accept, analyze, and return the results."""
 

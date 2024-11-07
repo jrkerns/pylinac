@@ -16,6 +16,7 @@ from .core.profile import CollapsedCircleProfile
 from .core.roi import DiskROI
 from .core.scale import abs360
 from .core.utilities import QuaacDatum, ResultBase, ResultsDataMixin
+from .core.warnings import capture_warnings
 from .ct import CatPhanBase, CatPhanModule, Slice
 
 
@@ -517,6 +518,7 @@ class CheesePhantomBase(CatPhanBase, ResultsDataMixin[CheeseResult]):
         )
 
 
+@capture_warnings
 class TomoCheese(CheesePhantomBase, ResultsDataMixin[TomoCheeseResult]):
     """A class for analyzing the TomoTherapy 'Cheese' Phantom containing insert holes and plugs for HU analysis."""
 
@@ -667,12 +669,13 @@ class CIRSHUModule(CheeseModule):
     }
 
 
+@capture_warnings
 class CIRS062M(CheesePhantomBase):
     """A class for analyzing the CIRS Electron Density Phantom containing insert holes and plugs for HU analysis.
 
     See Also
     --------
-    https://www.cirsinc.com/products/radiation-therapy/electron-density-phantom/
+    https://www.cirsinc.com/products/all/24/electron-density-phantom/
     """
 
     model = "CIRS Electron Density (062M)"

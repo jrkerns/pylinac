@@ -184,6 +184,10 @@ class TestAnalyze(TestCase):
             delta=0.1,
         )
 
+    def test_results_warnings(self):
+        data = self.pf.results_data()
+        self.assertEqual(len(data.warnings), 0)
+
     def test_no_measurements_suggests_inversion(self):
         file_loc = get_file_from_cloud_test_repo(
             [TEST_DIR, "noisy-FFF-wide-gap-pf.dcm"]

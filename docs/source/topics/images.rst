@@ -122,9 +122,9 @@ To open these VisionRT:
 
     from pylinac import image
 
-    my_raw = image.load_raw_visionrt("path/to/my/image.raw", shape=(960, 600))
+    my_raw = image.load_raw_visionrt("path/to/my/image.raw", shape=(600, 960))
     # OR
-    my_raw = image.load_raw("path/to/my/image.raw", shape=(960, 600), dtype=np.uint32)
+    my_raw = image.load_raw("path/to/my/image.raw", shape=(600, 960), dtype=np.uint32)
 
 To load CyberKnife images:
 

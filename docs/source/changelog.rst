@@ -44,6 +44,12 @@ Gamma
   parameter would result in an error. This is because for computational speed, only nearby simplexes were included in the
   evaluation. However, if the x-spacing was too large, the nearest simplex would end up being the same point as the evaluation.
 
+Core
+^^^^
+
+* :bdg-warning:`Fixed` The ``load_raw_visionrt`` function had a default shape of ``(960, 600)`` but should've had
+  a default of ``(600, 960)``. This has been fixed.
+
 v 3.28.0
 --------
 

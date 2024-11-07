@@ -79,6 +79,11 @@ class TestQuartDVTGeneral(TestCase):
         # shouldn't raise
         json.loads(data_str)
 
+    def test_results_warnings(self):
+        self.quart.analyze()
+        data = self.quart.results_data()
+        self.assertEqual(len(data.warnings), 0)
+
     def test_lazy_same_as_default(self):
         """Test that the results are the same from a lazy load vs default"""
         lazy_quart = QuartDVT.from_zip(self.path, memory_efficient_mode=True)

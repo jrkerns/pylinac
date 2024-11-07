@@ -301,6 +301,13 @@ class FieldAnalysisTests(TestCase):
         # shouldn't raise
         json.loads(data_json)
 
+    def test_results_warnings(self):
+        fs = create_instance()
+        fs.analyze()
+        # shouldn't raise
+        data = fs.results_data()
+        self.assertEqual(len(data.warnings), 0)
+
     def test_results_fails_if_not_analyzed(self):
         fs = FieldProfileAnalysis.from_demo_image()
         with self.assertRaises(NotAnalyzed):

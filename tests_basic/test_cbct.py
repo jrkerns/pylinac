@@ -206,6 +206,11 @@ class TestGeneral(TestCase):
         # shouldn't raise
         json.loads(data_json)
 
+    def test_results_warnings(self):
+        self.cbct.analyze()
+        data = self.cbct.results_data()
+        self.assertEqual(len(data.warnings), 0)
+
     def test_contrast_str(self):
         # shouldn't raise
         self.cbct.analyze(contrast_method="Michelson")

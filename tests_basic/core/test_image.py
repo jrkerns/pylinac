@@ -36,6 +36,7 @@ from pylinac.core.image import (
     tiff_to_dicom,
 )
 from pylinac.core.io import TemporaryZipDirectory
+from pylinac.metrics.image import GlobalSizedFieldLocator
 from tests_basic.utils import (
     get_file_from_cloud_test_repo,
     get_folder_from_cloud_repo,
@@ -858,6 +859,11 @@ class TestDicomStack(TestCase):
         # also check the number of files has not changed
         self.assertEqual(len(dstack_lazy), original_length)
 
+    def test_loading_lazy_zip_from_stream(self):
+        # shouldn't raise
+        with open(self.stack_location, "rb") as f:
+            LazyZipDicomImageStack.from_zip(f)
+
     def test_deleting_zip_lazy_from_stack(self):
         lazy_stack = LazyZipDicomImageStack.from_zip(self.stack_location)
         original_length = len(lazy_stack)
@@ -884,16 +890,24 @@ class TestRawImages(TestCase):
     def test_path(self):
         # test a pathlib.Path vs str
         path = get_file_from_cloud_test_repo(["Misc", "VisionRT_960_600_uint32.raw"])
-        img = image.load_raw_visionrt(Path(path), shape=(960, 600))
+        img = image.load_raw_visionrt(Path(path))
         self.assertIsInstance(img, ArrayImage)
 
     def test_vision_rt_image(self):
         """Test that a VisionRT image can be loaded"""
         path = get_file_from_cloud_test_repo(["Misc", "VisionRT_960_600_uint32.raw"])
-        img = image.load_raw_visionrt(path, shape=(960, 600))
+        img = image.load_raw_visionrt(path, dpi=1)
         self.assertIsInstance(img, ArrayImage)
-        self.assertEqual(img.array.shape, (960, 600))
+        self.assertEqual(img.array.shape, (600, 960))
         self.assertEqual(img.array.dtype, np.uint32)
+        blobs = img.compute(
+            GlobalSizedFieldLocator(
+                field_width_px=160, field_height_px=100, field_tolerance_px=30
+            )
+        )
+        first_blob = blobs[0]
+        self.assertAlmostEqual(first_blob.x, 492, delta=1)
+        self.assertAlmostEqual(first_blob.y, 320, delta=1)
 
     def test_cyberknife_512(self):
         """Test that a CyberKnife image can be loaded"""

@@ -20,6 +20,7 @@ from .core.mtf import MTF
 from .core.profile import FWXMProfile
 from .core.roi import HighContrastDiskROI, RectangleROI
 from .core.utilities import QuaacDatum, ResultBase, ResultsDataMixin
+from .core.warnings import capture_warnings
 from .ct import (
     CatPhanBase,
     CatPhanModule,
@@ -274,6 +275,7 @@ class ACRCTResult(ResultBase):
     )
 
 
+@capture_warnings
 class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
     _model = "ACR CT 464"
     catphan_radius_mm = 100
@@ -1137,6 +1139,7 @@ class ACRMRIResult(ResultBase):
     )
 
 
+@capture_warnings
 class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
     _model = "ACR MRI Large"
     catphan_radius_mm = 100

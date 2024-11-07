@@ -806,6 +806,11 @@ class GeneralTests(TestCase):
         data_json = self.wl.results_data(as_json=True)
         self.assertIsInstance(data_json, str)
 
+    def test_results_warnings(self):
+        self.wl.analyze()
+        data = self.wl.results_data()
+        self.assertEqual(len(data.warnings), 0)
+
     def test_results_data_individual_keys_duplicate(self):
         # lucky for us, the demo set has duplicates already
         data_dict = self.wl.results_data(as_dict=True)
@@ -1501,10 +1506,12 @@ class WLDontUseFileNames(WinstonLutzMixin, TestCase):
     }
 
 
-class WLUseFileNames(WinstonLutzMixin, TestCase):
+class WLUseFileNames(WinstonLutzMixin, PlotlyTestMixin, TestCase):
     file_name = "Naming.zip"
     use_filenames = True
     num_images = 4
+    # For below, note that gantry, couch, and epid POV plots are not made due to lack of isolated-axis images. This is on purpose.
+    num_figs = 7
     collimator_iso_size = 1.2
     cax2bb_max_distance = 0.9
     cax2bb_median_distance = 0.8
@@ -1516,6 +1523,9 @@ class WLUseFileNames(WinstonLutzMixin, TestCase):
         2: Axis.COLLIMATOR,
         3: Axis.COLLIMATOR,
     }
+
+    def setUp(self) -> None:
+        self.instance = self.wl
 
 
 class WLBadFilenames(TestCase):
@@ -1540,7 +1550,7 @@ class KatyiX0(WinstonLutzMixin, PlotlyTestMixin, TestCase):
     machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=-0.4, y=0.15, z=-0.5)
     print_results = True
-    num_figs = 18
+    num_figs = 26
     fig_data = {
         0: {
             "title": "1",

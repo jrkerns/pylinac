@@ -17,6 +17,7 @@ from .core import pdf
 from .core.geometry import Line, Point
 from .core.profile import FWXMProfilePhysical
 from .core.utilities import ResultBase, ResultsDataMixin
+from .core.warnings import capture_warnings
 from .ct import (
     AIR,
     CTP404CP504,
@@ -395,6 +396,7 @@ class QuartGeometryModule(CatPhanModule):
         return float(np.mean(list(self.high_contrast_resolutions().values())))
 
 
+@capture_warnings
 class QuartDVT(CatPhanBase, ResultsDataMixin[QuartDVTResult]):
     """A class for loading and analyzing CT DICOM files of a Quart phantom that comes with the Halcyon.
     Analyzes: HU Uniformity, Image Scaling & HU Linearity.
@@ -701,6 +703,7 @@ class QuartDVT(CatPhanBase, ResultsDataMixin[QuartDVTResult]):
         return [self.uniformity_module, self.hu_module, self.geometry_module]
 
 
+@capture_warnings
 class HypersightQuartDVT(QuartDVT):
     """A class for loading and analyzing CT DICOM files of a Quart phantom that comes with the Halcyon, specifically
     for the Hypersight version, which includes a water ROI.
