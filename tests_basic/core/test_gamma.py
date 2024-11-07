@@ -521,6 +521,68 @@ class TestGammaGeometric(TestCase):
         )
         self.assertTrue(np.array_equal(g, expected, equal_nan=True))
 
+    @parameterized.expand([(np.arange(4, -5, -1),), (np.arange(-4, 5, 1),)])
+    def test_reversed_x_values_have_same_result(self, x):
+        # test when the x values are reversed
+        ref = np.asarray([0, 1, 3, 4, 5, 4, 4, 1, 0])
+        eval = np.asarray([0, 1, 3, 4, 5, 4, 3, 1, 0])
+        g = gamma_geometric(
+            reference=ref,
+            reference_coordinates=x,
+            evaluation=eval,
+            evaluation_coordinates=x,
+            dose_to_agreement=1,
+            distance_to_agreement=1,
+        )
+        self.assertTrue(
+            np.allclose(
+                g,
+                [np.nan, 0, 0, 0, 0, 0, 0.3332, 0, np.nan],
+                equal_nan=True,
+                atol=0.001,
+            )
+        )
+
+    @parameterized.expand([(np.arange(4, -5, -1),), (np.arange(-4, 5, 1),)])
+    def test_reversed_x_values_for_one_profile(self, x):
+        # test that when one profile is reversed, the gamma is still the same as if they were both in the same order
+        ref = np.asarray([0, 1, 3, 4, 5, 4, 4, 1, 0])
+        eval = np.asarray([0, 1, 3, 4, 5, 4, 3, 1, 0])
+        g = gamma_geometric(
+            reference=ref,
+            reference_coordinates=x,
+            evaluation=eval,
+            evaluation_coordinates=np.flip(x),
+            dose_to_agreement=1,
+            distance_to_agreement=1,
+        )
+        self.assertTrue(
+            np.allclose(
+                g,
+                [np.nan, 0, 0.3332, 0, 0, 0, 0, 0, np.nan],
+                equal_nan=True,
+                atol=0.001,
+            )
+        )
+
+    @parameterized.expand(
+        [
+            ("bad eval", [0, 1, 2, 3, 4], [1, 3, 4, 3, 6]),
+            ("bad ref", [1, 3, 4, 3, 6], [0, 1, 2, 3, 4]),
+            ("bad both", [1, 3, 4, 3, 6], [1, 3, 4, 3, 6]),
+        ]
+    )
+    def test_non_monotonic_fails(self, _, ref_x, eval_x):
+        ref = eval = np.ones(5)
+        with self.assertRaises(ValueError) as e:
+            gamma_geometric(
+                reference=ref,
+                reference_coordinates=np.array(ref_x),
+                evaluation=eval,
+                evaluation_coordinates=np.array(eval_x),
+            )
+        self.assertIn("monotonically", str(e.exception))
+
 
 class TestGamma1D(TestCase):
     def test_resolution_below_1mm(self):

@@ -16,6 +16,9 @@ from pylinac.core.array_utils import (
     geometric_center_value,
     ground,
     invert,
+    is_monotonic,
+    is_monotonically_decreasing,
+    is_monotonically_increasing,
     normalize,
     stretch,
 )
@@ -330,3 +333,35 @@ class TestArrayToDicom(TestCase):
             ds_reload = pydicom.dcmread(f)
         self.assertTrue(np.allclose(ds_reload.pixel_array, arr))
         self.assertEqual(ds_reload.pixel_array.dtype, output_dtype)
+
+
+class TestMonotonic(TestCase):
+    @parameterized.expand(
+        [
+            [np.array([1, 2, 3, 4, 5]), True],
+            [np.array([5, 4, 3, 2, 1]), False],
+            [np.array([1, 1, 2, 3, 4]), False],
+        ]
+    )
+    def test_monotonic_increasing(self, arr, expected):
+        self.assertEqual(is_monotonically_increasing(arr), expected)
+
+    @parameterized.expand(
+        [
+            [np.array([1, 2, 3, 4, 5]), False],
+            [np.array([5, 4, 3, 2, 1]), True],
+            [np.array([4, 3, 3, 2, 1]), False],
+        ]
+    )
+    def test_monotonic_decreasing(self, arr, expected):
+        self.assertEqual(is_monotonically_decreasing(arr), expected)
+
+    @parameterized.expand(
+        [
+            [np.array([1, 2, 3, 4, 5]), True],
+            [np.array([5, 4, 3, 2, 1]), True],
+            [np.array([4, 3, 3, 2, 1]), False],
+        ]
+    )
+    def test_is_monotonic(self, arr, expected):
+        self.assertEqual(is_monotonic(arr), expected)

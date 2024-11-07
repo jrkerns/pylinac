@@ -7,6 +7,10 @@ from scipy.interpolate import interp1d
 from skimage.draw import disk
 
 from . import validators
+from .array_utils import (
+    is_monotonic,
+    is_monotonically_decreasing,
+)
 
 
 def _construct_matrices(
@@ -150,12 +154,20 @@ def gamma_geometric(
         raise ValueError("Distance to agreement must be greater than 0")
     if reference_coordinates is None:
         reference_coordinates = np.arange(len(reference), dtype=float)
+    if not is_monotonic(reference_coordinates):
+        raise ValueError(
+            "Reference x-values must be monotonically increasing or decreasing"
+        )
     if len(reference) != len(reference_coordinates):
         raise ValueError(
             f"Reference and reference_x_values must be the same length. Got reference: {len(reference)} and reference_x_values: {len(reference_coordinates)}"
         )
     if evaluation_coordinates is None:
         evaluation_coordinates = np.arange(len(evaluation), dtype=float)
+    if not is_monotonic(evaluation_coordinates):
+        raise ValueError(
+            "Evaluation x-values must be monotonically increasing or decreasing"
+        )
     if len(evaluation) != len(evaluation_coordinates):
         raise ValueError(
             f"Evaluation and evaluation_x_values must be the same length. Got evaluation: {len(evaluation)} and evaluation_x_values: {len(evaluation_coordinates)}"
@@ -199,9 +211,15 @@ def gamma_geometric(
         # not change the gamma calculation.
         # This sub-sampling of the vertices is all for computational efficiency.
         left_diffs = np.abs(normalized_reference_x - (eval_x - distance_to_agreement))
+        right_diffs = np.abs(normalized_reference_x - (eval_x + distance_to_agreement))
+        if is_monotonically_decreasing(normalized_reference_x):
+            # it can be the case that the x-values go from high to low vs low to high.
+            # If the profiles are decreasing, we need to swap the left and right differences
+            # We cannot sort/flip the array itself because then the gamma order
+            # would be reversed from the profile order.
+            left_diffs, right_diffs = right_diffs, left_diffs
         # we need to ensure we don't go out of bounds if evaluating at the edge, hence the max/min
         left_idx = max(np.argmin(left_diffs) - 1, 0)
-        right_diffs = np.abs(normalized_reference_x - (eval_x + distance_to_agreement))
         right_idx = min(np.argmin(right_diffs) + 1, len(normalized_reference) - 1)
         # the vertices are the (x, y) pairs of the reference profile
         vertices_x = normalized_reference_x[left_idx : right_idx + 1].tolist()
