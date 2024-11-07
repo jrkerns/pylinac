@@ -427,7 +427,55 @@ class QuartDVT(CatPhanBase, ResultsDataMixin[QuartDVTResult]):
         scaling_tolerance: int | float = 1,
         thickness_tolerance: int | float = 0.2,
         cnr_threshold: int | float = 5,
+        x_adjustment: float = 0,
+        y_adjustment: float = 0,
+        angle_adjustment: float = 0,
+        roi_size_factor: float = 1,
+        scaling_factor: float = 1,
     ):
+        """Single-method full analysis of Quart DICOM files.
+
+        Parameters
+        ----------
+        hu_tolerance : int
+            The HU tolerance value for both HU uniformity and linearity.
+        scaling_tolerance : float, int
+            The scaling tolerance in mm of the geometric nodes on the HU linearity slice (CTP404 module).
+        thickness_tolerance : float, int
+            The tolerance of the thickness calculation in mm, based on the wire ramps in the CTP404 module.
+
+            .. warning:: Thickness accuracy degrades with image noise; i.e. low mAs images are less accurate.
+
+        cnr_threshold : float, int
+            The threshold for "detecting" low-contrast image. See RTD for calculation info.
+
+            .. deprecated:: 3.0
+
+                Use visibility parameter instead.
+
+        x_adjustment: float
+            A fine-tuning adjustment to the detected x-coordinate of the phantom center. This will move the
+            detected phantom position by this amount in the x-direction in mm. Positive values move the phantom to the right.
+        y_adjustment: float
+            A fine-tuning adjustment to the detected y-coordinate of the phantom center. This will move the
+            detected phantom position by this amount in the y-direction in mm. Positive values move the phantom down.
+        angle_adjustment: float
+            A fine-tuning adjustment to the detected angle of the phantom. This will rotate the phantom by this amount in degrees.
+            Positive values rotate the phantom clockwise.
+        roi_size_factor: float
+            A fine-tuning adjustment to the ROI sizes of the phantom. This will scale the ROIs by this amount.
+            Positive values increase the ROI sizes. In contrast to the scaling adjustment, this
+            adjustment effectively makes the ROIs bigger or smaller, but does not adjust their position.
+        scaling_factor: float
+            A fine-tuning adjustment to the detected magnification of the phantom. This will zoom the ROIs and phantom outline (if applicable) by this amount.
+            In contrast to the roi size adjustment, the scaling adjustment effectively moves the phantom and ROIs
+            closer or further from the phantom center. I.e. this zooms the outline and ROI positions, but not ROI size.
+        """
+        self.x_adjustment = x_adjustment
+        self.y_adjustment = y_adjustment
+        self.angle_adjustment = angle_adjustment
+        self.roi_size_factor = roi_size_factor
+        self.scaling_factor = scaling_factor
         self.localize()
         self.hu_module = self.hu_module_class(
             self,

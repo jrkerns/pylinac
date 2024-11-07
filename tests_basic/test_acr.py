@@ -133,12 +133,23 @@ class ACRCTMixin(CloudFileMixin):
     slice_thickness: float
     hu_values: dict
     unif_values: dict
+    x_adjustment: float = 0
+    y_adjustment: float = 0
+    angle_adjustment: float = 0
+    roi_size_factor: float = 1
+    scaling_factor: float = 1
 
     @classmethod
     def setUpClass(cls):
         filename = cls.get_filename()
         cls.ct = ACRCT.from_zip(filename)
-        cls.ct.analyze()
+        cls.ct.analyze(
+            x_adjustment=cls.x_adjustment,
+            y_adjustment=cls.y_adjustment,
+            angle_adjustment=cls.angle_adjustment,
+            roi_size_factor=cls.roi_size_factor,
+            scaling_factor=cls.scaling_factor,
+        )
 
     def test_roll(self):
         self.assertAlmostEqual(self.ct.catphan_roll, self.phantom_roll, delta=0.3)
@@ -204,6 +215,18 @@ class ACRPhilips(ACRCTMixin, PlotlyTestMixin, TestCase):
         self.instance = self.ct
 
 
+class ACRCTApplyROIOffset(ACRPhilips):
+    # crazy shifts to create a unique set of results that's sensitive to changes
+    x_adjustment = 1
+    y_adjustment = -2
+    angle_adjustment = 5
+    roi_size_factor = 1.5
+    scaling_factor = 1.02
+    mtf_50 = 46
+    phantom_roll = 4.75
+    hu_values = {"Poly": -79, "Acrylic": 119, "Bone": 891, "Air": -971, "Water": 4}
+
+
 class ACRPhilipsOffset(ACRCTMixin, TestCase):
     """Shift the phantom over by several pixels to ensure no row/col algorithm issues
 
@@ -222,7 +245,6 @@ class ACRPhilipsOffset(ACRCTMixin, TestCase):
         cls.ct = ACRCT.from_zip(filename)
         for img in cls.ct.dicom_stack:
             img.roll(direction="x", amount=5)
-        cls.ct.localize()
         cls.ct.analyze()
 
 
@@ -244,7 +266,6 @@ class ACRPhilipsRotated(ACRCTMixin, TestCase):
         cls.ct = ACRCT.from_zip(filename)
         for img in cls.ct.dicom_stack:
             img.array = ndimage.rotate(img.array, angle=3, mode="nearest")
-        cls.ct.localize()
         cls.ct.analyze()
 
 
@@ -392,12 +413,23 @@ class ACRMRMixin(CloudFileMixin):
     slice11_shift: float
     psg: float
     results: list[str] = []
+    x_adjustment: float = 0
+    y_adjustment: float = 0
+    angle_adjustment: float = 0
+    roi_size_factor: float = 1
+    scaling_factor: float = 1
 
     @classmethod
     def setUpClass(cls):
         filename = cls.get_filename()
         cls.mri = ACRMRILarge.from_zip(filename, memory_efficient_mode=True)
-        cls.mri.analyze()
+        cls.mri.analyze(
+            x_adjustment=cls.x_adjustment,
+            y_adjustment=cls.y_adjustment,
+            angle_adjustment=cls.angle_adjustment,
+            roi_size_factor=cls.roi_size_factor,
+            scaling_factor=cls.scaling_factor,
+        )
 
     def test_roll(self):
         self.assertAlmostEqual(self.mri.catphan_roll, self.phantom_roll, delta=0.3)
@@ -516,6 +548,20 @@ class ACRGE3T(ACRMRMixin, TestCase):
     results = ["5.50mm"]
 
 
+class ACRGEROIOffsetsApplied(ACRGE3T):
+    # crazy shifts to create a unique set of results that's sensitive to changes
+    x_adjustment = 1
+    y_adjustment = -2
+    angle_adjustment = 5
+    roi_size_factor = 1.2
+    scaling_factor = 1.02
+    slice1_shift = 3.9
+    slice11_shift = 5.86
+    col_mtf_50 = 1.06
+    phantom_roll = 2.83
+    results = ["5.04mm"]
+
+
 class ACRGE3TOffset(ACRGE3T):
     """Shift the phantom over by several pixels to ensure no row/col algorithm issues
 
@@ -528,7 +574,6 @@ class ACRGE3TOffset(ACRGE3T):
         cls.mri = ACRMRILarge.from_zip(filename)
         for img in cls.mri.dicom_stack:
             img.roll(direction="x", amount=5)
-        cls.mri.localize()
         cls.mri.analyze()
 
 
@@ -548,7 +593,6 @@ class ACRGE3TRotated(ACRGE3T):
         cls.mri = ACRMRILarge.from_zip(filename)
         for img in cls.mri.dicom_stack:
             img.array = ndimage.rotate(img.array, angle=0.5, mode="nearest")
-        cls.mri.localize()
         cls.mri.analyze()
 
 
@@ -587,5 +631,4 @@ class ACRMRIUnfilled(ACRMRMixin, TestCase):
         cls.mri = ACRMRILarge.from_zip(filename)
         for img in cls.mri.dicom_stack:
             img.array = ndimage.rotate(img.array, angle=1, mode="nearest")
-        cls.mri.localize()
         cls.mri.analyze()

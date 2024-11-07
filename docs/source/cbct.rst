@@ -254,6 +254,41 @@ The resulting plot will look like so:
 Advanced Use
 ------------
 
+.. _adjusting-roi-locations:
+
+Adjusting ROI locations
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 3.29
+
+The ROIs of the Catphan modules can be individually adjusted (see :ref:`customizing_catphan_module_locations`). However,
+sometimes the couch can get in the way or some other systematic shift of the ROIs occur. To **globally** adjust the ROIs
+use the parameters ``x_adjustment``, ``y_adjustment``, ``angle_adjustment``, ``roi_size_factor``, and ``scaling_factor``
+in ``analyze``.
+These parameters will shift the ROIs for all modules.
+
+.. note::
+
+    This only applies to the x and y directions. To adjust where a *specific* module is or adjust the overall z-axis offset
+    of the phantom you will need to perform the customization linked above.
+
+.. code-block:: python
+
+    from pylinac import CatPhan504
+
+    ct = CatPhan504(...)
+    ct.analyze(
+        x_adjustment=5,
+        y_adjustment=-2,
+        angle_adjustment=3,
+        roi_size_factor=1.1,
+        scaling_factor=1,
+    )
+    ct.plot_analyzed_image()
+
+.. image:: images/catphan_adjust.png
+   :align: center
+
 Using ``results_data``
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -346,6 +381,8 @@ value you shouldn't have to do this.
     ct.analyze()
 
 In RadMachine, the "HU localization variance" parameter can be used to fix this. See :ref:`cbct-analysis-parameters`.
+
+.. _customizing_catphan_module_locations:
 
 Customizing module locations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

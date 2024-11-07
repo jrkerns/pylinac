@@ -125,7 +125,7 @@ class TestGeneral(TestCase):
             :-25
         ]  # chop off the back
         with self.assertRaises(ValueError):
-            ref_cbct.localize()
+            ref_cbct.analyze()
 
     def test_scan_extent_not_long_enough_near_side(self):
         """Test that if a scan doesn't include all the modules it raises an error"""
@@ -139,7 +139,7 @@ class TestGeneral(TestCase):
             20:
         ]  # chop off the front
         with self.assertRaises(ValueError):
-            ref_cbct.localize()
+            ref_cbct.analyze()
 
     def test_crop_before_analysis(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
@@ -393,6 +393,11 @@ class CatPhanMixin(CloudFileMixin):
     print_debug = False
     avg_noise_power = None
     max_noise_power_frequency = 0
+    x_adjustment: float = 0
+    y_adjustment: float = 0
+    angle_adjustment: float = 0
+    roi_size_factor: float = 1
+    scaling_factor: float = 1
 
     @classmethod
     def setUpClass(cls):
@@ -410,6 +415,11 @@ class CatPhanMixin(CloudFileMixin):
             cls.hu_tolerance,
             cls.scaling_tolerance,
             thickness_slice_straddle=cls.thickness_slice_straddle,
+            x_adjustment=cls.x_adjustment,
+            y_adjustment=cls.y_adjustment,
+            angle_adjustment=cls.angle_adjustment,
+            roi_size_factor=cls.roi_size_factor,
+            scaling_factor=cls.scaling_factor,
         )
         if cls.print_debug:
             print(cls.cbct._results())
@@ -696,6 +706,28 @@ class CatPhan604Test(CatPhanMixin, TestCase):
     mtf_values = {50: 0.43}
     lowcon_visible = 1  # changed w/ visibility refactor in v3.0
     avg_noise_power = 0.252
+
+
+@mark.catphan604
+class CatPhan604TestROIOffsets(CatPhan604Test):
+    # random, arbitrary offsets applied for a constancy test against adjustment changes
+    hu_values = {
+        "Poly": -31,
+        "Acrylic": 95,
+        "Delrin": 73,
+        "Air": 21,
+        "Teflon": 69,
+        "PMP": 28,
+        "LDPE": 15,
+        "50% Bone": 63,
+        "20% Bone": 145,
+    }
+    expected_roll = 5.27
+    x_adjustment = 5
+    y_adjustment = -2
+    angle_adjustment = 5
+    roi_size_factor = 1.1
+    scaling_factor = 1.03
 
 
 class CatPhan504Mixin(CatPhanMixin):
