@@ -196,7 +196,7 @@ class PFResult(ResultBase):
         "Rotation of the MLCs would affect these distances."
     )
     mlc_errors_by_leaf: dict[str, list[float]] = Field(
-        description="A dictionary where the key is the leaf number and the value is a list of errors in mm."
+        description="A dictionary where the key is the leaf number and the value is a list of errors in mm. The error value is the distance from the leaf to the picket at that same position."
     )
     cax: PointSerialized = Field(description="The position of the CAX in pixels.")
 
