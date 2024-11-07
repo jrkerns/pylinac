@@ -125,7 +125,7 @@ class TestGeneral(TestCase):
             :-25
         ]  # chop off the back
         with self.assertRaises(ValueError):
-            ref_cbct.localize()
+            ref_cbct.analyze()
 
     def test_scan_extent_not_long_enough_near_side(self):
         """Test that if a scan doesn't include all the modules it raises an error"""
@@ -139,7 +139,7 @@ class TestGeneral(TestCase):
             20:
         ]  # chop off the front
         with self.assertRaises(ValueError):
-            ref_cbct.localize()
+            ref_cbct.analyze()
 
     def test_crop_before_analysis(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
