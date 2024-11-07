@@ -298,7 +298,7 @@ class TestGammaGeometric(TestCase):
             gamma_geometric(
                 reference=ref,
                 evaluation=eval,
-                evaluation_coordinates=(np.arange(5) - 1),
+                evaluation_coordinates=(np.arange(5) - 2),
                 reference_coordinates=np.arange(5),
             )
 
@@ -308,7 +308,7 @@ class TestGammaGeometric(TestCase):
             gamma_geometric(
                 reference=ref,
                 evaluation=eval,
-                evaluation_coordinates=(np.arange(5) + 1),
+                evaluation_coordinates=(np.arange(5) + 2),
                 reference_coordinates=np.arange(5),
             )
 
@@ -487,6 +487,39 @@ class TestGammaGeometric(TestCase):
                 dose_to_agreement=-1,
                 distance_to_agreement=1,
             )
+
+    def test_very_far_spacings(self):
+        # if the measurement spacings are very far apart compared to the distance to
+        # agreement, the indices for computing the simplex can end up being a single point which will error oout
+        ref = np.asarray([0, 1, 3, 1, 0])
+        eval = np.asarray([0, 1, 3, 1, 0])
+        ref_x = np.arange(5)
+        eval_x = np.arange(5)
+        g = gamma_geometric(
+            reference=ref,
+            reference_coordinates=ref_x,
+            evaluation=eval,
+            evaluation_coordinates=eval_x,
+            distance_to_agreement=0.1,
+        )
+        self.assertEqual(np.nanmax(g), 0)
+
+    @parameterized.expand(
+        [
+            (np.arange(5), np.arange(5), [np.nan, 0, 0, 0, 0]),
+            (np.arange(4, -1, -1), np.arange(4, -1, -1), [0, 0, 0, 0, np.nan]),
+        ],
+    )
+    def test_at_left_edge(self, ref, eval, expected):
+        # test when the evaluation is at the edge of the reference
+        # ensures no bounds error
+        g = gamma_geometric(
+            reference=ref,
+            evaluation=eval,
+            dose_to_agreement=1,
+            distance_to_agreement=1,
+        )
+        self.assertTrue(np.array_equal(g, expected, equal_nan=True))
 
 
 class TestGamma1D(TestCase):
