@@ -78,15 +78,18 @@ def profiles_from_simulator(
     img = load(stream)
     y_pixel = int(round(simulator.shape[0] * y_position))
     x_pixel = int(round(simulator.shape[1] * x_position))
+    # The dpmm property is always scaled to SAD!!!!
+    # Thus, we do dpmm / mag_factor because we are taking the profile effectively at the SID
+    # and the dpmm at SID (vs SAD where we normally define it) is different if SID != SAD
     inplane_profile = SingleProfile(
         img[:, x_pixel].copy(),
-        dpmm=img.dpmm,
+        dpmm=img.dpmm / simulator.mag_factor,
         interpolation=interpolation,
         normalization_method=Normalization.NONE,
     )
     cross_profile = SingleProfile(
         img[y_pixel, :].copy(),
-        dpmm=img.dpmm,
+        dpmm=img.dpmm / simulator.mag_factor,
         interpolation=interpolation,
         normalization_method=Normalization.NONE,
     )
@@ -450,8 +453,13 @@ class TestPerfectBBLayer(TestCase):
         stream.seek(0)
         img = load(stream)
         img.invert()  # we invert so the BB looks like a profile, not a dip
-        inplane_profile = SingleProfile(img[:, int(as1200.shape[1] / 2)], dpmm=img.dpmm)
-        cross_profile = SingleProfile(img[int(as1200.shape[0] / 2), :], dpmm=img.dpmm)
+        # correct for the dpmm via the mag factor because we are effectively at the SID (1500 per above)
+        inplane_profile = SingleProfile(
+            img[:, int(as1200.shape[1] / 2)], dpmm=img.dpmm / as1200.mag_factor
+        )
+        cross_profile = SingleProfile(
+            img[int(as1200.shape[0] / 2), :], dpmm=img.dpmm / as1200.mag_factor
+        )
         self.assertAlmostEqual(
             inplane_profile.fwxm_data()["width (exact) mm"], 15, delta=1
         )
