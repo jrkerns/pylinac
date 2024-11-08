@@ -35,7 +35,7 @@ Image Generator
 
 * :bdg-warning:`Fixed` The image generator suffered from a double magnification error of field/cone size when the SID was not at 1000.
   I.e. a field size of 100x100mm at 1500mm would be 1.5**2 = 2.25x instead of 1.5x (1500/1000). This has been fixed.
-* * :bdg-success:`Feature` The ``Simulator`` class and its subclasses (AS500, AS1000, etc) have a new method: ``plot``.
+* :bdg-success:`Feature` The ``Simulator`` class and its subclasses (AS500, AS1000, etc) have a new method: ``plot``.
   It does what it says on the tin.
 
 CT
