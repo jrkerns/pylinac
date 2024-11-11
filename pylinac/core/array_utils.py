@@ -416,3 +416,21 @@ def _rt_image_position(array: np.ndarray, dpmm: float) -> list[float, float]:
     x_position = -(width_mm / 2) + (pixel_size_mm / 2)
     y_position = -(height_mm / 2) + (pixel_size_mm / 2)
     return [x_position, y_position]
+
+
+@validate(array=(array_not_empty, single_dimension))
+def is_monotonically_increasing(array: np.ndarray) -> bool:
+    """Check if an array is monotonically increasing."""
+    return np.all(np.diff(array) > 0)
+
+
+@validate(array=(array_not_empty, single_dimension))
+def is_monotonically_decreasing(array: np.ndarray) -> bool:
+    """Check if an array is monotonically decreasing."""
+    return np.all(np.diff(array) < 0)
+
+
+@validate(array=(array_not_empty, single_dimension))
+def is_monotonic(array: np.ndarray) -> bool:
+    """Check if an array is monotonically increasing or decreasing."""
+    return is_monotonically_increasing(array) or is_monotonically_decreasing(array)

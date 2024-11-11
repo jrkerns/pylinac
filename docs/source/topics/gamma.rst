@@ -161,7 +161,9 @@ of the simplex support. In the 1D case, we can simply take the minimum distance 
 Logic
 ~~~~~
 
-#. The reference and evaluation distributions are both normalized by the maximum reference value * the dose to agreement parameter.
+#. The reference and evaluation distributions are both normalized in the y-axis by the maximum reference value * the dose to agreement parameter.
+   Note the axes in Fig 1 of the paper above.
+#. The reference and evaluation distributions are both normalized in the x-axis by the distance to agreement parameter.
 #. For each evaluation point :math:`p`:
 
    #. The vertices of each simplex are found. In the 1D scenario these will always be line segments defined by 2 points. All the points that are within and just beyond
