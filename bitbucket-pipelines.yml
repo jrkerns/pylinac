@@ -12,7 +12,7 @@ definitions:
         script:
           - apt-get update
           - apt-get -y install git
-          - uv sync --frozen
+          - uv sync --frozen --quiet
           - uv tool run pre-commit run --all-files
         caches:
           - precommit
@@ -41,6 +41,7 @@ definitions:
         size: 2x
         script:
           # set up memory monitoring
+          - apt-get install -y jq
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
@@ -198,6 +199,7 @@ definitions:
         size: 2x
         script:
             # set up memory monitoring
+          - apt-get install -y jq
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
@@ -217,6 +219,7 @@ definitions:
         size: 2x
         script:
           # set up memory monitoring
+          - apt-get install -y jq
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
