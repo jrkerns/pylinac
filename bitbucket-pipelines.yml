@@ -40,7 +40,13 @@ definitions:
         name: Run CBCT Tests
         size: 2x
         script:
+          # set up memory monitoring
+          - chmod +x memory_monitor.sh
+          - nohup ./memory_monitor.sh &
+          - MONITOR_PID=$!
           - uv run pytest tests_basic/test_cbct.py -n 2 --cov=pylinac.cbct --cov-report term --junitxml=./test-reports/pytest_results.xml
+          # clean up memory monitor
+          - kill $MONITOR_PID
         caches:
           - testfiles
         condition:
@@ -49,6 +55,8 @@ definitions:
               - "pylinac/core/**"
               - "tests_basic/test_cbct.py"
               - "pylinac/ct.py"
+        artifacts:
+          - memory_usage.log
     - step: &quart-tests
         name: Run Quart Tests
         script:
@@ -189,24 +197,40 @@ definitions:
         name: Run Winston-Lutz Tests
         size: 2x
         script:
+            # set up memory monitoring
+          - chmod +x memory_monitor.sh
+          - nohup ./memory_monitor.sh &
+          - MONITOR_PID=$!
           - uv run pytest tests_basic/test_winstonlutz.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          # clean up memory monitor
+          - kill $MONITOR_PID
         condition:
           changesets:
             includePaths:
               - "pylinac/core/**"
               - "tests_basic/test_winstonlutz.py"
               - "pylinac/winston_lutz.py"
+        artifacts:
+          - memory_usage.log
     - step: &winston-lutz-mtmf-tests
         name: Run Winston-Lutz Multi-Target Multi-Field Tests
         size: 2x
         script:
+          # set up memory monitoring
+          - chmod +x memory_monitor.sh
+          - nohup ./memory_monitor.sh &
+          - MONITOR_PID=$!
           - uv run pytest tests_basic/test_winstonlutz_mtmf.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          # clean up memory monitor
+          - kill $MONITOR_PID
         condition:
           changesets:
             includePaths:
               - "pylinac/core/**"
               - "tests_basic/test_winstonlutz.py"
               - "pylinac/winston_lutz.py"
+        artifacts:
+          - memory_usage.log
     - step: &plan-generator-tests
         name: Plan generator tests
         script:
