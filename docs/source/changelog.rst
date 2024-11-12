@@ -52,6 +52,10 @@ Gamma
 * :bdg-warning:`Fixed` Evaluating gamma on a profile that had at least one x-spacing that was double the distance-to-agreement
   parameter would result in an error. This is because for computational speed, only nearby simplexes were included in the
   evaluation. However, if the x-spacing was too large, the nearest simplex would end up being the same point as the evaluation.
+* :bdg-warning:`Fixed` The geometric gamma function would fail if the x-values if the reference coordinates or evaluation coordinates
+  were not in ascending order. Coordinates can now be in any order.
+* :bdg-warning:`Fixed` The geometric gamma function now validates that the x-coordinates are monotonically increasing or decreasing and
+  will error out if not.
 
 Core
 ^^^^
