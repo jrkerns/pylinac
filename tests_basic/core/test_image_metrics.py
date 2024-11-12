@@ -19,6 +19,7 @@ from pylinac.metrics.image import (
     GlobalFieldLocator,
     GlobalSizedDiskLocator,
     GlobalSizedFieldLocator,
+    MetricBase,
     RectangleROIMetric,
     SizedDiskLocator,
 )
@@ -176,6 +177,37 @@ class TestGlobalDiskLocator(TestCase):
             )
         )
         self.assertEqual(len(bbs), 1)
+
+
+class FakeMetric(MetricBase):
+    name = "myfakemetric"
+
+    def calculate(self) -> Point:
+        return Point(1, 1)
+
+
+class FakeMetric2(FakeMetric):
+    pass
+
+
+class TestGeneral(TestCase):
+    def test_multiple_metrics_with_same_name_arent_overwritten(self):
+        ds = create_bb_image(bb_size=5)
+        img = DicomImage.from_dataset(ds)
+        metrics = img.compute(metrics=[FakeMetric(), FakeMetric2()])
+        self.assertEqual(len(metrics), 2)
+        self.assertEqual(len(img.metric_values), 2)
+        self.assertIn("myfakemetric", img.metric_values)
+        self.assertIn("myfakemetric-1", img.metric_values)
+
+    def test_multiple_independent_computes_dont_conflict(self):
+        ds = create_bb_image(bb_size=5)
+        img = DicomImage.from_dataset(ds)
+        img.compute(metrics=[FakeMetric()])
+        img.compute(metrics=[FakeMetric()])
+        self.assertEqual(len(img.metric_values), 2)
+        self.assertIn("myfakemetric", img.metric_values)
+        self.assertIn("myfakemetric-1", img.metric_values)
 
 
 class TestDeduplicatePoints(TestCase):

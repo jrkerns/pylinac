@@ -7,6 +7,7 @@ from unittest import TestCase
 
 import numpy as np
 import quaac
+from parameterized import parameterized
 from quaac import Attachment, Equipment, User
 
 from pylinac import Interpolation
@@ -17,6 +18,7 @@ from pylinac.core.utilities import (
     is_close_degrees,
     is_iterable,
     simple_round,
+    uniquify,
 )
 
 performer = User(name="James Kerns", email="j@j.com")
@@ -223,3 +225,64 @@ class ResultsDataBase:
         data_json = instance.results_data(as_json=True)
         self.assertIsInstance(data_json, str)
         json.loads(data_json)
+
+
+class TestUniquifyFunction(unittest.TestCase):
+    @parameterized.expand(
+        [
+            (
+                "test_unique_name_not_in_existing",
+                ["apples", "bananas"],
+                "cherries",
+                "cherries",
+            ),
+            (
+                "test_unique_name_in_existing_no_suffixes",
+                ["apples", "bananas"],
+                "bananas",
+                "bananas-1",
+            ),
+            (
+                "test_unique_name_in_existing_with_suffixes",
+                ["apples", "bananas", "bananas-1", "bananas-2"],
+                "bananas",
+                "bananas-3",
+            ),
+            (
+                "test_unique_name_with_gaps_in_suffixes",
+                ["file", "file-1", "file-2", "file-4"],
+                "file",
+                "file-3",
+            ),
+            (
+                "test_unique_name_large_number_of_suffixes",
+                ["item"] + [f"item-{i}" for i in range(1, 1000)],
+                "item",
+                "item-1000",
+            ),
+            ("test_empty_existing_list", [], "unique", "unique"),
+            ("test_empty_string_name", ["", "-1", "-2"], "", "-3"),
+            (
+                "test_name_already_with_suffix",
+                ["report", "report-1", "report-2"],
+                "report-1",
+                "report-1-1",
+            ),
+            (
+                "test_name_with_multiple_dashes",
+                ["data-set", "data-set-1"],
+                "data-set",
+                "data-set-2",
+            ),
+            ("test_case_sensitivity", ["Bananas", "bananas-1"], "bananas", "bananas"),
+            (
+                "test_numeric_suffix_collision",
+                ["item", "item-1", "item-01"],
+                "item",
+                "item-2",
+            ),
+        ]
+    )
+    def test_uniquify(self, name, existing, input_name, expected):
+        result = uniquify(existing, input_name)
+        self.assertEqual(result, expected)

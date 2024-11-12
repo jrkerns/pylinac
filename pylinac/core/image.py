@@ -57,7 +57,7 @@ from .io import (
 from .plotly_utils import add_title
 from .profile import stretch as stretcharray
 from .scale import MachineScale, convert, wrap360
-from .utilities import decode_binary, is_close, simple_round
+from .utilities import decode_binary, is_close, simple_round, uniquify
 from .validators import double_dimension
 
 ARRAY = "Array"
@@ -966,11 +966,13 @@ class BaseImage:
             metric.inject_image(self)
             value = metric.context_calculate()
             self.metrics.append(metric)
-            metric_data[metric.name] = value
-        # TODO: use |= when 3.9 is min supported version
-        self.metric_values.update(metric_data)
+            key = uniquify(
+                list(metric_data.keys()) + list(self.metric_values.keys()), metric.name
+            )
+            metric_data[key] = value
+        self.metric_values |= metric_data
         if len(metrics) == 1:
-            return metric_data[metrics[0].name]
+            return metric_data[key]
         return metric_data
 
     def as_dicom(

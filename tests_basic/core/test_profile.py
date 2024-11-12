@@ -1,4 +1,5 @@
 import warnings
+from typing import Any
 from unittest import TestCase
 
 import numpy as np
@@ -37,6 +38,7 @@ from pylinac.metrics.profile import (
     FlatnessRatioMetric,
     PenumbraLeftMetric,
     PenumbraRightMetric,
+    ProfileMetric,
     SlopeMetric,
     SymmetryAreaMetric,
     SymmetryPointDifferenceMetric,
@@ -1746,7 +1748,31 @@ class TestDmaxMetric(TestCase):
         self.assertAlmostEqual(dmax, 20.92, delta=0.01)
 
 
+class FakeMetric(ProfileMetric):
+    name = "Fake Metric"
+
+    def calculate(self) -> Any:
+        return 1
+
+
 class TestProfilePlugins(TestCase):
+    def test_two_metrics_same_name_dont_conflict(self):
+        array = generate_profile()
+        profile = FWXMProfile(array, fwxm_height=50)
+        metrics = profile.compute(metrics=[FakeMetric(), FakeMetric()])
+        self.assertEqual(len(metrics), 2)
+        self.assertIn("Fake Metric", metrics)
+        self.assertIn("Fake Metric-1", metrics)
+
+    def test_two_independent_computes_dont_conflict(self):
+        array = generate_profile()
+        profile = FWXMProfile(array, fwxm_height=50)
+        profile.compute(metrics=[FakeMetric()])
+        profile.compute(metrics=[FakeMetric()])
+        self.assertEqual(len(profile.metrics), 2)
+        self.assertIn("Fake Metric", profile.metric_values)
+        self.assertIn("Fake Metric-1", profile.metric_values)
+
     def test_plot_without_metric_is_fine(self):
         array = generate_profile()
         profile = FWXMProfile(array, fwxm_height=50)
