@@ -5,6 +5,7 @@ import math
 from collections.abc import Iterable
 from enum import Enum
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 import pydicom
@@ -993,6 +994,108 @@ class PlanGenerator:
         beam = Beam(
             plan_dataset=self.ds,
             beam_name=beam_name,
+            beam_type=BeamType.DYNAMIC,
+            energy=energy,
+            dose_rate=dose_rate,
+            x1=x1,
+            x2=x2,
+            y1=y1,
+            y2=y2,
+            gantry_angles=gantry_angle,
+            gantry_direction=GantryDirection.NONE,
+            coll_angle=coll_angle,
+            couch_vrt=couch_vrt,
+            couch_lat=couch_lat,
+            couch_lng=couch_lng,
+            couch_rot=couch_rot,
+            mlc_positions=mlc.as_control_points(),
+            metersets=mlc.as_metersets(),
+            fluence_mode=fluence_mode,
+            mlc_boundaries=self.leaf_config,
+            machine_name=self.machine_name,
+        )
+        self.add_beam(beam.as_dicom(), mu=mu)
+
+    def add_mlc_transmission(
+        self,
+        bank: Literal["A", "B"],
+        mu: int = 50,
+        overreach: float = 10,
+        beam_name: str = "MLC Tx",
+        energy: int = 6,
+        dose_rate: int = 600,
+        x1: float = -50,
+        x2: float = 50,
+        y1: float = -100,
+        y2: float = 100,
+        gantry_angle: float = 0,
+        coll_angle: float = 0,
+        couch_vrt: float = 0,
+        couch_lat: float = 0,
+        couch_lng: float = 1000,
+        couch_rot: float = 0,
+        fluence_mode: FluenceMode = FluenceMode.STANDARD,
+    ):
+        """Add a single-image MLC transmission beam to the plan.
+        The beam is delivered with the MLCs closed and moved to one side underneath the jaws.
+
+        Parameters
+        ----------
+        bank : str
+            The MLC bank to move. Either "A" or "B".
+        mu : int
+            The monitor units to deliver.
+        overreach : float
+            The amount to tuck the MLCs under the jaws in mm.
+        beam_name : str
+            The name of the beam.
+        energy : int
+            The energy of the beam.
+        dose_rate : int
+            The dose rate of the beam.
+        x1 : float
+            The left jaw position. Usually negative. More negative is left.
+        x2 : float
+            The right jaw position. Usually positive. More positive is right.
+        y1 : float
+            The bottom jaw position. Usually negative. More negative is lower.
+        y2 : float
+            The top jaw position. Usually positive. More positive is higher.
+        gantry_angle : float
+            The gantry angle of the beam in degrees.
+        coll_angle : float
+            The collimator angle of the beam in degrees.
+        couch_vrt : float
+            The couch vertical position.
+        couch_lat : float
+            The couch lateral position.
+        couch_lng : float
+            The couch longitudinal position.
+        couch_rot : float
+            The couch rotation in degrees.
+        fluence_mode : FluenceMode
+            The fluence mode of the beam.
+        """
+        mlc = self._create_mlc()
+        if bank == "A":
+            mlc_tips = x2 + overreach
+        elif bank == "B":
+            mlc_tips = x1 - overreach
+        else:
+            raise ValueError("Bank must be 'A' or 'B'")
+        # test for overtravel
+        if abs(x2 - x1) + overreach > self.max_overtravel_mm:
+            raise OvertravelError(
+                "The MLC overtravel is too large for the given jaw positions and overreach. Reduce the x-jaw opening size and/or overreach value."
+            )
+        mlc.add_strip(
+            position_mm=mlc_tips,
+            strip_width_mm=1,
+            meterset_at_target=1,
+        )
+        beam = Beam(
+            plan_dataset=self.ds,
+            beam_name=f"{beam_name} {bank}",
             beam_type=BeamType.DYNAMIC,
             energy=energy,
             dose_rate=dose_rate,
@@ -2037,3 +2140,7 @@ class HalcyonPlanGenerator(PlanGenerator):
         raise NotImplementedError(
             "Winston-Lutz beams are not yet implemented for Halcyon plans"
         )
+
+
+class OvertravelError(ValueError):
+    pass
