@@ -41,6 +41,7 @@ definitions:
         size: 2x
         script:
           # set up memory monitoring
+          - apt-get update
           - apt-get install -y jq
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
@@ -199,6 +200,7 @@ definitions:
         size: 2x
         script:
             # set up memory monitoring
+          - apt-get update
           - apt-get install -y jq
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
@@ -219,6 +221,7 @@ definitions:
         size: 2x
         script:
           # set up memory monitoring
+          - apt-get update
           - apt-get install -y jq
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
