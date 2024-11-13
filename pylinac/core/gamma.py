@@ -172,15 +172,6 @@ def gamma_geometric(
         raise ValueError(
             f"Evaluation and evaluation_x_values must be the same length. Got evaluation: {len(evaluation)} and evaluation_x_values: {len(evaluation_coordinates)}"
         )
-    # we add some padding on the check because resampling SingleProfiles
-    # can add ~1/2 pixel on each side to retain the same physical size
-    # when upsampling.
-    if min(reference_coordinates) - 1 > min(evaluation_coordinates) or max(
-        reference_coordinates
-    ) + 1 < max(evaluation_coordinates):
-        raise ValueError(
-            "The evaluation x-values must be within the range of the reference x-values"
-        )
     # normalize the dose threshold by the DTA
     threshold = float(dose_threshold) / float(dose_to_agreement)
     # convert dose to normalized distance of dose to agreement. I.e. D/delta(D) in Figure 1.
