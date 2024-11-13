@@ -54,7 +54,7 @@ def generate_open_field(
     imager: type[Simulator] = AS1000Image,
     alpha: float = 1.0,
 ) -> Simulator:
-    as1000 = imager()  # this will set the pixel size and shape automatically
+    as1000 = imager(sid=1000)  # this will set the pixel size and shape automatically
     as1000.add_layer(
         field(field_size_mm=field_size, cax_offset_mm=center, alpha=alpha)
     )  # create a 50x50mm square field
@@ -65,16 +65,24 @@ def generate_open_field(
 
 
 def generate_profile(
-    field_size=100, sigma=2, center=0, field: type[Layer] = FilteredFieldLayer
-) -> np.ndarray:
-    img = generate_open_field(
+    field_size=100,
+    sigma=2,
+    center=0,
+    field: type[Layer] = FilteredFieldLayer,
+    profile_type: type[FWXMProfilePhysical | FWXMProfile] = FWXMProfilePhysical,
+) -> FWXMProfilePhysical | FWXMProfile:
+    simulator = generate_open_field(
         field_size=(field_size, field_size),
         sigma=sigma,
         center=(center, center),
         field=field,
-    ).image
+    )
+    img = simulator.image
     arr = normalize(img[:, img.shape[1] // 2])
-    return arr
+    if issubclass(profile_type, FWXMProfilePhysical):
+        return profile_type(arr, dpmm=1 / simulator.pixel_size)
+    else:
+        return profile_type(arr)
 
 
 def create_simple_9_profile() -> np.array:
@@ -536,8 +544,7 @@ class TestFWXMProfilePhysical(TestCase):
 
     def test_converting_to_simple_profile(self):
         pixel_size = 0.390625  # as1000 pixel size
-        profile = generate_profile()
-        fwxm = FWXMProfilePhysical(values=profile, dpmm=1 / pixel_size)
+        fwxm = generate_profile()
         abs_fwxm = fwxm.as_simple_profile()
         # ensure the field widths are the same
         self.assertAlmostEqual(fwxm.field_width_mm, abs_fwxm.field_width_px, delta=0.01)
@@ -1748,70 +1755,62 @@ class TestDmaxMetric(TestCase):
 
 class TestProfilePlugins(TestCase):
     def test_plot_without_metric_is_fine(self):
-        array = generate_profile()
-        profile = FWXMProfile(array, fwxm_height=50)
+        profile = generate_profile(profile_type=FWXMProfile)
         profile.plot()
 
     def test_analyze_method(self):
         # tests the .analyze method, not the plugin itself
-        array = generate_profile()
-        profile = FWXMProfile(array, fwxm_height=50)
+        profile = generate_profile(profile_type=FWXMProfile)
         profile.compute(metrics=[SymmetryPointDifferenceMetric()])
         self.assertIsInstance(profile.metric_values, dict)
         self.assertEqual(profile.metric_values["Point Difference Symmetry (%)"], 0)
 
     def test_symmetry_point_difference_perfect(self):
-        array = generate_profile()
-        profile = FWXMProfile(array)
+        profile = generate_profile(profile_type=FWXMProfile)
         profile.compute(metrics=[SymmetryPointDifferenceMetric()])
         self.assertEqual(profile.metric_values["Point Difference Symmetry (%)"], 0)
 
     def test_symmetry_point_difference_right_negative(self):
         """When the profile skews higher on the right, the symmetry should be negative"""
-        array = generate_profile(center=5)
-        profile = FWXMProfile(array)
+        profile = generate_profile(center=5, profile_type=FWXMProfile)
         profile.compute(metrics=[SymmetryPointDifferenceMetric()])
         self.assertAlmostEqual(
-            profile.metric_values["Point Difference Symmetry (%)"], -0.85, delta=0.01
+            profile.metric_values["Point Difference Symmetry (%)"], -0.586, delta=0.01
         )
 
     def test_symmetry_point_difference_left_positive(self):
         """When the profile skews higher on the left, the symmetry should be positive"""
-        array = generate_profile(center=-5)
-        profile = FWXMProfile(array)
+        profile = generate_profile(center=-5, profile_type=FWXMProfile)
         profile.compute(metrics=[SymmetryPointDifferenceMetric()])
         self.assertAlmostEqual(
-            profile.metric_values["Point Difference Symmetry (%)"], 0.85, delta=0.01
+            profile.metric_values["Point Difference Symmetry (%)"], 0.586, delta=0.01
         )
 
     def test_top_distance_perfect(self):
         """A perfect profile should have the top position at 0 for FFF"""
-        array = generate_profile(field=FilterFreeFieldLayer)
-        profile = FWXMProfilePhysical(array, dpmm=1)
+        profile = generate_profile(field=FilterFreeFieldLayer)
         profile.compute(metrics=[TopDistanceMetric()])
         self.assertEqual(profile.metric_values["Top Distance (mm)"], 0)
 
     def test_top_distance_left(self):
-        array = generate_profile(field=FilterFreeFieldLayer, center=5)
-        profile = FWXMProfilePhysical(array, dpmm=1)
+        # note the signs are inverted because the distance is the inversion of the shift of the field.
+        # I.e. a 5mm right shift means the top is 5mm to the left.
+        profile = generate_profile(field=FilterFreeFieldLayer, center=5)
         profile.compute(metrics=[TopDistanceMetric()])
         self.assertAlmostEqual(
-            profile.metric_values["Top Distance (mm)"], -18.8, delta=0.1
+            profile.metric_values["Top Distance (mm)"], -5, delta=0.1
         )
 
     def test_top_distance_right(self):
-        """A perfect profile should have the top position at 0 for FFF"""
-        array = generate_profile(field=FilterFreeFieldLayer, center=-5)
-        profile = FWXMProfilePhysical(array, dpmm=1)
+        # note the signs are inverted because the distance is the inversion of the shift of the field.
+        # I.e. a 5mm right shift means the top is 5mm to the left.
+        profile = generate_profile(field=FilterFreeFieldLayer, center=-5)
         profile.compute(metrics=[TopDistanceMetric()])
-        self.assertAlmostEqual(
-            profile.metric_values["Top Distance (mm)"], 18.8, delta=0.1
-        )
+        self.assertAlmostEqual(profile.metric_values["Top Distance (mm)"], 5, delta=0.1)
 
     def test_symmetry_quotient_perfect(self):
         """A perfectly symmetric profile should have a symmetry quotient of 100"""
-        array = generate_profile()
-        profile = FWXMProfilePhysical(array, dpmm=1)
+        profile = generate_profile()
         profile.compute(metrics=[SymmetryPointDifferenceQuotientMetric()])
         self.assertEqual(
             profile.metric_values["Point Difference Quotient Symmetry (%)"], 100
@@ -1819,89 +1818,79 @@ class TestProfilePlugins(TestCase):
 
     def test_symmetry_quotient_offset(self):
         """The quotient will always be 100 or above"""
-        array = generate_profile(center=5)
-        profile = FWXMProfilePhysical(array, dpmm=1)
+        profile = generate_profile(center=5)
         profile.compute(metrics=[SymmetryPointDifferenceQuotientMetric()])
         self.assertAlmostEqual(
             profile.metric_values["Point Difference Quotient Symmetry (%)"],
-            100.84,
+            100.58,
             delta=0.01,
         )
 
     def test_flatness_ratio_perfect(self):
         """A perfectly flat profile should have a flatness ratio of 1"""
-        array = generate_profile(field=PerfectFieldLayer)
-        profile = FWXMProfile(array)
+        profile = generate_profile(field=PerfectFieldLayer, profile_type=FWXMProfile)
         profile.compute(metrics=[FlatnessRatioMetric()])
         self.assertEqual(profile.metric_values["Flatness (Ratio) (%)"], 100)
 
     def test_flatness_ratio_normal(self):
-        array = generate_profile()
-        profile = FWXMProfile(array)
+        profile = generate_profile(profile_type=FWXMProfile)
         profile.compute(metrics=[FlatnessRatioMetric()])
         self.assertAlmostEqual(
-            profile.metric_values["Flatness (Ratio) (%)"], 103.02, delta=0.01
+            profile.metric_values["Flatness (Ratio) (%)"], 101.667, delta=0.01
         )
 
     def test_flatness_difference_perfect(self):
         """A perfectly flat profile should have a flatness ratio of 1"""
-        array = generate_profile(field=PerfectFieldLayer)
-        profile = FWXMProfile(array)
+        profile = generate_profile(field=PerfectFieldLayer, profile_type=FWXMProfile)
         profile.compute(metrics=[FlatnessDifferenceMetric()])
         self.assertEqual(profile.metric_values["Flatness (Difference) (%)"], 0)
 
     def test_flatness_difference_normal(self):
         """A perfectly flat profile should have a flatness ratio of 1"""
-        array = generate_profile()
-        profile = FWXMProfile(array)
+        profile = generate_profile(profile_type=FWXMProfile)
         profile.compute(metrics=[FlatnessDifferenceMetric()])
         self.assertAlmostEqual(
-            profile.metric_values["Flatness (Difference) (%)"], 1.49, delta=0.01
+            profile.metric_values["Flatness (Difference) (%)"], 0.82, delta=0.01
         )
 
     def test_symmetry_area_perfect(self):
         """A perfectly symmetric profile should have a symmetry area of 0"""
-        array = generate_profile(field=PerfectFieldLayer)
-        profile = FWXMProfile(array)
+        profile = generate_profile(field=PerfectFieldLayer, profile_type=FWXMProfile)
         profile.compute(metrics=[SymmetryAreaMetric()])
         self.assertEqual(profile.metric_values["Symmetry (Area)"], 0)
 
     def test_symmetry_area_right_higher(self):
-        array = generate_profile(center=5)
-        profile = FWXMProfile(array)
+        profile = generate_profile(center=5, profile_type=FWXMProfile)
         profile.compute(metrics=[SymmetryAreaMetric()])
         self.assertAlmostEqual(
-            profile.metric_values["Symmetry (Area)"], -0.24, delta=0.01
+            profile.metric_values["Symmetry (Area)"], -0.208, delta=0.01
         )
 
     def test_symmetry_area_left_higher(self):
-        array = generate_profile(center=-5)
-        profile = FWXMProfile(array)
+        profile = generate_profile(center=-5, profile_type=FWXMProfile)
         profile.compute(metrics=[SymmetryAreaMetric()])
         self.assertAlmostEqual(
-            profile.metric_values["Symmetry (Area)"], 0.24, delta=0.01
+            profile.metric_values["Symmetry (Area)"], 0.208, delta=0.01
         )
 
     def test_penumbra_left(self):
-        array = generate_profile(field=PerfectFieldLayer)
-        profile = FWXMProfilePhysical(array, dpmm=1)
+        profile = generate_profile(field=PerfectFieldLayer)
         profile.compute(metrics=[PenumbraLeftMetric()])
         self.assertAlmostEqual(
-            profile.metric_values["Left Penumbra (mm)"], 8.63, delta=0.01
+            profile.metric_values["Left Penumbra (mm)"], 3.37, delta=0.01
         )
 
     def test_penumbra_right(self):
-        array = generate_profile(field=PerfectFieldLayer)
-        profile = FWXMProfilePhysical(array, dpmm=1)
+        profile = generate_profile(field=PerfectFieldLayer)
         profile.compute(metrics=[PenumbraRightMetric()])
         self.assertAlmostEqual(
-            profile.metric_values["Right Penumbra (mm)"], 8.63, delta=0.01
+            profile.metric_values["Right Penumbra (mm)"], 3.37, delta=0.01
         )
 
     def test_penumbra_is_based_on_field_height(self):
         """The penumbra should be based on the field height, not the profile height"""
         array = generate_profile(field=PerfectFieldLayer)
-        profile = FWXMProfilePhysical(array, dpmm=1, fwxm_height=30)
+        profile = FWXMProfilePhysical(array.values, dpmm=1, fwxm_height=30)
         profile.compute(metrics=[PenumbraLeftMetric()])
         self.assertAlmostEqual(
             profile.metric_values["Left Penumbra (mm)"], 5.78, delta=0.01
@@ -1992,7 +1981,7 @@ class SingleProfileTests(TestCase):
         p = SingleProfile(
             field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.NONE
         )
-        self.assertAlmostEqual(p.beam_center()["index (exact)"], 422, delta=1)
+        self.assertAlmostEqual(p.beam_center()["index (exact)"], 409.5, delta=1)
 
     def test_field_values_length(self):
         field = generate_open_field()

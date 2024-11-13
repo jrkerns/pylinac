@@ -62,7 +62,17 @@ class Layer(ABC):
     def apply(
         self, image: np.ndarray, pixel_size: float, mag_factor: float
     ) -> np.ndarray:
-        """Apply the layer. Takes a 2D array and pixel size value in and returns a modified array."""
+        """Apply the layer. Takes a 2D array and pixel size value in and returns a modified array.
+
+        Parameters
+        ----------
+        image : np.ndarray
+            The image to modify.
+        pixel_size : float
+            The pixel size of the image AT SAD.
+        mag_factor : float
+            The magnification factor of the image. SID/SAD. E.g. 1.5 for 150 cm SID and 100 cm SAD.
+        """
         pass
 
 
@@ -103,7 +113,7 @@ class PerfectConeLayer(Layer):
     def _create_perfect_field(
         self, image: np.ndarray, pixel_size: float, mag_factor: float
     ) -> (np.ndarray, ...):
-        cone_size_pix = ((self.cone_size_mm / 2) / pixel_size) * mag_factor**2
+        cone_size_pix = mag_factor * (self.cone_size_mm / 2) / pixel_size
         # we rotate the point around the center of the image
         offset_pix_y, offset_pix_x = rotate_point(
             x=self.cax_offset_mm[0] * mag_factor / pixel_size,
@@ -207,7 +217,7 @@ class PerfectFieldLayer(Layer):
         self, image: np.ndarray, pixel_size: float, mag_factor: float
     ) -> (np.ndarray, ...):
         field_size_pix = [
-            even_round(f * mag_factor**2 / pixel_size) for f in self.field_size_mm
+            even_round(f * mag_factor / pixel_size) for f in self.field_size_mm
         ]
         cax_offset_pix_mag = [v * mag_factor / pixel_size for v in self.cax_offset_mm]
         field_center = [
