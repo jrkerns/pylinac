@@ -4,6 +4,7 @@ from unittest import TestCase
 import numpy as np
 import pydicom
 from matplotlib.figure import Figure
+from parameterized import parameterized
 
 from pylinac.plan_generator.dicom import (
     STACK,
@@ -12,6 +13,7 @@ from pylinac.plan_generator.dicom import (
     FluenceMode,
     GantryDirection,
     HalcyonPlanGenerator,
+    OvertravelError,
     PlanGenerator,
 )
 from pylinac.plan_generator.mlc import (
@@ -377,6 +379,70 @@ class TestPlanPrefabs(TestCase):
             .LeafJawPositions,
             [-110, 110],
         )
+
+    @parameterized.expand(
+        [
+            ("valid A", "A", 39.5, -30, None),
+            ("valid B", "B", -40.5, -30, None),
+            ("Invalid Bank", "C", None, None, ValueError),
+            ("Overtravel", "A", None, -150, OvertravelError),
+        ]
+    )
+    def test_transmission_beam(self, name, bank, leaf_pos, x1_pos, expected_error):
+        if expected_error:
+            with self.assertRaises(expected_error):
+                self.pg.add_mlc_transmission(
+                    bank=bank,
+                    x1=x1_pos,
+                    x2=30,
+                    y1=-110,
+                    y2=110,
+                    mu=44,
+                    beam_name="MLC Txx",
+                )
+                dcm = self.pg.as_dicom()
+        else:
+            self.pg.add_mlc_transmission(
+                bank=bank,
+                x1=-30,
+                x2=30,
+                y1=-110,
+                y2=110,
+                mu=44,
+                beam_name="MLC Txx",
+            )
+            dcm = self.pg.as_dicom()
+            self.assertEqual(len(dcm.BeamSequence), 1)
+            self.assertEqual(dcm.BeamSequence[0].BeamName, f"MLC Txx {bank}")
+            self.assertEqual(dcm.BeamSequence[0].BeamNumber, 0)
+            self.assertEqual(dcm.FractionGroupSequence[0].NumberOfBeams, 1)
+            self.assertEqual(
+                dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].BeamMeterset, 44
+            )
+            # check X jaws
+            self.assertEqual(
+                dcm.BeamSequence[0]
+                .ControlPointSequence[0]
+                .BeamLimitingDevicePositionSequence[0]
+                .LeafJawPositions,
+                [-30, 30],
+            )
+            # check Y jaws
+            self.assertEqual(
+                dcm.BeamSequence[0]
+                .ControlPointSequence[0]
+                .BeamLimitingDevicePositionSequence[1]
+                .LeafJawPositions,
+                [-110, 110],
+            )
+            # check first MLC position is tucked under the jaws
+            self.assertEqual(
+                dcm.BeamSequence[0]
+                .ControlPointSequence[0]
+                .BeamLimitingDevicePositionSequence[-1]
+                .LeafJawPositions[0],
+                leaf_pos,
+            )
 
     def test_create_picket_fence(self):
         self.pg.add_picketfence_beam(

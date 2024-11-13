@@ -33,10 +33,16 @@ TRS-398
 CT
 ^^
 
-* bdg-success:`Feature` All CT-like algorithms (CatPhan, Quart, Cheese, ACR) now have global ROI adjustment parameters in ``analyze``. See :ref:`adjusting-roi-locations`.
+* :bdg-success:`Feature` All CT-like algorithms (CatPhan, Quart, Cheese, ACR) now have global ROI adjustment parameters in ``analyze``. See :ref:`adjusting-roi-locations`.
 * :bdg-primary:`Refactor` There is a new parameter for CT-like constructor classes: ``is_zip``. This is mostly an internal
   flag and is used when calling the ``.from_zip`` method. The default is ``False``. This is backwards-compatible
   and should not affect users. This was done for internal refactoring reasons.
+
+Plan Generator
+^^^^^^^^^^^^^^
+
+* :bdg-success:`Feature` The plan generator has a new field method: :meth:`~pylinac.plan_generator.dicom.PlanGenerator.add_mlc_transmission`. This adds an MLC transmission field to the plan
+  where the leaves of a given bank are fully closed and the MLC kiss is underneath the jaws.
 
 Gamma
 ^^^^^
