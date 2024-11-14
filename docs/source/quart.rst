@@ -135,6 +135,18 @@ Analysis Parameters
       * **Scaling tolerance**: The tolerance in mm for the scaling of the phantom.
       * **Slice thickness tolerance**: The tolerance in mm for the slice thickness.
       * **CNR Ratio**: The required minimum ratio for the contrast-to-noise to be considered passing.
+      * **X adjustment**: A fine-tuning adjustment to the detected x-coordinate of the phantom center. This will move the
+        detected phantom position by this amount in the x-direction in mm. Positive values move the phantom to the right.
+      * **Y adjustment**: A fine-tuning adjustment to the detected y-coordinate of the phantom center. This will move the
+        detected phantom position by this amount in the y-direction in mm. Positive values move the phantom down.
+      * **Angle adjustment**: A fine-tuning adjustment to the detected angle of the phantom. This will rotate the phantom by this amount in degrees.
+        Positive values rotate the phantom clockwise.
+      * **ROI size factor**: A fine-tuning adjustment to the ROI sizes of the phantom. This will scale the ROIs by this amount.
+        Positive values increase the ROI sizes. In contrast to the scaling adjustment, this
+        adjustment effectively makes the ROIs bigger or smaller, but does not adjust their position.
+      * **Scaling factor**: A fine-tuning adjustment to the detected magnification of the phantom. This will zoom the ROIs and phantom outline (if applicable) by this amount.
+        In contrast to the roi size adjustment, the scaling adjustment effectively moves the phantom and ROIs
+        closer or further from the phantom center. I.e. this zooms the outline and ROI positions, but not ROI size.
 
 Algorithm
 ---------
