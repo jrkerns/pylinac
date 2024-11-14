@@ -797,10 +797,7 @@ class TestGammaFromProfile(TestCase):
 
     def test_different_epids(self):
         """This test the same profile but with different EPIDs (i.e. pixel size)"""
-        # we offset the reference by 1% to ensure we have a realistic gamma value
-        img1200 = generate_open_field(
-            field_size=(100, 100), imager=AS1200Image, alpha=0.99
-        )
+        img1200 = generate_open_field(field_size=(100, 100), imager=AS1200Image)
         img1000 = generate_open_field(field_size=(100, 100), imager=AS1000Image)
         p1200 = img1200.image[640, :]
         p1000 = img1000.image[384, :]
@@ -810,4 +807,4 @@ class TestGammaFromProfile(TestCase):
             reference_profile=p1200_prof, dose_to_agreement=1, gamma_cap_value=2
         )
         # gamma is very low; just pixel noise from the image generator
-        self.assertAlmostEqual(np.nanmean(gamma), 0.938, delta=0.01)
+        self.assertLessEqual(np.nanmean(gamma), 0.005)

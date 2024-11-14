@@ -989,6 +989,7 @@ class WinstonLutzMixin(CloudFileMixin):
     @classmethod
     def tearDownClass(cls):
         plt.close("all")
+        super().tearDownClass()
 
     def test_number_of_images(self):
         self.assertEqual(self.num_images, len(self.wl.images))
@@ -1103,6 +1104,7 @@ class SyntheticWLMixin(WinstonLutzMixin):
         # clean up the folder we created;
         # in BB space can be at a premium.
         shutil.rmtree(cls.tmp_path, ignore_errors=True)
+        super().tearDownClass()
 
     @classmethod
     def get_filename(cls) -> str:

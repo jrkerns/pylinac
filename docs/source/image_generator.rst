@@ -14,8 +14,6 @@ images. This module is different than other modules in that the goal here is non
 analysis routines here. What is here started as a testing concept for pylinac itself, but has uses for advanced users
 of pylinac who wish to build their own tools.
 
-.. warning:: This feature is currently experimental and untested.
-
 The module allows users to create a pipeline ala keras, where layers are added to an empty image. The user can add as
 many layers as they wish.
 
@@ -53,7 +51,7 @@ Extending Layers & Simulators
 -----------------------------
 
 This module is meant to be extensible. That's why the structures are defined so simply. To create a custom simulator,
-inherit from ``Simulator`` and define the pixel size and shape. Note that generating DICOM does not come for free:
+inherit from ``Simulator`` and define the pixel size and shape:
 
 .. code-block:: python
 
@@ -86,6 +84,28 @@ To implement a custom layer, inherit from ``Layer`` and implement the ``apply`` 
     as1200 = AS1200Image()
     as1200.add_layer(MyAwesomeLayer())
     ...
+
+Exporting Images to DICOM
+-------------------------
+
+The ``Simulator`` class has two methods for generating DICOM. One returns a Dataset and another fully saves it out to a file.
+
+.. code-block:: python
+
+    from pylinac.core.image_generator import AS1200Image
+    from pylinac.core.image_generator.layers import FilteredFieldLayer, GaussianFilterLayer
+
+    as1200 = AS1200Image()
+    as1200.add_layer(FilteredFieldLayer(field_size_mm=(50, 50)))
+    as1200.add_layer(GaussianFilterLayer(sigma_mm=2))
+
+    # generate a pydicom Dataset
+    ds = as1200.as_dicom(gantry_angle=45)
+    # do something with that dataset as needed
+    ds.PatientID = "12345"
+
+    # or save it out to a file
+    as1200.generate_dicom(file_out_name="my_AS1200.dcm", gantry_angle=45)
 
 Examples
 --------

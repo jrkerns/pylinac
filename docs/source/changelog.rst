@@ -44,13 +44,27 @@ TRS-398
     This change will affect absorbed dose TRS-398 calculations if you rely on the ``k_tp`` function. If you are using TRS-398, please verify that your
     results are still accurate. We apologize for this oversight.
 
+Image Generator
+^^^^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` The image generator suffered from a double magnification error of field/cone size when the SID was not at 1000.
+  I.e. a field size of 100x100mm at 1500mm would be 1.5**2 = 2.25x instead of 1.5x (1500/1000). This has been fixed.
+* :bdg-success:`Feature` The ``Simulator`` class and its subclasses (AS500, AS1000, etc) have a new method: ``plot``.
+  It does what it says on the tin.
+
 CT
 ^^
 
-* bdg-success:`Feature` All CT-like algorithms (CatPhan, Quart, Cheese, ACR) now have global ROI adjustment parameters in ``analyze``. See :ref:`adjusting-roi-locations`.
+* :bdg-success:`Feature` All CT-like algorithms (CatPhan, Quart, Cheese, ACR) now have global ROI adjustment parameters in ``analyze``. See :ref:`adjusting-roi-locations`.
 * :bdg-primary:`Refactor` There is a new parameter for CT-like constructor classes: ``is_zip``. This is mostly an internal
   flag and is used when calling the ``.from_zip`` method. The default is ``False``. This is backwards-compatible
   and should not affect users. This was done for internal refactoring reasons.
+
+Plan Generator
+^^^^^^^^^^^^^^
+
+* :bdg-success:`Feature` The plan generator has a new field method: :meth:`~pylinac.plan_generator.dicom.PlanGenerator.add_mlc_transmission`. This adds an MLC transmission field to the plan
+  where the leaves of a given bank are fully closed and the MLC kiss is underneath the jaws.
 
 Gamma
 ^^^^^

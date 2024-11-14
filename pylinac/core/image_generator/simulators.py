@@ -3,10 +3,12 @@ from __future__ import annotations
 from abc import ABC
 
 import numpy as np
+from plotly import graph_objects as go
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import UID
 
 from ..array_utils import array_to_dicom
+from ..plotly_utils import add_title
 from .layers import Layer
 
 
@@ -71,6 +73,29 @@ class Simulator(ABC):
         """
         ds = self.as_dicom(*args, **kwargs)
         ds.save_as(file_out_name, write_like_original=False)
+
+    def plot(self, show: bool = True) -> go.Figure:
+        """Plot the simulated image."""
+        fig = go.Figure()
+        fig.add_heatmap(
+            z=self.image,
+            colorscale="gray",
+            x0=-self.image.shape[1] / 2 * self.pixel_size,
+            dx=self.pixel_size,
+            y0=-self.image.shape[0] / 2 * self.pixel_size,
+            dy=self.pixel_size,
+        )
+        fig.update_layout(
+            yaxis_constrain="domain",
+            xaxis_scaleanchor="y",
+            xaxis_constrain="domain",
+            xaxis_title="Crossplane (mm)",
+            yaxis_title="Inplane (mm)",
+        )
+        add_title(fig, f"Simulated {self.__class__.__name__} @{self.sid}mm SID")
+        if show:
+            fig.show()
+        return fig
 
 
 class AS500Image(Simulator):
