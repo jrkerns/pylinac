@@ -62,6 +62,10 @@ Gamma
   were not in ascending order. Coordinates can now be in any order.
 * :bdg-warning:`Fixed` The geometric gamma function now validates that the x-coordinates are monotonically increasing or decreasing and
   will error out if not.
+* :bdg-warning:`Fixed` The geometric gamma previously enforced that the reference x-domain contained the entire
+  evaluation x-domain. I.e. your reference scan had to be larger than your evaluation scan. This is no longer the case.
+  An evaluation profile will be calculated at all points above the threshold. If the reference scan is too small, the gamma
+  value will be large.
 
 Core
 ^^^^

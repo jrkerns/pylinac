@@ -402,7 +402,7 @@ def fill_middle_zeros(array: np.ndarray, cutoff_px: int = 0) -> np.ndarray:
     return filled_arr
 
 
-def _rt_image_position(array: np.ndarray, dpmm: float) -> list[float, float]:
+def _rt_image_position(array: np.ndarray, dpmm: float) -> list[float]:
     """Calculate the RT Image Position of the array."""
     rows, cols = array.shape
     pixel_size_mm = 1.0 / dpmm

@@ -292,26 +292,6 @@ class TestGammaGeometric(TestCase):
                 reference=ref, evaluation=eval, evaluation_coordinates=np.arange(6)
             )
 
-    def test_min_eval_x_lower_than_min_ref_x(self):
-        ref = eval = np.ones(5)
-        with self.assertRaises(ValueError):
-            gamma_geometric(
-                reference=ref,
-                evaluation=eval,
-                evaluation_coordinates=(np.arange(5) - 2),
-                reference_coordinates=np.arange(5),
-            )
-
-    def test_max_eval_x_higher_than_max_ref_x(self):
-        ref = eval = np.ones(5)
-        with self.assertRaises(ValueError):
-            gamma_geometric(
-                reference=ref,
-                evaluation=eval,
-                evaluation_coordinates=(np.arange(5) + 2),
-                reference_coordinates=np.arange(5),
-            )
-
     def test_same_profile_is_0_gamma(self):
         ref = eval = np.ones(5)
         gamma = gamma_geometric(reference=ref, evaluation=eval)
@@ -503,6 +483,25 @@ class TestGammaGeometric(TestCase):
             distance_to_agreement=0.1,
         )
         self.assertEqual(np.nanmax(g), 0)
+
+    def test_reference_x_domain_smaller_than_eval(self):
+        """Even if the reference x-domain is too small we can still
+        evaluate the gamma."""
+        vals = [0, 0, 0, 0, 1, 2, 5, 8, 10, 10, 10, 10, 10, 8, 5, 2, 1, 0, 0, 0, 0]
+        x_vals = np.arange(len(vals))
+        ref_vals = vals[3:-3]  # we short-change the reference in low-dose areas
+        x_ref_vals = x_vals[3:-3]
+        gamma = gamma_geometric(
+            reference=np.array(ref_vals),
+            reference_coordinates=np.array(x_ref_vals),
+            evaluation=np.array(vals),
+            evaluation_coordinates=np.array(x_vals),
+            distance_to_agreement=1,
+            gamma_cap_value=2,
+            dose_threshold=0,  # 0 threshold is important to ensure we calculate the gamma at the edges
+        )
+        self.assertEqual(np.nanmax(gamma), 2)
+        self.assertAlmostEqual(np.nanmean(gamma), 0.476, places=2)
 
     @parameterized.expand(
         [
