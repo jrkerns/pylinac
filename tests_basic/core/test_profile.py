@@ -1764,16 +1764,14 @@ class FakeMetric(ProfileMetric):
 
 class TestProfilePlugins(TestCase):
     def test_two_metrics_same_name_dont_conflict(self):
-        array = generate_profile()
-        profile = FWXMProfile(array, fwxm_height=50)
+        profile = generate_profile()
         metrics = profile.compute(metrics=[FakeMetric(), FakeMetric()])
         self.assertEqual(len(metrics), 2)
         self.assertIn("Fake Metric", metrics)
         self.assertIn("Fake Metric-1", metrics)
 
     def test_two_independent_computes_dont_conflict(self):
-        array = generate_profile()
-        profile = FWXMProfile(array, fwxm_height=50)
+        profile = generate_profile()
         profile.compute(metrics=[FakeMetric()])
         profile.compute(metrics=[FakeMetric()])
         self.assertEqual(len(profile.metrics), 2)
