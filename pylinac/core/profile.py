@@ -34,7 +34,7 @@ from . import validators
 from .gamma import gamma_1d, gamma_geometric
 from .geometry import Circle, Point
 from .hill import Hill
-from .utilities import TemporaryAttribute, convert_to_enum
+from .utilities import TemporaryAttribute, convert_to_enum, uniquify
 
 # for Hill fits of 2D device data the # of points can be small.
 # This results in optimization warnings about the variance of the fit (the variance isn't of concern for us for that particular item)
@@ -558,19 +558,19 @@ class ProfileBase(ProfileMixin, ABC):
             If only one metric was given, the value of that metric is returned.
 
         """
-        self.metric_values = {}
-        self.metrics = []
         values = {}
         if isinstance(metrics, ProfileMetric):
             metrics = [metrics]
         for metric in metrics:
             metric.inject_profile(self)
             self.metrics.append(metric)
-            values[metric.full_name] = metric.calculate()
-        # TODO: use |= when 3.9 is min version
-        self.metric_values.update(values)
+            key = uniquify(
+                list(values.keys()) + list(self.metric_values.keys()), metric.full_name
+            )
+            values[key] = metric.calculate()
+        self.metric_values |= values
         if len(values) == 1:
-            return list(values.values())[0]
+            return values[key]
         else:
             return values
 

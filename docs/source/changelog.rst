@@ -13,6 +13,20 @@ Legend
 v 3.29.0
 --------
 
+Image Metrics
+^^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` Metrics passed to :meth:`~pylinac.core.image.BaseImage.compute()` of the same name are no longer overwritten.
+  A unique key is generated if the name already exists.
+
+Profile Metrics
+^^^^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` Metrics passed to :meth:`~pylinac.core.profile.ProfileBase.compute()` of the same name are no longer overwritten.
+  A unique key is generated if the name already exists.
+* :bdg-warning:`Fixed` Calling ``.compute()`` multiple times would overwrite the ``.metric_values`` and ``.metrics`` attributes.
+  This has been fixed.
+
 TRS-398
 ^^^^^^^
 

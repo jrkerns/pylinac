@@ -786,6 +786,10 @@ edges will not accurately represent the physical size and position of the pixels
 API
 ---
 
+.. autoclass:: pylinac.core.profile.ProfileBase
+    :inherited-members:
+    :members:
+
 .. autoclass:: pylinac.core.profile.SingleProfile
     :inherited-members:
     :members:

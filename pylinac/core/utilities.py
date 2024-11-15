@@ -361,3 +361,15 @@ class QuaacMixin:
             d.to_json_file(path)
         elif format == "yaml":
             d.to_yaml_file(path)
+
+
+def uniquify(seq: list[str] | tuple[str], value: str) -> str:
+    """Create a unique string if it already exists in the sequence"""
+    if value not in seq:
+        return value
+    i = 1
+    while True:
+        new_value = f"{value}-{i}"
+        if new_value not in seq:
+            return new_value
+        i += 1
