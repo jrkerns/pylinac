@@ -66,6 +66,12 @@ Plan Generator
 * :bdg-success:`Feature` The plan generator has a new field method: :meth:`~pylinac.plan_generator.dicom.PlanGenerator.add_mlc_transmission`. This adds an MLC transmission field to the plan
   where the leaves of a given bank are fully closed and the MLC kiss is underneath the jaws.
 
+Winston Lutz
+^^^^^^^^^^^^
+
+* The ``bb_shift_instructions`` method would incorrectly state the units of the shift if the couch positions
+  were passed. The values are correct but are indicated as being in mm rather than cm.
+
 Gamma
 ^^^^^
 

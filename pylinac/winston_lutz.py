@@ -1624,7 +1624,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             new_lat = round(couch_lat + sv.x / 10, 2)
             new_vrt = round(couch_vrt + sv.z / 10, 2)
             new_lng = round(couch_lng + sv.y / 10, 2)
-            move += f"\nNew couch coordinates (mm): VRT: {new_vrt:3.2f}; LNG: {new_lng:3.2f}; LAT: {new_lat:3.2f}"
+            move += f"\nNew couch coordinates (cm): VRT: {new_vrt:3.2f}; LNG: {new_lng:3.2f}; LAT: {new_lat:3.2f}"
         return move
 
     @argue.options(value=("all", "range"))
