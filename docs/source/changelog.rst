@@ -10,6 +10,16 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.30.0
+--------
+
+CT-like
+^^^^^^^
+
+* :bdg-success:`Feature` CT-like algorithms have a new parameter for the ``analyze`` method: ``origin_slice``.
+  This parameter lets the user set the z-position of the phantom. This is a fallback method to let the user set the
+  slice of (usually) the HU linearity module. This is useful if the automatic detection of the origin slice fails.
+
 v 3.29.0
 --------
 

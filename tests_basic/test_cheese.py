@@ -74,6 +74,11 @@ class TestGeneral(TestCase):
     def test_demo(self):
         TomoCheese.run_demo()
 
+    def test_passing_origin_slice(self):
+        cheese = TomoCheese.from_demo_images()
+        cheese.analyze(origin_slice=13)
+        assert cheese.origin_slice == 10
+
 
 class TestAnalysis(TestCase):
     def test_cropping_before_analysis(self):

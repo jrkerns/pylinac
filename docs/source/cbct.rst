@@ -520,6 +520,8 @@ This applies to the 503, 504, 600, and 604. Model-specific parameters are called
       * **Scaling factor**: A fine-tuning adjustment to the detected magnification of the phantom. This will zoom the ROIs and phantom outline (if applicable) by this amount.
         In contrast to the roi size adjustment, the scaling adjustment effectively moves the phantom and ROIs
         closer or further from the phantom center. I.e. this zooms the outline and ROI positions, but not ROI size.
+      * **Origin slice**: The slice number that corresponds to the HU linearity slice.
+        This is a fallback mechanism in case the automatic detection fails.
 
 .. _cbct-algorithm:
 

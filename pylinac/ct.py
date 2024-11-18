@@ -2068,14 +2068,18 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             mtfs[mtf] = mtfval
         print(f"MTFs: {mtfs}")
 
-    def localize(self) -> None:
+    def localize(self, origin_slice: int | None) -> None:
         """Find the slice number of the catphan's HU linearity module and roll angle"""
         self._phantom_center_func = self.find_phantom_axis()
-        self.origin_slice = self.find_origin_slice()
+        if origin_slice is not None:
+            self.origin_slice = origin_slice
+        else:
+            self.origin_slice = self.find_origin_slice()
         self.catphan_roll = self.find_phantom_roll() + self.angle_adjustment
-        self.origin_slice = self.refine_origin_slice(
-            initial_slice_num=self.origin_slice
-        )
+        if origin_slice is None:
+            self.origin_slice = self.refine_origin_slice(
+                initial_slice_num=self.origin_slice
+            )
         # now that we have the origin slice, ensure we have scanned all linked modules
         if not self._ensure_physical_scan_extent():
             raise ValueError(
@@ -2259,6 +2263,10 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         sorted_bubbles = sorted(
             central_bubbles, key=lambda x: x.centroid[0]
         )  # top, bottom
+        if not sorted_bubbles:
+            raise ValueError(
+                "No air bubbles were found in the HU slice. The origin slice algorithm likely failed or the origin slice was passed and is incorrect."
+            )
         y_dist = sorted_bubbles[1].centroid[0] - sorted_bubbles[0].centroid[0]
         x_dist = sorted_bubbles[1].centroid[1] - sorted_bubbles[0].centroid[1]
         phan_roll = np.arctan2(y_dist, x_dist)
@@ -2430,6 +2438,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         angle_adjustment: float = 0,
         roi_size_factor: float = 1,
         scaling_factor: float = 1,
+        origin_slice: int | None = None,
     ):
         """Single-method full analysis of CBCT DICOM files.
 
@@ -2491,13 +2500,16 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             A fine-tuning adjustment to the detected magnification of the phantom. This will zoom the ROIs and phantom outline (if applicable) by this amount.
             In contrast to the roi size adjustment, the scaling adjustment effectively moves the phantom and ROIs
             closer or further from the phantom center. I.e. this zooms the outline and ROI positions, but not ROI size.
+        origin_slice : int, None
+            The slice number of the HU linearity module. If None, the slice will be determined automatically. This is
+            a fallback method if the automatic localization algorithm fails.
         """
         self.x_adjustment = x_adjustment
         self.y_adjustment = y_adjustment
         self.angle_adjustment = angle_adjustment
         self.roi_size_factor = roi_size_factor
         self.scaling_factor = scaling_factor
-        self.localize()
+        self.localize(origin_slice)
         ctp404, offset = self._get_module(CTP404CP504, raise_empty=True)
         self.ctp404 = ctp404(
             self,
