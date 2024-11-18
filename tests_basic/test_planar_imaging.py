@@ -128,6 +128,13 @@ class GeneralTests(TestCase):
         data_dict = phan.results_data(as_dict=True)
         self.assertEqual(len(data_dict), 12)
 
+    def test_num_mtf_keys(self):
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        data = phan.results_data()
+        # RAM-4181; 10-90% reported
+        self.assertEqual(len(data.mtf_lp_mm), 9)
+
     def test_set_figure_size(self):
         phan = LeedsTOR.from_demo_image()
         phan.analyze()

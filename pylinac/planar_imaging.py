@@ -86,7 +86,7 @@ class PlanarResult(ResultBase):
         title="Phantom Area (mm^2)",
     )
     mtf_lp_mm: tuple[float, float, float] | None = Field(
-        description="The 80%, 50%, and 30% MTF values in lp/mm.", default=None
+        description="The % MTF values in lp/mm.", default=None
     )
     percent_integral_uniformity: float | None = Field(
         description="The percent integral uniformity of the image.",
@@ -924,7 +924,8 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
 
         if self.mtf is not None:
             data.mtf_lp_mm = [
-                {p: self.mtf.relative_resolution(p)} for p in (80, 50, 30)
+                {p: self.mtf.relative_resolution(p)}
+                for p in list(range(10, 100, 10))[::-1]
             ]
         return data
 
