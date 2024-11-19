@@ -216,6 +216,7 @@ definitions:
               - "pylinac/winston_lutz.py"
         artifacts:
           - memory_usage.log
+          - .pymon
     - step: &winston-lutz-mtmf-tests
         name: Run Winston-Lutz Multi-Target Multi-Field Tests
         size: 2x
@@ -237,6 +238,7 @@ definitions:
               - "pylinac/winston_lutz.py"
         artifacts:
           - memory_usage.log
+          - .pymon
     - step: &plan-generator-tests
         name: Plan generator tests
         script:
