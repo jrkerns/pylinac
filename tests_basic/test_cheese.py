@@ -76,8 +76,8 @@ class TestGeneral(TestCase):
 
     def test_passing_origin_slice(self):
         cheese = TomoCheese.from_demo_images()
-        cheese.analyze(origin_slice=13)
-        assert cheese.origin_slice == 10
+        cheese.analyze(origin_slice=26)  # automatic is 24
+        assert cheese.origin_slice == 26
 
 
 class TestAnalysis(TestCase):
