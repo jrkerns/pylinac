@@ -773,7 +773,6 @@ class WLBaseImage(image.LinacDicomImage):
                 detection_conditions=self.detection_conditions,
                 name="BB",
             ),
-            keep=False,
         )
         return centers
 
