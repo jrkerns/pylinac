@@ -989,7 +989,6 @@ class WinstonLutzMixin(CloudFileMixin):
     @classmethod
     def tearDownClass(cls):
         plt.close("all")
-        del cls.wl
         super().tearDownClass()
 
     def test_number_of_images(self):

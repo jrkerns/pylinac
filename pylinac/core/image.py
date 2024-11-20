@@ -941,9 +941,7 @@ class BaseImage:
     def as_type(self, dtype: np.dtype) -> np.ndarray:
         return self.array.astype(dtype)
 
-    def compute(
-        self, metrics: list[MetricBase] | MetricBase, keep: bool = True
-    ) -> Any | dict[str, Any]:
+    def compute(self, metrics: list[MetricBase] | MetricBase) -> Any | dict[str, Any]:
         """Compute the given metrics on the image.
 
         This can be called multiple times to compute different metrics.
@@ -967,14 +965,12 @@ class BaseImage:
         for metric in metrics:
             metric.inject_image(self)
             value = metric.context_calculate()
+            self.metrics.append(metric)
             key = uniquify(
                 list(metric_data.keys()) + list(self.metric_values.keys()), metric.name
             )
             metric_data[key] = value
-            if keep:
-                self.metrics.append(metric)
-        if keep:
-            self.metric_values |= metric_data
+        self.metric_values |= metric_data
         if len(metrics) == 1:
             return metric_data[key]
         return metric_data
