@@ -9,7 +9,6 @@ import os
 import os.path as osp
 import re
 import warnings
-import weakref
 import zlib
 from collections import Counter
 from collections.abc import Iterable, Sequence
@@ -942,6 +941,11 @@ class BaseImage:
     def as_type(self, dtype: np.dtype) -> np.ndarray:
         return self.array.astype(dtype)
 
+    def __del__(self):
+        # remove the links to the metrics to avoid circular references
+        print("Deleting image...")
+        self.metrics = []
+
     def compute(
         self, metrics: list[MetricBase] | MetricBase, keep: bool = False
     ) -> Any | dict[str, Any]:
@@ -973,7 +977,7 @@ class BaseImage:
             )
             metric_data[key] = value
             # if keep:
-            self.metrics.append(weakref.proxy(metric))
+            self.metrics.append(metric)
         # if keep:
         self.metric_values |= metric_data
         if len(metrics) == 1:
