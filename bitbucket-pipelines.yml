@@ -64,6 +64,10 @@ definitions:
           - memory_usage.log
     - step: &quart-tests
         name: Run Quart Tests
+        runs-on:
+          - self.hosted
+          - linux
+          - pylinac
         script:
           - uv run pytest tests_basic/test_quart.py --cov=pylinac.quart --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:

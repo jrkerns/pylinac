@@ -1548,6 +1548,7 @@ class WLUseFileNames(WinstonLutzMixin, PlotlyTestMixin, TestCase):
     }
 
     def setUp(self) -> None:
+        super().setUp()
         self.instance = self.wl
 
 
@@ -1589,6 +1590,7 @@ class KatyiX0(WinstonLutzMixin, PlotlyTestMixin, TestCase):
     }
 
     def setUp(self) -> None:
+        super().setUp()
         self.instance = self.wl
 
 
