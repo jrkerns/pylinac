@@ -38,6 +38,10 @@ definitions:
               - "*.rst"
     - step: &cbct-tests
         name: Run CBCT Tests
+        runs-on:
+          - self.hosted
+          - linux
+          - pylinac
         size: 2x
         script:
           # set up memory monitoring
