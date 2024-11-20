@@ -941,11 +941,6 @@ class BaseImage:
     def as_type(self, dtype: np.dtype) -> np.ndarray:
         return self.array.astype(dtype)
 
-    def __del__(self):
-        # remove the links to the metrics to avoid circular references
-        print("Deleting image...")
-        self.metrics = []
-
     def compute(
         self, metrics: list[MetricBase] | MetricBase, keep: bool = False
     ) -> Any | dict[str, Any]:

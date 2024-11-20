@@ -947,49 +947,70 @@ class WinstonLutzMixin(CloudFileMixin):
     collimator_reference = 0
     couch_reference = 0
 
-    @classmethod
-    def new_instance(cls) -> WinstonLutz:
-        filename = cls.get_filename()
-        if cls.zip:
+    # @classmethod
+    def new_instance(self) -> WinstonLutz:
+        filename = self.get_filename()
+        if self.zip:
             wl = WinstonLutz.from_zip(
                 filename,
-                use_filenames=cls.use_filenames,
-                sid=cls.sid,
-                dpi=cls.dpi,
-                axis_mapping=cls.axis_mapping,
+                use_filenames=self.use_filenames,
+                sid=self.sid,
+                dpi=self.dpi,
+                axis_mapping=self.axis_mapping,
             )
         else:
             wl = WinstonLutz(
                 filename,
-                use_filenames=cls.use_filenames,
-                sid=cls.sid,
-                dpi=cls.dpi,
-                axis_mapping=cls.axis_mapping,
+                use_filenames=self.use_filenames,
+                sid=self.sid,
+                dpi=self.dpi,
+                axis_mapping=self.axis_mapping,
             )
         return wl
 
-    @classmethod
-    def setUpClass(cls):
-        cls.wl = cls.new_instance()
-        cls.wl.analyze(
-            bb_size_mm=cls.bb_size,
-            machine_scale=cls.machine_scale,
-            low_density_bb=cls.low_density_bb,
-            open_field=cls.open_field,
-            apply_virtual_shift=cls.apply_virtual_shift,
-            snap_tolerance=cls.snap_tolerance,
-            gantry_reference=cls.gantry_reference,
-            collimator_reference=cls.collimator_reference,
-            couch_reference=cls.couch_reference,
+    def setUp(self):
+        self.wl = self.new_instance()
+        self.wl.analyze(
+            bb_size_mm=self.bb_size,
+            machine_scale=self.machine_scale,
+            low_density_bb=self.low_density_bb,
+            open_field=self.open_field,
+            apply_virtual_shift=self.apply_virtual_shift,
+            snap_tolerance=self.snap_tolerance,
+            gantry_reference=self.gantry_reference,
+            collimator_reference=self.collimator_reference,
+            couch_reference=self.couch_reference,
         )
-        if cls.print_results:
-            print(cls.wl.results())
-            print(cls.wl.bb_shift_vector)
+        if self.print_results:
+            print(self.wl.results())
+            print(self.wl.bb_shift_vector)
 
-    @classmethod
-    def tearDownClass(cls):
+    # @classmethod
+    # def setUpClass(cls):
+    #     cls.wl = cls.new_instance()
+    #     cls.wl.analyze(
+    #         bb_size_mm=cls.bb_size,
+    #         machine_scale=cls.machine_scale,
+    #         low_density_bb=cls.low_density_bb,
+    #         open_field=cls.open_field,
+    #         apply_virtual_shift=cls.apply_virtual_shift,
+    #         snap_tolerance=cls.snap_tolerance,
+    #         gantry_reference=cls.gantry_reference,
+    #         collimator_reference=cls.collimator_reference,
+    #         couch_reference=cls.couch_reference,
+    #     )
+    #     if cls.print_results:
+    #         print(cls.wl.results())
+    #         print(cls.wl.bb_shift_vector)
+
+    # @classmethod
+    # def tearDownClass(cls):
+    #     plt.close("all")
+    #     super().tearDownClass()
+
+    def tearDown(self):
         plt.close("all")
-        super().tearDownClass()
+        super().tearDown()
 
     def test_number_of_images(self):
         self.assertEqual(self.num_images, len(self.wl.images))
@@ -1358,13 +1379,13 @@ class WLDemo(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=0, y=-0.25, z=-0.2)
     delete_file = False
 
-    @classmethod
-    def setUpClass(cls):
-        cls.wl = cls.new_instance()
-        cls.wl.analyze(machine_scale=cls.machine_scale)
+    # @classmethod
+    def setUp(self):
+        self.wl = self.new_instance()
+        self.wl.analyze(machine_scale=self.machine_scale)
 
-    @classmethod
-    def new_instance(cls) -> WinstonLutz:
+    # @classmethod
+    def new_instance(self) -> WinstonLutz:
         return WinstonLutz.from_demo_images()
 
     def test_different_scale_has_different_shift(self):
@@ -1921,41 +1942,40 @@ class CBCTWinstonLutzMixin(WinstonLutzMixin):
     gantry_iso_size = 0
     raw_pixels = False
 
-    @classmethod
-    def new_instance(cls) -> WinstonLutz:
-        filename = cls.get_filename()
-        if cls.zip:
+    def new_instance(self) -> WinstonLutz:
+        filename = self.get_filename()
+        if self.zip:
             wl = WinstonLutz.from_cbct_zip(
                 filename,
-                use_filenames=cls.use_filenames,
-                sid=cls.sid,
-                dpi=cls.dpi,
-                axis_mapping=cls.axis_mapping,
-                raw_pixels=cls.raw_pixels,
+                use_filenames=self.use_filenames,
+                sid=self.sid,
+                dpi=self.dpi,
+                axis_mapping=self.axis_mapping,
+                raw_pixels=self.raw_pixels,
             )
         else:
             wl = WinstonLutz.from_cbct(
                 filename,
-                use_filenames=cls.use_filenames,
-                sid=cls.sid,
-                dpi=cls.dpi,
-                axis_mapping=cls.axis_mapping,
-                raw_pixels=cls.raw_pixels,
+                use_filenames=self.use_filenames,
+                sid=self.sid,
+                dpi=self.dpi,
+                axis_mapping=self.axis_mapping,
+                raw_pixels=self.raw_pixels,
             )
         return wl
 
-    @classmethod
-    def setUpClass(cls):
-        cls.wl = cls.new_instance()
-        cls.wl.analyze(
-            bb_size_mm=cls.bb_size,
-            machine_scale=cls.machine_scale,
-            low_density_bb=cls.low_density_bb,
-            open_field=cls.open_field,
+    # @classmethod
+    def setUp(self):
+        self.wl = self.new_instance()
+        self.wl.analyze(
+            bb_size_mm=self.bb_size,
+            machine_scale=self.machine_scale,
+            low_density_bb=self.low_density_bb,
+            open_field=self.open_field,
         )
-        if cls.print_results:
-            print(cls.wl.results())
-            print(cls.wl.bb_shift_vector)
+        if self.print_results:
+            print(self.wl.results())
+            print(self.wl.bb_shift_vector)
 
 
 class TestFrenchCBCT(CBCTWinstonLutzMixin, TestCase):
@@ -2016,15 +2036,15 @@ class TestIndividualInverts(WinstonLutzMixin, TestCase):
     axis_of_rotation = {-1: Axis.REFERENCE}
     bb_shift_vector = Vector(x=0.13, y=0.22, z=-0.3)
 
-    @classmethod
-    def new_instance(cls) -> WinstonLutz:
-        filename = cls.get_filename()
+    # @classmethod
+    def new_instance(self) -> WinstonLutz:
+        filename = self.get_filename()
         wl = WinstonLutz.from_zip(
             filename,
-            use_filenames=cls.use_filenames,
-            sid=cls.sid,
-            dpi=cls.dpi,
-            axis_mapping=cls.axis_mapping,
+            use_filenames=self.use_filenames,
+            sid=self.sid,
+            dpi=self.dpi,
+            axis_mapping=self.axis_mapping,
         )
         for img in wl.images:
             img.crop(pixels=50)
