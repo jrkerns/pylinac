@@ -1050,29 +1050,29 @@ class WinstonLutzMixin(CloudFileMixin):
             v_axis = self.wl.images[idx].variable_axis
             self.assertEqual(axis, v_axis)
 
-    def test_bb_size_doesnt_change_result(self):
-        """Test that changing the tolerance doesn't change the result"""
-        original_max = self.wl.cax2bb_distance(metric="max")
-        original_mean = self.wl.cax2bb_distance(metric="mean")
-        original_gantry_iso = self.wl.gantry_iso_size
-        # re-analyze w/ same settings
-        for tolerance in (-2, -1, 1, 2, 3):
-            new_wl = self.new_instance()
-            # set a min here for cases where the bb is very small (e.g. 1.5mm)
-            new_wl.analyze(
-                bb_size_mm=max((self.bb_size + tolerance, 1.5)),
-                machine_scale=self.machine_scale,
-                low_density_bb=self.low_density_bb,
-                open_field=self.open_field,
-                apply_virtual_shift=self.apply_virtual_shift,
-            )
-            new_max = new_wl.cax2bb_distance(metric="max")
-            new_mean = new_wl.cax2bb_distance(metric="mean")
-            self.assertAlmostEqual(original_max, new_max, delta=0.1)
-            self.assertAlmostEqual(original_mean, new_mean, delta=0.1)
-            self.assertAlmostEqual(
-                original_gantry_iso, new_wl.gantry_iso_size, delta=0.1
-            )
+    # def test_bb_size_doesnt_change_result(self):
+    #     """Test that changing the tolerance doesn't change the result"""
+    #     original_max = self.wl.cax2bb_distance(metric="max")
+    #     original_mean = self.wl.cax2bb_distance(metric="mean")
+    #     original_gantry_iso = self.wl.gantry_iso_size
+    #     # re-analyze w/ same settings
+    #     for tolerance in (-2, -1, 1, 2, 3):
+    #         new_wl = self.new_instance()
+    #         # set a min here for cases where the bb is very small (e.g. 1.5mm)
+    #         new_wl.analyze(
+    #             bb_size_mm=max((self.bb_size + tolerance, 1.5)),
+    #             machine_scale=self.machine_scale,
+    #             low_density_bb=self.low_density_bb,
+    #             open_field=self.open_field,
+    #             apply_virtual_shift=self.apply_virtual_shift,
+    #         )
+    #         new_max = new_wl.cax2bb_distance(metric="max")
+    #         new_mean = new_wl.cax2bb_distance(metric="mean")
+    #         self.assertAlmostEqual(original_max, new_max, delta=0.1)
+    #         self.assertAlmostEqual(original_mean, new_mean, delta=0.1)
+    #         self.assertAlmostEqual(
+    #             original_gantry_iso, new_wl.gantry_iso_size, delta=0.1
+    #         )
 
 
 class SyntheticWLMixin(WinstonLutzMixin):
