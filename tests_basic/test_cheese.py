@@ -128,6 +128,7 @@ class TestPlottingSaving(TestCase):
     @classmethod
     def tearDownClass(cls):
         plt.close("all")
+        del cls.cheese
 
     def test_save_pdf(self):
         # shouldn't raise

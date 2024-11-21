@@ -28,6 +28,11 @@ class TestWLMultiImage(TestCase):
         cls.wl = WinstonLutzMultiTargetMultiField.from_demo_images()
         cls.wl.analyze(BBArrangement.DEMO)
 
+    @classmethod
+    def tearDownClass(cls) -> None:
+        plt.close("all")
+        del cls.wl
+
     def test_demo(self):
         # shouldn't raise
         WinstonLutzMultiTargetMultiField.run_demo()

@@ -240,6 +240,7 @@ class PlanarPhantomMixin(QuaacTestBase, CloudFileMixin, PlotlyTestMixin):
     @classmethod
     def tearDownClass(cls):
         plt.close("all")
+        del cls.instance
         super().tearDownClass()
 
     def test_bad_inversion_recovers(self):

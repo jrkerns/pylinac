@@ -108,6 +108,7 @@ class TestPlottingSaving(TestCase):
     @classmethod
     def tearDownClass(cls):
         plt.close("all")
+        del cls.quart
 
     def test_plot_images(self):
         """Test that saving an image does something."""

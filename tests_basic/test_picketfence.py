@@ -134,6 +134,11 @@ class TestAnalyze(TestCase):
         cls.pf = PicketFence.from_demo_image()
         cls.pf.analyze()
 
+    @classmethod
+    def tearDownClass(cls):
+        plt.close("all")
+        del cls.pf
+
     def test_bad_tolerance_values(self):
         self.assertRaises(ValueError, self.pf.analyze, 0.2, 0.3)
 
@@ -419,6 +424,7 @@ class TestPlottingSaving(TestCase):
     @classmethod
     def tearDownClass(cls):
         plt.close("all")
+        del cls.pf
 
     def test_plotting(self):
         self.pf.plot_analyzed_image()
@@ -539,6 +545,11 @@ class PFTestMixin(CloudFileMixin):
                 nominal_gap_mm=cls.nominal_gap_mm,
             )
 
+    @classmethod
+    def tearDownClass(cls):
+        plt.close("all")
+        del cls.pf
+
     def test_passed(self):
         self.assertEqual(self.pf.passed, self.passes)
 
@@ -592,7 +603,7 @@ class PFDemo(PFTestMixin, TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        pass  # override delete behavior
+        del cls.pf  # override delete behavior
 
     def test_demo_lower_tolerance(self):
         pf = PicketFence.from_demo_image()
