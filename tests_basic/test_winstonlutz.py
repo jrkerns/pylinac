@@ -1948,17 +1948,17 @@ class CBCTWinstonLutzMixin(WinstonLutzMixin):
         return wl
 
     @classmethod
-    def setUpClass(self):
-        self.wl = self.new_instance()
-        self.wl.analyze(
-            bb_size_mm=self.bb_size,
-            machine_scale=self.machine_scale,
-            low_density_bb=self.low_density_bb,
-            open_field=self.open_field,
+    def setUpClass(cls):
+        cls.wl = cls.new_instance()
+        cls.wl.analyze(
+            bb_size_mm=cls.bb_size,
+            machine_scale=cls.machine_scale,
+            low_density_bb=cls.low_density_bb,
+            open_field=cls.open_field,
         )
-        if self.print_results:
-            print(self.wl.results())
-            print(self.wl.bb_shift_vector)
+        if cls.print_results:
+            print(cls.wl.results())
+            print(cls.wl.bb_shift_vector)
 
 
 class TestFrenchCBCT(CBCTWinstonLutzMixin, TestCase):

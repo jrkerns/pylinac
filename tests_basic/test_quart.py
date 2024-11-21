@@ -177,6 +177,11 @@ class QuartDVTMixin(CloudFileMixin):
             scaling_factor=cls.scaling_factor,
         )
 
+    @classmethod
+    def tearDownClass(cls):
+        plt.close("all")
+        del cls.quart
+
     def test_roll(self):
         self.assertAlmostEqual(self.quart.catphan_roll, self.phantom_roll, delta=0.3)
 

@@ -307,6 +307,11 @@ class TestCustomHUValues(TestCase):
     def setUpClass(cls):
         cls.cbct = CatPhan504.from_demo_images()
 
+    @classmethod
+    def tearDownClass(cls):
+        plt.close("all")
+        del cls.cbct
+
     def test_override(self):
         self.cbct.analyze(expected_hu_values={"Air": -1000, "Poly": 321})
         self.assertEqual(self.cbct.ctp404.rois["Air"].nominal_val, -1000)
@@ -331,6 +336,7 @@ class TestPlottingSaving(TestCase):
     @classmethod
     def tearDownClass(cls):
         plt.close("all")
+        del cls.cbct
 
     def test_save_image(self):
         """Test that saving an image does something."""
@@ -427,6 +433,7 @@ class CatPhanMixin(CloudFileMixin):
     @classmethod
     def tearDownClass(cls):
         plt.close("all")
+        del cls.cbct
         super().tearDownClass()
 
     def test_slice_thickness(self):

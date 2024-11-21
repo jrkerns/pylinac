@@ -549,6 +549,7 @@ class PFTestMixin(CloudFileMixin):
     def tearDownClass(cls):
         plt.close("all")
         del cls.pf
+        super().tearDownClass()
 
     def test_passed(self):
         self.assertEqual(self.pf.passed, self.passes)

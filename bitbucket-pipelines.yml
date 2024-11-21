@@ -38,7 +38,6 @@ definitions:
               - "*.rst"
     - step: &cbct-tests
         name: Run CBCT Tests
-        size: 2x
         script:
           # set up memory monitoring
           - apt-get update && apt-get install -y --no-install-recommends procps jq
@@ -241,7 +240,6 @@ definitions:
               - "pylinac/vmat.py"
     - step: &winston-lutz-tests
         name: Run Winston-Lutz Tests
-        size: 2x
         script:
             # set up memory monitoring
           - apt-get update && apt-get install -y --no-install-recommends procps jq
@@ -261,7 +259,6 @@ definitions:
           - memory_usage.log
     - step: &winston-lutz-mtmf-tests
         name: Run Winston-Lutz Multi-Target Multi-Field Tests
-        size: 2x
         script:
           # set up memory monitoring
           - apt-get update && apt-get install -y --no-install-recommends procps jq
