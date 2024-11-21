@@ -69,6 +69,8 @@ definitions:
           - uv run pytest tests_basic/test_quart.py --cov=pylinac.quart --cov-report term --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
+        artifacts:
+          - memory_usage.log
         caches:
           - testfiles
         condition:
@@ -89,6 +91,8 @@ definitions:
           - uv run pytest tests_basic/test_acr.py --cov=pylinac.acr --cov-report term --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
+        artifacts:
+          - memory_usage.log
         caches:
           - testfiles
         condition:
@@ -109,6 +113,8 @@ definitions:
           - uv run pytest tests_basic/test_cheese.py --cov=pylinac.cheese --cov-report term --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
+        artifacts:
+          - memory_usage.log
         caches:
           - testfiles
         condition:
@@ -129,6 +135,8 @@ definitions:
           - uv run pytest tests_basic/test_planar_imaging.py --cov-report term --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
+        artifacts:
+          - memory_usage.log
         caches:
           - testfiles
         condition:
@@ -184,6 +192,8 @@ definitions:
           - uv run pytest tests_basic/test_picketfence.py --cov-report term --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
+        artifacts:
+          - memory_usage.log
         caches:
           - testfiles
         condition:
