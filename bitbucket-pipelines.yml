@@ -61,7 +61,14 @@ definitions:
     - step: &quart-tests
         name: Run Quart Tests
         script:
+          - # set up memory monitoring
+          - apt-get update && apt-get install -y --no-install-recommends procps jq
+          - chmod +x memory_monitor.sh
+          - nohup ./memory_monitor.sh &
+          - MONITOR_PID=$!
           - uv run pytest tests_basic/test_quart.py --cov=pylinac.quart --cov-report term --junitxml=./test-reports/pytest_results.xml
+          # clean up memory monitor
+          - kill $MONITOR_PID
         caches:
           - testfiles
         condition:
@@ -74,7 +81,14 @@ definitions:
     - step: &acr-tests
         name: Run ACR CT/MRI Tests
         script:
+          - # set up memory monitoring
+          - apt-get update && apt-get install -y --no-install-recommends procps jq
+          - chmod +x memory_monitor.sh
+          - nohup ./memory_monitor.sh &
+          - MONITOR_PID=$!
           - uv run pytest tests_basic/test_acr.py --cov=pylinac.acr --cov-report term --junitxml=./test-reports/pytest_results.xml
+          # clean up memory monitor
+          - kill $MONITOR_PID
         caches:
           - testfiles
         condition:
@@ -87,7 +101,14 @@ definitions:
     - step: &cheese-tests
         name: Run Cheese Phantom Tests
         script:
+          - # set up memory monitoring
+          - apt-get update && apt-get install -y --no-install-recommends procps jq
+          - chmod +x memory_monitor.sh
+          - nohup ./memory_monitor.sh &
+          - MONITOR_PID=$!
           - uv run pytest tests_basic/test_cheese.py --cov=pylinac.cheese --cov-report term --junitxml=./test-reports/pytest_results.xml
+          # clean up memory monitor
+          - kill $MONITOR_PID
         caches:
           - testfiles
         condition:
@@ -100,7 +121,14 @@ definitions:
     - step: &planar-tests
         name: Run Planar Imaging Tests
         script:
+          - # set up memory monitoring
+          - apt-get update && apt-get install -y --no-install-recommends procps jq
+          - chmod +x memory_monitor.sh
+          - nohup ./memory_monitor.sh &
+          - MONITOR_PID=$!
           - uv run pytest tests_basic/test_planar_imaging.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          # clean up memory monitor
+          - kill $MONITOR_PID
         caches:
           - testfiles
         condition:
@@ -148,7 +176,14 @@ definitions:
     - step: &picket-fence-tests
         name: Run Picket Fence Tests
         script:
+          - # set up memory monitoring
+          - apt-get update && apt-get install -y --no-install-recommends procps jq
+          - chmod +x memory_monitor.sh
+          - nohup ./memory_monitor.sh &
+          - MONITOR_PID=$!
           - uv run pytest tests_basic/test_picketfence.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          # clean up memory monitor
+          - kill $MONITOR_PID
         caches:
           - testfiles
         condition:
