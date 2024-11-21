@@ -947,70 +947,50 @@ class WinstonLutzMixin(CloudFileMixin):
     collimator_reference = 0
     couch_reference = 0
 
-    # @classmethod
-    def new_instance(self) -> WinstonLutz:
-        filename = self.get_filename()
-        if self.zip:
+    @classmethod
+    def new_instance(cls) -> WinstonLutz:
+        filename = cls.get_filename()
+        if cls.zip:
             wl = WinstonLutz.from_zip(
                 filename,
-                use_filenames=self.use_filenames,
-                sid=self.sid,
-                dpi=self.dpi,
-                axis_mapping=self.axis_mapping,
+                use_filenames=cls.use_filenames,
+                sid=cls.sid,
+                dpi=cls.dpi,
+                axis_mapping=cls.axis_mapping,
             )
         else:
             wl = WinstonLutz(
                 filename,
-                use_filenames=self.use_filenames,
-                sid=self.sid,
-                dpi=self.dpi,
-                axis_mapping=self.axis_mapping,
+                use_filenames=cls.use_filenames,
+                sid=cls.sid,
+                dpi=cls.dpi,
+                axis_mapping=cls.axis_mapping,
             )
         return wl
 
-    def setUp(self):
-        self.wl = self.new_instance()
-        self.wl.analyze(
-            bb_size_mm=self.bb_size,
-            machine_scale=self.machine_scale,
-            low_density_bb=self.low_density_bb,
-            open_field=self.open_field,
-            apply_virtual_shift=self.apply_virtual_shift,
-            snap_tolerance=self.snap_tolerance,
-            gantry_reference=self.gantry_reference,
-            collimator_reference=self.collimator_reference,
-            couch_reference=self.couch_reference,
+    @classmethod
+    def setUpClass(cls):
+        cls.wl = cls.new_instance()
+        cls.wl.analyze(
+            bb_size_mm=cls.bb_size,
+            machine_scale=cls.machine_scale,
+            low_density_bb=cls.low_density_bb,
+            open_field=cls.open_field,
+            apply_virtual_shift=cls.apply_virtual_shift,
+            snap_tolerance=cls.snap_tolerance,
+            gantry_reference=cls.gantry_reference,
+            collimator_reference=cls.collimator_reference,
+            couch_reference=cls.couch_reference,
         )
-        if self.print_results:
-            print(self.wl.results())
-            print(self.wl.bb_shift_vector)
+        if cls.print_results:
+            print(cls.wl.results())
+            print(cls.wl.bb_shift_vector)
 
-    # @classmethod
-    # def setUpClass(cls):
-    #     cls.wl = cls.new_instance()
-    #     cls.wl.analyze(
-    #         bb_size_mm=cls.bb_size,
-    #         machine_scale=cls.machine_scale,
-    #         low_density_bb=cls.low_density_bb,
-    #         open_field=cls.open_field,
-    #         apply_virtual_shift=cls.apply_virtual_shift,
-    #         snap_tolerance=cls.snap_tolerance,
-    #         gantry_reference=cls.gantry_reference,
-    #         collimator_reference=cls.collimator_reference,
-    #         couch_reference=cls.couch_reference,
-    #     )
-    #     if cls.print_results:
-    #         print(cls.wl.results())
-    #         print(cls.wl.bb_shift_vector)
-
-    # @classmethod
-    # def tearDownClass(cls):
-    #     plt.close("all")
-    #     super().tearDownClass()
-
-    def tearDown(self):
+    @classmethod
+    def tearDownClass(cls):
         plt.close("all")
-        super().tearDown()
+        # del cls.wl
+        super().tearDownClass()
 
     def test_number_of_images(self):
         self.assertEqual(self.num_images, len(self.wl.images))
@@ -1071,29 +1051,29 @@ class WinstonLutzMixin(CloudFileMixin):
             v_axis = self.wl.images[idx].variable_axis
             self.assertEqual(axis, v_axis)
 
-    # def test_bb_size_doesnt_change_result(self):
-    #     """Test that changing the tolerance doesn't change the result"""
-    #     original_max = self.wl.cax2bb_distance(metric="max")
-    #     original_mean = self.wl.cax2bb_distance(metric="mean")
-    #     original_gantry_iso = self.wl.gantry_iso_size
-    #     # re-analyze w/ same settings
-    #     for tolerance in (-2, -1, 1, 2, 3):
-    #         new_wl = self.new_instance()
-    #         # set a min here for cases where the bb is very small (e.g. 1.5mm)
-    #         new_wl.analyze(
-    #             bb_size_mm=max((self.bb_size + tolerance, 1.5)),
-    #             machine_scale=self.machine_scale,
-    #             low_density_bb=self.low_density_bb,
-    #             open_field=self.open_field,
-    #             apply_virtual_shift=self.apply_virtual_shift,
-    #         )
-    #         new_max = new_wl.cax2bb_distance(metric="max")
-    #         new_mean = new_wl.cax2bb_distance(metric="mean")
-    #         self.assertAlmostEqual(original_max, new_max, delta=0.1)
-    #         self.assertAlmostEqual(original_mean, new_mean, delta=0.1)
-    #         self.assertAlmostEqual(
-    #             original_gantry_iso, new_wl.gantry_iso_size, delta=0.1
-    #         )
+    def test_bb_size_doesnt_change_result(self):
+        """Test that changing the tolerance doesn't change the result"""
+        original_max = self.wl.cax2bb_distance(metric="max")
+        original_mean = self.wl.cax2bb_distance(metric="mean")
+        original_gantry_iso = self.wl.gantry_iso_size
+        # re-analyze w/ same settings
+        for tolerance in (-2, -1, 1, 2, 3):
+            new_wl = self.new_instance()
+            # set a min here for cases where the bb is very small (e.g. 1.5mm)
+            new_wl.analyze(
+                bb_size_mm=max((self.bb_size + tolerance, 1.5)),
+                machine_scale=self.machine_scale,
+                low_density_bb=self.low_density_bb,
+                open_field=self.open_field,
+                apply_virtual_shift=self.apply_virtual_shift,
+            )
+            new_max = new_wl.cax2bb_distance(metric="max")
+            new_mean = new_wl.cax2bb_distance(metric="mean")
+            self.assertAlmostEqual(original_max, new_max, delta=0.1)
+            self.assertAlmostEqual(original_mean, new_mean, delta=0.1)
+            self.assertAlmostEqual(
+                original_gantry_iso, new_wl.gantry_iso_size, delta=0.1
+            )
 
 
 class SyntheticWLMixin(WinstonLutzMixin):
@@ -1379,13 +1359,13 @@ class WLDemo(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=0, y=-0.25, z=-0.2)
     delete_file = False
 
-    # @classmethod
-    def setUp(self):
-        self.wl = self.new_instance()
-        self.wl.analyze(machine_scale=self.machine_scale)
+    @classmethod
+    def setUpClass(cls):
+        cls.wl = cls.new_instance()
+        cls.wl.analyze(machine_scale=cls.machine_scale)
 
-    # @classmethod
-    def new_instance(self) -> WinstonLutz:
+    @classmethod
+    def new_instance(cls) -> WinstonLutz:
         return WinstonLutz.from_demo_images()
 
     def test_different_scale_has_different_shift(self):
@@ -1944,30 +1924,31 @@ class CBCTWinstonLutzMixin(WinstonLutzMixin):
     gantry_iso_size = 0
     raw_pixels = False
 
-    def new_instance(self) -> WinstonLutz:
-        filename = self.get_filename()
-        if self.zip:
+    @classmethod
+    def new_instance(cls) -> WinstonLutz:
+        filename = cls.get_filename()
+        if cls.zip:
             wl = WinstonLutz.from_cbct_zip(
                 filename,
-                use_filenames=self.use_filenames,
-                sid=self.sid,
-                dpi=self.dpi,
-                axis_mapping=self.axis_mapping,
-                raw_pixels=self.raw_pixels,
+                use_filenames=cls.use_filenames,
+                sid=cls.sid,
+                dpi=cls.dpi,
+                axis_mapping=cls.axis_mapping,
+                raw_pixels=cls.raw_pixels,
             )
         else:
             wl = WinstonLutz.from_cbct(
                 filename,
-                use_filenames=self.use_filenames,
-                sid=self.sid,
-                dpi=self.dpi,
-                axis_mapping=self.axis_mapping,
-                raw_pixels=self.raw_pixels,
+                use_filenames=cls.use_filenames,
+                sid=cls.sid,
+                dpi=cls.dpi,
+                axis_mapping=cls.axis_mapping,
+                raw_pixels=cls.raw_pixels,
             )
         return wl
 
-    # @classmethod
-    def setUp(self):
+    @classmethod
+    def setUpClass(self):
         self.wl = self.new_instance()
         self.wl.analyze(
             bb_size_mm=self.bb_size,
@@ -2038,15 +2019,15 @@ class TestIndividualInverts(WinstonLutzMixin, TestCase):
     axis_of_rotation = {-1: Axis.REFERENCE}
     bb_shift_vector = Vector(x=0.13, y=0.22, z=-0.3)
 
-    # @classmethod
-    def new_instance(self) -> WinstonLutz:
-        filename = self.get_filename()
+    @classmethod
+    def new_instance(cls) -> WinstonLutz:
+        filename = cls.get_filename()
         wl = WinstonLutz.from_zip(
             filename,
-            use_filenames=self.use_filenames,
-            sid=self.sid,
-            dpi=self.dpi,
-            axis_mapping=self.axis_mapping,
+            use_filenames=cls.use_filenames,
+            sid=cls.sid,
+            dpi=cls.dpi,
+            axis_mapping=cls.axis_mapping,
         )
         for img in wl.images:
             img.crop(pixels=50)
