@@ -212,6 +212,8 @@ section.
 * ``circle_radius_mm`` -- The radius of the minimum circle that touches all the star lines in mm.
 * ``circle_diameter_mm`` -- The diameter of the minimum circle that touches all the star lines in mm.
 * ``circle_center_x_y`` -- The center position of the minimum circle in pixels.
+* ``angles`` -- The angles of the spokes in degrees. 0 is pointing straight up. +90 is to the right; -90 is to the left.
+  Angles are always between +/-90.
 * ``passed`` -- Whether the analysis passed or failed.
 
 Troubleshooting

@@ -10,6 +10,14 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.30.0
+--------
+
+Starshot
+^^^^^^^^
+
+* :bdg-success:`Feature` Angles of the spokes are now reported via the ``angles`` attribute of ``results_data``. See :ref:`interpreting-starshot-results`.
+
 v 3.29.0
 --------
 
