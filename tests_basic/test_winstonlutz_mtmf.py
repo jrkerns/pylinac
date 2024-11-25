@@ -19,7 +19,7 @@ from pylinac.winston_lutz import BBArrangement, BBConfig
 from tests_basic.core.test_utilities import ResultsDataBase
 from tests_basic.utils import CloudFileMixin, PlotlyTestMixin
 
-TEST_DIR = "Winston-Lutz"
+TEST_DIR = "Winston-Lutz"  # comment trigger
 
 
 class TestWLMultiImage(TestCase):
@@ -27,6 +27,11 @@ class TestWLMultiImage(TestCase):
     def setUpClass(cls) -> None:
         cls.wl = WinstonLutzMultiTargetMultiField.from_demo_images()
         cls.wl.analyze(BBArrangement.DEMO)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        plt.close("all")
+        del cls.wl
 
     def test_demo(self):
         # shouldn't raise
@@ -123,6 +128,11 @@ class WinstonLutzMultiTargetMultFieldMixin(CloudFileMixin):
         cls.wl.analyze(cls.arrangement)
         if cls.print_results:
             print(cls.wl.results())
+
+    @classmethod
+    def tearDownClass(cls):
+        del cls.wl
+        super().tearDownClass()
 
     def test_number_of_images(self):
         self.assertEqual(self.num_images, len(self.wl.images))
@@ -231,6 +241,7 @@ class SyntheticMultiMetMixin(WinstonLutzMultiTargetMultFieldMixin):
         # clean up the folder we created;
         # in BB space can be at a premium.
         shutil.rmtree(cls.tmp_path, ignore_errors=True)
+        super().tearDownClass()
 
     @classmethod
     def get_filename(cls) -> str:

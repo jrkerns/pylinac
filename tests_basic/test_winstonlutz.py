@@ -46,7 +46,7 @@ from tests_basic.utils import (
     save_file,
 )
 
-TEST_DIR = "Winston-Lutz"
+TEST_DIR = "Winston-Lutz"  # comment trigger
 
 
 def create_wl_dataset():
@@ -989,6 +989,7 @@ class WinstonLutzMixin(CloudFileMixin):
     @classmethod
     def tearDownClass(cls):
         plt.close("all")
+        del cls.wl
         super().tearDownClass()
 
     def test_number_of_images(self):
@@ -1527,6 +1528,7 @@ class WLUseFileNames(WinstonLutzMixin, PlotlyTestMixin, TestCase):
     }
 
     def setUp(self) -> None:
+        super().setUp()
         self.instance = self.wl
 
 
@@ -1568,6 +1570,7 @@ class KatyiX0(WinstonLutzMixin, PlotlyTestMixin, TestCase):
     }
 
     def setUp(self) -> None:
+        super().setUp()
         self.instance = self.wl
 
 

@@ -108,6 +108,7 @@ class TestPlottingSaving(TestCase):
     @classmethod
     def tearDownClass(cls):
         plt.close("all")
+        del cls.quart
 
     def test_plot_images(self):
         """Test that saving an image does something."""
@@ -175,6 +176,11 @@ class QuartDVTMixin(CloudFileMixin):
             roi_size_factor=cls.roi_size_factor,
             scaling_factor=cls.scaling_factor,
         )
+
+    @classmethod
+    def tearDownClass(cls):
+        plt.close("all")
+        del cls.quart
 
     def test_roll(self):
         self.assertAlmostEqual(self.quart.catphan_roll, self.phantom_roll, delta=0.3)

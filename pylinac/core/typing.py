@@ -1,3 +1,5 @@
+"""Typing utilities for Pylinac."""
+
 from __future__ import annotations
 
 from typing import Union

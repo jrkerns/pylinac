@@ -10,6 +10,15 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.30.0
+--------
+
+Image Metrics
+^^^^^^^^^^^^^
+
+* There was a memory bug when computing metrics. This shouldn't affect
+  one-off computations, but could affect long-running processes. This has been fixed.
+
 v 3.29.0
 --------
 
