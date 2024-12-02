@@ -53,6 +53,12 @@ TRS-398
     This change will affect absorbed dose TRS-398 calculations if you rely on the ``k_tp`` function. If you are using TRS-398, please verify that your
     results are still accurate. We apologize for this oversight.
 
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* :bdg-success:`Feature` The calculated MTF ``mtf_lp_mm`` from the ``results_data`` call will now return MTF
+  from 10% through 90% in 10% increments. Previously, only the 80, 50, and 30% were reported.
+
 Image Generator
 ^^^^^^^^^^^^^^^
 
