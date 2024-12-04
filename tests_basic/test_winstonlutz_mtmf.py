@@ -311,7 +311,7 @@ class Synthetic1BBOffsetIn(SyntheticMultiMetMixin, PlotlyTestMixin, TestCase):
     fig_data = {
         0: {
             "title": "WL G=0, C=0, P=0; Field=(20,\n20)mm (shifts=[(0, 0, 0)]);\nBB=5mm @ left=0.00, in=1.00,\nup=0.00; Gantry tilt=0, Gantry\nsag=0.dcm",
-            "num_traces": 6,
+            "num_traces": 7,
         }
     }
 

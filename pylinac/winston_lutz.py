@@ -823,8 +823,8 @@ class WLBaseImage(image.LinacDicomImage):
             fig=fig, show=show, show_metrics=True, show_colorbar=show_colorbar
         )
         # show EPID center
-        add_vertical_line(fig, self.epid.x, color="blue", name="EPID Center")
-        add_horizontal_line(fig, self.epid.y, color="blue")
+        add_vertical_line(fig, self.epid.x, color="blue", name="EPID Center (V)")
+        add_horizontal_line(fig, self.epid.y, color="blue", name="EPID Center (H)")
         # show the field CAXs
         for match in self.arrangement_matches.values():
             fig.add_scatter(

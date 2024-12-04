@@ -76,19 +76,13 @@ def add_horizontal_line(
             d = trace
             break
     if d:
-        fig.add_shape(
-            dict(
-                type="line",
-                x0=0,
-                x1=d.z.shape[1],
-                y0=y,
-                y1=y,
-                xref="x",
-                yref="y",
-                line=dict(color=color, width=width),
-                opacity=opacity,
-                name=name,
-            )
+        fig.add_scatter(
+            y=[y, y],
+            x=[0, d.z.shape[1]],
+            mode="lines",
+            line=dict(color=color, width=width),
+            opacity=opacity,
+            name=name,
         )
     else:
         # it's a simple plot, just use paper reference
