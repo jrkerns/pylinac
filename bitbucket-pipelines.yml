@@ -38,11 +38,9 @@ definitions:
               - "*.rst"
     - step: &cbct-tests
         name: Run CBCT Tests
-        size: 2x
         script:
           # set up memory monitoring
-          - apt-get update
-          - apt-get install -y jq
+          - apt-get update && apt-get install -y --no-install-recommends procps jq
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
@@ -62,7 +60,16 @@ definitions:
     - step: &quart-tests
         name: Run Quart Tests
         script:
+          - # set up memory monitoring
+          - apt-get update && apt-get install -y --no-install-recommends procps jq
+          - chmod +x memory_monitor.sh
+          - nohup ./memory_monitor.sh &
+          - MONITOR_PID=$!
           - uv run pytest tests_basic/test_quart.py --cov=pylinac.quart --cov-report term --junitxml=./test-reports/pytest_results.xml
+          # clean up memory monitor
+          - kill $MONITOR_PID
+        artifacts:
+          - memory_usage.log
         caches:
           - testfiles
         condition:
@@ -75,7 +82,16 @@ definitions:
     - step: &acr-tests
         name: Run ACR CT/MRI Tests
         script:
+          - # set up memory monitoring
+          - apt-get update && apt-get install -y --no-install-recommends procps jq
+          - chmod +x memory_monitor.sh
+          - nohup ./memory_monitor.sh &
+          - MONITOR_PID=$!
           - uv run pytest tests_basic/test_acr.py --cov=pylinac.acr --cov-report term --junitxml=./test-reports/pytest_results.xml
+          # clean up memory monitor
+          - kill $MONITOR_PID
+        artifacts:
+          - memory_usage.log
         caches:
           - testfiles
         condition:
@@ -88,7 +104,16 @@ definitions:
     - step: &cheese-tests
         name: Run Cheese Phantom Tests
         script:
+          - # set up memory monitoring
+          - apt-get update && apt-get install -y --no-install-recommends procps jq
+          - chmod +x memory_monitor.sh
+          - nohup ./memory_monitor.sh &
+          - MONITOR_PID=$!
           - uv run pytest tests_basic/test_cheese.py --cov=pylinac.cheese --cov-report term --junitxml=./test-reports/pytest_results.xml
+          # clean up memory monitor
+          - kill $MONITOR_PID
+        artifacts:
+          - memory_usage.log
         caches:
           - testfiles
         condition:
@@ -101,7 +126,16 @@ definitions:
     - step: &planar-tests
         name: Run Planar Imaging Tests
         script:
+          - # set up memory monitoring
+          - apt-get update && apt-get install -y --no-install-recommends procps jq
+          - chmod +x memory_monitor.sh
+          - nohup ./memory_monitor.sh &
+          - MONITOR_PID=$!
           - uv run pytest tests_basic/test_planar_imaging.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          # clean up memory monitor
+          - kill $MONITOR_PID
+        artifacts:
+          - memory_usage.log
         caches:
           - testfiles
         condition:
@@ -149,7 +183,16 @@ definitions:
     - step: &picket-fence-tests
         name: Run Picket Fence Tests
         script:
+          - # set up memory monitoring
+          - apt-get update && apt-get install -y --no-install-recommends procps jq
+          - chmod +x memory_monitor.sh
+          - nohup ./memory_monitor.sh &
+          - MONITOR_PID=$!
           - uv run pytest tests_basic/test_picketfence.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          # clean up memory monitor
+          - kill $MONITOR_PID
+        artifacts:
+          - memory_usage.log
         caches:
           - testfiles
         condition:
@@ -197,11 +240,9 @@ definitions:
               - "pylinac/vmat.py"
     - step: &winston-lutz-tests
         name: Run Winston-Lutz Tests
-        size: 2x
         script:
             # set up memory monitoring
-          - apt-get update
-          - apt-get install -y jq
+          - apt-get update && apt-get install -y --no-install-recommends procps jq
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
@@ -218,11 +259,9 @@ definitions:
           - memory_usage.log
     - step: &winston-lutz-mtmf-tests
         name: Run Winston-Lutz Multi-Target Multi-Field Tests
-        size: 2x
         script:
           # set up memory monitoring
-          - apt-get update
-          - apt-get install -y jq
+          - apt-get update && apt-get install -y --no-install-recommends procps jq
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!

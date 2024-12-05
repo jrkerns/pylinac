@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import copy
 import io
+import math
 import webbrowser
 from pathlib import Path
 from typing import BinaryIO
@@ -66,6 +67,10 @@ class StarshotResults(ResultBase):
         description="The center position of the minimum circle in pixels.",
         title="Circle center pixel (X, Y)",
     )
+    angles: list[float] = Field(
+        description="The angles of the radiation lines in degrees. The angles are relative to the x-axis and range from +/- 90 degrees.",
+        title="Radiation line angles (degrees)",
+    )
     passed: bool = Field(description="Whether the analysis passed or failed.")
 
 
@@ -93,6 +98,8 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         >>> print(mystar.results())
         >>> mystar.plot_analyzed_image()
     """
+
+    angles: list[float]
 
     def __init__(self, filepath: str | BinaryIO, **kwargs):
         """
@@ -284,6 +291,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         self._get_reasonable_wobble(
             start_point, fwhm, min_peak_height, radius, recursive, local_max
         )
+        self.angles = calculate_angles(self.lines)
 
     def _get_reasonable_wobble(
         self, start_point, fwhm, min_peak_height, radius, recursive, local_max
@@ -421,6 +429,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             circle_diameter_mm=self.wobble.radius_mm * 2,
             circle_radius_mm=self.wobble.radius_mm,
             circle_center_x_y=(self.wobble.center.x, self.wobble.center.y),
+            angles=self.angles,
             passed=self.passed,
         )
 
@@ -471,8 +480,13 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
                 show_colorbar=show_colorbar,
                 **kwargs,
             )
-            for line in self.lines:
-                line.plotly(fig, color="blue", showlegend=False)
+            for idx, line in enumerate(self.lines):
+                line.plotly(
+                    fig,
+                    color="blue",
+                    showlegend=show_legend,
+                    name=f"Line {idx} ({self.angles[idx]:2.2f}°)",
+                )
             self.wobble.plotly(
                 fig,
                 line_color="green",
@@ -799,3 +813,23 @@ def get_peak_height():
 
 def get_radius():
     yield from np.linspace(0.95, 0.1, 10)
+
+
+def calculate_angles(lines: list[Line]) -> list[float]:
+    """Calculate the angles of the starshot spokes. What makes this
+    somewhat annoying is that the zero-angle is defined as pointing up (vs right for a unit angle)
+    and that we display the image with the y-axis increasing downward (vs upward)."""
+    angles = []
+    for line in lines:
+        try:
+            phi_rad = math.atan(line.m)
+            phi_deg = math.degrees(phi_rad) - 90
+            # Normalize the angle to be within (-90, +90) degrees
+            if phi_deg > 90:
+                phi_deg -= 180
+            elif phi_deg <= -90:
+                phi_deg += 180
+        except ZeroDivisionError:
+            phi_deg = 90
+        angles.append(phi_deg)
+    return angles

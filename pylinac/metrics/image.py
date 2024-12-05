@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import typing
+import weakref
 from abc import ABC, abstractmethod
 from typing import Any, Callable
 
@@ -54,7 +55,7 @@ class MetricBase(ABC):
             image, self.image_compatibility
         ):
             raise TypeError(f"Image must be one of {self.image_compatibility}")
-        self.image = image
+        self.image = weakref.proxy(image)
 
     def context_calculate(self) -> Any:
         """Calculate the metric. This also checks the image hash to attempt to ensure no changes were made."""

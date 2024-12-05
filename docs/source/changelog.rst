@@ -13,6 +13,17 @@ Legend
 v 3.30.0
 --------
 
+Image Metrics
+^^^^^^^^^^^^^
+
+* There was a memory bug when computing metrics. This shouldn't affect
+  one-off computations, but could affect long-running processes. This has been fixed.
+
+Starshot
+^^^^^^^^
+
+* :bdg-success:`Feature` Angles of the spokes are now reported via the ``angles`` attribute of ``results_data``. See :ref:`interpreting-starshot-results`.
+
 CT-like
 ^^^^^^^
 
@@ -54,6 +65,12 @@ TRS-398
     This change will affect absorbed dose TRS-398 calculations if you rely on the ``k_tp`` function. If you are using TRS-398, please verify that your
     results are still accurate. We apologize for this oversight.
 
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* :bdg-success:`Feature` The calculated MTF ``mtf_lp_mm`` from the ``results_data`` call will now return MTF
+  from 10% through 90% in 10% increments. Previously, only the 80, 50, and 30% were reported.
+
 Image Generator
 ^^^^^^^^^^^^^^^
 
@@ -75,6 +92,12 @@ Plan Generator
 
 * :bdg-success:`Feature` The plan generator has a new field method: :meth:`~pylinac.plan_generator.dicom.PlanGenerator.add_mlc_transmission`. This adds an MLC transmission field to the plan
   where the leaves of a given bank are fully closed and the MLC kiss is underneath the jaws.
+
+Winston Lutz
+^^^^^^^^^^^^
+
+* The ``bb_shift_instructions`` method would incorrectly state the units of the shift if the couch positions
+  were passed. The values are correct but are indicated as being in mm rather than cm.
 
 Gamma
 ^^^^^
