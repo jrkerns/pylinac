@@ -10,8 +10,8 @@ import numpy as np
 from parameterized import parameterized
 
 from pylinac import Starshot
-from pylinac.core.geometry import Point
-from pylinac.starshot import StarshotResults
+from pylinac.core.geometry import Line, Point
+from pylinac.starshot import StarshotResults, calculate_angles
 from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
@@ -77,6 +77,22 @@ class TestGeneral(TestCase):
         star.analyze()
         self.assertLessEqual(star.wobble.diameter_mm, 0.35)
         self.assertTrue(star.passed)
+
+    @parameterized.expand(
+        [
+            ((0, 0), (1, 1), -45),
+            ((0, 0), (-1, -1), -45),
+            ((0, 0), (1, 0), 90),
+            ((0, 0), (-1, 0), 90),
+            ((0, 0), (0, 1), 0),
+            ((0, 0), (0, -1), 0),
+            ((0, 0), (1, -1), 45),
+            ((0, 0), (1, -0.5), 26.56),
+        ]
+    )
+    def test_calculate_angle(self, point1, point2, angle):
+        angle = calculate_angles([Line(Point(*point1), Point(*point2))])[0]
+        self.assertAlmostEqual(angle, angle, places=2)
 
 
 class TestPlottingSaving(TestCase):
