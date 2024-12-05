@@ -211,6 +211,7 @@ class CloudFileMixin:
                 os.remove(file)
             elif osp.isdir(file):
                 shutil.rmtree(file)
+        super().tearDownClass()
 
 
 class MixinTesterBase:

@@ -44,6 +44,11 @@ class TestResults(TestCase, ResultsDataBase):
         cls.cheese = TomoCheese.from_demo_images()
         cls.cheese.analyze()
 
+    @classmethod
+    def tearDownClass(cls) -> None:
+        plt.close("all")
+        del cls.cheese
+
     def test_results_as_str(self):
         assert isinstance(self.cheese.results(), str)
 
@@ -128,6 +133,7 @@ class TestPlottingSaving(TestCase):
     @classmethod
     def tearDownClass(cls):
         plt.close("all")
+        del cls.cheese
 
     def test_save_pdf(self):
         # shouldn't raise
@@ -203,6 +209,8 @@ class CheeseMixin(CloudFileMixin):
     @classmethod
     def tearDownClass(cls):
         plt.close("all")
+        del cls.cheese
+        super().tearDownClass()
 
     def test_slice_locations(self):
         """Test the locations of the slices of interest."""

@@ -91,6 +91,7 @@ class TestPlottingSaving(TestCase):
     @classmethod
     def tearDownClass(cls):
         plt.close("all")
+        del cls.ct
 
     def test_plot_images(self):
         """Test that saving an image does something."""
@@ -150,6 +151,12 @@ class ACRCTMixin(CloudFileMixin):
             roi_size_factor=cls.roi_size_factor,
             scaling_factor=cls.scaling_factor,
         )
+
+    @classmethod
+    def tearDownClass(cls):
+        plt.close("all")
+        del cls.ct
+        super().tearDownClass()
 
     def test_roll(self):
         self.assertAlmostEqual(self.ct.catphan_roll, self.phantom_roll, delta=0.3)
@@ -369,6 +376,7 @@ class TestMRPlottingSaving(TestCase):
     @classmethod
     def tearDownClass(cls):
         plt.close("all")
+        del cls.mri
 
     def test_plot_images(self):
         """Test that saving an image does something."""
@@ -430,6 +438,12 @@ class ACRMRMixin(CloudFileMixin):
             roi_size_factor=cls.roi_size_factor,
             scaling_factor=cls.scaling_factor,
         )
+
+    @classmethod
+    def tearDownClass(cls):
+        plt.close("all")
+        del cls.mri
+        super().tearDownClass()
 
     def test_roll(self):
         self.assertAlmostEqual(self.mri.catphan_roll, self.phantom_roll, delta=0.3)

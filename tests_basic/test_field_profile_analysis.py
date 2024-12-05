@@ -80,6 +80,12 @@ class FieldProfileAnalysisBase(CloudFileMixin):
             print(cls.fa.results())
         super().setUpClass()
 
+    @classmethod
+    def tearDownClass(cls) -> None:
+        plt.close("all")
+        del cls.fa
+        super().tearDownClass()
+
     def test_x_field_size(self):
         self.assertAlmostEqual(
             self.fa.results_data().x_metrics["Field Width (mm)"],
