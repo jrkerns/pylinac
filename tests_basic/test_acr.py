@@ -80,6 +80,11 @@ class TestCTGeneral(TestCase):
         lazy_ct.analyze()
         self.assertEqual(self.ct.results(), lazy_ct.results())
 
+    def test_passing_origin_slice(self):
+        ct = ACRCT.from_zip(self.path)
+        ct.analyze(origin_slice=3)  # automatic is 2
+        self.assertEqual(ct.origin_slice, 3)
+
 
 class TestPlottingSaving(TestCase):
     @classmethod

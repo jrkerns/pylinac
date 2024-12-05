@@ -269,6 +269,8 @@ Analysis Parameters
       * **Scaling factor**: A fine-tuning adjustment to the detected magnification of the phantom. This will zoom the ROIs and phantom outline (if applicable) by this amount.
         In contrast to the roi size adjustment, the scaling adjustment effectively moves the phantom and ROIs
         closer or further from the phantom center. I.e. this zooms the outline and ROI positions, but not ROI size.
+      * **Origin slice**: The slice number that corresponds to the slice to analyze.
+        This is a fallback mechanism in case the automatic detection fails.
 
 Algorithm
 ---------

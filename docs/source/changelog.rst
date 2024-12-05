@@ -24,6 +24,13 @@ Starshot
 
 * :bdg-success:`Feature` Angles of the spokes are now reported via the ``angles`` attribute of ``results_data``. See :ref:`interpreting-starshot-results`.
 
+CT-like
+^^^^^^^
+
+* :bdg-success:`Feature` CT-like algorithms have a new parameter for the ``analyze`` method: ``origin_slice``.
+  This parameter lets the user set the z-position of the phantom. This is a fallback method to let the user set the
+  slice of (usually) the HU linearity module. This is useful if the automatic detection of the origin slice fails.
+
 v 3.29.0
 --------
 

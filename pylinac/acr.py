@@ -309,6 +309,7 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
         angle_adjustment: float = 0,
         roi_size_factor: float = 1,
         scaling_factor: float = 1,
+        origin_slice: int | None = None,
     ) -> None:
         """Analyze the ACR CT phantom
 
@@ -331,13 +332,16 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
             A fine-tuning adjustment to the detected magnification of the phantom. This will zoom the ROIs and phantom outline (if applicable) by this amount.
             In contrast to the roi size adjustment, the scaling adjustment effectively moves the phantom and ROIs
             closer or further from the phantom center. I.e. this zooms the outline and ROI positions, but not ROI size.
+        origin_slice: int, None
+            The slice number of the HU linearity module. If None, will be automatically determined. This is a fallback
+            method in case the automatic determination fails.
         """
         self.x_adjustment = x_adjustment
         self.y_adjustment = y_adjustment
         self.angle_adjustment = angle_adjustment
         self.roi_size_factor = roi_size_factor
         self.scaling_factor = scaling_factor
-        self.localize()
+        self.localize(origin_slice=origin_slice)
         self.ct_calibration_module = self.ct_calibration_module(
             self, offset=0, clear_borders=self.clear_borders
         )

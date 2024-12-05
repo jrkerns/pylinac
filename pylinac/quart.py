@@ -432,6 +432,7 @@ class QuartDVT(CatPhanBase, ResultsDataMixin[QuartDVTResult]):
         angle_adjustment: float = 0,
         roi_size_factor: float = 1,
         scaling_factor: float = 1,
+        origin_slice: int | None = None,
     ):
         """Single-method full analysis of Quart DICOM files.
 
@@ -470,13 +471,16 @@ class QuartDVT(CatPhanBase, ResultsDataMixin[QuartDVTResult]):
             A fine-tuning adjustment to the detected magnification of the phantom. This will zoom the ROIs and phantom outline (if applicable) by this amount.
             In contrast to the roi size adjustment, the scaling adjustment effectively moves the phantom and ROIs
             closer or further from the phantom center. I.e. this zooms the outline and ROI positions, but not ROI size.
+        origin_slice : int, None
+            The slice number of the HU linearity slice. If None, will be automatically determined. This is a
+            fallback method in case the automatic method fails.
         """
         self.x_adjustment = x_adjustment
         self.y_adjustment = y_adjustment
         self.angle_adjustment = angle_adjustment
         self.roi_size_factor = roi_size_factor
         self.scaling_factor = scaling_factor
-        self.localize()
+        self.localize(origin_slice=origin_slice)
         self.hu_module = self.hu_module_class(
             self,
             offset=0,

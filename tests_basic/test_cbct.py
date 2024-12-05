@@ -224,6 +224,19 @@ class TestGeneral(TestCase):
         lazy_ct.analyze()
         self.assertEqual(ct.results(), lazy_ct.results())
 
+    def test_passing_origin_slice_works(self):
+        ct = CatPhan504.from_demo_images()
+        ct.analyze(origin_slice=33)  # automatic slice is 32
+        self.assertEqual(ct.origin_slice, 33)
+
+    def test_passing_origin_slice_doesnt_perform_refinement(self):
+        # the catphan604 has a refinement algorithm to "fine-tune"
+        # the origin slice; ensure that it doesn't run when the origin slice is passed
+        # You get what you set!
+        ct = CatPhan604.from_demo_images()
+        ct.analyze(origin_slice=46)  # automatic slice is 45
+        self.assertEqual(ct.origin_slice, 46)
+
 
 class Test504Quaac(QuaacTestBase, TestCase):
     def quaac_instance(self):
