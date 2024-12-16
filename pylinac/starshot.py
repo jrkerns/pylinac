@@ -68,7 +68,7 @@ class StarshotResults(ResultBase):
         title="Circle center pixel (X, Y)",
     )
     angles: list[float] = Field(
-        description="The angles of the radiation lines in degrees. The angles are relative to the x-axis and range from +/- 90 degrees.",
+        description="The angles of the radiation lines in degrees. The angles are relative to the vertical axis and range from +/- 90 degrees.",
         title="Radiation line angles (degrees)",
     )
     passed: bool = Field(description="Whether the analysis passed or failed.")
