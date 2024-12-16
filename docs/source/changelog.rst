@@ -16,7 +16,7 @@ v 3.30.0
 Image Metrics
 ^^^^^^^^^^^^^
 
-* There was a memory bug when computing metrics. This shouldn't affect
+* :bdg-warning:`Fixed` There was a memory leak when computing image metrics (``.compute()``). This shouldn't affect
   one-off computations, but could affect long-running processes. This has been fixed.
 
 Starshot
