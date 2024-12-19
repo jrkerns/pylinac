@@ -2421,6 +2421,11 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             modules.append(self.ctp528)
         return modules
 
+    @property
+    def dicomMetadata(self) -> dict:
+        """The metadata of the first DICOM file."""
+        return self.centralSlice.metadata
+
     def analyze(
         self,
         hu_tolerance: int | float = 40,
