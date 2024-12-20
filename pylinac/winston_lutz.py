@@ -819,12 +819,78 @@ class WLBaseImage(image.LinacDicomImage):
         show_legend: bool = True,
         show_colorbar: bool = True,
     ) -> go.Figure:
+        """
+        Plot the image with the detected BB, outlines, and field CAX.
+
+        Parameters
+        ----------
+        fig: go.Figure, None
+            The Plotly figure
+        show
+            Whether to show the plot
+        zoomed
+            Whether to zoom in on the BBs. If False, no zooming is done and the entire image is shown.
+        show_legend
+            Whether to show the legend.
+        show_colorbar
+            Whether to show the colorbar.
+
+        Returns
+        -------
+        go.Figure
+
+        """
+        if zoomed:
+            min_x = (
+                min([match.bb.x for match in self.arrangement_matches.values()])
+                - 20 * self.dpmm
+            )
+            min_y = (
+                min([match.bb.y for match in self.arrangement_matches.values()])
+                - 20 * self.dpmm
+            )
+            max_x = (
+                max([match.bb.x for match in self.arrangement_matches.values()])
+                + 20 * self.dpmm
+            )
+            max_y = (
+                max([match.bb.y for match in self.arrangement_matches.values()])
+                + 20 * self.dpmm
+            )
+            x_indices = np.arange(min_x, max_x, 1)
+            y_indices = np.arange(min_y, max_y, 1)
+            window_array = self.array[int(min_x) : int(max_x), int(min_y) : int(max_y)]
+        else:
+            min_x, max_x = 0, self.shape[1]
+            min_y, max_y = 0, self.shape[0]
+            x_indices = np.arange(min_x, max_x, 1)
+            y_indices = np.arange(min_y, max_y, 1)
+            window_array = self.array
         fig = super().plotly(
-            fig=fig, show=show, show_metrics=True, show_colorbar=show_colorbar
+            fig=fig,
+            show=show,
+            show_metrics=True,
+            show_colorbar=show_colorbar,
+            x=x_indices,
+            y=y_indices,
+            z=window_array,
         )
-        # show EPID center
-        add_vertical_line(fig, self.epid.x, color="blue", name="EPID Center (V)")
-        add_horizontal_line(fig, self.epid.y, color="blue", name="EPID Center (H)")
+        # show EPID center; we use a custom line (vs `add_vertical_line`) because we might be zoomed and thus we need to shift
+        # to a relative spot
+        fig.add_scatter(
+            x=[self.epid.x, self.epid.x],
+            y=[y_indices[0], y_indices[-1]],
+            line_color="blue",
+            mode="lines",
+            name="EPID Center (V)",
+        )
+        fig.add_scatter(
+            x=[x_indices[0], x_indices[-1]],
+            y=[self.epid.y, self.epid.y],
+            line_color="blue",
+            mode="lines",
+            name="EPID Center (H)",
+        )
         # show the field CAXs
         for match in self.arrangement_matches.values():
             fig.add_scatter(
@@ -845,27 +911,9 @@ class WLBaseImage(image.LinacDicomImage):
                 marker_size=10,
                 marker_symbol="circle",
             )
-        if zoomed:
-            # zoom to the BBs
-            min_x = (
-                min([match.bb.x for match in self.arrangement_matches.values()])
-                - 20 * self.dpmm
-            )
-            min_y = (
-                min([match.bb.y for match in self.arrangement_matches.values()])
-                - 20 * self.dpmm
-            )
-            max_x = (
-                max([match.bb.x for match in self.arrangement_matches.values()])
-                + 20 * self.dpmm
-            )
-            max_y = (
-                max([match.bb.y for match in self.arrangement_matches.values()])
-                + 20 * self.dpmm
-            )
-            fig.update_xaxes(range=[min_x, max_x])
-            # bug in plotly; can't have autorange reversed and set this.
-            fig.update_yaxes(range=[max_y, min_y], autorange=None)
+        fig.update_xaxes(range=[min_x, max_x])
+        # bug in plotly; can't have autorange reversed and set this.
+        fig.update_yaxes(range=[max_y, min_y], autorange=None)
         fig.update_layout(
             xaxis_title=f"Gantry={self.gantry_angle:.0f}, Coll={self.collimator_angle:.0f}, Couch={self.couch_angle:.0f}",
             yaxis_title=f"Max Nominal to BB: {max(self.field_to_bb_distances()):3.2f}mm",
