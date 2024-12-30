@@ -550,7 +550,8 @@ class BaseImage:
             showlegend=kwargs.pop("show_legend", True),
         )
         add_title(fig, title)
-        fig.add_heatmap(z=self.array, colorscale=colorscale, **kwargs)
+        data = kwargs.pop("z", self.array)
+        fig.add_heatmap(z=data, colorscale=colorscale, **kwargs)
         fig.update_traces(showscale=show_colorbar)
         if show_metrics:
             for metric in self.metrics:
