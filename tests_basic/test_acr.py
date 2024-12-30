@@ -300,6 +300,36 @@ class TestACRMRI(TestCase, FromZipTesterMixin, InitTesterMixin):
             paths = [io.BytesIO(open(p, "rb").read()) for p in paths]
             ACRMRILarge(paths)
 
+    def test_geometric_distortion_profile_lengths(self):
+        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "GE 3T.zip"])
+        mri = ACRMRILarge.from_zip(path)
+        mri.analyze()
+        data = mri.results_data()
+        self.assertAlmostEqual(
+            data.geometric_distortion_module.profiles["negative diagonal"][
+                "width (mm)"
+            ],
+            190.63,
+            delta=0.05,
+        )
+        self.assertAlmostEqual(
+            data.geometric_distortion_module.profiles["positive diagonal"][
+                "width (mm)"
+            ],
+            190.59,
+            delta=0.05,
+        )
+        self.assertAlmostEqual(
+            data.geometric_distortion_module.profiles["vertical"]["width (mm)"],
+            190.44,
+            delta=0.05,
+        )
+        self.assertAlmostEqual(
+            data.geometric_distortion_module.profiles["horizontal"]["width (mm)"],
+            190.44,
+            delta=0.05,
+        )
+
 
 class TestACRMRIResultData(TestCase, ResultsDataBase):
     def construct_analyzed_instance(self):

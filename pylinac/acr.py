@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import math
 import textwrap
 import warnings
 import webbrowser
@@ -1079,7 +1080,6 @@ class GeometricDistortionModule(CatPhanModule):
         ys = xs + b
         coords = ndimage.map_coordinates(bin_image, [ys, xs], order=1, mode="mirror")
         f_data = fill_middle_zeros(coords, cutoff_px=px_to_cut_off)
-        # pixels are now diagonal and thus spacing between pixels is now the hypotenuse
         prof = FWXMProfile(values=f_data)
         line = Line(
             Point(
@@ -1091,8 +1091,11 @@ class GeometricDistortionModule(CatPhanModule):
                 ys[int(round(prof.field_edge_idx(side="right")))],
             ),
         )
+        # pixels are now diagonal and thus spacing between pixels is now the hypotenuse
+        # We don't have to fix the line above because that's in pixels. The issue is the
+        # geometric distance and thus we only have to correct here.
         self.profiles["negative diagonal"] = {
-            "width (mm)": prof.field_width_px * self.mm_per_pixel,
+            "width (mm)": prof.field_width_px * self.mm_per_pixel * math.sqrt(2),
             "line": line,
         }
         # calculate positive diagonal
@@ -1114,7 +1117,7 @@ class GeometricDistortionModule(CatPhanModule):
             ),
         )
         self.profiles["positive diagonal"] = {
-            "width (mm)": prof.field_width_px * self.mm_per_pixel,
+            "width (mm)": prof.field_width_px * self.mm_per_pixel * math.sqrt(2),
             "line": line,
         }
 
