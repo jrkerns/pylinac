@@ -4,6 +4,11 @@
 Calibration (TG-51/TRS-398)
 ===========================
 
+.. warning::
+
+    The IAEA published a `revision <https://www.iaea.org/publications/15048/absorbed-dose-determination-in-external-beam-radiotherapy>`_ of the TRS-398 protocol in 2024.
+    Pylinac has not incorporated any relevant changes that might be in this protocol update.
+
 Overview
 --------
 
