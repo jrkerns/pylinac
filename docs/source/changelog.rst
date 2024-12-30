@@ -10,6 +10,16 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.31.0
+--------
+
+ACR MRI
+^^^^^^^
+
+* :bdg-warning:`Fixed` The positive and negative diagonal geometric distortion calculations (``results_data().geometric_distortion_module.profiles["negative diagonal"]['width (mm)']``) for the ACR Large MRI phantom were not scaled correctly.
+  Since the pixel distance is diagonal the physical spacing between pixels is actually :math:`\sqrt{2}` times the pixel spacing.
+  This is now fixed. Prior values can be scaled by :math:`\sqrt{2}` to get the correct values.
+
 v 3.30.0
 --------
 
