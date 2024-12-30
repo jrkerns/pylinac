@@ -841,25 +841,33 @@ class WLBaseImage(image.LinacDicomImage):
 
         """
         if zoomed:
-            min_x = (
-                min([match.bb.x for match in self.arrangement_matches.values()])
-                - 20 * self.dpmm
+            min_x = int(
+                round(
+                    min([match.bb.x for match in self.arrangement_matches.values()])
+                    - 20 * self.dpmm
+                )
             )
-            min_y = (
-                min([match.bb.y for match in self.arrangement_matches.values()])
-                - 20 * self.dpmm
+            min_y = int(
+                round(
+                    min([match.bb.y for match in self.arrangement_matches.values()])
+                    - 20 * self.dpmm
+                )
             )
-            max_x = (
-                max([match.bb.x for match in self.arrangement_matches.values()])
-                + 20 * self.dpmm
+            max_x = int(
+                round(
+                    max([match.bb.x for match in self.arrangement_matches.values()])
+                    + 20 * self.dpmm
+                )
             )
-            max_y = (
-                max([match.bb.y for match in self.arrangement_matches.values()])
-                + 20 * self.dpmm
+            max_y = int(
+                round(
+                    max([match.bb.y for match in self.arrangement_matches.values()])
+                    + 20 * self.dpmm
+                )
             )
             x_indices = np.arange(min_x, max_x, 1)
             y_indices = np.arange(min_y, max_y, 1)
-            window_array = self.array[int(min_x) : int(max_x), int(min_y) : int(max_y)]
+            window_array = self.array[int(min_y) : int(max_y), int(min_x) : int(max_x)]
         else:
             min_x, max_x = 0, self.shape[1]
             min_y, max_y = 0, self.shape[0]
