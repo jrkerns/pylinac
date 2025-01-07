@@ -338,6 +338,18 @@ class TestACRMRIResultData(TestCase, ResultsDataBase):
         mri.analyze()
         return mri
 
+    def test_row_mtf_keys(self):
+        phantom = self.construct_analyzed_instance()
+        data = phantom.results_data()
+        for key, value in {10: 1.13, 80: 0.564}.items():
+            self.assertAlmostEqual(data.slice1.row_mtf_lp_mm[key], value, delta=0.01)
+
+    def test_col_mtf_keys(self):
+        phantom = self.construct_analyzed_instance()
+        data = phantom.results_data()
+        for key, value in {10: 1.11, 80: 0.826}.items():
+            self.assertAlmostEqual(data.slice1.col_mtf_lp_mm[key], value, delta=0.01)
+
 
 class TestMRGeneral(TestCase):
     def setUp(self):

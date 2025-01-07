@@ -912,6 +912,14 @@ class MRSlice1ModuleOutput(BaseModel):
         description="The MTF at 50% for the column-based ROIs.",
         title="Column-wise 50% MTF (lp/mm)",
     )
+    row_mtf_lp_mm: dict[int, float] = Field(
+        description="A key-value pair of the MTF. The key is the relative resolution in % and the value is the lp/mm at that resolution",
+        title="MTF (lp/mm)",
+    )
+    col_mtf_lp_mm: dict[int, float] = Field(
+        description="A key-value pair of the MTF. The key is the relative resolution in % and the value is the lp/mm at that resolution",
+        title="MTF (lp/mm)",
+    )
 
 
 class MRUniformityModule(CatPhanModule):
@@ -1636,6 +1644,15 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             return string
 
     def _generate_results_data(self) -> ACRMRIResult:
+        resolutions = range(10, 91, 10)  # 10-90% in 10% increments
+        row_mtfs = {
+            resolution: self.slice1.row_mtf.relative_resolution(resolution)
+            for resolution in resolutions
+        }
+        col_mtfs = {
+            resolution: self.slice1.col_mtf.relative_resolution(resolution)
+            for resolution in resolutions
+        }
         return ACRMRIResult(
             phantom_model=self._model,
             phantom_roll_deg=self.catphan_roll,
@@ -1650,6 +1667,8 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
                 measured_slice_thickness_mm=self.slice1.measured_slice_thickness_mm,
                 row_mtf_50=self.slice1.row_mtf.relative_resolution(50),
                 col_mtf_50=self.slice1.col_mtf.relative_resolution(50),
+                row_mtf_lp_mm=row_mtfs,
+                col_mtf_lp_mm=col_mtfs,
             ),
             slice11=MRSlice11ModuleOutput(
                 offset=MR_SLICE11_MODULE_OFFSET_MM,

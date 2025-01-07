@@ -19,6 +19,8 @@ ACR MRI
 * :bdg-warning:`Fixed` The positive and negative diagonal geometric distortion calculations (``results_data().geometric_distortion_module.profiles["negative diagonal"]['width (mm)']``) for the ACR Large MRI phantom were not scaled correctly.
   Since the pixel distance is diagonal the physical spacing between pixels is actually :math:`\sqrt{2}` times the pixel spacing.
   This is now fixed. Prior values can be scaled by :math:`\sqrt{2}` to get the correct values.
+* :bdg-success:`Feature` MTF is now provided in 10% increments from 10-90% in the ``results_data`` return object
+   for both row and column MTFs as ``row_mtf_lp_mm`` and ``col_mtf_lp_mm``. This is to match CT-like MTF outputs.
 
 v 3.30.0
 --------
