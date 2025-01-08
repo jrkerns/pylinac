@@ -461,6 +461,8 @@ Interpreting MRI Results
         * ``measured_slice_thickness_mm``: The measured slice thickness in mm.
         * ``row_mtf_50``: The MTF at 50% for the row-based ROIs.
         * ``col_mtf_50``: The MTF at 50% for the column-based ROIs.
+        * ``row_mtf_lp_mm``: The MTF:lp/mm for the row-based ROIs from 10-90% in 10% increments.
+        * ``col_mtf_lp_mm``: The MTF:lp/mm for the column-based ROIs from 10-90% in 10% increments.
         * ``rois``: A dictionary of the analyzed MTF ROIs. The key is the name of the
           ROI; e.g. ``Row 1.1`` and the key is a dictionary of the following items:
 
