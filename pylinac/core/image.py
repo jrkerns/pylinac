@@ -1,23 +1,20 @@
 """This module holds classes for image loading and manipulation."""
-
 from __future__ import annotations
 
 import copy
 import io
 import json
+import math
 import os
 import os.path as osp
 import re
 import warnings
-import zlib
 from collections import Counter
-from collections.abc import Iterable, Sequence
 from datetime import datetime
 from functools import cached_property
 from io import BufferedReader, BytesIO
 from pathlib import Path
-from typing import Any, BinaryIO, Union
-from zipfile import ZipFile
+from typing import Any, BinaryIO, Iterable, Sequence, Union
 
 import argue
 import matplotlib.pyplot as plt
@@ -27,16 +24,16 @@ import scipy.ndimage as spf
 from PIL import Image as pImage
 from PIL.PngImagePlugin import PngInfo
 from PIL.TiffTags import TAGS
-from plotly import graph_objects as go
-from pydicom.dataset import Dataset
+from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.errors import InvalidDicomError
+from pydicom.uid import UID, generate_uid
 from scipy import ndimage
+from skimage.draw import disk
 from skimage.transform import rotate
 
 from ..metrics.image import MetricBase
 from ..settings import PATH_TRUNCATION_LENGTH, get_dicom_cmap
 from .array_utils import (
-    array_to_dicom,
     bit_invert,
     convert_to_dtype,
     filter,
@@ -45,7 +42,6 @@ from .array_utils import (
     invert,
     normalize,
 )
-from .decorators import validate
 from .geometry import Point
 from .io import (
     TemporaryZipDirectory,
@@ -54,11 +50,9 @@ from .io import (
     retrieve_dicom_file,
     retrieve_filenames,
 )
-from .plotly_utils import add_title
 from .profile import stretch as stretcharray
 from .scale import MachineScale, convert, wrap360
-from .utilities import decode_binary, is_close, simple_round, uniquify
-from .validators import double_dimension
+from .utilities import decode_binary, is_close, simple_round
 
 ARRAY = "Array"
 DICOM = "DICOM"
@@ -126,7 +120,7 @@ def equate_images(image1: ImageLike, image2: ImageLike) -> tuple[ImageLike, Imag
 
     # resize images to be of the same shape
     zoom_factor = image1.shape[1] / image2.shape[1]
-    image2_array = ndimage.zoom(image2.as_type(float), zoom_factor)
+    image2_array = ndimage.interpolation.zoom(image2.as_type(float), zoom_factor)
     image2 = load(image2_array, dpi=image2.dpi * zoom_factor)
 
     return image1, image2
@@ -406,7 +400,6 @@ class BaseImage:
         path : str
             The path to the image.
         """
-        super().__init__()
         self.metrics = []
         self.metric_values = {}
         if isinstance(path, (str, Path)) and not osp.isfile(path):
@@ -503,63 +496,6 @@ class BaseImage:
                 date = "Unknown"
         return date
 
-    def plotly(
-        self,
-        fig: go.Figure | None = None,
-        colorscale: str = "gray",
-        title: str = "",
-        show: bool = True,
-        show_metrics: bool = True,
-        show_colorbar: bool = True,
-        **kwargs,
-    ) -> go.Figure:
-        """Plot the image in a plotly figure.
-
-        Parameters
-        ----------
-        fig: plotly.graph_objects.Figure
-            The figure to plot to. If None, a new figure is created.
-        colorscale: str
-            The colorscale to use on the plot. See https://plotly.com/python/builtin-colorscales/
-        show : bool
-            Whether to show the plot. Set to False if performing later adjustments to the plot.
-        show_metrics : bool
-            Whether to show the metrics on the image.
-        title: str
-            The title of the plot.
-        show_colorbar : bool
-            Whether to show the colorbar on the plot.
-        kwargs
-            Additional keyword arguments to pass to the plot.
-        """
-
-        if fig is None:
-            fig = go.Figure()
-        fig.update_layout(
-            xaxis_showticklabels=False,
-            yaxis_showticklabels=False,
-            # this inverts the y axis so 0 is at the top
-            # note that this will cause later `range=(...)` calls to fail;
-            # appears to be bug in plotly.
-            yaxis_autorange="reversed",
-            yaxis_scaleanchor="x",
-            yaxis_constrain="domain",
-            xaxis_scaleanchor="y",
-            xaxis_constrain="domain",
-            legend={"x": 0},
-            showlegend=kwargs.pop("show_legend", True),
-        )
-        add_title(fig, title)
-        data = kwargs.pop("z", self.array)
-        fig.add_heatmap(z=data, colorscale=colorscale, **kwargs)
-        fig.update_traces(showscale=show_colorbar)
-        if show_metrics:
-            for metric in self.metrics:
-                metric.plotly(fig)
-        if show:
-            fig.show()
-        return fig
-
     def plot(
         self,
         ax: plt.Axes = None,
@@ -592,8 +528,7 @@ class BaseImage:
             fig, ax = plt.subplots()
         if clear_fig:
             plt.clf()
-        cmap = kwargs.pop("cmap", get_dicom_cmap())
-        ax.imshow(self.array, cmap=cmap, **kwargs)
+        ax.imshow(self.array, cmap=get_dicom_cmap(), **kwargs)
         # plot the metrics
         if show_metrics:
             for metric in self.metrics:
@@ -648,12 +583,8 @@ class BaseImage:
         edges : tuple
             Which edges to remove from. Can be any combination of the four edges.
         """
-        if pixels < 0:
+        if pixels <= 0:
             raise ValueError("Pixels to remove must be a positive number")
-        if pixels == 0:
-            # using 0 will cause an error in numpy slicing
-            # we also want to be able to handle a no-op
-            return
         if "top" in edges:
             self.array = self.array[pixels:, :]
         if "bottom" in edges:
@@ -662,10 +593,6 @@ class BaseImage:
             self.array = self.array[:, pixels:]
         if "right" in edges:
             self.array = self.array[:, :-pixels]
-        if self.array.size == 0:
-            raise ValueError(
-                "Too many pixels removed; array is empty. Pass a smaller crop value."
-            )
 
     def flipud(self) -> None:
         """Flip the image array upside down in-place. Wrapper for np.flipud()"""
@@ -856,7 +783,7 @@ class BaseImage:
         distTA: float = 1,
         threshold: float = 0.1,
         ground: bool = True,
-        normalize: bool = True,
+        normalize: bool = False,
     ) -> np.ndarray:
         """Calculate the gamma between the current image (reference) and a comparison image.
 
@@ -920,9 +847,9 @@ class BaseImage:
             comp_img.normalize()
 
         # invalidate dose values below threshold so gamma doesn't calculate over it
-        ref_img.array[ref_img < threshold * np.max(ref_img)] = np.nan
+        ref_img.array[ref_img < threshold * np.max(ref_img)] = np.NaN
 
-        # convert distance value from mm to pixels
+        # convert distance value from mm to pixels and translate it to MLC plane
         distTA_pixels = self.dpmm * distTA
 
         # construct image gradient using sobel filter
@@ -932,9 +859,13 @@ class BaseImage:
 
         # equation: (measurement - reference) / sqrt ( doseTA^2 + distTA^2 * image_gradient^2 )
         subtracted_img = np.abs(comp_img - ref_img)
-        denominator = np.sqrt(
-            ((doseTA / 100.0) ** 2) + ((distTA_pixels**2) * (grad_img**2))
-        )
+        
+        if normalize:
+            aux_ref = 1
+        else:
+            aux_ref = np.hypot(ref_img/np.sqrt(2), ref_img/np.sqrt(2))
+            
+        denominator = np.sqrt((aux_ref ** 2 * (doseTA / 100.0) ** 2) + (distTA_pixels**2 * grad_img**2))
         gamma_map = subtracted_img / denominator
 
         return gamma_map
@@ -965,32 +896,13 @@ class BaseImage:
             metrics = [metrics]
         for metric in metrics:
             metric.inject_image(self)
-            value = metric.context_calculate()
             self.metrics.append(metric)
-            key = uniquify(
-                list(metric_data.keys()) + list(self.metric_values.keys()), metric.name
-            )
-            metric_data[key] = value
+            value = metric.context_calculate()
+            metric_data[metric.name] = value
         self.metric_values |= metric_data
         if len(metrics) == 1:
-            return metric_data[key]
+            return metric_data[metrics[0].name]
         return metric_data
-
-    def as_dicom(
-        self, gantry: float, coll: float, couch: float, extra_tags: dict | None = None
-    ) -> Dataset:
-        """Convert the array to a DICOM file."""
-        if self.sid is None:
-            raise ValueError(
-                "The SID must be set to convert the array to a DICOM file."
-            )
-        if self.dpi is None:
-            raise ValueError(
-                "The DPI must be set to convert the array to a DICOM file."
-            )
-        return array_to_dicom(
-            self.array, self.sid, gantry, coll, couch, self.dpi, extra_tags=extra_tags
-        )
 
     @property
     def shape(self) -> (int, int):
@@ -1162,18 +1074,7 @@ class XIM(BaseImage):
         """
         img_height = self.img_height_px
         img_width = self.img_width_px
-        if self.bytes_per_pixel == 1:
-            dtype = np.uint8
-        elif self.bytes_per_pixel == 2:
-            dtype = np.uint16
-        elif self.bytes_per_pixel == 4:
-            dtype = np.uint32
-        elif self.bytes_per_pixel == 8:
-            dtype = np.uint64
-        else:
-            raise ValueError(
-                "The XIM image has an unsupported bytes per pixel value. Raise a ticket on the pylinac Github with this file."
-            )
+        dtype = np.int8 if self.bytes_per_pixel == 1 else np.int16
         compressed_array = a = np.zeros((img_height * img_width), dtype=dtype)
         # first row and 1st element, 2nd row is uncompressed
         # this SHOULD work by reading the # of bytes specified in the header but AFAICT this is just a standard int (4 bytes)
@@ -1239,14 +1140,38 @@ class XIM(BaseImage):
             collimator=self.properties["MVCollimatorRtn"],
             rotation=self.properties["CouchRtn"],
         )
-        return array_to_dicom(
-            array=self.array,
-            dpi=25.4 * self.dpmm,
-            gantry=iec_g,
-            coll=iec_c,
-            couch=iec_p,
-            sid=1000,
-        )
+        uint_array = convert_to_dtype(self.array, np.uint16)
+        file_meta = FileMetaDataset()
+        # Main data elements
+        ds = Dataset()
+        ds.SOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.1")  # RT Image
+        ds.SOPInstanceUID = generate_uid()
+        ds.SeriesInstanceUID = generate_uid()
+        ds.Modality = "RTIMAGE"
+        ds.ConversionType = "WSD"
+        ds.PatientName = "Lutz^Test Tool"
+        ds.PatientID = "Someone Important"
+        ds.SamplesPerPixel = 1
+        ds.PhotometricInterpretation = "MONOCHROME2"
+        ds.Rows = self.array.shape[0]
+        ds.Columns = self.array.shape[1]
+        ds.BitsAllocated = 16
+        ds.BitsStored = 16
+        ds.HighBit = 15
+        ds.PixelRepresentation = 0
+        ds.ImagePlanePixelSpacing = [1 / self.dpmm, 1 / self.dpmm]
+        ds.RadiationMachineSAD = "1000.0"
+        ds.RTImageSID = "1000"
+        ds.PrimaryDosimeterUnit = "MU"
+        ds.GantryAngle = f"{iec_g:.2f}"
+        ds.BeamLimitingDeviceAngle = f"{iec_c:.2f}"
+        ds.PatientSupportAngle = f"{iec_p:.2f}"
+        ds.PixelData = uint_array
+
+        ds.file_meta = file_meta
+        ds.is_implicit_VR = True
+        ds.is_little_endian = True
+        return ds
 
     def save_as(self, file: str | Path, format: str | None = None) -> None:
         """Save the image to a NORMAL format. PNG is highly suggested. Accepts any format supported by Pillow.
@@ -1698,7 +1623,7 @@ class ArrayImage(BaseImage):
 
 
 class LazyDicomImageStack:
-    _image_path_keys: list[Path | str]
+    _image_path_keys: list[Path]
     metadatas: list[pydicom.Dataset]
 
     def __init__(
@@ -1738,18 +1663,13 @@ class LazyDicomImageStack:
         if check_uid:
             most_common_uid = self._get_common_uid_imgs(metadatas, min_number)
             metadatas = [m for m in metadatas if m.SeriesInstanceUID == most_common_uid]
-            paths = [
-                p
-                for p, m in zip(paths, metadatas)
-                if m.SeriesInstanceUID == most_common_uid
-            ]
         # sort according to physical order
         order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
         self.metadatas = [metadatas[i] for i in order]
         self._image_path_keys = [paths[i] for i in order]
 
     @classmethod
-    def from_zip(cls, zip_path: str | Path, dtype: np.dtype | None = None, **kwargs):
+    def from_zip(cls, zip_path: str | Path, dtype: np.dtype | None = None):
         """Load a DICOM ZIP archive.
 
         Parameters
@@ -1760,7 +1680,7 @@ class LazyDicomImageStack:
             The data type to cast the image data as. If None, will use whatever raw image format is.
         """
         with TemporaryZipDirectory(zip_path, delete=False) as tmpzip:
-            obj = cls(tmpzip, dtype, **kwargs)
+            obj = cls(tmpzip, dtype)
         return obj
 
     def _get_common_uid_imgs(
@@ -1829,108 +1749,6 @@ class LazyDicomImageStack:
 
     def __len__(self):
         return len(self._image_path_keys)
-
-
-class LazyZipDicomImageStack(LazyDicomImageStack):
-    """A variant of the lazy stack where a .zip archive is passed and
-    the archive is NOT extracted to disk. The most memory-efficient for use cases
-    like Cloud Run where disk=memory"""
-
-    def __init__(
-        self,
-        folder: str | Path | BinaryIO,
-        dtype: np.dtype | None = None,
-        min_number: int = 39,
-        check_uid: bool = True,
-    ):
-        """Load a folder with DICOM CT images. This variant is more memory efficient than the standard DicomImageStack.
-
-        This is done by loading images from disk on the fly. This assumes all images remain on disk for the lifetime of the instance. This does not
-        need to be true for the original implementation.
-
-        See the documentation for DicomImageStack for parameter descriptions.
-        """
-        self.dtype = dtype
-        self.zip_archive = folder
-        self.shadow_images = {}
-        with ZipFile(self.zip_archive) as zfile:
-            paths = zfile.namelist()
-        # we only want to read the metadata once
-        # so we read it here and then filter and sort
-        metadatas, paths = self._get_path_metadatas(paths)
-
-        # check that at least 1 image was loaded
-        if len(paths) < 1:
-            raise FileNotFoundError(
-                f"No files were found in the specified location: {folder}"
-            )
-
-        # error checking
-        if check_uid:
-            most_common_uid = self._get_common_uid_imgs(metadatas, min_number)
-            metadatas = [m for m in metadatas if m.SeriesInstanceUID == most_common_uid]
-            paths = [
-                p
-                for p, m in zip(paths, metadatas)
-                if m.SeriesInstanceUID == most_common_uid
-            ]
-        # sort according to physical order
-        order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
-        self.metadatas = [metadatas[i] for i in order]
-        self._image_path_keys = [paths[i] for i in order]
-        self.create_shadow(paths)
-
-    @classmethod
-    def from_zip(
-        cls, zip_path: str | Path | BinaryIO, dtype: np.dtype | None = None, **kwargs
-    ):
-        # the zip lazy stack assumes a zip file is passed
-        return cls(zip_path, dtype, **kwargs)
-
-    def create_shadow(self, paths: list[str]):
-        with ZipFile(self.zip_archive) as zfile:
-            for path in paths:
-                with zfile.open(path) as file:
-                    data = file.read()
-                    self.shadow_images[path] = {
-                        "data": zlib.compress(data),
-                    }
-
-    def _get_path_metadatas(
-        self, names: list[str]
-    ) -> (list[pydicom.Dataset], list[str]):
-        """Get the metadata for the images. This also filters out non-image files."""
-        metadata = []
-        matched_paths = []
-        zfile = ZipFile(self.zip_archive)
-        for name in names:
-            with zfile.open(name) as f:
-                try:
-                    ds = pydicom.dcmread(f, force=True, stop_before_pixels=True)
-                    if "Image Storage" in ds.SOPClassUID.name:
-                        metadata.append(ds)
-                        matched_paths.append(name)
-                except (InvalidDicomError, AttributeError, MemoryError):
-                    pass
-        return metadata, matched_paths
-
-    def __getitem__(self, item: int) -> DicomImage:
-        data = self.shadow_images[self._image_path_keys[item]]
-        image = io.BytesIO(zlib.decompress(data["data"]))
-        return DicomImage(image, dtype=self.dtype)
-
-    def __setitem__(self, key: int, value: DicomImage):
-        """Save the passed image to disk in place of the current image."""
-        with io.BytesIO() as stream:
-            value.save(stream)
-            self.shadow_images[self._image_path_keys[key]] = {
-                "data": zlib.compress(stream.getvalue()),
-            }
-
-    def __delitem__(self, key: int):
-        """Delete the image from the shadow object"""
-        full_key = self._image_path_keys.pop(key)
-        self.shadow_images.pop(full_key)
 
 
 class DicomImageStack(LazyDicomImageStack):
@@ -2014,12 +1832,6 @@ class DicomImageStack(LazyDicomImageStack):
         for img in self.images:
             img.roll(direction, amount)
 
-    def crop(
-        self, pixels: int, edges: tuple[str, ...] = ("top", "bottom", "left", "right")
-    ):
-        for img in self.images:
-            img.crop(pixels, edges=edges)
-
     def __getitem__(self, item) -> DicomImage:
         return self.images[item]
 
@@ -2077,7 +1889,6 @@ def tiff_to_dicom(
     coll: float,
     couch: float,
     dpi: float | None = None,
-    extra_tags: dict | None = None,
 ) -> Dataset:
     """Converts a TIFF file into a **simplistic** DICOM file. Not meant to be a full-fledged tool. Used for conversion so that tools that are traditionally oriented
     towards DICOM have a path to accept TIFF. Currently used to convert files for WL.
@@ -2100,100 +1911,134 @@ def tiff_to_dicom(
         The collimator value that the image was taken at.
     couch
         The couch value that the image was taken at.
-    extra_tags
-        Additional keyword arguments to pass to the DICOM constructor. These are tags that should be included in the DICOM file.
-        E.g. PatientName, etc.
     """
-    file_img = FileImage(tiff_file, dpi=dpi, sid=sid)
-    if not file_img.dpi:
+    tiff_img = FileImage(tiff_file, dpi=dpi, sid=sid)
+    if not tiff_img.dpmm:
         raise ValueError(
-            "Automatic detection of `dpi` failed. A `dpi` value must be passed."
+            "Automatic detection of `dpi` failed. A `dpi` value must be passed to the constructor."
         )
-    return array_to_dicom(
-        array=file_img.array,
-        sid=sid,
-        gantry=gantry,
-        coll=coll,
-        couch=couch,
-        dpi=file_img.dpi,
-        extra_tags=extra_tags,
-    )
+    uint_array = convert_to_dtype(tiff_img.array, np.uint16)
+    mm_pixel = 25.4 / tiff_img.dpi
+    file_meta = FileMetaDataset()
+    # Main data elements
+    ds = Dataset()
+    ds.SOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.1")
+    ds.SOPInstanceUID = generate_uid()
+    ds.SeriesInstanceUID = generate_uid()
+    ds.Modality = "RTIMAGE"
+    ds.ConversionType = "WSD"
+    ds.PatientName = "Lutz^Test Tool"
+    ds.PatientID = "Someone Important"
+    ds.SamplesPerPixel = 1
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.Rows = tiff_img.shape[0]
+    ds.Columns = tiff_img.shape[1]
+    ds.BitsAllocated = 16
+    ds.BitsStored = 16
+    ds.HighBit = 15
+    ds.PixelRepresentation = 0
+    ds.ImagePlanePixelSpacing = [mm_pixel, mm_pixel]
+    ds.RadiationMachineSAD = "1000.0"
+    ds.RTImageSID = sid
+    ds.PrimaryDosimeterUnit = "MU"
+    ds.GantryAngle = str(gantry)
+    ds.BeamLimitingDeviceAngle = str(coll)
+    ds.PatientSupportAngle = str(couch)
+    ds.PixelData = uint_array
+
+    ds.file_meta = file_meta
+    ds.is_implicit_VR = True
+    ds.is_little_endian = True
+    return ds
 
 
-def load_raw_visionrt(
-    path: str | Path, shape: tuple[int, int] = (600, 960), dtype=np.uint32, **kwargs
-) -> ArrayImage:
-    """Load a .raw file from a VisionRT system.
+def gamma_2d(
+    reference: np.ndarray,
+    evaluation: np.ndarray,
+    dose_to_agreement: float = 1,
+    distance_to_agreement: int = 1,
+    gamma_cap_value: float = 2,
+    global_dose: bool = True,
+    dose_threshold: float = 5,
+    fill_value: float = np.nan,
+) -> np.ndarray:
+    """Compute a 2D gamma of two 2D numpy arrays. This does NOT do size or spatial resolution checking.
+    It performs an element-by-element evaluation. It is the responsibility
+    of the caller to ensure the reference and evaluation have comparable spatial resolution.
+
+    The algorithm follows Table I of D. Low's 2004 paper: Evaluation of the gamma dose distribution comparison method: https://aapm.onlinelibrary.wiley.com/doi/epdf/10.1118/1.1598711
+
+    This is similar to the gamma_1d function for profiles, except we must search a 2D grid around the reference point.
 
     Parameters
     ----------
-    path : str, Path
-        The path to the file.
-    shape : tuple
-        The shape of the image. Default is 960x600.
-    dtype : dtype
-        The datatype of the image.
-    kwargs
-        Additional keyword arguments to pass to the ArrayImage. This most often is SID and DPI.
+    reference
+        The reference 2D array.
+    evaluation
+        The evaluation 2D array.
+    dose_to_agreement
+        The dose to agreement in %. E.g. 1 is 1% of global reference max dose.
+    distance_to_agreement
+        The distance to agreement in **elements**. E.g. if the value is 4 this means 4 elements from the reference point under calculation.
+        Must be >0
+    gamma_cap_value
+        The value to cap the gamma at. E.g. a gamma of 5.3 will get capped to 2. Useful for displaying data with a consistent range.
+    global_dose
+        Whether to evaluate the dose to agreement threshold based on the global max or the dose point under evaluation.
+    dose_threshold
+        The dose threshold as a number between 0 and 100 of the % of max dose under which a gamma is not calculated.
+        This is not affected by the global/local dose normalization and the threshold value is evaluated against the global max dose, period.
+    fill_value
+        The value to give pixels that were not calculated because they were under the dose threshold. Default
+        is NaN, but another option would be 0. If NaN, allows the user to calculate mean/median gamma over just the
+        evaluated portion and not be skewed by 0's that should not be considered.
     """
-    return load_raw(path, shape, dtype, **kwargs)
+    if reference.ndim != 2 or evaluation.ndim != 2:
+        raise ValueError(
+            f"Reference and evaluation arrays must be 2D. Got reference: {reference.ndim} and evaluation: {evaluation.ndim}"
+        )
+    threshold = reference.max() / 100 * dose_threshold
+    # convert dose to agreement to % of global max; ignored later if local dose
+    dose_ta = dose_to_agreement / 100 * reference.max()
+    # pad eval array on both edges so our search does not go out of bounds
+    eval_padded = np.pad(evaluation, distance_to_agreement, mode="edge")
+    # iterate over each reference element, computing distance value and dose value
+    gamma = np.zeros(reference.shape)
+    for row_idx, row in enumerate(reference):
+        for col_idx, ref_point in enumerate(row):
+            # skip if below dose threshold
+            if ref_point < threshold:
+                gamma[row_idx, col_idx] = fill_value
+                continue
+            # use scikit-image to compute the indices of a disk around the reference point
+            # we can then compute gamma over the eval points at these indices
+            # unlike the 1D computation, we have to search at an index offset by the distance to agreement
+            # we use DTA+1 in disk because it looks like the results are exclusive of edges.
+            # https://scikit-image.org/docs/stable/api/skimage.draw.html#disk
+            rs, cs = disk(
+                (row_idx + distance_to_agreement, col_idx + distance_to_agreement),
+                distance_to_agreement + 1,
+            )
 
-
-def load_raw_cyberknife(
-    path: str | Path, shape: tuple[int, int] | None = None, dtype=np.uint16, **kwargs
-) -> ArrayImage:
-    """Load a CyberKnife image.
-
-    Parameters
-    ----------
-    path : str, Path
-        The path to the file.
-    shape : tuple
-        The shape of the image. If None, will attempt to read the shape from the file.
-    dtype : dtype
-        The datatype of the image.
-    kwargs
-        Additional keyword arguments to pass to the ArrayImage. This most often is SID and DPI.
-    """
-    if shape is None:
-        with open(path, "rb") as f:
-            try:
-                header = f.read(20).decode("utf-8")
-                _, width, height, *_ = header.split(" ")
-                shape = (int(width), int(height))
-            except Exception:
-                raise ValueError(
-                    "The shape of the image could not be determined. Pass it manually."
+            capital_gammas = []
+            for r, c in zip(rs, cs):
+                eval_point = eval_padded[r, c]
+                # for the distance, we compare the ref row/col to the eval padded matrix
+                # but remember the padded array is padded by DTA, so to compare distances, we
+                # have to cancel the offset we used for dose purposes.
+                dist = math.dist(
+                    (row_idx, col_idx),
+                    (r - distance_to_agreement, c - distance_to_agreement),
                 )
-    return load_raw(path, shape, dtype, **kwargs)
-
-
-@validate(array=double_dimension)
-def load_raw(
-    path: str | Path, shape: tuple[int, int], dtype: np.dtype, **kwargs
-) -> ArrayImage:
-    """Load a raw file.
-
-    Parameters
-    ----------
-    path : str, Path
-        The path to the file.
-    shape : tuple
-        The shape of the image.
-    dtype : dtype
-        The datatype of the image.
-    kwargs
-        Additional keyword arguments to pass to the ArrayImage. This most often is SID and DPI.
-    """
-
-    with open(path, "rb") as f:
-        data = f.read()
-
-        length = shape[0] * shape[1] * np.dtype(dtype).itemsize
-        image_data = data[-length:]
-
-        image_array = np.frombuffer(image_data, dtype=dtype).reshape(shape)
-        return ArrayImage(image_array, **kwargs)
+                dose = eval_point - ref_point
+                if not global_dose:
+                    dose_ta = dose_to_agreement / 100 * ref_point
+                capital_gamma = math.sqrt(
+                    dist**2 / distance_to_agreement**2 + dose**2 / dose_ta**2
+                )
+                capital_gammas.append(capital_gamma)
+            gamma[row_idx, col_idx] = min(np.nanmin(capital_gammas), gamma_cap_value)
+    return np.asarray(gamma)
 
 
 def z_position(metadata: pydicom.Dataset) -> float:
