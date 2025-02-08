@@ -1066,10 +1066,8 @@ class XIM(BaseImage):
                 )
             else:
                 lookup_table_size = decode_binary(xim, int)
-                self.lookup_table = decode_binary(
-                    xim, "B", num_values=lookup_table_size
-                )
-                comp_pixel_buffer_size = decode_binary(xim, int)
+                self.lookup_table = np.fromfile(xim, count=lookup_table_size, dtype=np.uint8)
++               comp_pixel_buffer_size = decode_binary(xim, int)
                 if read_pixels:
                     lookup_keys = self._parse_lookup_table(self.lookup_table)
                     self.array = self._parse_compressed_bytes(
@@ -1121,20 +1119,11 @@ class XIM(BaseImage):
             This is ripe for optimization, but brevity and clarity won out. Options include bit-shifting (fastest)
             and numpy.packbits/unpackbits.
         """
-        table = []
-        extend = table.extend  # prevent python having to do a lookup on each iteration
-        for byte in lookup_table_bytes:
-            byte_repr = f"{byte:08b}"
-            # didn't actually check these indexes but I think they're right.
-            extend(
-                [
-                    int(byte_repr[6:8], 2),
-                    int(byte_repr[4:6], 2),
-                    int(byte_repr[2:4], 2),
-                    int(byte_repr[0:2], 2),
-                ]
-            )
-        return np.asarray(table, dtype=np.int8)
+
+        unpacked = np.unpackbits(lookup_table_bytes, bitorder="little")
+        reshaped = unpacked.reshape((-1, 2))
+        packed = np.packbits(reshaped, axis=-1, bitorder="little")[:, 0]
+        return packed
 
     def _parse_compressed_bytes(
         self, xim: BinaryIO, lookup_table: np.ndarray
