@@ -1,3 +1,4 @@
+import pytest
 from pathlib import Path
 from unittest import TestCase
 
@@ -5,6 +6,7 @@ from pylinac.contrib.orthogonality import JawOrthogonality
 from tests_basic.utils import get_folder_from_cloud_repo
 
 
+@pytest.mark.proprietary
 class TestOrthogonality(TestCase):
     @classmethod
     def setUpClass(cls) -> None:

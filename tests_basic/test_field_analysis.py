@@ -5,6 +5,7 @@ import io
 import json
 import os
 import os.path as osp
+import pytest
 import tempfile
 from unittest import TestCase
 
@@ -51,6 +52,7 @@ class FieldAnalysisTests(QuaacTestBase, TestCase):
     def quaac_instance(self):
         return create_instance()
 
+    @pytest.mark.proprietary
     def test_load_from_file_object(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "6x-auto-bulb-2.dcm"])
         ref_fa = FieldAnalysis(path)
@@ -61,6 +63,7 @@ class FieldAnalysisTests(QuaacTestBase, TestCase):
         self.assertIsInstance(fa, FieldAnalysis)
         self.assertEqual(fa.image.shape, ref_fa.image.shape)
 
+    @pytest.mark.proprietary
     def test_load_from_stream(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "6x-auto-bulb-2.dcm"])
         ref_fa = FieldAnalysis(path)
@@ -229,6 +232,7 @@ class FieldAnalysisTests(QuaacTestBase, TestCase):
         with self.assertRaises(ValueError):
             fa.analyze(interpolation="limmerick")
 
+    @pytest.mark.proprietary
     def test_image_kwargs(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "6x-auto-bulb-2.dcm"])
 
@@ -432,6 +436,7 @@ class FieldAnalysisBase(CloudFileMixin):
         self.assertIsInstance(figs[0], plt.Figure)
 
 
+@pytest.mark.proprietary
 class NormalOpenField(FieldAnalysisBase, TestCase):
     """Typical field w/ horns"""
 
@@ -453,6 +458,7 @@ class NormalOpenField(FieldAnalysisBase, TestCase):
     penum_left = 3.3
 
 
+@pytest.mark.proprietary
 class PerfectOpenField(FieldAnalysisBase, TestCase):
     """Completely flat field"""
 
@@ -474,6 +480,7 @@ class PerfectOpenField(FieldAnalysisBase, TestCase):
     penum_left = 3.3
 
 
+@pytest.mark.proprietary
 class FFFOpenField(FieldAnalysisBase, TestCase):
     """FFF field. Note the same field size and penumbra as a flat beam"""
 
@@ -495,6 +502,7 @@ class FFFOpenField(FieldAnalysisBase, TestCase):
     penum_left = 3.3
 
 
+@pytest.mark.proprietary
 class FFFOpenFieldHill(FFFOpenField, TestCase):
     """FFF field using Hill inflection. Note all values are the same. I.e. analysis is equivalent"""
 
@@ -531,6 +539,7 @@ class FlatSymWideDemo(FlatSymDemo, TestCase):
     vert_symmetry = -2.7
 
 
+@pytest.mark.proprietary
 class FlatSym6X(FieldAnalysisBase, TestCase):
     file_name = "6x-auto-bulb-2.dcm"
     # independently verified
@@ -552,6 +561,7 @@ class FlatSym6X(FieldAnalysisBase, TestCase):
     penum_left = 2.8
 
 
+@pytest.mark.proprietary
 class FlatSym18X(FieldAnalysisBase, TestCase):
     file_name = "18x-auto-bulb2.dcm"
     # independently verified
@@ -573,12 +583,14 @@ class FlatSym18X(FieldAnalysisBase, TestCase):
     penum_left = 3.4
 
 
+@pytest.mark.proprietary
 class FlatSym18xSiemens(FlatSym18X):
     protocol = Protocol.SIEMENS
     horiz_symmetry = -0.33
     vert_symmetry = -0.27
 
 
+@pytest.mark.proprietary
 class FlatSym18xSiemens2(FlatSym18xSiemens):
     interpolation_resolution = (
         0.137  # use an arbitrary interpolation so that we get an odd number of points
@@ -587,6 +599,7 @@ class FlatSym18xSiemens2(FlatSym18xSiemens):
     penum_left = 2.9
 
 
+@pytest.mark.proprietary
 class FlatSym18xSiementsNoInterp(FlatSym18xSiemens):
     interpolation_method = Interpolation.NONE
     horiz_symmetry = -0.62
@@ -594,6 +607,7 @@ class FlatSym18xSiementsNoInterp(FlatSym18xSiemens):
     penum_left = 3.0
 
 
+@pytest.mark.proprietary
 class BBLike(FieldAnalysisBase, TestCase):
     """BB-like image"""
 

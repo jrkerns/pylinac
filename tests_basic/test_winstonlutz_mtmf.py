@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 import shutil
 import tempfile
 from collections.abc import Sequence
@@ -200,6 +201,7 @@ class WinstonLutzMultiTargetMultFieldMixin(CloudFileMixin):
         )
 
 
+@pytest.mark.proprietary
 class SNCMultiMet(WinstonLutzMultiTargetMultFieldMixin, TestCase):
     dir_path = ["Winston-Lutz", "multi_target_multi_field"]
     file_name = "SNC_MM_KB.zip"
@@ -268,6 +270,8 @@ class SyntheticMultiMetMixin(WinstonLutzMultiTargetMultFieldMixin):
         return len(self.images_axes)
 
 
+
+@pytest.mark.proprietary
 class SyntheticPerfect1BB(SyntheticMultiMetMixin, TestCase):
     arrangement = (
         BBConfig(
@@ -288,6 +292,8 @@ class SyntheticPerfect1BB(SyntheticMultiMetMixin, TestCase):
     mean_2d_distance = 0
 
 
+
+@pytest.mark.proprietary
 class Synthetic1BBOffsetIn(SyntheticMultiMetMixin, PlotlyTestMixin, TestCase):
     arrangement = (
         BBConfig(
@@ -320,6 +326,8 @@ class Synthetic1BBOffsetIn(SyntheticMultiMetMixin, PlotlyTestMixin, TestCase):
         self.instance = self.wl
 
 
+
+@pytest.mark.proprietary
 class Synthetic1BBOffsetLeft(SyntheticMultiMetMixin, TestCase):
     arrangement = (
         BBConfig(
@@ -341,6 +349,8 @@ class Synthetic1BBOffsetLeft(SyntheticMultiMetMixin, TestCase):
     bb_shift_vector = Vector(1, 0, 0)
 
 
+
+@pytest.mark.proprietary
 class Synthetic1BBOffsetUp(SyntheticMultiMetMixin, TestCase):
     arrangement = (
         BBConfig(
@@ -362,6 +372,8 @@ class Synthetic1BBOffsetUp(SyntheticMultiMetMixin, TestCase):
     bb_shift_vector = Vector(0, 0, -1)
 
 
+
+@pytest.mark.proprietary
 class Synthetic3BBPerfect(SyntheticMultiMetMixin, TestCase):
     arrangement = (
         BBConfig(
@@ -398,6 +410,8 @@ class Synthetic3BBPerfect(SyntheticMultiMetMixin, TestCase):
     mean_2d_distance = 0
 
 
+
+@pytest.mark.proprietary
 class Synthetic2BBYaw(SyntheticMultiMetMixin, TestCase):
     arrangement = (
         BBConfig(
@@ -436,6 +450,8 @@ class Synthetic2BBYaw(SyntheticMultiMetMixin, TestCase):
     bb_max_2d_yaw = 91.8  # not realistic due to choice of BB placement symmetry (roll is 180 degrees in one case), but it's the max; note the 91.8-90=1.8
 
 
+
+@pytest.mark.proprietary
 class Synthetic2BBRoll(SyntheticMultiMetMixin, TestCase):
     arrangement = (
         BBConfig(

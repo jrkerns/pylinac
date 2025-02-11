@@ -82,13 +82,14 @@ exclude = ['pylinac/demo_files/**']
 [tool.pytest.ini_options]
 testpaths = "tests_basic"
 python_files = "test_*.py"
-addopts = "--dist loadscope"
+addopts = "--dist loadscope -m 'not proprietary'"
 filterwarnings = [
     "ignore::UserWarning:pydicom",
     "ignore:FigureCanvasAgg.*:UserWarning"
     ]
 markers = [
     'catphan604',
+    'proprietary',
 ]
 
 [tool.coverage.run]

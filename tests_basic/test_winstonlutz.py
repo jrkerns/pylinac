@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import io
 import math
+import pytest
 import shutil
 import tempfile
 from collections.abc import Sequence
@@ -543,6 +544,7 @@ class TestRotationMatrix(TestCase):
         assert math.isclose(y, 0.707, abs_tol=0.001)
 
 
+@pytest.mark.proprietary
 class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
     klass = WinstonLutz
     demo_load_method = "from_demo_images"
@@ -831,6 +833,7 @@ class GeneralTests(TestCase):
         self.assertIn("G0B0P0", data_dict["keyed_image_details"].keys())
         self.assertIn("G0B0P0_1", data_dict["keyed_image_details"].keys())
 
+    @pytest.mark.proprietary
     def test_bb_too_far_away_fails(self):
         """BB is >20mm from CAX"""
         file = get_file_from_cloud_test_repo([TEST_DIR, "bb_too_far_away.zip"])
@@ -908,6 +911,7 @@ class TestPlottingSaving(TestCase):
         save_file(self.wl.save_summary)
         save_file(self.wl.save_images)
 
+    @pytest.mark.proprietary
     def test_plot_wo_all_axes(self):
         # test that analyzing images w/o gantry images doesn't fail
         wl_zip = get_file_from_cloud_test_repo([TEST_DIR, "Naming.zip"])
@@ -1384,6 +1388,7 @@ class WLDemo(WinstonLutzMixin, TestCase):
         assert vector_is_close(original_vector, new_vector, delta=0.05)
 
 
+@pytest.mark.proprietary
 class WLPerfect30x8(WinstonLutzMixin, TestCase):
     """30x30mm field, 8mm BB"""
 
@@ -1398,6 +1403,7 @@ class WLPerfect30x8(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector()
 
 
+@pytest.mark.proprietary
 class WLPerfect30x2(WinstonLutzMixin, TestCase):
     """30x30mm field, 2mm BB"""
 
@@ -1413,6 +1419,7 @@ class WLPerfect30x2(WinstonLutzMixin, TestCase):
     bb_size = 2
 
 
+@pytest.mark.proprietary
 class WLPerfect10x4(WinstonLutzMixin, TestCase):
     """10x10mm field, 4mm BB"""
 
@@ -1427,6 +1434,7 @@ class WLPerfect10x4(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector()
 
 
+@pytest.mark.proprietary
 class WLNoisy30x5(WinstonLutzMixin, TestCase):
     """30x30mm field, 5mm BB. S&P noise added"""
 
@@ -1441,6 +1449,7 @@ class WLNoisy30x5(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector()
 
 
+@pytest.mark.proprietary
 class WLLateral3mm(WinstonLutzMixin, TestCase):
     # verified independently
     file_name = "lat3mm.zip"
@@ -1452,6 +1461,7 @@ class WLLateral3mm(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=-3.6, y=0.5, z=0.6)
 
 
+@pytest.mark.proprietary
 class WLReferenceIsLargestRMS(WinstonLutzMixin, TestCase):
     """If the reference image had the largest error, it was not reported"""
 
@@ -1471,6 +1481,7 @@ class WLReferenceIsLargestRMS(WinstonLutzMixin, TestCase):
         )
 
 
+@pytest.mark.proprietary
 class WLLongitudinal3mm(WinstonLutzMixin, TestCase):
     # verified independently
     file_name = "lng3mm.zip"
@@ -1482,6 +1493,7 @@ class WLLongitudinal3mm(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=-0.63, y=3.6, z=0.6)
 
 
+@pytest.mark.proprietary
 class WLVertical3mm(WinstonLutzMixin, TestCase):
     file_name = "vrt3mm.zip"
     num_images = 4
@@ -1493,6 +1505,7 @@ class WLVertical3mm(WinstonLutzMixin, TestCase):
     print_results = True
 
 
+@pytest.mark.proprietary
 class WLDontUseFileNames(WinstonLutzMixin, TestCase):
     file_name = "Naming.zip"
     num_images = 4
@@ -1509,6 +1522,7 @@ class WLDontUseFileNames(WinstonLutzMixin, TestCase):
     }
 
 
+@pytest.mark.proprietary
 class WLUseFileNames(WinstonLutzMixin, PlotlyTestMixin, TestCase):
     file_name = "Naming.zip"
     use_filenames = True
@@ -1532,6 +1546,7 @@ class WLUseFileNames(WinstonLutzMixin, PlotlyTestMixin, TestCase):
         self.instance = self.wl
 
 
+@pytest.mark.proprietary
 class WLBadFilenames(TestCase):
     def test_bad_filenames(self):
         # tests_basic that using filenames with incorrect syntax will fail
@@ -1541,6 +1556,7 @@ class WLBadFilenames(TestCase):
             wl.analyze()
 
 
+@pytest.mark.proprietary
 class KatyiX0(WinstonLutzMixin, PlotlyTestMixin, TestCase):
     # independently verified
     file_name = ["Katy iX", "0.zip"]
@@ -1574,6 +1590,7 @@ class KatyiX0(WinstonLutzMixin, PlotlyTestMixin, TestCase):
         self.instance = self.wl
 
 
+@pytest.mark.proprietary
 class KatyiX1(WinstonLutzMixin, TestCase):
     file_name = ["Katy iX", "1.zip"]
     num_images = 17
@@ -1586,6 +1603,7 @@ class KatyiX1(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=0.3, y=-0.2, z=0.3)
 
 
+@pytest.mark.proprietary
 class KatyiX2(WinstonLutzMixin, TestCase):
     file_name = ["Katy iX", "2.zip"]
     num_images = 17
@@ -1599,6 +1617,7 @@ class KatyiX2(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=0.15, y=-0.15, z=0.1)
 
 
+@pytest.mark.proprietary
 class KatyiX3(WinstonLutzMixin, TestCase):
     file_name = ["Katy iX", "3 (with crosshair).zip"]
     num_images = 17
@@ -1612,6 +1631,7 @@ class KatyiX3(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=-0.1, y=0.2, z=-0.5)
 
 
+@pytest.mark.proprietary
 class KatyTB0(WinstonLutzMixin, TestCase):
     file_name = ["Katy TB", "0.zip"]
     num_images = 17
@@ -1626,6 +1646,7 @@ class KatyTB0(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=-0.4, y=-0.1, z=-0.25)
 
 
+@pytest.mark.proprietary
 class KatyTB1(WinstonLutzMixin, TestCase):
     file_name = ["Katy TB", "1.zip"]
     num_images = 16
@@ -1640,6 +1661,7 @@ class KatyTB1(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=-0.3, y=-0.2)
 
 
+@pytest.mark.proprietary
 class KatyTB2(WinstonLutzMixin, TestCase):
     file_name = ["Katy TB", "2.zip"]
     num_images = 17
@@ -1653,6 +1675,7 @@ class KatyTB2(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=0.0, y=-0.2, z=-0.6)
 
 
+@pytest.mark.proprietary
 class ChicagoTBFinal(WinstonLutzMixin, TestCase):
     # verified independently
     file_name = ["Chicago", "WL-Final_C&G&C_Final.zip"]
@@ -1667,6 +1690,7 @@ class ChicagoTBFinal(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(y=0.1)
 
 
+@pytest.mark.proprietary
 class ChicagoTB52915(WinstonLutzMixin, TestCase):
     file_name = ["Chicago", "WL_05-29-15_Final.zip"]
     num_images = 16
@@ -1679,6 +1703,7 @@ class ChicagoTB52915(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(z=0.2)
 
 
+@pytest.mark.proprietary
 class TrueBeam3120213(WinstonLutzMixin, TestCase):
     file_name = ["TrueBeam 3", "120213.zip"]
     num_images = 26
@@ -1691,6 +1716,7 @@ class TrueBeam3120213(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=-0.1, y=-0.2, z=0.2)
 
 
+@pytest.mark.proprietary
 class SugarLandiX2015(WinstonLutzMixin, TestCase):
     file_name = ["Sugarland iX", "2015", "Lutz2.zip"]
     num_images = 17
@@ -1704,6 +1730,7 @@ class SugarLandiX2015(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=0.6, y=-0.5, z=0.1)
 
 
+@pytest.mark.proprietary
 class BayAreaiX0(WinstonLutzMixin, TestCase):
     # aka the demo images
     file_name = ["Bay Area iX", "0.zip"]
@@ -1718,6 +1745,7 @@ class BayAreaiX0(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=0, y=-0.3, z=-0.2)
 
 
+@pytest.mark.proprietary
 class DAmoursElektaOffset(WinstonLutzMixin, TestCase):
     """An Elekta dataset, with the BB centered."""
 
@@ -1730,6 +1758,7 @@ class DAmoursElektaOffset(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=10.2, y=-9.2, z=-11.1)  # independently verified
 
 
+@pytest.mark.proprietary
 class DAmoursElektaXOffset(WinstonLutzMixin, TestCase):
     """An Elekta dataset, with the BB centered."""
 
@@ -1742,6 +1771,7 @@ class DAmoursElektaXOffset(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=-9.5, y=0.3, z=0.1)  # independently verified
 
 
+@pytest.mark.proprietary
 class DAmoursElektaCentered(WinstonLutzMixin, TestCase):
     """An Elekta dataset, with the BB centered."""
 
@@ -1756,6 +1786,7 @@ class DAmoursElektaCentered(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(y=0.4)
 
 
+@pytest.mark.proprietary
 class DeBr6XElekta(WinstonLutzMixin, TestCase):
     """An Elekta dataset, with the BB centered."""
 
@@ -1770,6 +1801,7 @@ class DeBr6XElekta(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=0.4, y=-0.2)
 
 
+@pytest.mark.proprietary
 class LargeFieldCouchPresent(WinstonLutzMixin, TestCase):
     """A very large field where the couch is present"""
 
@@ -1784,6 +1816,7 @@ class LargeFieldCouchPresent(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=0.5, y=-0.7, z=0.8)
 
 
+@pytest.mark.proprietary
 class LowDensityBB(WinstonLutzMixin, TestCase):
     """An air-like BB where the signal increases vs attenuates. Requires passing the right parameter"""
 
@@ -1799,6 +1832,7 @@ class LowDensityBB(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=0, y=0, z=0)
 
 
+@pytest.mark.proprietary
 class kVImages(WinstonLutzMixin, TestCase):
     """kV image-based WL set. Have to set the parameters correctly"""
 
@@ -1817,6 +1851,7 @@ class kVImages(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=-0.24, y=0, z=0)
 
 
+@pytest.mark.proprietary
 class TIFFImages(WinstonLutzMixin, TestCase):
     """Tiff image set. Hell hath frozen over"""
 
@@ -1840,6 +1875,7 @@ class TIFFImages(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=0.74, y=0.16, z=-0.14)
 
 
+@pytest.mark.proprietary
 class VarianBBkV(WinstonLutzMixin, TestCase):
     """kV image-based WL set using the super tiny Varian BB. Have to set the parameters correctly"""
 
@@ -1915,6 +1951,7 @@ class GeneratedWLCBCT:
         )
 
 
+@pytest.mark.proprietary
 class CBCTWinstonLutzMixin(WinstonLutzMixin):
     low_density_bb = True
     open_field = True
@@ -1961,6 +1998,7 @@ class CBCTWinstonLutzMixin(WinstonLutzMixin):
             print(cls.wl.bb_shift_vector)
 
 
+@pytest.mark.proprietary
 class TestFrenchCBCT(CBCTWinstonLutzMixin, TestCase):
     file_name = ["cbct_wl_real.zip"]
     cax2bb_max_distance = 0.23
@@ -1970,6 +2008,7 @@ class TestFrenchCBCT(CBCTWinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=0.2, y=0, z=-0.2)
 
 
+@pytest.mark.proprietary
 class TestPerfectCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
     bb_offset = {"left": 0, "up": 0, "in": 0}
     cax2bb_max_distance = 0
@@ -1978,6 +2017,7 @@ class TestPerfectCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=0, y=0, z=0)
 
 
+@pytest.mark.proprietary
 class TestOffsetLeftCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
     bb_offset = {"left": 5, "up": 0, "in": 0}
     cax2bb_max_distance = 5
@@ -1986,6 +2026,7 @@ class TestOffsetLeftCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=-5, y=0, z=0)
 
 
+@pytest.mark.proprietary
 class TestOffsetDownCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
     bb_offset = {"left": 0, "up": -5, "in": 0}
     cax2bb_max_distance = 5
@@ -1994,6 +2035,7 @@ class TestOffsetDownCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=0, y=0, z=5)
 
 
+@pytest.mark.proprietary
 class TestOffsetInCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
     bb_offset = {"left": 0, "up": 0, "in": 5}
     cax2bb_max_distance = 5
@@ -2002,6 +2044,7 @@ class TestOffsetInCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=0, y=-5, z=0)
 
 
+@pytest.mark.proprietary
 class TestIndividualInverts(WinstonLutzMixin, TestCase):
     # see RAM-3252; still need to crop
     # but now the images are inverted after cropping
