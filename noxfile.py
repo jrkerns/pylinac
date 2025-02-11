@@ -18,6 +18,7 @@ def run_min_version_test(session):
         "run",
         "pytest",
         "tests_basic/core",
+        "-m 'proprietary or not proprietary'",
         env={"UV_PROJECT_ENVIRONMENT": py_str, "VIRTUAL_ENV": py_str},
     )
 
