@@ -1,3 +1,4 @@
+import pytest
 import warnings
 from typing import Any
 from unittest import TestCase
@@ -2307,7 +2308,6 @@ class MultiProfileTriangle(MultiProfileTestMixin, TestCase):
 
 class CircleProfileTestMixin:
     klass = CircleProfile
-    image_file_location = get_file_from_cloud_test_repo(["Starshot", "Starshot-1.tif"])
     radius = 300
     peak_idxs = (0,)
     valley_idxs = (0,)
@@ -2316,7 +2316,8 @@ class CircleProfileTestMixin:
 
     @classmethod
     def setUpClass(cls):
-        img = image.load(cls.image_file_location)
+        image_file_location = get_file_from_cloud_test_repo(["Starshot", "Starshot-1.tif"])
+        img = image.load(image_file_location)
         cls.profile = cls.klass(cls.center_point, cls.radius, img.array)
         cls.profile.filter(size=0.01, kind="gaussian")
 
@@ -2343,12 +2344,14 @@ class CircleProfileTestMixin:
         self.profile.plot2axes()
 
 
+@pytest.mark.proprietary
 class CircleProfileStarshot(CircleProfileTestMixin, TestCase):
     peak_idxs = [219, 480, 738, 984, 1209, 1421, 1633, 1864]
     valley_idxs = [95, 348, 607, 860, 1098, 1316, 1527, 1743]
     fwxm_peak_idxs = [218, 480, 738, 984, 1209, 1421, 1633, 1864]
 
 
+@pytest.mark.proprietary
 class CollapsedCircleProfileStarshot(CircleProfileTestMixin, TestCase):
     klass = CollapsedCircleProfile
     peak_idxs = [241, 529, 812, 1084, 1331, 1563, 1797, 2051]
