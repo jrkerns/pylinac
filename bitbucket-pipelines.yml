@@ -44,7 +44,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_cbct.py -n 2 --cov=pylinac.cbct --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_cbct.py -n 2 --cov=pylinac.cbct --cov-report term --junitxml=./test-reports/pytest_results.xml -m 'proprietary or not proprietary'
           # clean up memory monitor
           - kill $MONITOR_PID
         caches:
@@ -65,7 +65,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_quart.py --cov=pylinac.quart --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_quart.py --cov=pylinac.quart --cov-report term --junitxml=./test-reports/pytest_results.xml -m 'proprietary or not proprietary'
           # clean up memory monitor
           - kill $MONITOR_PID
         artifacts:
@@ -87,7 +87,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_acr.py --cov=pylinac.acr --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_acr.py --cov=pylinac.acr --cov-report term --junitxml=./test-reports/pytest_results.xml -m 'proprietary or not proprietary'
           # clean up memory monitor
           - kill $MONITOR_PID
         artifacts:
@@ -109,7 +109,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_cheese.py --cov=pylinac.cheese --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_cheese.py --cov=pylinac.cheese --cov-report term --junitxml=./test-reports/pytest_results.xml -m 'proprietary or not proprietary'
           # clean up memory monitor
           - kill $MONITOR_PID
         artifacts:
@@ -131,7 +131,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_planar_imaging.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_planar_imaging.py --cov-report term --junitxml=./test-reports/pytest_results.xml -m 'proprietary or not proprietary'
           # clean up memory monitor
           - kill $MONITOR_PID
         artifacts:
@@ -147,7 +147,7 @@ definitions:
     - step: &dlg-tests
         name: Run DLG Tests
         script:
-          - uv run pytest tests_basic/test_dlg.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_dlg.py --cov-report term --junitxml=./test-reports/pytest_results.xml -m 'proprietary or not proprietary'
         caches:
           - testfiles
         condition:
@@ -159,7 +159,7 @@ definitions:
     - step: &field-analysis-tests
         name: Run Field Analysis Tests
         script:
-          - uv run pytest tests_basic/test_field_analysis.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_field_analysis.py --cov-report term --junitxml=./test-reports/pytest_results.xml -m 'proprietary or not proprietary'
         caches:
           - testfiles
         condition:
@@ -171,7 +171,7 @@ definitions:
     - step: &machine-log-tests
         name: Run Machine Logs Tests
         script:
-          - uv run pytest tests_basic/test_logs.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_logs.py --cov-report term --junitxml=./test-reports/pytest_results.xml -m 'proprietary or not proprietary'
         caches:
           - testfiles
         condition:
@@ -188,7 +188,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_picketfence.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_picketfence.py --cov-report term --junitxml=./test-reports/pytest_results.xml -m 'proprietary or not proprietary'
           # clean up memory monitor
           - kill $MONITOR_PID
         artifacts:
@@ -204,7 +204,7 @@ definitions:
     - step: &starshot-tests
         name: Run Starshot Tests
         script:
-          - uv run pytest tests_basic/test_starshot.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_starshot.py --cov-report term --junitxml=./test-reports/pytest_results.xml -m 'proprietary or not proprietary'
         caches:
           - testfiles
         condition:
@@ -216,7 +216,7 @@ definitions:
     - step: &calibration-tests
         name: Run TG-51/TRS-398 Tests
         script:
-          - uv run pytest tests_basic/test_tg51.py tests_basic/test_trs398.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_tg51.py tests_basic/test_trs398.py --cov-report term --junitxml=./test-reports/pytest_results.xml -m 'proprietary or not proprietary'
         caches:
           - testfiles
         condition:
@@ -229,7 +229,7 @@ definitions:
     - step: &vmat-tests
         name: Run VMAT Tests
         script:
-          - uv run pytest tests_basic/test_vmat.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_vmat.py --cov-report term --junitxml=./test-reports/pytest_results.xml -m 'proprietary or not proprietary'
         caches:
           - testfiles
         condition:
@@ -246,7 +246,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_winstonlutz.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_winstonlutz.py --cov-report term --junitxml=./test-reports/pytest_results.xml -m 'proprietary or not proprietary'
           # clean up memory monitor
           - kill $MONITOR_PID
         condition:
@@ -265,7 +265,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_winstonlutz_mtmf.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_winstonlutz_mtmf.py --cov-report term --junitxml=./test-reports/pytest_results.xml -m 'proprietary or not proprietary'
           # clean up memory monitor
           - kill $MONITOR_PID
         condition:
@@ -279,7 +279,7 @@ definitions:
     - step: &plan-generator-tests
         name: Plan generator tests
         script:
-          - uv run pytest tests_basic/test_plan_generator.py tests_basic/test_generated_plans.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_plan_generator.py tests_basic/test_generated_plans.py --cov-report term --junitxml=./test-reports/pytest_results.xml -m 'proprietary or not proprietary'
         condition:
             changesets:
                 includePaths:
@@ -290,8 +290,7 @@ definitions:
     - step: &core-module-tests
         name: Run core module tests
         script:
-          - uv run pytest tests_basic/core --cov-report term --junitxml=./test-reports/pytest_results.xml
-        caches:
+          - uv run pytest tests_basic/core --cov-report term --junitxml=./test-reports/pytest_results.xml -m 'proprietary or not proprietary'
           - testfiles
         condition:
           changesets:
