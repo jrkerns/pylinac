@@ -60,7 +60,8 @@ Be sure to ask for help if you need it!
 * Make your changes.
 * Write tests for your changes. Most test modules in pylinac have a 1:1 correlation with the library modules and thus the
   expected location should be straightforward.
-* Run the tests locally: ``uv run pytest``
+* Run the tests locally: ``uv run pytest -m 'not proprietary'``. The pylinac tests make use of donated data, some of which
+  is not public. Run the full test set if you have access: ``uv run pytest``.
 * If the tests pass, commit your changes: ``git commit -m "my new feature!"``
 * Push your changes to your forked repository: ``git push origin my_new_branch``
 * Make a new pull request to the main pylinac repository.
