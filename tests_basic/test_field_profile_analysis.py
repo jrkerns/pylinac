@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import json
 import os.path as osp
+import pytest
 from dataclasses import dataclass
 from unittest import TestCase
 
@@ -248,6 +249,7 @@ class FieldAnalysisTests(TestCase):
     def tearDown(self) -> None:
         plt.close("all")
 
+    @pytest.mark.proprietary
     def test_load_from_file_object(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "6x-auto-bulb-2.dcm"])
         ref_fa = FieldProfileAnalysis(path)
@@ -258,6 +260,7 @@ class FieldAnalysisTests(TestCase):
         self.assertIsInstance(fa, FieldProfileAnalysis)
         self.assertEqual(fa.image.shape, ref_fa.image.shape)
 
+    @pytest.mark.proprietary
     def test_load_from_stream(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "6x-auto-bulb-2.dcm"])
         ref_fa = FieldProfileAnalysis(path)
@@ -371,6 +374,7 @@ class FieldAnalysisTests(TestCase):
         with self.assertRaises(ValueError):
             fa.analyze(normalization="limmerick")
 
+    @pytest.mark.proprietary
     def test_image_kwargs(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "6x-auto-bulb-2.dcm"])
 
@@ -430,6 +434,7 @@ class FlatSymWideDemo(FlatSymDemo, TestCase):
     width = 0.1
 
 
+@pytest.mark.proprietary
 class NormalOpenField(FieldProfileAnalysisPlusV1Comparison, TestCase):
     """Typical field w/ horns"""
 
@@ -459,6 +464,7 @@ class NormalOpenField(FieldProfileAnalysisPlusV1Comparison, TestCase):
     ]
 
 
+@pytest.mark.proprietary
 class PerfectOpenField(FieldProfileAnalysisPlusV1Comparison, TestCase):
     """Completely flat field"""
 
@@ -494,6 +500,7 @@ class PerfectOpenField(FieldProfileAnalysisPlusV1Comparison, TestCase):
     ]
 
 
+@pytest.mark.proprietary
 class FFFOpenField(FieldProfileAnalysisPlusV1Comparison, TestCase):
     """FFF field. Note the same field size and penumbra as a flat beam"""
 
@@ -523,6 +530,7 @@ class FFFOpenField(FieldProfileAnalysisPlusV1Comparison, TestCase):
     ]
 
 
+@pytest.mark.proprietary
 class FFFOpenFieldHill(FFFOpenField, TestCase):
     """FFF field using Hill inflection. All metrics are the same except the y symmetry.
     This is because of an extra pixel (due to rounding) being included. The worst symmetry
@@ -555,6 +563,7 @@ class FFFOpenFieldHill(FFFOpenField, TestCase):
     ]
 
 
+@pytest.mark.proprietary
 class FlatSym6X(FieldProfileAnalysisPlusV1Comparison, TestCase):
     file_name = "6x-auto-bulb-2.dcm"
     x_field_size = 99.4
@@ -587,6 +596,7 @@ class FlatSym6X(FieldProfileAnalysisPlusV1Comparison, TestCase):
     ]
 
 
+@pytest.mark.proprietary
 class FlatSym18X(FieldProfileAnalysisPlusV1Comparison, TestCase):
     file_name = "18x-auto-bulb2.dcm"
     x_field_size = 99.4

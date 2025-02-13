@@ -1,4 +1,5 @@
 import math
+import pytest
 from unittest import TestCase, skip
 
 import numpy as np
@@ -12,6 +13,7 @@ from tests_basic.core.test_profile import generate_open_field
 from tests_basic.utils import get_file_from_cloud_test_repo
 
 
+@pytest.mark.proprietary
 class TestAgnewMcGarry(TestCase):
     """Tests from the Agnew & McGarry paper. https://www.sciencedirect.com/science/article/abs/pii/S0167814015006660"""
 
@@ -794,6 +796,7 @@ class TestGammaFromProfile(TestCase):
         # gamma is perfect
         self.assertTrue(np.allclose(gamma, 0))
 
+    @pytest.mark.proprietary
     def test_different_epids(self):
         """This test the same profile but with different EPIDs (i.e. pixel size)"""
         img1200 = generate_open_field(field_size=(100, 100), imager=AS1200Image)

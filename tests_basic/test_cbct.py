@@ -4,6 +4,7 @@ import io
 import json
 import os
 import os.path as osp
+import pytest
 import tempfile
 from unittest import TestCase, skip
 
@@ -35,6 +36,7 @@ from tests_basic.utils import (
 TEST_DIR = "CBCT"
 
 
+@pytest.mark.proprietary
 class TestInstantiation(
     TestCase,
     InitTesterMixin,
@@ -86,6 +88,7 @@ class TestCBCT504ResultsData(TestCase, ResultsDataBase):
     model = CatPhan504
 
 
+@pytest.mark.proprietary
 class TestGeneral(TestCase):
     """Test general things when using cbct module."""
 
@@ -539,6 +542,7 @@ class CatPhanDemo(CatPhanMixin, TestCase):
         cls.cbct.analyze()
 
 
+@pytest.mark.proprietary
 class CatPhan4(CatPhanMixin, TestCase):
     """A Varian CBCT dataset"""
 
@@ -560,6 +564,7 @@ class CatPhan4(CatPhanMixin, TestCase):
     slice_thickness = 2.4
 
 
+@pytest.mark.proprietary
 class Elekta2(CatPhanMixin, TestCase):
     """An Elekta CBCT dataset"""
 
@@ -597,6 +602,7 @@ class Elekta2(CatPhanMixin, TestCase):
             )
 
 
+@pytest.mark.proprietary
 class CatPhan600_2(CatPhanMixin, TestCase):
     """An Elekta CBCT dataset"""
 
@@ -621,6 +627,7 @@ class CatPhan600_2(CatPhanMixin, TestCase):
     lowcon_visible = 2  # changed w/ visibility refactor in v3.0
 
 
+@pytest.mark.proprietary
 class CatPhan600WaterVial(CatPhanMixin, TestCase):
     """Scan with the water vial in place"""
 
@@ -650,6 +657,7 @@ class CatPhan600WaterVial(CatPhanMixin, TestCase):
         self.assertIn("Vial", self.cbct.ctp404.rois)
 
 
+@pytest.mark.proprietary
 class CatPhan600WaterVial2(CatPhanMixin, TestCase):
     """Scan with the water vial in place. This broke the MTF algo previously."""
 
@@ -679,6 +687,7 @@ class CatPhan600WaterVial2(CatPhanMixin, TestCase):
         self.assertIn("Vial", self.cbct.ctp404.rois)
 
 
+@pytest.mark.proprietary
 class CatPhan600DirectDensity(CatPhanMixin, TestCase):
     """Direct density scan."""
 
@@ -706,6 +715,7 @@ class CatPhan600DirectDensity(CatPhanMixin, TestCase):
     lowcon_visible = 6
 
 
+@pytest.mark.proprietary
 @mark.catphan604
 class CatPhan604Test(CatPhanMixin, TestCase):
     catphan = CatPhan604
@@ -728,6 +738,7 @@ class CatPhan604Test(CatPhanMixin, TestCase):
     avg_noise_power = 0.252
 
 
+@pytest.mark.proprietary
 @mark.catphan604
 class CatPhan604TestROIOffsets(CatPhan604Test):
     # random, arbitrary offsets applied for a constancy test against adjustment changes
@@ -770,6 +781,7 @@ class CatPhan604Mixin(CatPhanMixin):
     dir_path = [TEST_DIR, "CatPhan_604"]
 
 
+@pytest.mark.proprietary
 class VarianPelvis(CatPhan504Mixin, TestCase):
     """Test the Varian Pelvis protocol CBCT."""
 
@@ -792,6 +804,7 @@ class VarianPelvis(CatPhan504Mixin, TestCase):
     slice_thickness = 2.5
 
 
+@pytest.mark.proprietary
 class VarianPelvisSpotlight(CatPhan504Mixin, TestCase):
     """Test the Varian Pelvis Spotlight protocol CBCT."""
 
@@ -814,6 +827,7 @@ class VarianPelvisSpotlight(CatPhan504Mixin, TestCase):
     slice_thickness = 2.4
 
 
+@pytest.mark.proprietary
 class VarianLowDoseThorax(CatPhan504Mixin, TestCase):
     """Test the Varian Low-Dose Thorax protocol CBCT."""
 
@@ -836,6 +850,7 @@ class VarianLowDoseThorax(CatPhan504Mixin, TestCase):
     slice_thickness = 2.4
 
 
+@pytest.mark.proprietary
 class VarianStandardHead(CatPhan504Mixin, TestCase):
     """Test the Varian Standard Head protocol CBCT."""
 
@@ -858,6 +873,7 @@ class VarianStandardHead(CatPhan504Mixin, TestCase):
     slice_thickness = 2.4
 
 
+@pytest.mark.proprietary
 class VarianLowDoseHead(CatPhan504Mixin, TestCase):
     """Test the Varian Low-Dose Head protocol CBCT."""
 
@@ -901,6 +917,7 @@ class GEMonthlyCT(CatPhan504Mixin, TestCase):
     lowcon_visible = 4
 
 
+@pytest.mark.proprietary
 class ToshibaMonthlyCT(CatPhan504Mixin, TestCase):
     """Test a monthly CT scan from Toshiba."""
 
@@ -921,6 +938,7 @@ class ToshibaMonthlyCT(CatPhan504Mixin, TestCase):
     slice_thickness = 2.8
 
 
+@pytest.mark.proprietary
 class CBCT1(CatPhan504Mixin, TestCase):
     """A Varian CBCT dataset"""
 
@@ -955,6 +973,7 @@ class CBCT1(CatPhan504Mixin, TestCase):
             )
 
 
+@pytest.mark.proprietary
 class CBCT2(CatPhan504Mixin, PlotlyTestMixin, TestCase):
     """A Varian CBCT dataset"""
 
@@ -1013,6 +1032,7 @@ class CBCT2(CatPhan504Mixin, PlotlyTestMixin, TestCase):
         self.instance = self.cbct
 
 
+@pytest.mark.proprietary
 class CBCT3(CatPhan504Mixin, TestCase):
     """A Varian CBCT dataset"""
 
@@ -1038,6 +1058,7 @@ class CBCT3(CatPhan504Mixin, TestCase):
 # CBCT4 is in the regular test_cbct.py file
 
 
+@pytest.mark.proprietary
 class CBCT5(CatPhan504Mixin, TestCase):
     """A Varian CBCT dataset"""
 
@@ -1059,6 +1080,7 @@ class CBCT5(CatPhan504Mixin, TestCase):
     slice_thickness = 2.35
 
 
+@pytest.mark.proprietary
 class CBCT6(CatPhan504Mixin, TestCase):
     """A Varian CBCT dataset"""
 
@@ -1081,6 +1103,7 @@ class CBCT6(CatPhan504Mixin, TestCase):
     slice_thickness = 2.35
 
 
+@pytest.mark.proprietary
 class CBCT7(CatPhan504Mixin, TestCase):
     """A Varian CBCT dataset"""
 
@@ -1103,6 +1126,7 @@ class CBCT7(CatPhan504Mixin, TestCase):
     slice_thickness = 2.3
 
 
+@pytest.mark.proprietary
 class CBCT8(CatPhan504Mixin, TestCase):
     """A Varian CBCT dataset"""
 
@@ -1126,6 +1150,7 @@ class CBCT8(CatPhan504Mixin, TestCase):
     slice_thickness = 2.3
 
 
+@pytest.mark.proprietary
 class CBCT9(CatPhan504Mixin, TestCase):
     """A Varian CBCT dataset"""
 
@@ -1148,6 +1173,7 @@ class CBCT9(CatPhan504Mixin, TestCase):
     slice_thickness = 2.4
 
 
+@pytest.mark.proprietary
 class CBCT10(CatPhan504Mixin, TestCase):
     """A Varian CBCT dataset"""
 
@@ -1169,6 +1195,7 @@ class CBCT10(CatPhan504Mixin, TestCase):
     slice_thickness = 2.3
 
 
+@pytest.mark.proprietary
 class CBCT11(CatPhan504Mixin, TestCase):
     """A Varian CBCT dataset"""
 
@@ -1192,6 +1219,7 @@ class CBCT11(CatPhan504Mixin, TestCase):
     avg_noise_power = 0.226
 
 
+@pytest.mark.proprietary
 class CBCT12(CatPhan504Mixin, TestCase):
     """A Varian CBCT dataset"""
 
@@ -1213,6 +1241,7 @@ class CBCT12(CatPhan504Mixin, TestCase):
     slice_thickness = 2.35
 
 
+@pytest.mark.proprietary
 class CBCT13(CatPhan504Mixin, TestCase):
     """A Varian CBCT dataset"""
 
@@ -1235,6 +1264,7 @@ class CBCT13(CatPhan504Mixin, TestCase):
     slice_thickness = 2.5
 
 
+@pytest.mark.proprietary
 class CBCT14(CatPhan504Mixin, TestCase):
     """A Varian CBCT dataset"""
 
@@ -1257,6 +1287,7 @@ class CBCT14(CatPhan504Mixin, TestCase):
     slice_thickness = 2.4
 
 
+@pytest.mark.proprietary
 class CBCT15(CatPhan504Mixin, TestCase):
     """A Varian CBCT dataset."""
 
@@ -1276,6 +1307,7 @@ class CBCT15(CatPhan504Mixin, TestCase):
     lowcon_visible = 6
 
 
+@pytest.mark.proprietary
 class CBCT16(CatPhan504Mixin, TestCase):
     """A Varian CBCT dataset"""
 
@@ -1298,6 +1330,7 @@ class CBCT16(CatPhan504Mixin, TestCase):
     slice_thickness = 2.4
 
 
+@pytest.mark.proprietary
 class CBCT17(CatPhan504Mixin, TestCase):
     """A Varian CBCT dataset"""
 
@@ -1319,6 +1352,7 @@ class CBCT17(CatPhan504Mixin, TestCase):
     lowcon_visible = 1
 
 
+@pytest.mark.proprietary
 class Catphan504Ring(CatPhan504Mixin, TestCase):
     """A Varian CBCT dataset with ring artifact"""
 
@@ -1341,6 +1375,7 @@ class Catphan504Ring(CatPhan504Mixin, TestCase):
     slice_thickness = 2.5
 
 
+@pytest.mark.proprietary
 class Katy1(CatPhan504Mixin, TestCase):
     """CBCT with very high HU values."""
 
@@ -1361,6 +1396,7 @@ class Katy1(CatPhan504Mixin, TestCase):
     slice_thickness = 2.4
 
 
+@pytest.mark.proprietary
 class CTWithCloseCouch(CatPhan503Mixin, TestCase):
     """A CT where the couch is super close"""
 
@@ -1382,6 +1418,7 @@ class CTWithCloseCouch(CatPhan503Mixin, TestCase):
     slice_thickness = 1.42
 
 
+@pytest.mark.proprietary
 class AGElekta1(CatPhan503Mixin, TestCase):
     """An Elekta CBCT dataset"""
 
@@ -1403,6 +1440,7 @@ class AGElekta1(CatPhan503Mixin, TestCase):
     slice_thickness = 1.15
 
 
+@pytest.mark.proprietary
 class AGElekta2(CatPhan503Mixin, TestCase):
     """An Elekta CBCT dataset"""
 
@@ -1424,6 +1462,7 @@ class AGElekta2(CatPhan503Mixin, TestCase):
     slice_thickness = 1
 
 
+@pytest.mark.proprietary
 class Elekta4(CatPhan503Mixin, TestCase):
     """An Elekta CBCT dataset"""
 
@@ -1449,6 +1488,7 @@ class Elekta4(CatPhan503Mixin, TestCase):
     slice_thickness = 1
 
 
+@pytest.mark.proprietary
 class Elekta7(CatPhan503Mixin, TestCase):
     """An Elekta CBCT dataset"""
 
@@ -1468,6 +1508,7 @@ class Elekta7(CatPhan503Mixin, TestCase):
     slice_thickness = 1
 
 
+@pytest.mark.proprietary
 class Elekta8(CatPhan503Mixin, TestCase):
     """An Elekta CBCT dataset"""
 
@@ -1493,6 +1534,7 @@ class Elekta8(CatPhan503Mixin, TestCase):
     slice_thickness = 1
 
 
+@pytest.mark.proprietary
 class UNC100kV(CatPhan503Mixin, TestCase):
     file_name = "UNC-100kV_CBCT_Feb2016.zip"
     origin_slice = 131
@@ -1510,6 +1552,7 @@ class UNC100kV(CatPhan503Mixin, TestCase):
     slice_thickness = 1.4
 
 
+@pytest.mark.proprietary
 class UNC120kV(CatPhan503Mixin, TestCase):
     file_name = "UNC-120kV_CBCT_Feb2016.zip"
     origin_slice = 131
@@ -1533,6 +1576,7 @@ class UNC120kV(CatPhan503Mixin, TestCase):
     slice_thickness = 1.5
 
 
+@pytest.mark.proprietary
 class CatPhan600_1(CatPhan600Mixin, TestCase):
     file_name = "zzCAT201601.zip"
     expected_roll = -1.1
@@ -1556,6 +1600,7 @@ class CatPhan600_1(CatPhan600Mixin, TestCase):
         self.assertNotIn("Vial", self.cbct.ctp404.rois)
 
 
+@pytest.mark.proprietary
 class TOHPhilips2mm(CatPhan504Mixin, TestCase):
     file_name = "H TOH - Philips120kV2mm.zip"
     expected_roll = -0.2
@@ -1575,6 +1620,7 @@ class TOHPhilips2mm(CatPhan504Mixin, TestCase):
     lowcon_visible = 6
 
 
+@pytest.mark.proprietary
 class DBCatPhan503Roll(CatPhan503Mixin, TestCase):
     file_name = "DenisBrojan-Catphan503_MFOV_resolution_problem.zip"
     expected_roll = -0.12
@@ -1659,6 +1705,7 @@ class CatPhan604Sen(CatPhan604Mixin, TestCase):
     lowcon_visible = 2
 
 
+@pytest.mark.proprietary
 @mark.catphan604
 class CatPhan604Som(CatPhan604Mixin, TestCase):
     file_name = "SiemensSomCatPhan604.zip"
@@ -1680,6 +1727,7 @@ class CatPhan604Som(CatPhan604Mixin, TestCase):
     slice_thickness = 1
 
 
+@pytest.mark.proprietary
 @mark.catphan604
 class CatPhan604wJig(CatPhan604Mixin, TestCase):
     file_name = "Catphan604-with-jig.zip"
@@ -1702,6 +1750,7 @@ class CatPhan604wJig(CatPhan604Mixin, TestCase):
     avg_noise_power = 0.287
 
 
+@pytest.mark.proprietary
 @mark.catphan604
 class CatPhan604wJig2(CatPhan604Mixin, TestCase):
     file_name = "Catphan604wJig2.zip"
@@ -1725,6 +1774,7 @@ class CatPhan604wJig2(CatPhan604Mixin, TestCase):
     lowcon_visible = 2
 
 
+@pytest.mark.proprietary
 class CatPhan604SiemensDirectDensity(CatPhan604Mixin, TestCase):
     # the direct density algorithm will skew teflon to be ~400 HU. This will cause an HU-found error
     # lowering the HU origin variance will resolve this.
@@ -1752,6 +1802,7 @@ class CatPhan604SiemensDirectDensity(CatPhan604Mixin, TestCase):
     lowcon_visible = 1
 
 
+@pytest.mark.proprietary
 class CatPhan503SliceOverlap(CatPhan503Mixin, TestCase):
     """This dataset is 6mm slices with a 2mm overlap. The slice thickness
     default algorithm gives incorrect values unless the straddle is set explicitly"""
@@ -1774,6 +1825,7 @@ class CatPhan503SliceOverlap(CatPhan503Mixin, TestCase):
     mtf_values = {50: 0.40}
 
 
+@pytest.mark.proprietary
 @mark.catphan604
 class CatPhan604NegativeSliceOverlap(CatPhan604Mixin, TestCase):
     """Has a negative value for slice overlap. Has to do with stack order, but is irrelevant for our needs:
@@ -1800,6 +1852,7 @@ class CatPhan604NegativeSliceOverlap(CatPhan604Mixin, TestCase):
     lowcon_visible = 6
 
 
+@pytest.mark.proprietary
 @mark.catphan604
 class CatPhan604WireLocalization(CatPhan604Mixin, TestCase):
     """Caused detection issues due to the wire not being present in some slices
@@ -1827,6 +1880,7 @@ class CatPhan604WireLocalization(CatPhan604Mixin, TestCase):
     lowcon_visible = 2
 
 
+@pytest.mark.proprietary
 @mark.catphan604
 class CatPhan604CoCr(CatPhan604Mixin, TestCase):
     """Caused detection issues due to the wire not being present in some slices
@@ -1854,6 +1908,7 @@ class CatPhan604CoCr(CatPhan604Mixin, TestCase):
     lowcon_visible = 2
 
 
+@pytest.mark.proprietary
 @mark.directdensity
 @mark.catphan604
 class CatPhan604SliceRefinementLocalization(CatPhan604Mixin, TestCase):
@@ -1882,6 +1937,7 @@ class CatPhan604SliceRefinementLocalization(CatPhan604Mixin, TestCase):
     lowcon_visible = 6
 
 
+@pytest.mark.proprietary
 @mark.directdensity
 @mark.catphan604
 class CatPhan604DD2(CatPhan604Mixin, TestCase):
@@ -1908,6 +1964,7 @@ class CatPhan604DD2(CatPhan604Mixin, TestCase):
     lowcon_visible = 6
 
 
+@pytest.mark.proprietary
 @mark.directdensity
 @mark.catphan604
 class CatPhan604DD3(CatPhan604Mixin, TestCase):
@@ -1934,6 +1991,7 @@ class CatPhan604DD3(CatPhan604Mixin, TestCase):
     lowcon_visible = 6
 
 
+@pytest.mark.proprietary
 class CatPhan504NearEdge(CatPhan504Mixin, TestCase):
     file_name = "phantom_edge.zip"
     expected_roll = 1.4

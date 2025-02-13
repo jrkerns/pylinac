@@ -2,6 +2,7 @@ import io
 import json
 import os
 import os.path as osp
+import pytest
 import statistics
 import tempfile
 from itertools import chain
@@ -37,6 +38,7 @@ from tests_basic.utils import (
 TEST_DIR = "picket_fence"
 
 
+@pytest.mark.proprietary
 class TestInstantiation(
     TestCase, InitTesterMixin, FromURLTesterMixin, FromDemoImageTesterMixin
 ):
@@ -193,6 +195,7 @@ class TestAnalyze(TestCase):
         data = self.pf.results_data()
         self.assertEqual(len(data.warnings), 0)
 
+    @pytest.mark.proprietary
     def test_no_measurements_suggests_inversion(self):
         file_loc = get_file_from_cloud_test_repo(
             [TEST_DIR, "noisy-FFF-wide-gap-pf.dcm"]
@@ -322,6 +325,7 @@ class TestAnalyze(TestCase):
 
 
 class TestBBBasedAnalysis(TestCase):
+    @pytest.mark.proprietary
     def test_two_different_image_sizes(self):
         # See RAM-3258
         # load both images
@@ -370,6 +374,7 @@ class TestBBBasedAnalysis(TestCase):
         self.assertAlmostEqual(results.mlc_positions_by_leaf["17"][0], 102, delta=0.1)
 
 
+@pytest.mark.proprietary
 class LoadingFromMultiple(TestCase):
     def test_loading_with_keywords(self):
         # we pass **kwargs to the PFDicomImage constructor and also the PicketFence constructor
@@ -588,6 +593,7 @@ class PFTestMixin(CloudFileMixin):
             self.assertEqual(self.max_error_leaf, self.pf.max_error_leaf)
 
 
+@pytest.mark.proprietary
 class PFDemo(PFTestMixin, TestCase):
     """Tests specifically for the EPID demo image."""
 
@@ -613,6 +619,7 @@ class PFDemo(PFTestMixin, TestCase):
         self.assertAlmostEqual(pf.percent_passing, 100, delta=1)
 
 
+@pytest.mark.proprietary
 class PerfectSimulation(PFTestMixin, TestCase):
     file_name = "perfect-pf.dcm"
     max_error = 0
@@ -622,6 +629,7 @@ class PerfectSimulation(PFTestMixin, TestCase):
     crop_mm = 0
 
 
+@pytest.mark.proprietary
 class Rotated2Simulation(PFTestMixin, TestCase):
     file_name = "perfect-pf.dcm"
     max_error = 0
@@ -645,6 +653,7 @@ class Rotated2Simulation(PFTestMixin, TestCase):
         )
 
 
+@pytest.mark.proprietary
 class RotatedMinus2Simulation(PFTestMixin, TestCase):
     file_name = "perfect-pf.dcm"
     max_error = 0
@@ -668,6 +677,7 @@ class RotatedMinus2Simulation(PFTestMixin, TestCase):
         )
 
 
+@pytest.mark.proprietary
 class WideGapSimulation(PFTestMixin, TestCase):
     file_name = "noisy-wide-gap-pf.dcm"
     max_error = 0.11
@@ -684,6 +694,7 @@ class WideGapSimulationSeparate(WideGapSimulation):
     percent_passing = 100
 
 
+@pytest.mark.proprietary
 class FFFWideGapSimulation(PFTestMixin, TestCase):
     file_name = "noisy-FFF-wide-gap-pf.dcm"
     max_error = 0.17
@@ -692,6 +703,7 @@ class FFFWideGapSimulation(PFTestMixin, TestCase):
     mean_picket_spacing = 30
 
 
+@pytest.mark.proprietary
 class AS1200(PFTestMixin, TestCase):
     """Tests for the AS1200 image."""
 
@@ -700,6 +712,7 @@ class AS1200(PFTestMixin, TestCase):
     abs_median_error = 0.02
 
 
+@pytest.mark.proprietary
 class ClinacWeirdBackground(PFTestMixin, TestCase):
     file_name = "Clinac-weird-background.dcm"
     max_error = 0.12
@@ -709,6 +722,7 @@ class ClinacWeirdBackground(PFTestMixin, TestCase):
     invert = True
 
 
+@pytest.mark.proprietary
 class ElektaCloseEdges(PFTestMixin, TestCase):
     file_name = "PF,-Elekta,-pickets-near-edges.dcm"
     max_error = 0.23
@@ -718,6 +732,7 @@ class ElektaCloseEdges(PFTestMixin, TestCase):
     mlc_skew = -0.7
 
 
+@pytest.mark.proprietary
 class ElektaCloseEdgesRot90(PFTestMixin, TestCase):
     file_name = "PF,-Elekta,-pickets-near-edges.dcm"
     max_error = 0.23
@@ -734,6 +749,7 @@ class ElektaCloseEdgesRot90(PFTestMixin, TestCase):
         cls.pf.analyze(sag_adjustment=cls.sag_adjustment)
 
 
+@pytest.mark.proprietary
 class MultipleImagesPF(PFTestMixin, TestCase):
     """Test of a multiple image picket fence; e.g. EPID images."""
 
@@ -754,6 +770,7 @@ class MultipleImagesPF(PFTestMixin, TestCase):
         )
 
 
+@pytest.mark.proprietary
 class MultipleImagesPF2(PFTestMixin, TestCase):
     """Test of a multiple image picket fence; e.g. EPID images."""
 
@@ -774,6 +791,7 @@ class MultipleImagesPF2(PFTestMixin, TestCase):
         )
 
 
+@pytest.mark.proprietary
 class AS500(PFTestMixin, TestCase):
     """Tests for the AS500 image."""
 
@@ -782,6 +800,7 @@ class AS500(PFTestMixin, TestCase):
     abs_median_error = 0.04
 
 
+@pytest.mark.proprietary
 class AS5002(PFTestMixin, TestCase, PlotlyTestMixin):
     """Tests for the AS500#2 image."""
 
@@ -817,6 +836,7 @@ class AS5002(PFTestMixin, TestCase, PlotlyTestMixin):
         return cls
 
 
+@pytest.mark.proprietary
 class AS5003(PFTestMixin, TestCase):
     """Tests for the AS500#3 image."""
 
@@ -825,6 +845,7 @@ class AS5003(PFTestMixin, TestCase):
     abs_median_error = 0.03
 
 
+@pytest.mark.proprietary
 class AS5004(PFTestMixin, TestCase):
     """Tests for the AS500#4 image."""
 
@@ -834,6 +855,7 @@ class AS5004(PFTestMixin, TestCase):
     mlc_skew = -0.3
 
 
+@pytest.mark.proprietary
 class AS5005(PFTestMixin, TestCase):
     """Tests for the AS500#4 image."""
 
@@ -842,6 +864,7 @@ class AS5005(PFTestMixin, TestCase):
     abs_median_error = 0.04
 
 
+@pytest.mark.proprietary
 class AS5006(PFTestMixin, TestCase):
     """Tests for the AS500#4 image."""
 
@@ -851,6 +874,7 @@ class AS5006(PFTestMixin, TestCase):
     abs_median_error = 0.06
 
 
+@pytest.mark.proprietary
 class AS5007(PFTestMixin, TestCase):
     """Tests for the AS500#4 image."""
 
@@ -860,6 +884,7 @@ class AS5007(PFTestMixin, TestCase):
     mlc_skew = -0.3
 
 
+@pytest.mark.proprietary
 class AS5008(PFTestMixin, TestCase):
     """Tests for the AS500#4 image."""
 
@@ -869,6 +894,7 @@ class AS5008(PFTestMixin, TestCase):
     mlc_skew = -0.3
 
 
+@pytest.mark.proprietary
 class AS5009(PFTestMixin, TestCase):
     """Tests for the AS500#4 image."""
 
@@ -878,6 +904,7 @@ class AS5009(PFTestMixin, TestCase):
     mlc_skew = -0.3
 
 
+@pytest.mark.proprietary
 class AS50010(PFTestMixin, TestCase):
     """Tests for the AS500#4 image."""
 
@@ -887,6 +914,7 @@ class AS50010(PFTestMixin, TestCase):
     abs_median_error = 0.05
 
 
+@pytest.mark.proprietary
 class AS500error(PFTestMixin, TestCase):
     """Tests for the AS500#2 image."""
 
@@ -900,6 +928,7 @@ class AS500error(PFTestMixin, TestCase):
     mlc_skew = -0.3
 
 
+@pytest.mark.proprietary
 class AS1000(PFTestMixin, TestCase):
     """Tests for the AS1000 image."""
 
@@ -908,6 +937,7 @@ class AS1000(PFTestMixin, TestCase):
     abs_median_error = 0.06
 
 
+@pytest.mark.proprietary
 class AS1000_2(PFTestMixin, TestCase):
     """Tests for the AS1000 image."""
 
@@ -916,6 +946,7 @@ class AS1000_2(PFTestMixin, TestCase):
     abs_median_error = 0.07
 
 
+@pytest.mark.proprietary
 class AS1000_3(PFTestMixin, TestCase):
     """Tests for the AS1000 image."""
 
@@ -924,6 +955,7 @@ class AS1000_3(PFTestMixin, TestCase):
     abs_median_error = 0.05
 
 
+@pytest.mark.proprietary
 class AS1000_4(PFTestMixin, TestCase):
     """Tests for the AS1000 image."""
 
@@ -933,6 +965,7 @@ class AS1000_4(PFTestMixin, TestCase):
     abs_median_error = 0.05
 
 
+@pytest.mark.proprietary
 class AS1000_90(PFTestMixin, TestCase):
     """Tests for the AS1000 image."""
 
@@ -942,6 +975,7 @@ class AS1000_90(PFTestMixin, TestCase):
     abs_median_error = 0.05
 
 
+@pytest.mark.proprietary
 class AS1000HDSmall(PFTestMixin, TestCase):
     """Tests for the AS1000 image."""
 
@@ -951,6 +985,7 @@ class AS1000HDSmall(PFTestMixin, TestCase):
     abs_median_error = 0.05
 
 
+@pytest.mark.proprietary
 class AS1000HDFull(PFTestMixin, TestCase):
     """Tests for the AS1000 image with a smaller pattern (only inner leaves)."""
 
@@ -960,6 +995,7 @@ class AS1000HDFull(PFTestMixin, TestCase):
     abs_median_error = 0.06
 
 
+@pytest.mark.proprietary
 class AS1000HDFullVMAT(PFTestMixin, TestCase):
     """Tests for the AS1000 image with a smaller pattern (only inner leaves)."""
 
@@ -986,6 +1022,7 @@ class AS1000HDFullError(PFTestMixin, TestCase):
         self.assertFalse(pf.passed)
 
 
+@pytest.mark.proprietary
 class AS1200Error(PFTestMixin, TestCase):
     """Tests for the AS1200 image."""
 
@@ -997,6 +1034,7 @@ class AS1200Error(PFTestMixin, TestCase):
     mean_picket_spacing = 20
 
 
+@pytest.mark.proprietary
 class AS1200ExtendedSID(PFTestMixin, TestCase):
     """Tests for the AS1200 image."""
 
@@ -1005,6 +1043,7 @@ class AS1200ExtendedSID(PFTestMixin, TestCase):
     abs_median_error = 0.04
 
 
+@pytest.mark.proprietary
 class AS1200ExtendedSIDVMAT(PFTestMixin, TestCase):
     """Tests for the AS1200 image."""
 
@@ -1035,6 +1074,7 @@ class AS1200ExtendedSIDVMAT(PFTestMixin, TestCase):
 #     pass_num_pickets = True
 
 
+@pytest.mark.proprietary
 class ChicagoNoError(PFTestMixin, TestCase):
     dir_path = [TEST_DIR, "Chicago"]
     file_name = "PF no error.dcm"
@@ -1043,6 +1083,7 @@ class ChicagoNoError(PFTestMixin, TestCase):
     max_error = 0.3
 
 
+@pytest.mark.proprietary
 class ChicagoError(PFTestMixin, TestCase):
     dir_path = [TEST_DIR, "Chicago"]
     file_name = "PF point2mm error.dcm"
@@ -1051,6 +1092,7 @@ class ChicagoError(PFTestMixin, TestCase):
     max_error = 0.3
 
 
+@pytest.mark.proprietary
 class HalcyonProximal(PFTestMixin, TestCase):
     file_name = "Distal - DoRa - Really proximal.dcm"
     mlc = "Halcyon proximal"
@@ -1059,6 +1101,7 @@ class HalcyonProximal(PFTestMixin, TestCase):
     mean_picket_spacing = 50
 
 
+@pytest.mark.proprietary
 class HalcyonDistal(PFTestMixin, TestCase):
     file_name = "Proximal - DoRa - Really distal.dcm"
     mlc = "Halcyon distal"
@@ -1079,6 +1122,7 @@ class CharlestonG0(PFTestMixin, TestCase):
     max_error = 0.1
 
 
+@pytest.mark.proprietary
 class CanberraShortSet(PFTestMixin, TestCase):
     """This is a small picket set (~10-20 leaves). Should be no problem"""
 

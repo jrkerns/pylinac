@@ -2,6 +2,7 @@ import io
 import json
 import os
 import os.path as osp
+import pytest
 import tempfile
 from unittest import TestCase
 
@@ -38,6 +39,7 @@ class TestStarshotLoading(TestCase, FromURLTesterMixin):
     url = "starshot.tif"
     kwargs = url_kwargs = {"dpi": 30, "sid": 1000}
 
+    @pytest.mark.proprietary
     def test_load_from_file_object(self):
         with open(
             get_file_from_cloud_test_repo([TEST_DIR, "Starshot-30-deg-perfect.dcm"]),
@@ -47,6 +49,7 @@ class TestStarshotLoading(TestCase, FromURLTesterMixin):
             star.analyze()
         self.assertIsInstance(star, Starshot)
 
+    @pytest.mark.proprietary
     def test_load_from_stream(self):
         with open(
             get_file_from_cloud_test_repo([TEST_DIR, "Starshot-30-deg-perfect.dcm"]),
@@ -239,6 +242,7 @@ class Demo(StarMixin, TestCase):
         return Starshot.from_demo_image()
 
 
+@pytest.mark.proprietary
 class Multiples(StarMixin, TestCase):
     """Test a starshot composed of multiple individual EPID images."""
 
@@ -262,6 +266,7 @@ class Multiples(StarMixin, TestCase):
         star.analyze()
 
 
+@pytest.mark.proprietary
 class Starshot1(StarMixin, PlotlyTestMixin, TestCase):
     file_name = "Starshot-1.tif"
     wobble_center = Point(508, 683)
@@ -276,6 +281,7 @@ class Starshot1(StarMixin, PlotlyTestMixin, TestCase):
         self.instance = self.star
 
 
+@pytest.mark.proprietary
 class StarshotPerfect30Deg(StarMixin, TestCase):
     file_name = "Starshot-30-deg-perfect.dcm"
     wobble_center = Point(639.5, 639.5)
@@ -283,10 +289,12 @@ class StarshotPerfect30Deg(StarMixin, TestCase):
     num_rad_lines = 6
 
 
+@pytest.mark.proprietary
 class Starshot1FWHM(Starshot1):
     fwhm = False
 
 
+@pytest.mark.proprietary
 class CRStarshot(StarMixin, TestCase):
     file_name = "CR-Starshot.dcm"
     wobble_center = Point(1030.5, 1253.6)
@@ -362,6 +370,7 @@ class GeneralTests(Demo, TestCase):
         self.assertEqual(len(data.warnings), 0)
 
 
+@pytest.mark.proprietary
 class Starshot2(StarMixin, TestCase):
     file_name = "Starshot#2.tif"
     wobble_center = Point(566, 590)
@@ -370,6 +379,7 @@ class Starshot2(StarMixin, TestCase):
     # outside: 0.18-0.19
 
 
+@pytest.mark.proprietary
 class Starshot3(StarMixin, TestCase):
     file_name = "Starshot#3.tif"
     wobble_center = Point(466, 595)
@@ -378,6 +388,7 @@ class Starshot3(StarMixin, TestCase):
     # outside 0.33
 
 
+@pytest.mark.proprietary
 class Starshot4(StarMixin, TestCase):
     file_name = "Starshot#4.tif"
     wobble_center = Point(446, 565)
@@ -386,6 +397,7 @@ class Starshot4(StarMixin, TestCase):
     # outside 0.39
 
 
+@pytest.mark.proprietary
 class Starshot5(StarMixin, TestCase):
     file_name = "Starshot#5.tif"
     wobble_center = Point(557, 580)
@@ -396,6 +408,7 @@ class Starshot5(StarMixin, TestCase):
     # outside: 0.14
 
 
+@pytest.mark.proprietary
 class Starshot6(StarMixin, TestCase):
     # for the radii comparison, the wobble at 0.25 is very high due to a bad spoke
     # detection. Setting FWHM to false will fix this. We thus clip the lower radius
@@ -407,6 +420,7 @@ class Starshot6(StarMixin, TestCase):
     radii_range = np.linspace(0.9, 0.3, 8)
 
 
+@pytest.mark.proprietary
 class Starshot7(StarMixin, TestCase):
     file_name = "Starshot#7.tif"
     wobble_center = Point(469, 646)
@@ -415,6 +429,7 @@ class Starshot7(StarMixin, TestCase):
     wobble_tolerance = 0.2
 
 
+@pytest.mark.proprietary
 class Starshot8(StarMixin, TestCase):
     file_name = "Starshot#8.tiff"
     wobble_center = Point(686, 669)
@@ -422,6 +437,7 @@ class Starshot8(StarMixin, TestCase):
     num_rad_lines = 5
 
 
+@pytest.mark.proprietary
 class Starshot9(StarMixin, TestCase):
     file_name = "Starshot#9.tiff"
     wobble_center = Point(714, 611)
@@ -429,6 +445,7 @@ class Starshot9(StarMixin, TestCase):
     num_rad_lines = 5
 
 
+@pytest.mark.proprietary
 class Starshot10(StarMixin, TestCase):
     file_name = "Starshot#10.tiff"
     wobble_center = Point(725, 802)
@@ -436,6 +453,7 @@ class Starshot10(StarMixin, TestCase):
     num_rad_lines = 5
 
 
+@pytest.mark.proprietary
 class Starshot11(StarMixin, TestCase):
     file_name = "Starshot#11.tiff"
     wobble_center = Point(760, 650)
@@ -443,6 +461,7 @@ class Starshot11(StarMixin, TestCase):
     num_rad_lines = 4
 
 
+@pytest.mark.proprietary
 class Starshot12(StarMixin, TestCase):
     file_name = "Starshot#12.tiff"
     wobble_center = Point(315, 292)
@@ -450,6 +469,7 @@ class Starshot12(StarMixin, TestCase):
     num_rad_lines = 4
 
 
+@pytest.mark.proprietary
 class Starshot13(StarMixin, TestCase):
     file_name = "Starshot#13.tiff"
     wobble_center = Point(376, 303)
@@ -457,6 +477,7 @@ class Starshot13(StarMixin, TestCase):
     num_rad_lines = 4
 
 
+@pytest.mark.proprietary
 class Starshot14(StarMixin, TestCase):
     file_name = "Starshot#14.tiff"
     wobble_center = Point(334, 282)
@@ -464,6 +485,7 @@ class Starshot14(StarMixin, TestCase):
     num_rad_lines = 4
 
 
+@pytest.mark.proprietary
 class Starshot15(StarMixin, TestCase):
     file_name = "Starshot#15.tiff"
     wobble_center = Point(346, 309)
@@ -471,6 +493,7 @@ class Starshot15(StarMixin, TestCase):
     num_rad_lines = 4
 
 
+@pytest.mark.proprietary
 class Starshot16(StarMixin, TestCase):
     file_name = "Starshot#16.tiff"
     wobble_center = Point(1444, 1452)
@@ -478,6 +501,7 @@ class Starshot16(StarMixin, TestCase):
     num_rad_lines = 6
 
 
+@pytest.mark.proprietary
 class Starshot17(StarMixin, TestCase):
     file_name = "Starshot#17.tiff"
     wobble_center = Point(1475, 1361)
@@ -485,6 +509,7 @@ class Starshot17(StarMixin, TestCase):
     num_rad_lines = 6
 
 
+@pytest.mark.proprietary
 class Starshot18(StarMixin, TestCase):
     file_name = "Starshot#18.tiff"
     wobble_center = Point(1516, 1214)
@@ -492,6 +517,7 @@ class Starshot18(StarMixin, TestCase):
     num_rad_lines = 6
 
 
+@pytest.mark.proprietary
 class Starshot19(StarMixin, TestCase):
     file_name = "Starshot#19.tiff"
     wobble_center = Point(1475, 1276)
@@ -499,6 +525,7 @@ class Starshot19(StarMixin, TestCase):
     num_rad_lines = 6
 
 
+@pytest.mark.proprietary
 class Starshot20(StarMixin, TestCase):
     file_name = "Starshot#20.tiff"
     wobble_center = Point(347, 328)
@@ -506,6 +533,7 @@ class Starshot20(StarMixin, TestCase):
     num_rad_lines = 4
 
 
+@pytest.mark.proprietary
 class Starshot21(StarMixin, TestCase):
     file_name = "Starshot#21.tiff"
     wobble_center = Point(354, 294)
@@ -515,6 +543,7 @@ class Starshot21(StarMixin, TestCase):
     passes = False
 
 
+@pytest.mark.proprietary
 class Starshot22(StarMixin, TestCase):
     file_name = "Starshot#22.tiff"
     wobble_center = Point(1305, 1513)
@@ -523,6 +552,7 @@ class Starshot22(StarMixin, TestCase):
     # outside 0.93mm
 
 
+@pytest.mark.proprietary
 class Starshot23(StarMixin, TestCase):
     file_name = "Starshot#23.tiff"
     wobble_center = Point(1297, 1699)
@@ -530,6 +560,7 @@ class Starshot23(StarMixin, TestCase):
     num_rad_lines = 9
 
 
+@pytest.mark.proprietary
 class Starshot24(StarMixin, TestCase):
     file_name = "Starshot#24.tiff"
     wobble_center = Point(1370, 1454)
@@ -537,6 +568,7 @@ class Starshot24(StarMixin, TestCase):
     num_rad_lines = 4
 
 
+@pytest.mark.proprietary
 class Starshot25(StarMixin, TestCase):
     file_name = "Starshot#25.tiff"
     wobble_center = Point(286, 279)
@@ -544,6 +576,7 @@ class Starshot25(StarMixin, TestCase):
     num_rad_lines = 4
 
 
+@pytest.mark.proprietary
 class Starshot26(StarMixin, TestCase):
     file_name = "Starshot#26.tiff"
     wobble_center = Point(1511, 1452)
@@ -552,6 +585,7 @@ class Starshot26(StarMixin, TestCase):
     wobble_tolerance = 0.15
 
 
+@pytest.mark.proprietary
 class Starshot27(StarMixin, TestCase):
     file_name = "Starshot#27.tiff"
     wobble_center = Point(1105, 1306)
@@ -559,6 +593,7 @@ class Starshot27(StarMixin, TestCase):
     num_rad_lines = 6
 
 
+@pytest.mark.proprietary
 class ChicagoSet(StarMixin, TestCase):
     file_name = "Chicago"
     wobble_center = Point(638, 639.3)
@@ -572,6 +607,7 @@ class ChicagoSet(StarMixin, TestCase):
         return get_folder_from_cloud_repo([*cls.dir_path, cls.file_name])
 
 
+@pytest.mark.proprietary
 class MarkerDots(StarMixin, TestCase):
     file_name = "marker_dots.tif"
     wobble_center = Point(566, 559)
@@ -581,6 +617,7 @@ class MarkerDots(StarMixin, TestCase):
     passes = False
 
 
+@pytest.mark.proprietary
 class SyntheticLowValues(StarMixin, TestCase):
     file_name = "synthetic-low-values.zip"
     is_zip = True

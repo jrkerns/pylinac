@@ -1,5 +1,6 @@
 import io
 import os
+import pytest
 from pathlib import Path
 from unittest import TestCase
 
@@ -19,6 +20,8 @@ from tests_basic.utils import (
     get_file_from_cloud_test_repo,
     save_file,
 )
+
+pytestmark = pytest.mark.proprietary
 
 TEST_DIR_CT = ["ACR", "CT"]
 TEST_DIR_MR = ["ACR", "MRI"]

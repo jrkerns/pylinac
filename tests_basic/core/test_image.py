@@ -2,6 +2,16 @@ import copy
 import io
 import json
 import os
+from tests_basic.conftest import (
+    as500_path,
+    bad_tif_path,
+    dcm_path,
+    png_path,
+    tif_path,
+    xim_dcm_path,
+    xim_path,
+)
+import pytest
 import shutil
 import tempfile
 import unittest
@@ -43,13 +53,9 @@ from tests_basic.utils import (
     save_file,
 )
 
-bad_tif_path = get_file_from_cloud_test_repo(["Winston-Lutz", "AQA_A_03082023.tif"])
-tif_path = get_file_from_cloud_test_repo(["Starshot", "Starshot-1.tif"])
-png_path = get_file_from_cloud_test_repo(["Starshot", "Starshot-1.png"])
-dcm_path = get_file_from_cloud_test_repo(["VMAT", "DRGSdmlc-105-example.dcm"])
-as500_path = get_file_from_cloud_test_repo(["picket_fence", "AS500#5.dcm"])
-xim_path = get_file_from_cloud_test_repo(["ximdcmtest.xim"])
-xim_dcm_path = get_file_from_cloud_test_repo(["ximdcmtest.dcm"])
+pytestmark = pytest.mark.proprietary
+
+
 dcm_url = "https://storage.googleapis.com/pylinac_demo_files/EPID-PF-LR.dcm"
 
 
@@ -793,7 +799,9 @@ class TestArrayImage(TestCase):
 
 
 class TestDicomStack(TestCase):
-    stack_location = get_file_from_cloud_test_repo(["CBCT", "CBCT_4.zip"])
+    @classmethod
+    def setUpClass(cls):
+        cls.stack_location = get_file_from_cloud_test_repo(["CBCT", "CBCT_4.zip"])
 
     def test_loading(self):
         # test normal construction

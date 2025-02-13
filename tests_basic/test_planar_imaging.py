@@ -1,6 +1,7 @@
 import io
 import json
 import os.path as osp
+import pytest
 from typing import Callable
 from unittest import TestCase, skip
 
@@ -63,6 +64,7 @@ class TestPercentIntegralUniformity(TestCase):
 
 
 class GeneralTests(TestCase):
+    @pytest.mark.proprietary
     def test_from_file_object(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "Leeds", "Leeds_ccw.dcm"])
         with open(path, "rb") as f:
@@ -70,6 +72,7 @@ class GeneralTests(TestCase):
             phan.analyze()
         self.assertIsInstance(phan, LeedsTOR)
 
+    @pytest.mark.proprietary
     def test_from_stream(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "Leeds", "Leeds_ccw.dcm"])
         with open(path, "rb") as f:
@@ -177,6 +180,7 @@ class GeneralTests(TestCase):
         with self.assertRaises(ValueError):
             phan.save_analyzed_image()  # no filename and no streams is an error
 
+    @pytest.mark.proprietary
     def test_passing_image_kwargs(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "Leeds", "Leeds_ccw.dcm"])
 
@@ -332,12 +336,14 @@ class LeedsDemo(LeedsMixin, TestCase):
         LeedsTOR.run_demo()  # shouldn't raise
 
 
+@pytest.mark.proprietary
 class LeedsCCW(LeedsMixin, TestCase):
     mtf_50 = 1.5
     file_name = "Leeds_ccw.dcm"
     piu = 93.5
 
 
+@pytest.mark.proprietary
 class Leeds45Deg(LeedsMixin, TestCase):
     mtf_50 = 1.9
     ssd = "auto"
@@ -345,6 +351,7 @@ class Leeds45Deg(LeedsMixin, TestCase):
     piu = 95.5
 
 
+@pytest.mark.proprietary
 class LeedsDirtyEdges(LeedsMixin, TestCase):
     mtf_50 = 1.53
     ssd = "auto"
@@ -352,6 +359,7 @@ class LeedsDirtyEdges(LeedsMixin, TestCase):
     piu = 96.8
 
 
+@pytest.mark.proprietary
 class LeedsOffsetHighRes(LeedsMixin, TestCase):
     mtf_50 = 1.85
     ssd = "auto"
@@ -359,6 +367,7 @@ class LeedsOffsetHighRes(LeedsMixin, TestCase):
     piu = 89.3
 
 
+@pytest.mark.proprietary
 class LeedsBlue(LeedsMixin, TestCase):
     klass = LeedsTORBlue
     mtf_50 = 1.5
@@ -368,6 +377,7 @@ class LeedsBlue(LeedsMixin, TestCase):
     fig_data = {0: {"title": "Leeds (Blue) Phantom Analysis", "num_traces": 36}}
 
 
+@pytest.mark.proprietary
 class LeedsBlueRotated(LeedsMixin, TestCase):
     klass = LeedsTORBlue
     mtf_50 = 1.5
@@ -415,6 +425,7 @@ class SIQC3Demo(PlanarPhantomMixin, TestCase):
         StandardImagingQC3.run_demo()  # shouldn't raise
 
 
+@pytest.mark.proprietary
 class SIQC3_1(PlanarPhantomMixin, TestCase):
     klass = StandardImagingQC3
     file_name = "QC3-2.5MV.dcm"
@@ -423,6 +434,7 @@ class SIQC3_1(PlanarPhantomMixin, TestCase):
     piu = 91.8
 
 
+@pytest.mark.proprietary
 class SIQC3_2(PlanarPhantomMixin, TestCase):
     klass = StandardImagingQC3
     file_name = "QC3-2.5MV-2.dcm"
@@ -625,12 +637,14 @@ class ElektaDemo(ElektaLasVegasMixin, TestCase):
         ElektaLasVegas.run_demo()  # shouldn't raise
 
 
+@pytest.mark.proprietary
 class Elekta2MU(ElektaLasVegasMixin, TestCase):
     file_name = "LasVegas_2MU.dcm"
     rois_seen = 12
     piu = 99.11
 
 
+@pytest.mark.proprietary
 class Elekta10MU(ElektaLasVegasMixin, TestCase):
     file_name = "LasVegas_10MU.dcm"
     rois_seen = 17
@@ -655,6 +669,7 @@ class DoselabkVDemo(PlanarPhantomMixin, TestCase):
         DoselabMC2kV.run_demo()
 
 
+@pytest.mark.proprietary
 class DoselabkV70kVp(PlanarPhantomMixin, TestCase):
     klass = DoselabMC2kV
     dir_path = ["planar_imaging", "Doselab MC2"]
@@ -685,6 +700,7 @@ class SNCMVDemo(PlanarPhantomMixin, TestCase):
         SNCMV.run_demo()
 
 
+@pytest.mark.proprietary
 class SNCMV12510_6MV1(PlanarPhantomMixin, TestCase):
     klass = SNCMV12510
     mtf_50 = 0.91
@@ -698,6 +714,7 @@ class SNCMV12510_6MV1(PlanarPhantomMixin, TestCase):
         SNCMV12510.run_demo()
 
 
+@pytest.mark.proprietary
 class SNCMV12510_6MV2(PlanarPhantomMixin, TestCase):
     klass = SNCMV12510
     mtf_50 = 0.85
@@ -708,6 +725,7 @@ class SNCMV12510_6MV2(PlanarPhantomMixin, TestCase):
     piu = 96.4
 
 
+@pytest.mark.proprietary
 class SNCMV12510_Jig(PlanarPhantomMixin, TestCase):
     """Phantom where the jig is touching and gets in the way of analysis"""
 
@@ -720,6 +738,7 @@ class SNCMV12510_Jig(PlanarPhantomMixin, TestCase):
     piu = 96.7
 
 
+@pytest.mark.proprietary
 class IBAPrimusDemo(PlanarPhantomMixin, TestCase):
     klass = IBAPrimusA
     dir_path = ["planar_imaging", "PrimusL"]
@@ -734,6 +753,7 @@ class IBAPrimusDemo(PlanarPhantomMixin, TestCase):
         IBAPrimusA.run_demo()
 
 
+@pytest.mark.proprietary
 class IBAPrimusBasic(IBAPrimusDemo):
     # same as demo but no test_demo method; this is inherited so no need to call test_demo a lot
 
@@ -741,6 +761,7 @@ class IBAPrimusBasic(IBAPrimusDemo):
         pass
 
 
+@pytest.mark.proprietary
 class IBAPrimusDemo0(IBAPrimusBasic):
     """Rotate image to 0 (pointing towards gun) to ensure it still analyzes and results are similar"""
 
@@ -749,6 +770,7 @@ class IBAPrimusDemo0(IBAPrimusBasic):
         instance.image.rot90()
 
 
+@pytest.mark.proprietary
 class IBAPrimusShifted(IBAPrimusBasic):
     """Shift the image slightly to ensure we can handle slightly offset phantom placements"""
 
@@ -757,6 +779,7 @@ class IBAPrimusShifted(IBAPrimusBasic):
         instance.image.array = np.roll(instance.image.array, shift=50)
 
 
+@pytest.mark.proprietary
 class IBAPrimusDemoMinus90(IBAPrimusBasic):
     """Rotate image to -90 (pointing left in BEV) to ensure it still analyzes and results are similar"""
 
@@ -765,6 +788,7 @@ class IBAPrimusDemoMinus90(IBAPrimusBasic):
         instance.image.rot90(2)
 
 
+@pytest.mark.proprietary
 class IBAPrimusDemoBadInversion(IBAPrimusBasic):
     """Force a bad inversion and ensure recovery"""
 
@@ -773,6 +797,7 @@ class IBAPrimusDemoBadInversion(IBAPrimusBasic):
         instance.image.invert()
 
 
+@pytest.mark.proprietary
 class IBAPrimusFarSSD(PlanarPhantomMixin, TestCase):
     klass = IBAPrimusA
     dir_path = ["planar_imaging", "PrimusL"]
@@ -803,6 +828,7 @@ class PTWEPIDDemo(PlanarPhantomMixin, TestCase):
         PTWEPIDQC.run_demo()
 
 
+@pytest.mark.proprietary
 class PTWEPIDQC1(PlanarPhantomMixin, TestCase):
     klass = PTWEPIDQC
     mtf_50 = 0.79
@@ -814,6 +840,7 @@ class PTWEPIDQC1(PlanarPhantomMixin, TestCase):
     piu = 94.7
 
 
+@pytest.mark.proprietary
 class PTWEPID15MV(PlanarPhantomMixin, TestCase):
     klass = PTWEPIDQC
     mtf_50 = 0.5
@@ -825,6 +852,7 @@ class PTWEPID15MV(PlanarPhantomMixin, TestCase):
     piu = 96.3
 
 
+@pytest.mark.proprietary
 class PTWEPID6xHigh(PlanarPhantomMixin, TestCase):
     klass = PTWEPIDQC
     mtf_50 = 0.79
@@ -836,6 +864,7 @@ class PTWEPID6xHigh(PlanarPhantomMixin, TestCase):
     piu = 94.3
 
 
+@pytest.mark.proprietary
 class PTWEPID6xHighQuality(PlanarPhantomMixin, TestCase):
     klass = PTWEPIDQC
     mtf_50 = 0.79
@@ -847,6 +876,7 @@ class PTWEPID6xHighQuality(PlanarPhantomMixin, TestCase):
     piu = 94.6
 
 
+@pytest.mark.proprietary
 class PTWEPIDTB3(PlanarPhantomMixin, TestCase):
     klass = PTWEPIDQC
     mtf_50 = 0.79
@@ -858,6 +888,7 @@ class PTWEPIDTB3(PlanarPhantomMixin, TestCase):
     piu = 92.3
 
 
+@pytest.mark.proprietary
 class PTWEPIDTB4(PlanarPhantomMixin, TestCase):
     klass = PTWEPIDQC
     mtf_50 = 0.79
@@ -933,6 +964,7 @@ class FC2Demo(FC2Mixin, TestCase):
         StandardImagingFC2.run_demo()
 
 
+@pytest.mark.proprietary
 class FC210x10_10FFF(FC2Mixin, TestCase):
     file_name = "FC-2-10x10-10fff.dcm"
     field_size_y_mm = 98.7
@@ -943,6 +975,7 @@ class FC210x10_10FFF(FC2Mixin, TestCase):
     field_bb_offset_x_mm = -0.3
 
 
+@pytest.mark.proprietary
 class FC210x10_10X(FC2Mixin, TestCase):
     file_name = "FC-2-10x10-10x.dcm"
     field_size_y_mm = 99.3
@@ -953,6 +986,7 @@ class FC210x10_10X(FC2Mixin, TestCase):
     field_bb_offset_x_mm = -0.1
 
 
+@pytest.mark.proprietary
 class FC210x10_15X(FC2Mixin, TestCase):
     file_name = "FC-2-10x10-15x.dcm"
     field_size_y_mm = 99.3
@@ -963,6 +997,7 @@ class FC210x10_15X(FC2Mixin, TestCase):
     field_bb_offset_x_mm = -0.2
 
 
+@pytest.mark.proprietary
 class FC215x15_10X(FC2Mixin, TestCase):
     file_name = "FC-2-15x15-10X.dcm"
     field_size_x_mm = 149.2
@@ -973,6 +1008,7 @@ class FC215x15_10X(FC2Mixin, TestCase):
     field_bb_offset_x_mm = 0
 
 
+@pytest.mark.proprietary
 class FC215x15_10FFF(FC2Mixin, TestCase):
     file_name = "FC-2-15x15-10XFFF.dcm"
     fwxm = 30
@@ -984,6 +1020,7 @@ class FC215x15_10FFF(FC2Mixin, TestCase):
     field_bb_offset_x_mm = -0.3
 
 
+@pytest.mark.proprietary
 class FC2Yoda(FC2Mixin, TestCase):
     file_name = "FC-2-Yoda.dcm"
     field_size_y_mm = 148.2
@@ -994,6 +1031,7 @@ class FC2Yoda(FC2Mixin, TestCase):
     field_bb_offset_x_mm = 0.5
 
 
+@pytest.mark.proprietary
 class FC2Perfect(FC2Mixin, TestCase):
     file_name = "fc2-perfect.dcm"
     field_size_y_mm = 120.3
@@ -1004,6 +1042,7 @@ class FC2Perfect(FC2Mixin, TestCase):
     field_bb_offset_x_mm = 0
 
 
+@pytest.mark.proprietary
 class FC2FieldDown1mm(FC2Mixin, TestCase):
     file_name = "fc2-down1mm.dcm"
     field_size_y_mm = 120.3
@@ -1014,6 +1053,7 @@ class FC2FieldDown1mm(FC2Mixin, TestCase):
     field_bb_offset_x_mm = 0
 
 
+@pytest.mark.proprietary
 class FC2BBDownRight1mm(FC2Mixin, TestCase):
     file_name = "fc2-bbdownright1mm.dcm"
     field_size_y_mm = 120.3
@@ -1042,6 +1082,7 @@ class DoselabRLfDemo(DoselabRLfMixin, TestCase):
         DoselabRLf.run_demo()
 
 
+@pytest.mark.proprietary
 class DoselabRLf10x10(DoselabRLfMixin, TestCase):
     file_name = "FS 10x10.dcm"
     field_size_y_mm = 98.2
@@ -1052,6 +1093,7 @@ class DoselabRLf10x10(DoselabRLfMixin, TestCase):
     field_bb_offset_x_mm = 0.2
 
 
+@pytest.mark.proprietary
 class DoselabRLfKB(DoselabRLfMixin, TestCase):
     """A failed dataset from KB."""
 
@@ -1064,6 +1106,7 @@ class DoselabRLfKB(DoselabRLfMixin, TestCase):
     field_bb_offset_x_mm = -0.3
 
 
+@pytest.mark.proprietary
 class DoselabRLfKB2(DoselabRLfMixin, TestCase):
     """A failed dataset from KB."""
 
@@ -1110,6 +1153,7 @@ class IMTLRadDemo(IMTLRadMixin, TestCase):
         IMTLRad.run_demo()
 
 
+@pytest.mark.proprietary
 class IMTLRad21x21(IMTLRadMixin, TestCase):
     file_name = "RTIMAGE_11_1.dcm"
     field_size_y_mm = 210.8
@@ -1120,6 +1164,7 @@ class IMTLRad21x21(IMTLRadMixin, TestCase):
     field_bb_offset_x_mm = -0.6
 
 
+@pytest.mark.proprietary
 class IMTLRad21x21_2(IMTLRadMixin, TestCase):
     file_name = "RTIMAGE_11_2.dcm"
     field_size_y_mm = 210.9
@@ -1130,6 +1175,7 @@ class IMTLRad21x21_2(IMTLRadMixin, TestCase):
     field_bb_offset_x_mm = -0.7
 
 
+@pytest.mark.proprietary
 class IMTLRadPerfect(IMTLRadMixin, TestCase):
     file_name = "perfect_imt.dcm"
     field_size_y_mm = 150
@@ -1140,6 +1186,7 @@ class IMTLRadPerfect(IMTLRadMixin, TestCase):
     field_bb_offset_x_mm = 0
 
 
+@pytest.mark.proprietary
 class IMTLRadOffset(IMTLRadMixin, TestCase):
     file_name = "offset_imt.dcm"
     field_size_y_mm = 150
@@ -1168,6 +1215,7 @@ class SNCFSQADemo(SNCFSQAMixin, TestCase):
         SNCFSQA.run_demo()
 
 
+@pytest.mark.proprietary
 class SNCFSQA10x10(SNCFSQAMixin, TestCase):
     file_name = "6x_FSQA_10x10.dcm"
     field_size_y_mm = 99.6

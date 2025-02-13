@@ -2,6 +2,7 @@
 
 import os
 import os.path as osp
+import pytest
 import unittest
 
 from pylinac import Interpolation
@@ -14,6 +15,9 @@ from pylinac.core.io import (
 )
 from pylinac.core.profile import SingleProfile
 from tests_basic.utils import get_file_from_cloud_test_repo
+
+
+pytestmark = pytest.mark.proprietary
 
 
 class TestIO(unittest.TestCase):

@@ -2,11 +2,13 @@ import csv
 import io
 import os
 import os.path as osp
+import pytest
 import shutil
 import tempfile
 from pathlib import Path
 from unittest import TestCase
 
+from tests_basic.conftest import anonymous_dest_folder, anonymous_source_folder
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -29,45 +31,39 @@ from tests_basic.utils import (
     save_file,
 )
 
-TEST_DIR = "mlc_logs"
-ANONYMOUS_SOURCE_FOLDER = get_folder_from_cloud_repo(["mlc_logs", "_anonbase"])
-ANONYMOUS_DEST_FOLDER = get_folder_from_cloud_repo(["mlc_logs", "anonymous"])
-get_folder_from_cloud_repo(["mlc_logs", "dlogs", "Bay Area iX"])
-get_folder_from_cloud_repo(["mlc_logs", "dlogs", "Katy iX"])
-get_folder_from_cloud_repo(["mlc_logs", "tlogs", "Chicago"])
+
+pytestmark = pytest.mark.proprietary
 
 
 class TestAnonymizeFunction(TestCase):
     """Test the anonymization method."""
 
     def setUp(self):
-        anon_source = get_folder_from_cloud_repo(["mlc_logs", "_anonbase"])
-        anon_dest = get_folder_from_cloud_repo(["mlc_logs", "anonymous"])
         # move over files from other directory, since the filenames get overridden
-        for file in os.listdir(anon_source):
-            basefile = osp.join(anon_source, file)
-            destfile = osp.join(anon_dest, file)
+        for file in os.listdir(anonymous_source_folder):
+            basefile = osp.join(anonymous_source_folder, file)
+            destfile = osp.join(anonymous_dest_folder, file)
             if not osp.isfile(destfile):
-                shutil.copy(basefile, anon_dest)
+                shutil.copy(basefile, anonymous_dest_folder)
 
     @classmethod
     def tearDownClass(cls):
         # remove files from anonymous folder
-        files = os.listdir(ANONYMOUS_DEST_FOLDER)
+        files = os.listdir(anonymous_dest_folder)
         files.remove("dummy.txt")
         for file in files:
-            file = osp.join(ANONYMOUS_DEST_FOLDER, file)
+            file = osp.join(anonymous_dest_folder, file)
             os.remove(file)
 
     def test_anonymize_function(self):
         # shouldn't raise
-        anonymize(osp.join(ANONYMOUS_DEST_FOLDER, "A1234_patientid.dlg"))
-        anonymize(ANONYMOUS_DEST_FOLDER, inplace=False)
-        anonymize(ANONYMOUS_DEST_FOLDER, recursive=False)
+        anonymize(osp.join(anonymous_dest_folder, "A1234_patientid.dlg"))
+        anonymize(anonymous_dest_folder, inplace=False)
+        anonymize(anonymous_dest_folder, recursive=False)
 
     def test_dynalog(self):
         # test making an anonymized copy
-        dlog_file = osp.join(ANONYMOUS_DEST_FOLDER, "A1234_patientid.dlg")
+        dlog_file = osp.join(anonymous_dest_folder, "A1234_patientid.dlg")
         dlog = Dynalog(dlog_file)
         dlog.anonymize()
 
@@ -78,14 +74,14 @@ class TestAnonymizeFunction(TestCase):
 
     def test_destination(self):
         tlog_file = osp.join(
-            ANONYMOUS_DEST_FOLDER, "PatientID_4DC Treatment_JST90_TX_20140712094246.bin"
+            anonymous_dest_folder, "PatientID_4DC Treatment_JST90_TX_20140712094246.bin"
         )
         tlog = TrajectoryLog(tlog_file)
-        tlog.anonymize(destination=ANONYMOUS_DEST_FOLDER)  # shouldn't raise
+        tlog.anonymize(destination=anonymous_dest_folder)  # shouldn't raise
 
     def test_bad_name(self):
         """Test that a log with a bad name (no underscore) fails gracefully."""
-        dlog_file = osp.join(ANONYMOUS_DEST_FOLDER, "A1234patientid.dlg")
+        dlog_file = osp.join(anonymous_dest_folder, "A1234patientid.dlg")
         dlog = Dynalog(dlog_file)
         with self.assertRaises(NameError):
             dlog.anonymize()
@@ -265,26 +261,26 @@ class LogBase:
     def setUp(self):
         self.log = self.klass.from_demo()
         # move over files from other directory, since the filenames get overridden
-        for file in os.listdir(ANONYMOUS_SOURCE_FOLDER):
-            basefile = osp.join(ANONYMOUS_SOURCE_FOLDER, file)
-            destfile = osp.join(ANONYMOUS_DEST_FOLDER, file)
+        for file in os.listdir(anonymous_source_folder):
+            basefile = osp.join(anonymous_source_folder, file)
+            destfile = osp.join(anonymous_dest_folder, file)
             if not osp.isfile(destfile):
-                shutil.copy(basefile, ANONYMOUS_DEST_FOLDER)
+                shutil.copy(basefile, anonymous_dest_folder)
 
     @classmethod
     def tearDownClass(cls):
         # remove files from anonymous folder
-        files = os.listdir(ANONYMOUS_DEST_FOLDER)
+        files = os.listdir(anonymous_dest_folder)
         files.remove("dummy.txt")
         for file in files:
-            file = osp.join(ANONYMOUS_DEST_FOLDER, file)
+            file = osp.join(anonymous_dest_folder, file)
             os.remove(file)
 
     def test_run_demo(self):
         self.log.run_demo()
 
     def test_anonymize(self):
-        log_file = osp.join(ANONYMOUS_DEST_FOLDER, self.anon_file)
+        log_file = osp.join(anonymous_dest_folder, self.anon_file)
         log = self.klass(log_file)
 
         files = log.anonymize(inplace=True, suffix="inplace")

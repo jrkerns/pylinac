@@ -1,8 +1,10 @@
 import tempfile
 from unittest import TestCase
 
+from tests_basic.conftest import halcyon_plan_file, rt_plan_file
 import numpy as np
 import pydicom
+import pytest
 from matplotlib.figure import Figure
 from parameterized import parameterized
 
@@ -24,20 +26,17 @@ from pylinac.plan_generator.mlc import (
 )
 from tests_basic.utils import get_file_from_cloud_test_repo
 
-RT_PLAN_FILE = get_file_from_cloud_test_repo(["plan_generator", "Murray-plan.dcm"])
-RT_PLAN_DS = pydicom.dcmread(RT_PLAN_FILE)
-HALCYON_PLAN_FILE = get_file_from_cloud_test_repo(
-    ["plan_generator", "Halcyon Prox.dcm"]
-)
 
-
+@pytest.mark.proprietary
+@pytest.mark.usefixtures('rt_plan_file')
 class TestPlanGenerator(TestCase):
     def test_from_rt_plan_file(self):
         # shouldn't raise; happy path
         PlanGenerator.from_rt_plan_file(
-            RT_PLAN_FILE, plan_label="label", plan_name="my name"
+            rt_plan_file, plan_label="label", plan_name="my name"
         )
 
+    @pytest.mark.proprietary
     def test_from_not_rt_plan_file(self):
         file = get_file_from_cloud_test_repo(["picket_fence", "AS500#2.dcm"])
         with self.assertRaises(ValueError):
@@ -47,7 +46,7 @@ class TestPlanGenerator(TestCase):
 
     def test_to_file(self):
         pg = PlanGenerator.from_rt_plan_file(
-            RT_PLAN_FILE, plan_label="label", plan_name="my name"
+            rt_plan_file, plan_label="label", plan_name="my name"
         )
         pg.add_mlc_speed_beams()
         with tempfile.NamedTemporaryFile(delete=False) as t:
@@ -59,23 +58,23 @@ class TestPlanGenerator(TestCase):
 
     def test_from_rt_plan_dataset(self):
         # happy path using a dicom dataset
-        dataset = pydicom.dcmread(RT_PLAN_FILE)
+        dataset = pydicom.dcmread(rt_plan_file)
         PlanGenerator(dataset, plan_label="label", plan_name="my name")
 
     def test_no_patient_id(self):
-        ds = pydicom.dcmread(RT_PLAN_FILE)
+        ds = pydicom.dcmread(rt_plan_file)
         ds.pop("PatientID")
         with self.assertRaises(ValueError):
             PlanGenerator(ds, plan_label="label", plan_name="my name")
 
     def test_no_patient_name(self):
-        ds = pydicom.dcmread(RT_PLAN_FILE)
+        ds = pydicom.dcmread(rt_plan_file)
         ds.pop("PatientName")
         with self.assertRaises(ValueError):
             PlanGenerator(ds, plan_label="label", plan_name="my name")
 
     def test_pass_patient_name(self):
-        ds = pydicom.dcmread(RT_PLAN_FILE)
+        ds = pydicom.dcmread(rt_plan_file)
         pg = PlanGenerator(
             ds, plan_label="label", plan_name="my name", patient_name="Jimbo Jones"
         )
@@ -83,7 +82,7 @@ class TestPlanGenerator(TestCase):
         self.assertEqual(pg_dcm.PatientName, "Jimbo Jones")
 
     def test_pass_patient_id(self):
-        ds = pydicom.dcmread(RT_PLAN_FILE)
+        ds = pydicom.dcmread(rt_plan_file)
         pg = PlanGenerator(
             ds, plan_label="label", plan_name="my name", patient_id="12345"
         )
@@ -91,19 +90,19 @@ class TestPlanGenerator(TestCase):
         self.assertEqual(pg_dcm.PatientID, "12345")
 
     def test_no_tolerance_table(self):
-        ds = pydicom.dcmread(RT_PLAN_FILE)
+        ds = pydicom.dcmread(rt_plan_file)
         ds.pop("ToleranceTableSequence")
         with self.assertRaises(ValueError):
             PlanGenerator(ds, plan_label="label", plan_name="my name")
 
     def test_no_beam_sequence(self):
-        ds = pydicom.dcmread(RT_PLAN_FILE)
+        ds = pydicom.dcmread(rt_plan_file)
         ds.pop("BeamSequence")
         with self.assertRaises(ValueError):
             PlanGenerator(ds, plan_label="label", plan_name="my name")
 
     def test_no_mlc_data(self):
-        ds = pydicom.dcmread(RT_PLAN_FILE)
+        ds = pydicom.dcmread(rt_plan_file)
         # pop MLC part of the data; at this point it's just an open field
         ds.BeamSequence[0].BeamLimitingDeviceSequence.pop()
         with self.assertRaises(ValueError):
@@ -111,36 +110,37 @@ class TestPlanGenerator(TestCase):
 
     def test_num_leaves(self):
         pg = PlanGenerator.from_rt_plan_file(
-            RT_PLAN_FILE, plan_label="label", plan_name="my name"
+            rt_plan_file, plan_label="label", plan_name="my name"
         )
         self.assertEqual(pg.num_leaves, 120)
 
     def test_machine_name(self):
         pg = PlanGenerator.from_rt_plan_file(
-            RT_PLAN_FILE, plan_label="label", plan_name="my name"
+            rt_plan_file, plan_label="label", plan_name="my name"
         )
         self.assertEqual(pg.machine_name, "TrueBeamSN5837")
 
     def test_leaf_config(self):
         pg = PlanGenerator.from_rt_plan_file(
-            RT_PLAN_FILE, plan_label="label", plan_name="my name"
+            rt_plan_file, plan_label="label", plan_name="my name"
         )
         self.assertEqual(len(pg.leaf_config), 61)
         self.assertEqual(max(pg.leaf_config), 200)
         self.assertEqual(min(pg.leaf_config), -200)
 
     def test_instance_uid_changes(self):
-        dcm = pydicom.dcmread(RT_PLAN_FILE)
+        dcm = pydicom.dcmread(rt_plan_file)
         pg = PlanGenerator.from_rt_plan_file(
-            RT_PLAN_FILE, plan_label="label", plan_name="my name"
+            rt_plan_file, plan_label="label", plan_name="my name"
         )
         pg_dcm = pg.as_dicom()
         self.assertNotEqual(pg_dcm.SOPInstanceUID, dcm.SOPInstanceUID)
 
 
 def create_beam(**kwargs) -> Beam:
+    rt_plan_ds = pydicom.dcmread(rt_plan_file)
     return Beam(
-        plan_dataset=kwargs.get("plan_dataset", RT_PLAN_DS),
+        plan_dataset=kwargs.get("plan_dataset", rt_plan_ds),
         beam_name=kwargs.get("beam_name", "name"),
         beam_type=kwargs.get("beam_type", BeamType.DYNAMIC),
         energy=kwargs.get("energy", 6),
@@ -164,6 +164,8 @@ def create_beam(**kwargs) -> Beam:
     )
 
 
+@pytest.mark.proprietary
+@pytest.mark.usefixtures('rt_plan_file')
 class TestBeam(TestCase):
     def test_beam_normal(self):
         # shouldn't raise; happy path
@@ -260,12 +262,14 @@ class TestBeam(TestCase):
             create_beam(gantry_angles=[0, 90], beam_type=BeamType.STATIC)
 
 
+@pytest.mark.proprietary
+@pytest.mark.usefixtures('rt_plan_file')
 class TestPlanGeneratorBeams(TestCase):
     """Test real workflow where beams are added"""
 
     def setUp(self) -> None:
         self.pg = PlanGenerator.from_rt_plan_file(
-            RT_PLAN_FILE,
+            rt_plan_file,
             plan_label="label",
             plan_name="my name",
         )
@@ -310,10 +314,12 @@ class TestPlanGeneratorBeams(TestCase):
         self.assertIsInstance(figs[0], Figure)
 
 
+@pytest.mark.proprietary
+@pytest.mark.usefixtures('rt_plan_file')
 class TestPlanPrefabs(TestCase):
     def setUp(self) -> None:
         self.pg = PlanGenerator.from_rt_plan_file(
-            RT_PLAN_FILE,
+            rt_plan_file,
             plan_label="label",
             plan_name="my name",
         )
@@ -675,10 +681,12 @@ HALCYON_MLC_INDEX = {
 }
 
 
+@pytest.mark.proprietary
+@pytest.mark.usefixtures('halcyon_plan_file')
 class TestHalcyonPrefabs(TestCase):
     def setUp(self) -> None:
         self.pg = HalcyonPlanGenerator.from_rt_plan_file(
-            HALCYON_PLAN_FILE,
+            halcyon_plan_file,
             plan_label="label",
             plan_name="my name",
         )

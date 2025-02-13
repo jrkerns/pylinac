@@ -1,5 +1,6 @@
 import copy
 import json
+import pytest
 import math
 from unittest import TestCase
 
@@ -21,6 +22,7 @@ from tests_basic.utils import (
 TEST_DIR = "Tomo"
 
 
+@pytest.mark.proprietary
 class TestInstantiation(
     TestCase,
     InitTesterMixin,
@@ -177,6 +179,7 @@ class TestTomoQuaac(QuaacTestBase, TestCase):
         return t
 
 
+@pytest.mark.proprietary
 class TestCIRS062Quaac(QuaacTestBase, CloudFileMixin, TestCase):
     dir_path = ["Tomo", "CIRS062M"]
     file_name = "CIRS062M - Erogluer.zip"
@@ -277,6 +280,7 @@ class TestTomoCheeseDemo(CheeseMixin, PlotlyTestMixin, TestCase):
         cls.cheese.analyze()
 
 
+@pytest.mark.proprietary
 class TestHighHURodTomo(CheeseMixin, TestCase):
     dir_path = ["Tomo"]
     file_name = "High HU rod tomo.zip"
@@ -290,6 +294,7 @@ class TestHighHURodTomo(CheeseMixin, TestCase):
     }
 
 
+@pytest.mark.proprietary
 class TestCIRS062MErogluer(CheeseMixin, TestCase):
     model = CIRS062M
     origin_slice = 32
@@ -317,6 +322,7 @@ class TestCIRS062MErogluer(CheeseMixin, TestCase):
     }
 
 
+@pytest.mark.proprietary
 class TestCIRS062MButsonCareDose(CheeseMixin, TestCase):
     model = CIRS062M
     origin_slice = 38
@@ -344,6 +350,7 @@ class TestCIRS062MButsonCareDose(CheeseMixin, TestCase):
     }
 
 
+@pytest.mark.proprietary
 class TestCIRS062MButson160mAsB(CheeseMixin, TestCase):
     # same as caredose but different mAs, thus same HU values
     model = CIRS062M
@@ -372,6 +379,7 @@ class TestCIRS062MButson160mAsB(CheeseMixin, TestCase):
     }
 
 
+@pytest.mark.proprietary
 class TestCIRS062MButsonLungOuter(CheeseMixin, TestCase):
     model = CIRS062M
     origin_slice = 24
@@ -399,6 +407,7 @@ class TestCIRS062MButsonLungOuter(CheeseMixin, TestCase):
     }
 
 
+@pytest.mark.proprietary
 class TestCIRS062MButsonEmptyButoOuter(CheeseMixin, TestCase):
     model = CIRS062M
     origin_slice = 30
@@ -426,6 +435,7 @@ class TestCIRS062MButsonEmptyButoOuter(CheeseMixin, TestCase):
     }
 
 
+@pytest.mark.proprietary
 class TestCIRS062MShifted(CheeseMixin, TestCase):
     model = CIRS062M
     origin_slice = 30
@@ -439,6 +449,7 @@ class TestCIRS062MShifted(CheeseMixin, TestCase):
     }
 
 
+@pytest.mark.proprietary
 class TestCIRS062MApplyShifts(CheeseMixin, TestCase):
     # we apply some crazy shifts that will cause the ROIs to be off but also border
     # the ROI edges. This should make testing constancy robust since any small change

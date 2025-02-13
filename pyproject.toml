@@ -90,6 +90,7 @@ filterwarnings = [
     ]
 markers = [
     'catphan604',
+    'proprietary',
 ]
 
 [tool.coverage.run]
