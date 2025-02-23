@@ -44,6 +44,7 @@ dependencies = [
     "eval-type-backport; python_version<='3.9'",
     "quaac",
     "plotly>=5.0",
+    "xim_reader",
 ]
 
 # unfortunately, RTD doesn't support custom installes like `uv sync`. Only "extra" dependencies are supported.
@@ -124,3 +125,11 @@ dev-dependencies = [
     "sphinx-design>=0.6.0",
     "sphinx>=7.1.2",
 ]
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+xim_reader = { workspace=true }
+pylinac = { workspace=true }
+
