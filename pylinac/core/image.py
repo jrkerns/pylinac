@@ -66,6 +66,7 @@ IMAGE = "Image"
 
 FILE_TYPE = "file"
 STREAM_TYPE = "stream"
+DATASET_TYPE = "dataset"
 
 XIM_PROP_INT = 0
 XIM_PROP_DOUBLE = 1
@@ -398,7 +399,7 @@ class BaseImage:
     source: FILE_TYPE | STREAM_TYPE
 
     def __init__(
-        self, path: str | Path | BytesIO | ImageLike | np.ndarray | BufferedReader
+        self, path: str | Path | BytesIO | ImageLike | np.ndarray | BufferedReader | Dataset
     ):
         """
         Parameters
@@ -417,6 +418,9 @@ class BaseImage:
             self.path = path
             self.base_path = osp.basename(path)
             self.source = FILE_TYPE
+        elif isinstance(path, Dataset):
+            self.source = DATASET_TYPE
+            self.path = ""
         else:
             self.source = STREAM_TYPE
             path.seek(0)
