@@ -1337,18 +1337,12 @@ class DicomImage(BaseImage):
         self.metadata = retrieve_dicom_file(path)
         self._original_dtype = self.metadata.pixel_array.dtype
         self._raw_pixels = raw_pixels
-        # read a second time to get pixel data
-        try:
-            path.seek(0)
-        except AttributeError:
-            pass
-        ds = retrieve_dicom_file(path)
         if dtype is not None:
-            self.array = ds.pixel_array.astype(dtype)
+            self.array = self.metadata.pixel_array.astype(dtype)
         else:
-            self.array = ds.pixel_array.copy()
+            self.array = self.metadata.pixel_array.copy()
         # convert values to HU or CU
-        self.array = _rescale_dicom_values(self.array, ds, raw_pixels=raw_pixels)
+        self.array = _rescale_dicom_values(self.array, self.metadata, raw_pixels=raw_pixels)
 
     @classmethod
     def from_dataset(cls, dataset: Dataset):
