@@ -1295,7 +1295,7 @@ class DicomImage(BaseImage):
 
     def __init__(
         self,
-        path: str | Path | BytesIO | BufferedReader,
+        path: str | Path | BytesIO | BufferedReader | Dataset,
         *,
         dtype: np.dtype | None = None,
         dpi: float = None,
@@ -1333,8 +1333,11 @@ class DicomImage(BaseImage):
         self._sid = sid
         self._dpi = dpi
         self._sad = sad
-        # read the file once to get just the DICOM metadata
-        self.metadata = retrieve_dicom_file(path)
+        if isinstance(path, Dataset):
+            self.metadata = path
+        else:
+            # read the file once to get just the DICOM metadata
+            self.metadata = retrieve_dicom_file(path)
         self._original_dtype = self.metadata.pixel_array.dtype
         self._raw_pixels = raw_pixels
         if dtype is not None:
@@ -1347,9 +1350,7 @@ class DicomImage(BaseImage):
     @classmethod
     def from_dataset(cls, dataset: Dataset):
         """Create a DICOM image instance from a pydicom Dataset."""
-        stream = io.BytesIO()
-        dataset.save_as(stream)
-        return cls(path=stream)
+        return cls(dataset)
 
     def save(self, filename: str | Path) -> str | Path:
         """Save the image instance back out to a .dcm file.
