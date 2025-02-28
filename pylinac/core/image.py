@@ -1745,9 +1745,13 @@ class LazyDicomImageStack:
                      if m.SeriesInstanceUID == most_common_uid]
             metadatas = [m for m in metadatas if m.SeriesInstanceUID == most_common_uid]
         # sort according to physical order
-        order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
-        self.metadatas = [metadatas[i] for i in order]
-        self._image_path_keys = [paths[i] for i in order]
+        if hasattr(metadatas[0], "ImagePositionPatient"):        # ACC some image series like w-l does not have ImagePositionPatient
+            order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
+            self.metadatas = [metadatas[i] for i in order]
+            self._image_path_keys = [paths[i] for i in order]
+        else:
+            self.metadatas = metadatas
+            self._image_path_keys = paths
 
     @classmethod
     def from_zip(cls, zip_path: str | Path, dtype: np.dtype | None = None, **kwargs):
