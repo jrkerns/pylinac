@@ -154,7 +154,7 @@ def retrieve_image_files(path: str) -> list[str]:
     return retrieve_filenames(directory=path, func=is_image)
 
 
-def load(path: str | Path | ImageLike | np.ndarray | BinaryIO, **kwargs) -> ImageLike:
+def load(path: str | Path | ImageLike | np.ndarray | BinaryIO | Dataset, **kwargs) -> ImageLike:
     r"""Load a DICOM image, JPG/TIF/BMP image, or numpy 2D array.
 
     Parameters
@@ -189,7 +189,7 @@ def load(path: str | Path | ImageLike | np.ndarray | BinaryIO, **kwargs) -> Imag
 
     if _is_array(path):
         return ArrayImage(path, **kwargs)
-    elif _is_dicom(path):
+    elif _is_dicom(path) or _is_dataset(path):
         return DicomImage(path, **kwargs)
     elif _is_image_file(path):
         return FileImage(path, **kwargs)
@@ -379,6 +379,11 @@ def _is_xim(path: str | Path) -> bool:
 def _is_array(obj: Any) -> bool:
     """Whether the object is a numpy array."""
     return isinstance(obj, np.ndarray)
+
+
+def _is_dataset(obj: Any) -> bool:
+    """Whether the object is a pydicom dataset"""
+    return isinstance(obj, Dataset)
 
 
 class BaseImage:
