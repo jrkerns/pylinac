@@ -1702,12 +1702,12 @@ class ArrayImage(BaseImage):
 
 
 class LazyDicomImageStack:
-    _image_path_keys: list[Path | str]
+    _image_path_keys: list[Path | str | Dataset]
     metadatas: list[pydicom.Dataset]
 
     def __init__(
         self,
-        folder: str | Path | Sequence[str | Path],
+        folder: str | Path | Sequence[str | Path] | Dataset,
         dtype: np.dtype | None = None,
         min_number: int = 39,
         check_uid: bool = True,
@@ -1778,14 +1778,17 @@ class LazyDicomImageStack:
         return most_common_uid[0]
 
     def _get_path_metadatas(
-        self, paths: list[Path]
+        self, paths: list[Path] | list[Dataset]
     ) -> (list[pydicom.Dataset], list[Path]):
         """Get the metadata for the images. This also filters out non-image files."""
         metadata = []
         matched_paths = []
         for path in paths:
             try:
-                ds = pydicom.dcmread(path, force=True, stop_before_pixels=True)
+                if isinstance(path, Dataset):
+                    ds = path
+                else:
+                    ds = pydicom.dcmread(path, force=True, stop_before_pixels=True)
                 if "Image Storage" in ds.SOPClassUID.name:
                     metadata.append(ds)
                     matched_paths.append(path)
@@ -1962,7 +1965,7 @@ class DicomImageStack(LazyDicomImageStack):
 
     def __init__(
         self,
-        folder: str | Path,
+        folder: str | Path | Dataset,
         dtype: np.dtype | None = None,
         min_number: int = 39,
         check_uid: bool = True,
