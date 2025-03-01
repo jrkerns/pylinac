@@ -1150,31 +1150,37 @@ class XIM(BaseImage):
         img_height = self.img_height_px
         img_width = self.img_width_px
         if self.bytes_per_pixel == 1:
-            dtype = np.uint8
+            dtype = np.int8
         elif self.bytes_per_pixel == 2:
-            dtype = np.uint16
+            dtype = np.int16
         elif self.bytes_per_pixel == 4:
-            dtype = np.uint32
+            dtype = np.int32
         elif self.bytes_per_pixel == 8:
-            dtype = np.uint64
+            dtype = np.int64
         else:
             raise ValueError(
                 "The XIM image has an unsupported bytes per pixel value. Raise a ticket on the pylinac Github with this file."
             )
-        compressed_array = a = np.zeros((img_height * img_width), dtype=dtype)
-        # first row and 1st element, 2nd row is uncompressed
+
+        compressed_array = np.zeros((img_height*img_width), dtype=dtype)# first row and 1st element, 2nd row is uncompressed
         # this SHOULD work by reading the # of bytes specified in the header but AFAICT this is just a standard int (4 bytes)
         compressed_array[: img_width + 1] = decode_binary(
             xim, int, num_values=img_width + 1
         )
-        diffs = self._get_diffs(lookup_table, xim)
-        for diff, idx in zip(diffs, range(img_width + 1, img_width * img_height)):
-            # intermediate math can cause overflow errors. Use float for intermediate, then back to int
-            left = float(a[idx - 1])
-            above = float(a[idx - img_width])
-            upper_left = float(a[idx - img_width - 1])
-            a[idx] = np.asarray(diff + left + above - upper_left, dtype=dtype)
-        return a.reshape((img_height, img_width))
+        compressed_array[img_width+1:] = np.asarray(self._get_diffs(lookup_table, xim), dtype=dtype)
+
+        compressed_array = compressed_array.reshape((img_height, img_width))
+        compressed_array_windows = np.lib.stride_tricks.sliding_window_view(compressed_array, (2, img_width), writeable=True)
+        
+        next_row_correction = 0 
+        for window in compressed_array_windows[:, 0]:
+            window[1, 0] = np.add(window[1, 0], next_row_correction)
+            window[1, 1:] += window[0, 1:] - window[0, :-1]
+            window[1] = np.cumsum(window[1])
+            
+            next_row_correction= np.subtract(np.add(window[1, -1], window[1,0]), window[0,-1])
+
+        return compressed_array
 
     @staticmethod
     def _get_diffs(lookup_table: np.ndarray, xim: BinaryIO):
@@ -1202,7 +1208,7 @@ class XIM(BaseImage):
                 diffs[start + 1 : stop] = vals
             if stop != byte_changes[-1]:
                 diffs[stop] = decode_binary(xim, LOOKUP_CONVERSION[lookup_table[stop]])
-        return np.asarray(diffs, dtype=float)
+        return diffs
 
     @property
     def dpmm(self) -> float:
