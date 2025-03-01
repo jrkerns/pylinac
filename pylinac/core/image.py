@@ -1067,7 +1067,6 @@ class XIM(BaseImage):
             else:
                 lookup_table_size = decode_binary(xim, int)
                 self.lookup_table = np.fromfile(xim, count=lookup_table_size, dtype=np.uint8)
-+               comp_pixel_buffer_size = decode_binary(xim, int)
                 if read_pixels:
                     lookup_keys = self._parse_lookup_table(self.lookup_table)
                     self.array = self._parse_compressed_bytes(
@@ -1161,13 +1160,9 @@ class XIM(BaseImage):
             raise ValueError(
                 "The XIM image has an unsupported bytes per pixel value. Raise a ticket on the pylinac Github with this file."
             )
-
-        compressed_array = np.zeros((img_height*img_width), dtype=dtype)# first row and 1st element, 2nd row is uncompressed
+        # first row and 1st element, 2nd row is uncompressed
         # this SHOULD work by reading the # of bytes specified in the header but AFAICT this is just a standard int (4 bytes)
-        compressed_array[: img_width + 1] = decode_binary(
-            xim, int, num_values=img_width + 1
-        )
-        compressed_array[img_width+1:] = np.asarray(self._get_diffs(lookup_table, xim), dtype=dtype)
+        compressed_array = self._get_diffs(lookup_table, xim, dtype, img_width, img_height)
 
         compressed_array = compressed_array.reshape((img_height, img_width))
         compressed_array_windows = np.lib.stride_tricks.sliding_window_view(compressed_array, (2, img_width), writeable=True)
@@ -1183,7 +1178,7 @@ class XIM(BaseImage):
         return compressed_array
 
     @staticmethod
-    def _get_diffs(lookup_table: np.ndarray, xim: BinaryIO):
+    def _get_diffs(lookup_table: np.ndarray, xim: BinaryIO, dtype: np.dtype, img_width: int, img_height: int):
         """Read in all the pixel value 'diffs'. These can be 1, 2, or 4 bytes in size,
         so instead of just reading N pixels of M bytes which would be SOOOO easy, we have to read dynamically
 
@@ -1191,24 +1186,30 @@ class XIM(BaseImage):
         Knowing that most values are single bytes with an occasional 2-byte element
         we read chunks that all look like (n 1-bytes and 1 2-byte)
         """
-        byte_changes = lookup_table.nonzero()
-        byte_changes = np.insert(byte_changes, 0, -1)
-        byte_changes = np.append(byte_changes, len(lookup_table) - 1)
-        diffs = [5000] * (
-            len(lookup_table) - 1
-        )  # pre-allocate for speed; 5000 is just for debugging
-        LOOKUP_CONVERSION = {0: "b", 1: "h", 2: "i"}
-        for start, stop in zip(byte_changes[:-1], byte_changes[1:]):
-            if stop - start > 1:
-                vals = decode_binary(xim, "b", num_values=stop - start - 1)
-                if not isinstance(vals, Iterable):
-                    vals = [
-                        vals,
-                    ]
-                diffs[start + 1 : stop] = vals
-            if stop != byte_changes[-1]:
-                diffs[stop] = decode_binary(xim, LOOKUP_CONVERSION[lookup_table[stop]])
-        return diffs
+        comp_pixel_buffer_size = decode_binary(xim, int)
+        file_array = np.fromfile(xim, dtype=np.uint8, count=comp_pixel_buffer_size)
+
+        compressed_array = np.zeros((img_height * img_width), dtype=dtype)
+        compressed_array[: img_width + 1] = file_array[:(img_width+1)*4].view(np.int32)
+        file_array = file_array[(img_width+1)*4:]
+
+
+        change_indices = np.where(np.diff(lookup_table) != 0)[0] + 1
+        lengths = np.diff(np.concatenate(([0], change_indices, [len(lookup_table)])))
+        values = lookup_table[np.concatenate(([0], change_indices))]
+
+        len_diffs = img_width*img_height - img_width-1
+        LOOKUP_CONVERSION = {0: '<i1', 1: '<i2', 2: '<i4'}
+        start = 0 
+        for value, length in zip(values, lengths):
+            read_dtype = LOOKUP_CONVERSION[value]
+            length = min(length, len_diffs-start)
+            stop = start+length
+            bytes_len = length*(1<<value)
+            compressed_array[img_width+1+start:img_width+1+stop] = file_array[:bytes_len].view(read_dtype)
+            file_array = file_array[bytes_len:]
+            start = stop
+        return compressed_array
 
     @property
     def dpmm(self) -> float:
