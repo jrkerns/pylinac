@@ -1119,11 +1119,9 @@ class XIM(BaseImage):
             This is ripe for optimization, but brevity and clarity won out. Options include bit-shifting (fastest)
             and numpy.packbits/unpackbits.
         """
-
-        unpacked = np.unpackbits(lookup_table_bytes, bitorder="little")
-        reshaped = unpacked.reshape((-1, 2))
-        packed = np.packbits(reshaped, axis=-1, bitorder="little")[:, 0]
-        return packed
+        bit_shift = np.array([0, 2, 4, 6])
+        lookup_table = (lookup_table_bytes[:, np.newaxis] >> bit_shift[np.newaxis, :]) & 0b00000011
+        return lookup_table.flatten()
 
     def _parse_compressed_bytes(
         self, xim: BinaryIO, lookup_table: np.ndarray
