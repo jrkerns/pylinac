@@ -1704,6 +1704,7 @@ class ArrayImage(BaseImage):
 class LazyDicomImageStack:
     _image_path_keys: list[Path | str | Dataset]
     metadatas: list[pydicom.Dataset]
+    sorted_method = "No sort"
 
     def __init__(
         self,
@@ -1745,13 +1746,22 @@ class LazyDicomImageStack:
                      if m.SeriesInstanceUID == most_common_uid]
             metadatas = [m for m in metadatas if m.SeriesInstanceUID == most_common_uid]
         # sort according to physical order
-        if hasattr(metadatas[0], "ImagePositionPatient"):        # ACC some image series like w-l does not have ImagePositionPatient
+        # TODO write tests for these
+        order = np.arange(0,len(metadatas))
+        if hasattr(metadatas[0], "ImagePositionPatient"):
             order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
-            self.metadatas = [metadatas[i] for i in order]
-            self._image_path_keys = [paths[i] for i in order]
-        else:
-            self.metadatas = metadatas
-            self._image_path_keys = paths
+            self.sorted_method = "Image position patient"
+        # if ImagePositionPatient is not available use Instance Number
+        elif hasattr(metadatas[0], "InstanceNumber"):
+            order = np.argsort([m.InstanceNumber for m in metadatas])
+            self.sorted_method = "Instance number"
+        # if InstanceNumber is not avalable use SOPInstanceUID
+        elif hasattr(metadatas[0], "SOPInstanceUID"):
+            order = np.argsort([m.SOPInstanceUID for m in metadatas])
+            self.sorted_method = "SOP Instance UID"
+        # else just use the order they came in
+        self.metadatas = [metadatas[i] for i in order]
+        self._image_path_keys = [paths[i] for i in order]
 
     @classmethod
     def from_zip(cls, zip_path: str | Path, dtype: np.dtype | None = None, **kwargs):
