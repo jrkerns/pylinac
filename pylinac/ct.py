@@ -38,6 +38,7 @@ from pydantic import BaseModel, Field
 from scipy import ndimage
 from skimage import draw, filters, measure, segmentation
 from skimage.measure._regionprops import RegionProperties
+from pydicom import Dataset
 
 from .core import image, pdf
 from .core.contrast import Contrast
@@ -1862,6 +1863,11 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             memory_efficient_mode=memory_efficient_mode,
             is_zip=True,
         )
+
+    @classmethod
+    def from_dataset(cls, ds_list: list[Dataset]):
+        dis = DicomImageStack(ds_list)
+        return cls(dis)
 
     def plotly_analyzed_images(
         self,
