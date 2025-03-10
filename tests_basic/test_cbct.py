@@ -1984,6 +1984,7 @@ class CatPhan503Nodes2(CatPhan503Mixin, TestCase):
         "PMP": -149,
         "LDPE": -109,
     }
+    expected_roll = 0.447
     unif_values = {"Center": 162, "Left": -10, "Right": 101, "Top": 44, "Bottom": 39}
     mtf_values = {50: -0.07}  # TODO: RAM-4472
     lowcon_visible = 4
