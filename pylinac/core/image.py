@@ -11,7 +11,7 @@ import re
 import warnings
 import zlib
 from collections import Counter
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from datetime import datetime
 from functools import cached_property
 from io import BufferedReader, BytesIO
@@ -1066,13 +1066,16 @@ class XIM(BaseImage):
                 )
             else:
                 lookup_table_size = decode_binary(xim, int)
-                self.lookup_table = np.fromfile(xim, count=lookup_table_size, dtype=np.uint8)
+                self.lookup_table = np.fromfile(
+                    xim, count=lookup_table_size, dtype=np.uint8
+                )
                 if read_pixels:
                     lookup_keys = self._parse_lookup_table(self.lookup_table)
                     self.array = self._parse_compressed_bytes(
                         xim, lookup_table=lookup_keys
                     )
                 else:
+                    comp_pixel_buffer_size = decode_binary(xim, int)
                     _ = decode_binary(xim, "c", num_values=comp_pixel_buffer_size)
                 decode_binary(xim, int)
             self.num_hist_bins = decode_binary(xim, int)
@@ -1119,7 +1122,9 @@ class XIM(BaseImage):
             and numpy.packbits/unpackbits.
         """
         bit_shift = np.array([0, 2, 4, 6])
-        lookup_table = (lookup_table_bytes[:, np.newaxis] >> bit_shift[np.newaxis, :]) & 0b00000011
+        lookup_table = (
+            lookup_table_bytes[:, np.newaxis] >> bit_shift[np.newaxis, :]
+        ) & 0b00000011
         return lookup_table.flatten()
 
     def _parse_compressed_bytes(
@@ -1162,23 +1167,35 @@ class XIM(BaseImage):
             )
         # first row and 1st element, 2nd row is uncompressed
         # this SHOULD work by reading the # of bytes specified in the header but AFAICT this is just a standard int (4 bytes)
-        compressed_array = self._get_diffs(lookup_table, xim, dtype, img_width, img_height)
+        compressed_array = self._get_diffs(
+            lookup_table, xim, dtype, img_width, img_height
+        )
 
         compressed_array = compressed_array.reshape((img_height, img_width))
-        compressed_array_windows = np.lib.stride_tricks.sliding_window_view(compressed_array, (2, img_width), writeable=True)
-        
-        next_row_correction = 0 
+        compressed_array_windows = np.lib.stride_tricks.sliding_window_view(
+            compressed_array, (2, img_width), writeable=True
+        )
+
+        next_row_correction = 0
         for window in compressed_array_windows[:, 0]:
             window[1, 0] = np.add(window[1, 0], next_row_correction)
             window[1, 1:] += window[0, 1:] - window[0, :-1]
             window[1] = np.cumsum(window[1])
-            
-            next_row_correction= np.subtract(np.add(window[1, -1], window[1,0]), window[0,-1])
+
+            next_row_correction = np.subtract(
+                np.add(window[1, -1], window[1, 0]), window[0, -1]
+            )
 
         return compressed_array
 
     @staticmethod
-    def _get_diffs(lookup_table: np.ndarray, xim: BinaryIO, dtype: np.dtype, img_width: int, img_height: int):
+    def _get_diffs(
+        lookup_table: np.ndarray,
+        xim: BinaryIO,
+        dtype: np.dtype,
+        img_width: int,
+        img_height: int,
+    ):
         """Read in all the pixel value 'diffs'. These can be 1, 2, or 4 bytes in size,
         so instead of just reading N pixels of M bytes which would be SOOOO easy, we have to read dynamically
 
@@ -1190,23 +1207,26 @@ class XIM(BaseImage):
         file_array = np.fromfile(xim, dtype=np.uint8, count=comp_pixel_buffer_size)
 
         compressed_array = np.zeros((img_height * img_width), dtype=dtype)
-        compressed_array[: img_width + 1] = file_array[:(img_width+1)*4].view(np.int32)
-        file_array = file_array[(img_width+1)*4:]
-
+        compressed_array[: img_width + 1] = file_array[: (img_width + 1) * 4].view(
+            np.int32
+        )
+        file_array = file_array[(img_width + 1) * 4 :]
 
         change_indices = np.where(np.diff(lookup_table) != 0)[0] + 1
         lengths = np.diff(np.concatenate(([0], change_indices, [len(lookup_table)])))
         values = lookup_table[np.concatenate(([0], change_indices))]
 
-        len_diffs = img_width*img_height - img_width-1
-        LOOKUP_CONVERSION = {0: '<i1', 1: '<i2', 2: '<i4'}
-        start = 0 
+        len_diffs = img_width * img_height - img_width - 1
+        LOOKUP_CONVERSION = {0: "<i1", 1: "<i2", 2: "<i4"}
+        start = 0
         for value, length in zip(values, lengths):
             read_dtype = LOOKUP_CONVERSION[value]
-            length = min(length, len_diffs-start)
-            stop = start+length
-            bytes_len = length*(1<<value)
-            compressed_array[img_width+1+start:img_width+1+stop] = file_array[:bytes_len].view(read_dtype)
+            length = min(length, len_diffs - start)
+            stop = start + length
+            bytes_len = length * (1 << value)
+            compressed_array[img_width + 1 + start : img_width + 1 + stop] = file_array[
+                :bytes_len
+            ].view(read_dtype)
             file_array = file_array[bytes_len:]
             start = stop
         return compressed_array

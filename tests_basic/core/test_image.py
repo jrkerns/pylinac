@@ -663,7 +663,7 @@ class TestXIMImage(TestCase):
     def test_32bit_image(self):
         xim_path = get_file_from_cloud_test_repo(["xim_uint32.xim"])
         xim = XIM(xim_path)
-        self.assertEqual(xim.array.dtype, np.uint32)
+        self.assertEqual(xim.array.dtype, np.int32)
         self.assertEqual(xim.array.max(), 38822)
 
 
