@@ -1352,7 +1352,9 @@ class DicomImage(BaseImage):
         else:
             self.array = self.metadata.pixel_array.copy()
         # convert values to HU or CU
-        self.array = _rescale_dicom_values(self.array, self.metadata, raw_pixels=raw_pixels)
+        self.array = _rescale_dicom_values(
+            self.array, self.metadata, raw_pixels=raw_pixels
+        )
 
     @classmethod
     def from_dataset(cls, dataset: Dataset):
