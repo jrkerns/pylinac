@@ -774,19 +774,18 @@ class CTP404CP504(CatPhanModule):
         boxsize = self.geometry_roi_size_mm / self.mm_per_pixel
         xbounds = (int(self.phan_center.x - boxsize), int(self.phan_center.x + boxsize))
         ybounds = (int(self.phan_center.y - boxsize), int(self.phan_center.y + boxsize))
-        geo_img = self.image[ybounds[0] : ybounds[1], xbounds[0] : xbounds[1]]
+        geo_img = self.image[ybounds[0] : ybounds[1], xbounds[0] : xbounds[1]].copy()
         # clip to the nearest of the two extremes
         # this can arise from direct density scans. In that case the
         # 1 teflon node will not get detected as the edge intensity is much less than the other nodes (unlike normal)
         # So, we clip the sub-image to the nearest extreme to the median.
         # This does very little to normal scans. RAM-4056
-        median = np.median(geo_img)
-        nearest_extreme = min(abs(median - geo_img.max()), abs(median - geo_img.min()))
-        geo_clipped = np.clip(
-            geo_img, a_min=median - nearest_extreme, a_max=median + nearest_extreme
-        )
+        geo_img -= np.median(geo_img)
+        nearest_extreme = min(abs(geo_img.max()), abs(geo_img.min()))
+        geo_clipped = np.clip(geo_img, a_min=-nearest_extreme, a_max=nearest_extreme)
+        geo_clipped_abs = np.abs(geo_clipped)
         larr, regionprops, num_roi = get_regions(
-            geo_clipped, fill_holes=True, clear_borders=False
+            geo_clipped_abs, fill_holes=True, clear_borders=False
         )
         # check that there is at least 1 ROI
         if num_roi < 4:

@@ -13,6 +13,11 @@ Legend
 v 3.32.0
 --------
 
+CT
+^^
+
+* :bdg-warning:`Fixed` Certain scans from a GammaKnife would cause geometric nodes on the HU linearity module
+  to be incorrectly detected. Node detection is now more robust.
 
 Image
 ^^^^^

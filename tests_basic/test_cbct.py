@@ -1951,3 +1951,40 @@ class CatPhan504NearEdge(CatPhan504Mixin, TestCase):
     mtf_values = {50: 0.33}
     lowcon_visible = 4
     slice_thickness = 3
+
+
+class CatPhan503Nodes(CatPhan503Mixin, TestCase):
+    file_name = "GK-nodes.zip"
+    origin_slice = 259
+    hu_values = {
+        "Poly": 0,
+        "Acrylic": 170,
+        "Delrin": 421,
+        "Air": -958,
+        "Teflon": 940,
+        "PMP": -174,
+        "LDPE": -82,
+    }
+    unif_values = {"Center": 139, "Left": -19, "Right": 125, "Top": 48, "Bottom": 59}
+    mtf_values = {50: 0.45}
+    lowcon_visible = 4
+    slice_thickness = 0.49
+
+
+class CatPhan503Nodes2(CatPhan503Mixin, TestCase):
+    # separate test from another institution
+    file_name = "GK-nodes2.zip"
+    origin_slice = 256
+    hu_values = {
+        "Poly": -27,
+        "Acrylic": 172,
+        "Delrin": 459,
+        "Air": -912,
+        "Teflon": 990,
+        "PMP": -149,
+        "LDPE": -109,
+    }
+    unif_values = {"Center": 162, "Left": -10, "Right": 101, "Top": 44, "Bottom": 39}
+    mtf_values = {50: -0.07}  # TODO: RAM-4472
+    lowcon_visible = 4
+    slice_thickness = 0.49
