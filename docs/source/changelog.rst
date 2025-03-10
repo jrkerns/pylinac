@@ -10,6 +10,15 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.32.0
+--------
+
+
+Image
+^^^^^
+
+* :bdg-primary:`Refactor` XIM image reading has been increased by ~30x. Thanks to `@purepani <https://github.com/purepani>`__ for the contribution.
+
 v 3.31.0
 --------
 
