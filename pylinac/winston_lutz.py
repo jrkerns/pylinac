@@ -658,6 +658,7 @@ class WLBaseImage(image.LinacDicomImage):
         gantry_reference: float = 0,
         collimator_reference: float = 0,
         couch_reference: float = 0,
+        bb_proximity_mm: float = 20,
     ) -> (tuple[Point], tuple[Point]):
         """Analyze the image for BBs and field CAXs.
 
@@ -671,6 +672,8 @@ class WLBaseImage(image.LinacDicomImage):
             Whether the BBs are low density (e.g. kV images).
         shift_vector : Vector, optional
             A vector to shift the detected BBs by. Useful for images that are not perfectly aligned.
+        bb_proximity_mm : float
+            The maximum distance a detected BB can be from the expected BB location in mm.
 
         See Also
         --------
@@ -690,7 +693,9 @@ class WLBaseImage(image.LinacDicomImage):
         self.normalize()
         self.bb_arrangement = bb_arrangement
         field_caxs = self.find_field_centroids(is_open_field=is_open_field)
-        field_matches = self.find_field_matches(field_caxs)
+        field_matches = self.find_field_matches(
+            field_caxs, bb_proximity_mm=bb_proximity_mm
+        )
         detected_bb_points = self.find_bb_centroids(
             bb_diameter_mm=bb_arrangement[0].bb_size_mm,
             low_density=is_low_density,
@@ -711,7 +716,9 @@ class WLBaseImage(image.LinacDicomImage):
                 p.y -= (
                     sup_inf * self.dpmm
                 )  # we subtract because the detected point is in image space, not coordinate space so we convert the shift from coordinate to image space
-        bb_matches = self.find_bb_matches(detected_points=detected_bb_points)
+        bb_matches = self.find_bb_matches(
+            detected_points=detected_bb_points, bb_proximity_mm=bb_proximity_mm
+        )
         if len(bb_matches) != len(field_matches):
             raise ValueError("The number of detected fields and BBs do not match")
         if not field_matches:
@@ -752,9 +759,11 @@ class WLBaseImage(image.LinacDicomImage):
             p = Point(x=coords[-1], y=coords[0])
         return [p]
 
-    def find_field_matches(self, detected_points: list[Point]) -> dict[str, Point]:
+    def find_field_matches(
+        self, detected_points: list[Point], bb_proximity_mm: float
+    ) -> dict[str, Point]:
         """Find matches between detected field points and the arrangement. See ``find_bb_matches`` for more info."""
-        return self.find_bb_matches(detected_points)
+        return self.find_bb_matches(detected_points, bb_proximity_mm=bb_proximity_mm)
 
     def find_bb_centroids(
         self, bb_diameter_mm: float, low_density: bool
@@ -776,7 +785,9 @@ class WLBaseImage(image.LinacDicomImage):
         )
         return centers
 
-    def find_bb_matches(self, detected_points: list[Point]) -> dict[str, Point]:
+    def find_bb_matches(
+        self, detected_points: list[Point], bb_proximity_mm: float
+    ) -> dict[str, Point]:
         """Given an arrangement and detected BB positions, find the bbs that are closest to the expected positions.
 
         This is to prevent false positives from being detected as BBs (e.g. noise, couch, etc).
@@ -793,7 +804,7 @@ class WLBaseImage(image.LinacDicomImage):
             ]
             min_distance = min(distances)
             min_distance_idx = distances.index(min_distance)
-            if min_distance < 20 * self.dpmm:
+            if min_distance < bb_proximity_mm * self.dpmm:
                 bbs[bb_arng.name] = detected_points[min_distance_idx]
         return bbs
 
@@ -2786,6 +2797,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
                 bb_arrangement=bb_arrangement,
                 is_open_field=is_open_field,
                 is_low_density=is_low_density,
+                bb_proximity_mm=10,
             )
 
         self.bbs = []
