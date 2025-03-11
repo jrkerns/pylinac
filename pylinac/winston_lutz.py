@@ -1138,6 +1138,7 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
         gantry_reference: float = 0,
         collimator_reference: float = 0,
         couch_reference: float = 0,
+        bb_proximity_mm: float = 20,
     ) -> None:
         """Analyze the image. See WinstonLutz.analyze for parameter details."""
         bb_config = BBArrangement.ISO
@@ -1151,6 +1152,7 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
             gantry_reference=gantry_reference,
             collimator_reference=collimator_reference,
             couch_reference=couch_reference,
+            bb_proximity_mm=bb_proximity_mm,
         )
         self.bb_arrangement = bb_config
         # these are set for the deprecated properties of the 2D analysis specifically where 1 field and 1 bb are expected.
@@ -1492,6 +1494,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         gantry_reference: float = 0,
         collimator_reference: float = 0,
         couch_reference: float = 0,
+        bb_proximity_mm: float = 20,
     ) -> None:
         """Analyze the WL images.
 
@@ -1520,6 +1523,9 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             The reference value for the collimator. See `gantry_reference`.
         couch_reference
             The reference value for the couch. See `gantry_reference`.
+        bb_proximity_mm
+            The maximum distance in mm that a detected BB can be from the expected BB position.
+            For single-BB WL datasets, the expected BB position is isocenter.
         """
         self.machine_scale = machine_scale
         if self.is_from_cbct:
@@ -1534,6 +1540,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
                 gantry_reference=gantry_reference,
                 collimator_reference=collimator_reference,
                 couch_reference=couch_reference,
+                bb_proximity_mm=bb_proximity_mm,
             )
         # we need to construct the BB representation to get the shift vector
         bb_config = BBArrangement.ISO[0]
@@ -2781,6 +2788,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         is_open_field: bool = False,
         is_low_density: bool = False,
         machine_scale: MachineScale = MachineScale.IEC61217,
+        bb_proximity_mm: float = 10,
     ):
         """Analyze the WL images.
 
@@ -2789,6 +2797,10 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         bb_arrangement
             The arrangement of the BBs in the phantom. A dict with offset and BB size keys. See the ``BBArrangement`` class for
             keys and syntax.
+
+        See Also
+        --------
+        WinstonLutz.analyze for other parameter info.
         """
         self.machine_scale = machine_scale
         self.bb_arrangement = bb_arrangement
@@ -2797,7 +2809,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
                 bb_arrangement=bb_arrangement,
                 is_open_field=is_open_field,
                 is_low_density=is_low_density,
-                bb_proximity_mm=10,
+                bb_proximity_mm=bb_proximity_mm,
             )
 
         self.bbs = []

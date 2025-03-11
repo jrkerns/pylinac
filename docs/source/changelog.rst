@@ -19,6 +19,22 @@ Image
 
 * :bdg-primary:`Refactor` XIM image reading has been increased by ~30x. Thanks to `@purepani <https://github.com/purepani>`__ for the contribution.
 
+Winston-Lutz
+^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` Some SNC MultiMet datasets were giving very large values for the BB error values.
+  This had to do with the tolerance of nominal BB position vs detected BB position and field position.
+  The tolerance was inadvertently 20mm. Since the SNC MultiMet has BB's placed closer than this,
+  the BB and field matcher was matching a hidden BB and field to a visible one. In some cases,
+  the matched BB was on one side of the hidden BB and the matched field was on the other, causing
+  and apparent error of ~30mm. Fixing this involved adding a separate tolerance for the MTWL. See below.
+
+  .. image:: images/RAM-4405.png
+
+* :bdg-success:`Feature` A new parameter ``bb_proximity_mm`` has been added to :meth:`~pylinac.winston_lutz.WinstonLutzMultiTargetMultiField.analyze()`. This
+  lets the user control how far away the BB can be from the nominal position. For single-BB, isocentric
+  WLs, this is 20 by default for historical consistency. For MTWL, this value is now 10mm by default.
+
 v 3.31.0
 --------
 

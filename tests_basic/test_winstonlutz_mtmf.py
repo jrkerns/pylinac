@@ -209,9 +209,14 @@ class SNCMultiMet(WinstonLutzMultiTargetMultFieldMixin, TestCase):
     median_2d_distance = 0.25
     mean_2d_distance = 0.27
     bb_maxes = {"Iso": 0.58, "1": 0.68}
-    bb_shift_vector = Vector(0.2, 0.0, 0.05)
-    bb_pitch = 0.1
-    bb_yaw = 0.1
+    bb_shift_vector = Vector(0.2, 0.05, 0.02)
+    bb_yaw = 0.06
+    bb_roll = -0.05
+
+    def test_num_bbs_found_per_image(self):
+        num_bbs = [4, 2, 2, 4, 6, 6, 2, 4, 4, 2, 6, 6, 6, 6, 6, 6, 6, 6, 6]
+        for img, num_bb in zip(self.wl.images, num_bbs):
+            self.assertEqual(len(img.arrangement_matches), num_bb)
 
 
 class SyntheticMultiMetMixin(WinstonLutzMultiTargetMultFieldMixin):

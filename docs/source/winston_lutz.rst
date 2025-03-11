@@ -59,7 +59,6 @@ Winston-Lutz analyses require these steps:
 
 * The BB should be fully within the field of view.
 * The MLC field should be symmetric.
-* The BB should be <2cm from the isocenter.
 
 Prefabricated plans are available at :ref:`prefab-rt-plans` for download. See also the
 :ref:`plan-generator` module for creating your own plans.
