@@ -1420,7 +1420,6 @@ class AGElekta2(CatPhan503Mixin, TestCase):
     }
     unif_values = {"Center": 707, "Left": 758, "Right": 748, "Top": 750, "Bottom": 758}
     mtf_values = {50: 0.22}
-    avg_line_length = 50.2
     slice_thickness = 1
 
 
