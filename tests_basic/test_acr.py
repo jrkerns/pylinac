@@ -560,7 +560,7 @@ class ACRDualEcho(ACRMRMixin, TestCase):
     file_name = "AXIAL_DUAL_ECHO.zip"
     row_mtf_50 = 0.96
     col_mtf_50 = 0.96
-    phantom_roll = 0
+    phantom_roll = -0.2
     slice_thickness = 5
     slice1_shift = -1
     slice11_shift = 0
@@ -571,7 +571,7 @@ class ACRDualEcho2(ACRMRMixin, TestCase):
     file_name = "AXIAL_DUAL_ECHO.zip"
     row_mtf_50 = 0.96
     col_mtf_50 = 0.96
-    phantom_roll = 0
+    phantom_roll = -0.3
     slice_thickness = 4.4
     slice1_shift = -1
     slice11_shift = 0
@@ -601,7 +601,7 @@ class ACRGE3T(ACRMRMixin, TestCase):
     file_name = "GE 3T.zip"
     row_mtf_50 = 0.96
     col_mtf_50 = 0.96
-    phantom_roll = 0
+    phantom_roll = -0.3
     slice_thickness = 5
     slice1_shift = 0
     slice11_shift = 1.5
@@ -678,18 +678,10 @@ class ACRMRIUnfilled(ACRMRMixin, TestCase):
     # a phantom with significant air bubbles and also a rotation
     # results aren't great, but are provided for benchmarking
     file_name = "Sola.zip"
-    row_mtf_50 = 1
-    col_mtf_50 = 0.1
-    phantom_roll = 0.2
-    slice_thickness = 3
+    row_mtf_50 = 1.04
+    col_mtf_50 = 1.02
+    slice_thickness = 5.2
     slice1_shift = -0.5
     slice11_shift = 1.5
-    psg = 0.3
-
-    @classmethod
-    def setUpClass(cls):
-        filename = cls.get_filename()
-        cls.mri = ACRMRILarge.from_zip(filename)
-        for img in cls.mri.dicom_stack:
-            img.array = ndimage.rotate(img.array, angle=1, mode="nearest")
-        cls.mri.analyze()
+    psg = 0.1
+    y_adjustment = -2

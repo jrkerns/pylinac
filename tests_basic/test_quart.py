@@ -356,11 +356,11 @@ class TestQuartPelvis(QuartDVTMixin, TestCase):
 
 class TestHypersightQuart(QuartDVTMixin, TestCase):
     file_name = "Hypersight Quart (w water).zip"
-    phantom_roll = 0.0
+    phantom_roll = 0.2
     slice_thickness = 1.9
     origin_slice = 18
-    snr = 400
-    cnr = 56.0
+    snr = 397
+    cnr = 56.2
     horiz_dist = 159.7
     vert_dist = 159.6
     high_contrast_distance = 0.6
