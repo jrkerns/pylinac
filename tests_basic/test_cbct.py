@@ -1345,6 +1345,7 @@ class Katy1(CatPhan504Mixin, TestCase):
     """CBCT with very high HU values."""
 
     file_name = "Katy-iX-Monday, March 10, 2014 1-05-47 PM (super high HU).zip"
+    expected_roll = -0.3
     origin_slice = 44
     hu_values = {
         "Poly": 584,
@@ -1534,7 +1535,7 @@ class UNC120kV(CatPhan503Mixin, TestCase):
 
 class CatPhan600_1(CatPhan600Mixin, TestCase):
     file_name = "zzCAT201601.zip"
-    expected_roll = -1.1
+    expected_roll = -0.7
     origin_slice = 158
     hu_values = {
         "Poly": -31,
@@ -1931,6 +1932,32 @@ class CatPhan604DD3(CatPhan604Mixin, TestCase):
     unif_values = {"Center": -20, "Left": -20, "Right": -20, "Top": -20, "Bottom": -20}
     mtf_values = {50: 0.30}
     lowcon_visible = 6
+
+
+class CatPhan503XVI507(CatPhan503Mixin, TestCase):
+    file_name = "catphan_MFOV_5.0.7.1.zip"
+    expected_roll = -0.3
+    origin_slice = 106
+    avg_line_length = 49.85
+    hu_values = {
+        "Poly": -193,
+        "Acrylic": -87,
+        "Delrin": 58,
+        "Air": -825,
+        "Teflon": 440,
+        "PMP": -291,
+        "LDPE": -231,
+    }
+    unif_values = {
+        "Center": -177,
+        "Left": -151,
+        "Right": -148,
+        "Top": -151,
+        "Bottom": -151,
+    }
+    mtf_values = {50: 0.58}
+    lowcon_visible = 4
+    slice_thickness = 1.4
 
 
 class CatPhan504NearEdge(CatPhan504Mixin, TestCase):

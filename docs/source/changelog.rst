@@ -18,6 +18,8 @@ CT
 
 * :bdg-warning:`Fixed` Certain scans from a GammaKnife would cause geometric nodes on the HU linearity module
   to be incorrectly detected. Node detection is now more robust.
+* :bdg-warning:`Fixed` Certain CBCT datasets from the XVI v5.0.7 imager were failing due to high-artifact rings.
+  Detection should now be more robust to these artifacts.
 
 Image
 ^^^^^
