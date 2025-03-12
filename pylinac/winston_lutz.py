@@ -191,32 +191,48 @@ class BBArrangement:
         BBConfig(
             name="Iso",
             offset_left_mm=0,
-            offset_up_mm=5,
+            offset_up_mm=0,
             offset_in_mm=0,
             bb_size_mm=5,
             rad_size_mm=20,
         ),
         BBConfig(
-            name="Out",
+            name="1",
             offset_left_mm=0,
-            offset_up_mm=00,
-            offset_in_mm=-60,
-            bb_size_mm=5,
-            rad_size_mm=20,
-        ),
-        BBConfig(
-            name="In",
-            offset_left_mm=0,
-            offset_up_mm=00,
+            offset_up_mm=0,
             offset_in_mm=30,
             bb_size_mm=5,
             rad_size_mm=20,
         ),
         BBConfig(
-            name="Left/Out",
-            offset_left_mm=10,
-            offset_up_mm=10,
+            name="2",
+            offset_left_mm=-30,
+            offset_up_mm=0,
+            offset_in_mm=15,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="3",
+            offset_left_mm=0,
+            offset_up_mm=0,
             offset_in_mm=-30,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="4",
+            offset_left_mm=30,
+            offset_up_mm=0,
+            offset_in_mm=-50,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="5",
+            offset_left_mm=0,
+            offset_up_mm=0,
+            offset_in_mm=-70,
             bb_size_mm=5,
             rad_size_mm=20,
         ),
@@ -2771,7 +2787,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
     @classmethod
     def from_demo_images(cls):
         """Instantiate using the demo images."""
-        demo_file = retrieve_demo_file(name="mt_mf_wl.zip")
+        demo_file = retrieve_demo_file(name="SNC_MTWL_demo.zip")
         return cls.from_zip(demo_file)
 
     @staticmethod

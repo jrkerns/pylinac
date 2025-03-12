@@ -22,7 +22,7 @@ from tests_basic.utils import CloudFileMixin, PlotlyTestMixin
 TEST_DIR = "Winston-Lutz"  # comment trigger
 
 
-class TestWLMultiImage(TestCase):
+class TestWLMultiImageDemo(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.wl = WinstonLutzMultiTargetMultiField.from_demo_images()
@@ -62,13 +62,13 @@ class TestWLMultiImage(TestCase):
     def test_results(self):
         results = self.wl.results()
         self.assertIn("Multi-Target Multi-Field", results)
-        self.assertIn("Max 2D distance of any BB->Field: 0.00 mm", results)
+        self.assertIn("Max 2D distance of any BB->Field: 0.94 mm", results)
 
     def test_results_data(self):
         results = self.wl.results_data()
-        self.assertEqual(results.max_2d_field_to_bb_mm, 0.0)
-        self.assertEqual(results.bb_maxes["Iso"], 0.0)
-        self.assertEqual(results.num_total_images, 4)
+        self.assertAlmostEqual(results.max_2d_field_to_bb_mm, 0.94, delta=0.005)
+        self.assertAlmostEqual(results.bb_maxes["Iso"], 0.443, delta=0.005)
+        self.assertEqual(results.num_total_images, 19)
 
     def test_results_warnings(self):
         self.wl.analyze(bb_arrangement=BBArrangement.DEMO)

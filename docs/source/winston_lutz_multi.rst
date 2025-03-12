@@ -74,39 +74,50 @@ Results will be printed to the console and a figure showing the zoomed-in images
 
     Winston-Lutz Multi-Target Multi-Field Analysis
     ==============================================
-    Number of images: 8
+    Number of images: 19
 
     2D distances
     ============
-    Max 2D distance of any BB->Field: 5.27 mm
-    Mean 2D distance of any BB->Field: 2.00 mm
-    Median 2D distance of any BB->Field: 2.53 mm
+    Max 2D distance of any BB->Field: 0.94 mm
+    Mean 2D distance of any BB->Field: 0.41 mm
+    Median 2D distance of any BB->Field: 0.37 mm
 
-    BB #      Description
-    --------  ----------------------------------
-    Iso       Left 0.0mm, Up 5.0mm, In 0.0mm
-    Out       Left 0.0mm, Up 0.0mm, Out 60.0mm
-    In        Left 0.0mm, Up 0.0mm, In 30.0mm
-    Left/Out  Left 10.0mm, Up 10.0mm, Out 30.0mm
+    BB #    Description
+    ------  ---------------------------------
+    Iso     Left 0.0mm, Up 0.0mm, In 0.0mm
+    1       Left 0.0mm, Up 0.0mm, In 30.0mm
+    2       Right 30.0mm, Up 0.0mm, In 15.0mm
+    3       Left 0.0mm, Up 0.0mm, Out 30.0mm
+    4       Left 30.0mm, Up 0.0mm, Out 50.0mm
+    5       Left 0.0mm, Up 0.0mm, Out 70.0mm
 
-    Image                   G    C    P    Iso    Out    In    Left/Out
-    --------------------  ---  ---  ---  -----  -----  ----  ----------
-    =0, Gantry sag=0.dcm    0    0    0   0      5.27  2.61        2.61
-    =0, Gantry sag=0.dcm    0    0   45   0.01   5.24  2.61        2.53
-    =0, Gantry sag=0.dcm    0    0   90   0      5.27  2.61        2.61
-    =0, Gantry sag=0.dcm    0    0  270   0      5.27  2.61        2.61
-    =0, Gantry sag=0.dcm    0    0  315   0.01   5.24  2.61        2.53
-    =0, Gantry sag=0.dcm   90    0    0   0.05   0.07  0.1         0.38
-    =0, Gantry sag=0.dcm  180    0    0   0      5.27  2.61        2.46
-    =0, Gantry sag=0.dcm  270    0    0   0.05   0.67  0.07        0.1
+    Image           G    C    P  Iso    1     2     3     4     5
+    ------------  ---  ---  ---  -----  ----  ----  ----  ----  ----
+    RT000001.dcm    0   45   45  0.21   0.11  0.26  0.67  0.85  0.84
+    RT000010.dcm    0   90    0  0.30   0.29  0.44  0.57  0.26  0.59
+    RT000014.dcm    0  135  315  0.13   0.44  0.52  0.38  0.58  0.67
+    RT000012.dcm    0  225   45  0.14   0.32  0.16  0.50  0.74  0.67
+    RT000000.dcm    0  270    0  0.37   0.07  0.33  0.65  0.65  0.64
+    RT000006.dcm    0  315  315  0.44   0.40  0.63  0.71  0.93  0.94
+    RT000007.dcm    0  360   90  0.42   0.46  0.08  0.45  0.64  0.47
+    RT000015.dcm    0  360    0  0.33   0.15  0.34  0.59  0.77  0.77
+    RT000005.dcm    0  360  270  0.25   0.59  0.72  0.40  0.14  0.50
+    RT000017.dcm   90   90    0  ---    ---   0.40  ---   0.26  ---
+    RT000002.dcm   90   90    0  0.10   0.42  ---   0.23  ---   0.22
+    RT000004.dcm   90  270    0  0.10   0.32  ---   0.29  ---   0.27
+    RT000016.dcm   90  270    0  ---    ---   0.31  ---   0.33  ---
+    RT000013.dcm  180   90    0  0.33   0.78  0.58  0.19  0.32  0.24
+    RT000008.dcm  180  360    0  0.33   0.60  0.41  0.06  0.14  0.15
+    RT000003.dcm  270   90    0  ---    ---   0.37  ---   0.36  ---
+    RT000011.dcm  270   90    0  0.20   0.56  ---   0.30  ---   0.37
+    RT000009.dcm  270  270    0  0.22   0.44  ---   0.33  ---   0.42
+    RT000018.dcm  270  270    0  ---    ---   0.36  ---   0.33  ---
 
-    Image                   Couch Angle    Yaw Error (°)
-    --------------------  -------------  ---------------
-    =0, Gantry sag=0.dcm              0             4.96
-    =0, Gantry sag=0.dcm             45             4.91
-    =0, Gantry sag=0.dcm             90             4.96
-    =0, Gantry sag=0.dcm            270             4.96
-    =0, Gantry sag=0.dcm            315             4.91
+    Image           Couch Angle    Yaw Error (°)
+    ------------  -------------  ---------------
+    RT000007.dcm    89.998                  0.12
+    RT000015.dcm     0.00195312             0.21
+    RT000005.dcm   270.002                  0.25
 
 .. plot::
     :include-source: false
