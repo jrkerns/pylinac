@@ -29,7 +29,7 @@ Winston-Lutz
   the matched BB was on one side of the hidden BB and the matched field was on the other, causing
   and apparent error of ~30mm. Fixing this involved adding a separate tolerance for the MTWL. See below.
 
-  .. image:: images/RAM-4405.png
+  .. image:: images/RAM_4405.png
 
 * :bdg-success:`Feature` A new parameter ``bb_proximity_mm`` has been added to :meth:`~pylinac.winston_lutz.WinstonLutzMultiTargetMultiField.analyze()`. This
   lets the user control how far away the BB can be from the nominal position. For single-BB, isocentric
