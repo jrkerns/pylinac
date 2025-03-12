@@ -214,9 +214,20 @@ class SNCMultiMet(WinstonLutzMultiTargetMultFieldMixin, TestCase):
     bb_roll = -0.05
 
     def test_num_bbs_found_per_image(self):
-        num_bbs = [4, 2, 2, 4, 6, 6, 2, 4, 4, 2, 6, 6, 6, 6, 6, 6, 6, 6, 6]
-        for img, num_bb in zip(self.wl.images, num_bbs):
-            self.assertEqual(len(img.arrangement_matches), num_bb)
+        # specify the non-6 bb images; default to 6 otherwise
+        img_bbs = {
+            "RI.999999997.MV_90_0a.dcm": 4,
+            "RI.999999997.MV_90_0a3.dcm": 2,
+            "RI.999999997.MV_90_0a1.dcm": 2,
+            "RI.999999997.MV_90_0a4.dcm": 4,
+            "RI.999999997.MV_270_0a1.dcm": 2,
+            "RI.999999997.MV_270_0a2.dcm": 4,
+            "RI.999999997.MV_270_0a.dcm": 4,
+            "RI.999999997.MV_270_0a5.dcm": 2,
+        }
+        for img in self.wl.images:
+            expected_bbs = img_bbs.get(img.base_path, 6)
+            self.assertEqual(len(img.arrangement_matches), expected_bbs)
 
 
 class SyntheticMultiMetMixin(WinstonLutzMultiTargetMultFieldMixin):
