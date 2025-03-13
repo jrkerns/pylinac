@@ -1345,6 +1345,7 @@ class Katy1(CatPhan504Mixin, TestCase):
     """CBCT with very high HU values."""
 
     file_name = "Katy-iX-Monday, March 10, 2014 1-05-47 PM (super high HU).zip"
+    expected_roll = -0.3
     origin_slice = 44
     hu_values = {
         "Poly": 584,
@@ -1534,7 +1535,7 @@ class UNC120kV(CatPhan503Mixin, TestCase):
 
 class CatPhan600_1(CatPhan600Mixin, TestCase):
     file_name = "zzCAT201601.zip"
-    expected_roll = -1.1
+    expected_roll = -0.7
     origin_slice = 158
     hu_values = {
         "Poly": -31,
@@ -1933,6 +1934,32 @@ class CatPhan604DD3(CatPhan604Mixin, TestCase):
     lowcon_visible = 6
 
 
+class CatPhan503XVI507(CatPhan503Mixin, TestCase):
+    file_name = "catphan_MFOV_5.0.7.1.zip"
+    expected_roll = -0.3
+    origin_slice = 106
+    avg_line_length = 49.85
+    hu_values = {
+        "Poly": -193,
+        "Acrylic": -87,
+        "Delrin": 58,
+        "Air": -825,
+        "Teflon": 440,
+        "PMP": -291,
+        "LDPE": -231,
+    }
+    unif_values = {
+        "Center": -177,
+        "Left": -151,
+        "Right": -148,
+        "Top": -151,
+        "Bottom": -151,
+    }
+    mtf_values = {50: 0.58}
+    lowcon_visible = 4
+    slice_thickness = 1.4
+
+
 class CatPhan504NearEdge(CatPhan504Mixin, TestCase):
     file_name = "phantom_edge.zip"
     expected_roll = 1.4
@@ -1953,8 +1980,8 @@ class CatPhan504NearEdge(CatPhan504Mixin, TestCase):
 
 
 class CatPhan503Nodes(CatPhan503Mixin, TestCase):
-    file_name = "GK-nodes.zip"
-    origin_slice = 259
+    file_name = "GK-nodes-small.zip"
+    origin_slice = 257
     hu_values = {
         "Poly": 0,
         "Acrylic": 170,
@@ -1972,19 +1999,21 @@ class CatPhan503Nodes(CatPhan503Mixin, TestCase):
 
 class CatPhan503Nodes2(CatPhan503Mixin, TestCase):
     # separate test from another institution
-    file_name = "GK-nodes2.zip"
-    origin_slice = 256
+    # the origin slice is off due to the HU module at the edge of
+    # the recon FOV. Included for baselining.
+    file_name = "gknodes2-small.zip"
+    origin_slice = 244
     hu_values = {
-        "Poly": -27,
-        "Acrylic": 172,
-        "Delrin": 459,
-        "Air": -912,
+        "Poly": -34,
+        "Acrylic": 174,
+        "Delrin": 457,
+        "Air": -920,
         "Teflon": 990,
         "PMP": -149,
         "LDPE": -109,
     }
     expected_roll = 0.447
     unif_values = {"Center": 162, "Left": -10, "Right": 101, "Top": 44, "Bottom": 39}
-    mtf_values = {50: -0.07}  # TODO: RAM-4472
+    mtf_values = {50: 0.15}  # TODO: RAM-4472
     lowcon_visible = 4
     slice_thickness = 0.49

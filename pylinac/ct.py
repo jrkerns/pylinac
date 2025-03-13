@@ -3000,7 +3000,7 @@ def get_regions(
         rr, cc = draw.disk(
             center=(center.y, center.x), radius=radius, shape=edges.shape
         )
-        thres = thresmeth(edges[rr, cc])
+        thres = thresmeth(edges[rr, cc]) * 0.8
     else:
         thres = thresmeth(edges)
     bw = edges > thres
