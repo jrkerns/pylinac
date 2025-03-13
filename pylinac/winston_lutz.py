@@ -658,6 +658,7 @@ class WLBaseImage(image.LinacDicomImage):
         gantry_reference: float = 0,
         collimator_reference: float = 0,
         couch_reference: float = 0,
+        bb_proximity_mm: float = 20,
     ) -> (tuple[Point], tuple[Point]):
         """Analyze the image for BBs and field CAXs.
 
@@ -671,6 +672,8 @@ class WLBaseImage(image.LinacDicomImage):
             Whether the BBs are low density (e.g. kV images).
         shift_vector : Vector, optional
             A vector to shift the detected BBs by. Useful for images that are not perfectly aligned.
+        bb_proximity_mm : float
+            The maximum distance a detected BB can be from the expected BB location in mm.
 
         See Also
         --------
@@ -690,7 +693,9 @@ class WLBaseImage(image.LinacDicomImage):
         self.normalize()
         self.bb_arrangement = bb_arrangement
         field_caxs = self.find_field_centroids(is_open_field=is_open_field)
-        field_matches = self.find_field_matches(field_caxs)
+        field_matches = self.find_field_matches(
+            field_caxs, bb_proximity_mm=bb_proximity_mm
+        )
         detected_bb_points = self.find_bb_centroids(
             bb_diameter_mm=bb_arrangement[0].bb_size_mm,
             low_density=is_low_density,
@@ -711,7 +716,9 @@ class WLBaseImage(image.LinacDicomImage):
                 p.y -= (
                     sup_inf * self.dpmm
                 )  # we subtract because the detected point is in image space, not coordinate space so we convert the shift from coordinate to image space
-        bb_matches = self.find_bb_matches(detected_points=detected_bb_points)
+        bb_matches = self.find_bb_matches(
+            detected_points=detected_bb_points, bb_proximity_mm=bb_proximity_mm
+        )
         if len(bb_matches) != len(field_matches):
             raise ValueError("The number of detected fields and BBs do not match")
         if not field_matches:
@@ -752,9 +759,11 @@ class WLBaseImage(image.LinacDicomImage):
             p = Point(x=coords[-1], y=coords[0])
         return [p]
 
-    def find_field_matches(self, detected_points: list[Point]) -> dict[str, Point]:
+    def find_field_matches(
+        self, detected_points: list[Point], bb_proximity_mm: float
+    ) -> dict[str, Point]:
         """Find matches between detected field points and the arrangement. See ``find_bb_matches`` for more info."""
-        return self.find_bb_matches(detected_points)
+        return self.find_bb_matches(detected_points, bb_proximity_mm=bb_proximity_mm)
 
     def find_bb_centroids(
         self, bb_diameter_mm: float, low_density: bool
@@ -776,7 +785,9 @@ class WLBaseImage(image.LinacDicomImage):
         )
         return centers
 
-    def find_bb_matches(self, detected_points: list[Point]) -> dict[str, Point]:
+    def find_bb_matches(
+        self, detected_points: list[Point], bb_proximity_mm: float
+    ) -> dict[str, Point]:
         """Given an arrangement and detected BB positions, find the bbs that are closest to the expected positions.
 
         This is to prevent false positives from being detected as BBs (e.g. noise, couch, etc).
@@ -793,7 +804,7 @@ class WLBaseImage(image.LinacDicomImage):
             ]
             min_distance = min(distances)
             min_distance_idx = distances.index(min_distance)
-            if min_distance < 20 * self.dpmm:
+            if min_distance < bb_proximity_mm * self.dpmm:
                 bbs[bb_arng.name] = detected_points[min_distance_idx]
         return bbs
 
@@ -1127,6 +1138,7 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
         gantry_reference: float = 0,
         collimator_reference: float = 0,
         couch_reference: float = 0,
+        bb_proximity_mm: float = 20,
     ) -> None:
         """Analyze the image. See WinstonLutz.analyze for parameter details."""
         bb_config = BBArrangement.ISO
@@ -1140,6 +1152,7 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
             gantry_reference=gantry_reference,
             collimator_reference=collimator_reference,
             couch_reference=couch_reference,
+            bb_proximity_mm=bb_proximity_mm,
         )
         self.bb_arrangement = bb_config
         # these are set for the deprecated properties of the 2D analysis specifically where 1 field and 1 bb are expected.
@@ -1481,6 +1494,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         gantry_reference: float = 0,
         collimator_reference: float = 0,
         couch_reference: float = 0,
+        bb_proximity_mm: float = 20,
     ) -> None:
         """Analyze the WL images.
 
@@ -1509,6 +1523,9 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             The reference value for the collimator. See `gantry_reference`.
         couch_reference
             The reference value for the couch. See `gantry_reference`.
+        bb_proximity_mm
+            The maximum distance in mm that a detected BB can be from the expected BB position.
+            For single-BB WL datasets, the expected BB position is isocenter.
         """
         self.machine_scale = machine_scale
         if self.is_from_cbct:
@@ -1523,6 +1540,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
                 gantry_reference=gantry_reference,
                 collimator_reference=collimator_reference,
                 couch_reference=couch_reference,
+                bb_proximity_mm=bb_proximity_mm,
             )
         # we need to construct the BB representation to get the shift vector
         bb_config = BBArrangement.ISO[0]
@@ -2770,6 +2788,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         is_open_field: bool = False,
         is_low_density: bool = False,
         machine_scale: MachineScale = MachineScale.IEC61217,
+        bb_proximity_mm: float = 10,
     ):
         """Analyze the WL images.
 
@@ -2778,6 +2797,10 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         bb_arrangement
             The arrangement of the BBs in the phantom. A dict with offset and BB size keys. See the ``BBArrangement`` class for
             keys and syntax.
+
+        See Also
+        --------
+        WinstonLutz.analyze for other parameter info.
         """
         self.machine_scale = machine_scale
         self.bb_arrangement = bb_arrangement
@@ -2786,6 +2809,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
                 bb_arrangement=bb_arrangement,
                 is_open_field=is_open_field,
                 is_low_density=is_low_density,
+                bb_proximity_mm=bb_proximity_mm,
             )
 
         self.bbs = []

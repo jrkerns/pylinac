@@ -52,7 +52,6 @@ vanilla WL algorithm:
 * BB size is not a parameter but is part of the BB arrangement.
 * Single images cannot be analyzed.
 * Axis deviations (Gantry wobble, etc) are not yet available.
-* Couch rotation images are dropped as they cannot yet be handled.
 * Interpreting filenames is not yet allowed.
 
 See the following sections for more info.
@@ -125,11 +124,10 @@ The Winston-Lutz module will only load EPID images. The images can be from any E
 the most accurate results the following should be noted:
 
 
-- Images with a rotated couch are dropped and not analyzed (yet) but will not cause an error.
 - The BBs should not occlude each other.
-- The BBs should be >5mm apart in any given image.
+- The BBs should be >10mm apart in any given image by default.
+- Not all BBs must be seen in all images; i.e. some BBs can be hidden.
 - The radiation fields should have >5mm separation in any given image.
-- The BB and radiation field should be <=5 mm away from the nominal location given by the arrangement.
 
 Coordinate Space
 ----------------
@@ -383,9 +381,7 @@ The algorithm works like such:
 
 .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
-* Each BB and radiation field must be within 5mm of the expected position in x and y in the EPID plane. I.e. it must be <=7mm in scalar distance.
 * BBs must not occlude or be <5 mm from each other in any 2D image.
-* Images with a rotated couch are dropped and not analyzed (yet) but will not cause an error.
 * The radiation fields should have >5mm separation in any given image.
 
 **Analysis**
@@ -417,13 +413,12 @@ The results in RadMachine and those from calling ``results_data`` are as follows
 * ``bb_arrangement``: A list of the nominal locations of the BBs. Each BB arrangement
   has the following items:
 
-    * ``name``: The name of the BB.
-    * ``offset_left_mm``: The offset in the left-right direction from isocenter. See: :ref:`coordinate_space`.
-    * ``offset_up_mm``: The offset in the up-down direction from isocenter.
-    * ``offset_in_mm``: The offset in the in-out direction from isocenter.
-    * ``bb_size_mm``: The size of the BB in mm.
-    * ``rad_size_mm``: The size of the radiation field in mm.
-
+  * ``name``: The name of the BB.
+  * ``offset_left_mm``: The offset in the left-right direction from isocenter. See: :ref:`coordinate_space`.
+  * ``offset_up_mm``: The offset in the up-down direction from isocenter.
+  * ``offset_in_mm``: The offset in the in-out direction from isocenter.
+  * ``bb_size_mm``: The size of the BB in mm.
+  * ``rad_size_mm``: The size of the radiation field in mm.
 
 * ``bb_maxes``: A dictionary of the maximum 2D distances of each BB to its field center. The
   key is the BB name as defined in the arrangement.

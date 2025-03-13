@@ -1492,6 +1492,10 @@ class WLVertical3mm(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=-0.5, y=0.5, z=3.6)
     print_results = True
 
+    def test_setting_proximity_too_low_fails(self):
+        with self.assertRaises(ValueError):
+            self.wl.analyze(bb_proximity_mm=1)
+
 
 class WLDontUseFileNames(WinstonLutzMixin, TestCase):
     file_name = "Naming.zip"
