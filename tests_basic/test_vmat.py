@@ -1,5 +1,6 @@
 import io
 import json
+import pytest
 import tempfile
 from collections.abc import Iterable
 from functools import partial
@@ -129,11 +130,13 @@ class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
         self.assertEqual(len(my_drgs.segments), 5)
 
 
+@pytest.mark.proprietary
 class TestDRGSLoading(LoadingBase, TestCase):
     url = "drgs.zip"
     klass = DRGS
 
 
+@pytest.mark.proprietary
 class TestDRMLCLoading(LoadingBase, TestCase):
     url = "drmlc.zip"
     klass = DRMLC
@@ -308,6 +311,7 @@ class TestDRMLCDemoRawPixels(TestDRMLCDemo):
     max_r_deviation = 0.56
 
 
+@pytest.mark.proprietary
 class TestDRMLC105(VMATMixin, TestCase):
     """Tests of the result values of MLCS images at 105cm SID."""
 
@@ -326,6 +330,7 @@ class TestDRMLC105(VMATMixin, TestCase):
     passes = False
 
 
+@pytest.mark.proprietary
 class TestDRGS105(VMATMixin, PlotlyTestMixin, TestCase):
     """Tests of the result values of DRMLC images at 105cm SID."""
 
@@ -364,6 +369,7 @@ class TestDRGS105(VMATMixin, PlotlyTestMixin, TestCase):
         self.instance = self.vmat
 
 
+@pytest.mark.proprietary
 class TestDRMLC2(VMATMixin, TestCase):
     """Tests of the result values of MLCS images at 105cm SID."""
 
@@ -379,6 +385,7 @@ class TestDRMLC2(VMATMixin, TestCase):
     passes = False
 
 
+@pytest.mark.proprietary
 class TestDRGS2(VMATMixin, TestCase):
     """Tests of the result values of DRMLC images at 105cm SID."""
 
@@ -393,6 +400,7 @@ class TestDRGS2(VMATMixin, TestCase):
     max_r_deviation = 1.5
 
 
+@pytest.mark.proprietary
 class TestDRMLCWideGaps(VMATMixin, TestCase):
     """Tests of the result values of a perfect DRMLC but with very wide gaps."""
 
@@ -411,6 +419,7 @@ class TestDRMLCWideGaps(VMATMixin, TestCase):
         pass
 
 
+@pytest.mark.proprietary
 class TestDRMLCOverlapGaps(VMATMixin, TestCase):
     """Tests of the result values of a perfect DRMLC but with gaps that are overlapping (e.g. from a poor DLG)."""
 
@@ -429,6 +438,7 @@ class TestDRMLCOverlapGaps(VMATMixin, TestCase):
         pass
 
 
+@pytest.mark.proprietary
 class TestHalcyonDRGS(VMATMixin, TestCase):
     """A Halcyon image is FFF and goes to the edge of the EPID. Causes bad inversion w/o FWXM profile type."""
 
@@ -455,6 +465,7 @@ class TestHalcyonDRGS(VMATMixin, TestCase):
     max_r_deviation = 0.58
 
 
+@pytest.mark.proprietary
 class TestHalcyonDRMLC(VMATMixin, TestCase):
     """A Halcyon image is FFF and goes to the edge of the EPID. Causes bad inversion w/o FWXM profile type."""
 
@@ -480,6 +491,7 @@ class TestHalcyonDRMLC(VMATMixin, TestCase):
     passes = True
 
 
+@pytest.mark.proprietary
 class TestHalcyonDRGS2(VMATMixin, TestCase):
     """A Hal image w/ deep gaps between the ROIs. Causes a shift in the ROIs from RAM-3483"""
 
@@ -496,6 +508,7 @@ class TestHalcyonDRGS2(VMATMixin, TestCase):
     passes = True
 
 
+@pytest.mark.proprietary
 class TestHalcyonDRGS3(VMATMixin, TestCase):
     """A TB image w/ deep gaps between the ROIs. Causes a shift in the ROIs from RAM-3483"""
 

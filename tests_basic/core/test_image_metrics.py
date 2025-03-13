@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from unittest import TestCase
 
 import numpy as np
@@ -112,6 +113,7 @@ class TestGeneralMetric(TestCase):
             )
 
 
+@pytest.mark.proprietary
 class TestGlobalDiskLocator(TestCase):
     @classmethod
     def setUpClass(cls) -> None:

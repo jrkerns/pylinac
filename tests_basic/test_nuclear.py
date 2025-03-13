@@ -1,4 +1,5 @@
 import json
+import pytest
 from pathlib import Path
 from unittest import TestCase
 
@@ -27,6 +28,9 @@ from pylinac.nuclear import (
 )
 from tests_basic.core.test_utilities import QuaacTestBase
 from tests_basic.utils import get_file_from_cloud_test_repo
+
+pytestmark = pytest.mark.proprietary
+
 
 TEST_DIR = Path("nuclear")
 
