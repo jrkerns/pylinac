@@ -42,6 +42,9 @@ Winston-Lutz
 * :bdg-success:`Feature` A new parameter ``bb_proximity_mm`` has been added to :meth:`~pylinac.winston_lutz.WinstonLutzMultiTargetMultiField.analyze()`. This
   lets the user control how far away the BB can be from the nominal position. For single-BB, isocentric
   WLs, this is 20 by default for historical consistency. For MTWL, this value is now 10mm by default.
+* :bdg-danger:`Change` The Demo dataset for the ``WinstonLutzMultiTargetMultiField`` class has been changed to
+  a real SNC MultiMet dataset since most datasets currently analyzed are for that phantom.
+  The ``DEMO`` BB Arrangement has also been changed to match that of the ``SNC_MULTIMET`` configuration for compatibility.
 
 v 3.31.0
 --------
