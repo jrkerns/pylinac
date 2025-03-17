@@ -13,6 +13,18 @@ Legend
 v 3.32.0
 --------
 
+Picket Fence
+^^^^^^^^^^^^
+
+* :bdg-danger:`Change` When analyzing with ``separate_leaves=True`` for images with an SID != SAD,
+  the nominal gap was double-correcting for the magnification factor. This means, e.g., a picket with a gap
+  of 5mm at an SID of 1500mm would need to set the nominal gap to ~3.3mm (5/1.5) to get an error of ~0mm.
+  To adjust existing code for nominal gaps that were empirically determined, use the following formula:
+
+  .. math::
+
+        \text{new nominal gap} = \text{old nominal gap} * \frac{SID}{SAD}
+
 CT
 ^^
 
