@@ -1820,8 +1820,13 @@ class LazyDicomImageStack:
         return metadata, matched_paths
 
     def side_view(self, axis: int) -> np.ndarray:
-        """Return the side view of the stack. E.g. if axis=0, return the maximum value along the 0th axis."""
-        return np.stack([i for i in self], axis=-1).max(axis=axis)
+        """Return the side view of the stack."""
+        # we perform a loop instead of a simple max(axis=-1) to avoid loading all the images into memory at once
+        side_array = np.zeros(shape=(self[0].array.shape[0], len(self)))
+        for idx, image in enumerate(self):
+            max_col = image.array.max(axis=-1)
+            side_array[:, idx] = max_col
+        return side_array
 
     @cached_property
     def metadata(self) -> pydicom.FileDataset:
