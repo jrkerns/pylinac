@@ -49,6 +49,7 @@ class Simulator(ABC):
         coll_angle: float = 0.0,
         table_angle: float = 0.0,
         invert_array: bool = True,
+        tags: dict | None = None,
     ) -> Dataset:
         """Create and return a pydicom Dataset. I.e. create a pseudo-DICOM image."""
         if invert_array:
@@ -62,6 +63,7 @@ class Simulator(ABC):
             coll=coll_angle,
             couch=table_angle,
             dpi=25.4 / self.pixel_size,
+            extra_tags=tags or {},
         )
 
     def generate_dicom(self, file_out_name: str, *args, **kwargs) -> None:

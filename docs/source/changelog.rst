@@ -26,6 +26,14 @@ Image
 ^^^^^
 
 * :bdg-primary:`Refactor` XIM image reading has been increased by ~30x. Thanks to `@purepani <https://github.com/purepani>`__ for the contribution.
+* :bdg-warning:`Fixed` The ``cax`` property of ``DICOMImage`` was not correctly applying the `(3002,000D) <https://dicom.innolitics.com/ciods/rt-image/rt-image/3002000d>`__ tag. The tag
+  indicates the values are in mm, but the values were being used as pixels. This has been fixed.
+
+Image Generator
+^^^^^^^^^^^^^^^
+
+* :bdg-success:`Feature` The utility function ``generate_winstonlutz`` now accepts a ``tags`` parameter for passing
+  extra DICOM tags to the generated image set.
 
 Winston-Lutz
 ^^^^^^^^^^^^
@@ -45,6 +53,10 @@ Winston-Lutz
 * :bdg-danger:`Change` The Demo dataset for the ``WinstonLutzMultiTargetMultiField`` class has been changed to
   a real SNC MultiMet dataset since most datasets currently analyzed are for that phantom.
   The ``DEMO`` BB Arrangement has also been changed to match that of the ``SNC_MULTIMET`` configuration for compatibility.
+* :bdg-warning:`Fixed` Winston-Lutz now accounts for the EPID translation applied by algorithms like Isocal
+  when calculating field->EPID and BB->EPID distances. This will affect the keys ``<max|mean|median>_cax2epid_distance`` in the results data.
+  Separately, users may notice a difference in more results when ``open_field`` is true, such as the gantry iso size (so far this has only ever reduced the value in our tests) and for BB->field/EPID distances (``cax2bb_...``) .
+  This is because for open fields, there is no field separate from the EPID, so the distance is directly from the BB to the EPID, and now the EPID position takes the translation into account.
 
 v 3.31.0
 --------

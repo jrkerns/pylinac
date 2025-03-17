@@ -1461,12 +1461,29 @@ class DicomImage(BaseImage):
 
     @property
     def cax(self) -> Point:
-        """The position of the beam central axis. If no DICOM translation tags are found then the center is returned.
+        """The center of the image, accounting for EPID translations (e.g. Isocal). If no DICOM translation tags are found then the center is returned.
         Uses this tag: https://dicom.innolitics.com/ciods/rt-beams-delivery-instruction/rt-beams-delivery-instruction/00741020/00741030/3002000d
+        which is in mm.
+
+        Notes
+        -----
+        * The DICOM tag is in mm, so the value must be converted to pixels.
+        * The DICOM tag is (x,y,z) using the Gantry IEC coordinate space,
+          meaning +x is right, +y is in.
+        * DICOM y-axis pixel indices INCREASE going down the image. Combined
+          with above, this means we must subtract from the x-axis and
+          add from the y-axis to get the correct pixel location because
+          the CAX is in the opposite direction of the translation.
         """
         try:
-            x = self.center.x - self.metadata.XRayImageReceptorTranslation[0]
-            y = self.center.y - self.metadata.XRayImageReceptorTranslation[1]
+            x = (
+                self.center.x
+                - self.metadata.XRayImageReceptorTranslation[0] * self.dpmm
+            )
+            y = (
+                self.center.y
+                + self.metadata.XRayImageReceptorTranslation[1] * self.dpmm
+            )
         except (AttributeError, ValueError, TypeError):
             return self.center
         else:

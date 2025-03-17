@@ -746,7 +746,7 @@ class WLBaseImage(image.LinacDicomImage):
         combined_matches = {}
         for bb_name, bb_match in bb_matches.items():
             combined_matches[bb_name] = BBFieldMatch(
-                epid=self.center,
+                epid=self.cax,
                 field=field_matches[bb_name],
                 bb=bb_match,
                 dpmm=self.dpmm,
@@ -760,7 +760,7 @@ class WLBaseImage(image.LinacDicomImage):
     def find_field_centroids(self, is_open_field: bool) -> list[Point]:
         """Find the field CAX(s) in the image. If the field is open or this is a vanilla WL, only one CAX is found."""
         if is_open_field:
-            p = self.center
+            p = self.cax
         else:
             # TODO: Use metrics field finder
             # can't use it out of the box because the
@@ -1052,7 +1052,7 @@ class WLBaseImage(image.LinacDicomImage):
     @property
     def epid(self) -> Point:
         """Center of the EPID panel"""
-        return self.center
+        return self.cax
 
     def _calculate_bb_tolerance(self, bb_diameter: float) -> int:
         """Calculate the BB tolerance based on the BB diameter.
@@ -2717,7 +2717,7 @@ class WinstonLutzMultiTargetMultiFieldImage(WLBaseImage):
             The CAX point locations.
         """
         if is_open_field:
-            return [self.center]
+            return [self.cax]
 
         # find all the fields by setting the field to the mean rad size and tolerance
         # to max-min field sizes across the arrangements

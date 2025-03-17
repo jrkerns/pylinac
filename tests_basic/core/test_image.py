@@ -1,6 +1,7 @@
 import copy
 import io
 import json
+import math
 import os
 import shutil
 import tempfile
@@ -489,7 +490,13 @@ class TestDicomImage(TestCase):
         self.assertAlmostEqual(self.dcm.dpmm, 2.68, delta=0.01)
 
     def test_cax(self):
-        self.assertLessEqual(self.dcm.cax.distance_to(self.dcm.center), 1.5)
+        # in the image the 3002,000D tag is [-0.05,1.076,-50]
+        # meaning the CAX is at (-0.05, 1.076) from the center (mm)
+        self.assertAlmostEqual(
+            self.dcm.cax.distance_to(self.dcm.center),
+            math.hypot(-0.05, 1.076) * self.dcm.dpmm,
+            delta=0.01,
+        )
 
     def test_save(self):
         save_file(self.dcm.save)
