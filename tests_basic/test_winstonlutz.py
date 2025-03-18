@@ -849,6 +849,57 @@ class GeneralTests(TestCase):
         self.assertEqual(wl.detection_conditions, wl.images[0].detection_conditions)
 
 
+class TestShiftScales(CloudFileMixin, TestCase):
+    file_name = "varian standard.zip"
+    dir_path = ["Winston-Lutz"]
+    # these are the gantry/coll/couch values in the given coordinate system
+    # they are all equivalent, but expressed in their own coordinate system.
+    axes_map = {
+        MachineScale.VARIAN_STANDARD: {
+            "RI.01222025.G0-4_1_4.dcm": (0, 0, 180 - 2.1),
+            "RI.01222025.G90-3_1_3.dcm": (90, 0, 180 - 2.1),
+            "RI.01222025.G180-2_1_2.dcm": (180, 0, 180 - 2.1),
+            "RI.01222025.G270-1_1_1.dcm": (270, 0, 180 - 2.1),
+        },
+        MachineScale.IEC61217: {
+            # matches DICOM tags
+            "RI.01222025.G0-4_1_4.dcm": (180, 0, -2.1),
+            "RI.01222025.G90-3_1_3.dcm": (90, 0, -2.1),
+            "RI.01222025.G180-2_1_2.dcm": (0, 0, -2.1),
+            "RI.01222025.G270-1_1_1.dcm": (270, 0, -2.1),
+        },
+        MachineScale.VARIAN_IEC: {
+            "RI.01222025.G0-4_1_4.dcm": (180, 0, 360 - 2.1),
+            "RI.01222025.G90-3_1_3.dcm": (90, 0, 360 - 2.1),
+            "RI.01222025.G180-2_1_2.dcm": (0, 0, 360 - 2.1),
+            "RI.01222025.G270-1_1_1.dcm": (270, 0, 360 - 2.1),
+        },
+    }
+
+    def test_all_scales_have_same_shift(self):
+        # see RAM-4491
+        for scale, mapping in self.axes_map.items():
+            wl = WinstonLutz.from_zip(self.get_filename(), axis_mapping=mapping)
+            wl.analyze(machine_scale=scale, apply_virtual_shift=True)
+            # the final shift should always be ~0
+            self.assertAlmostEqual(
+                wl.bb_shift_vector.x, 0, delta=0.01, msg=f"Scale: {scale}"
+            )
+            self.assertAlmostEqual(
+                wl.bb_shift_vector.y, 0, delta=0.01, msg=f"Scale: {scale}"
+            )
+            self.assertAlmostEqual(
+                wl.bb_shift_vector.z, 0, delta=0.01, msg=f"Scale: {scale}"
+            )
+            # the max 2D error value should be the same
+            self.assertAlmostEqual(
+                wl.results_data().max_2d_cax_to_bb_mm,
+                0.73,
+                delta=0.03,
+                msg=f"Scale: {scale}",
+            )
+
+
 class TestPublishPDF(TestCase):
     @classmethod
     def setUpClass(cls):

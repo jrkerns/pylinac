@@ -675,6 +675,7 @@ class WLBaseImage(image.LinacDicomImage):
         collimator_reference: float = 0,
         couch_reference: float = 0,
         bb_proximity_mm: float = 20,
+        machine_scale: MachineScale = MachineScale.IEC61217,
     ) -> (tuple[Point], tuple[Point]):
         """Analyze the image for BBs and field CAXs.
 
@@ -703,6 +704,7 @@ class WLBaseImage(image.LinacDicomImage):
         self._gantry_reference = gantry_reference
         self._collimator_reference = collimator_reference
         self._couch_reference = couch_reference
+        self.machine_scale = machine_scale
         self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
         self._clean_edges()
         self.ground()
@@ -725,6 +727,7 @@ class WLBaseImage(image.LinacDicomImage):
                 sad=self.sad,
                 gantry=self.gantry_angle,
                 couch=self.couch_angle,
+                machine_scale=machine_scale,
             )
             # convert from mm to pixels and add to the detected points
             for p in detected_bb_points:
@@ -1043,6 +1046,7 @@ class WLBaseImage(image.LinacDicomImage):
             sad=self.sad,
             gantry=self.gantry_angle,
             couch=self.couch_angle,
+            machine_scale=self.machine_scale,
         )
         # the field can be asymmetric, so use center of image
         expected_y = self.epid.y - shift_y_mm * self.dpmm
@@ -1155,6 +1159,7 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
         collimator_reference: float = 0,
         couch_reference: float = 0,
         bb_proximity_mm: float = 20,
+        machine_scale: MachineScale = MachineScale.IEC61217,
     ) -> None:
         """Analyze the image. See WinstonLutz.analyze for parameter details."""
         bb_config = BBArrangement.ISO
@@ -1169,6 +1174,7 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
             collimator_reference=collimator_reference,
             couch_reference=couch_reference,
             bb_proximity_mm=bb_proximity_mm,
+            machine_scale=machine_scale,
         )
         self.bb_arrangement = bb_config
         # these are set for the deprecated properties of the 2D analysis specifically where 1 field and 1 bb are expected.
@@ -1557,6 +1563,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
                 collimator_reference=collimator_reference,
                 couch_reference=couch_reference,
                 bb_proximity_mm=bb_proximity_mm,
+                machine_scale=machine_scale,
             )
         # we need to construct the BB representation to get the shift vector
         bb_config = BBArrangement.ISO[0]
@@ -1579,6 +1586,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
                     gantry_reference=gantry_reference,
                     collimator_reference=collimator_reference,
                     couch_reference=couch_reference,
+                    machine_scale=machine_scale,
                 )
 
         # in the vanilla WL case, the BB can only be represented by non-couch-kick images
@@ -2826,6 +2834,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
                 is_open_field=is_open_field,
                 is_low_density=is_low_density,
                 bb_proximity_mm=bb_proximity_mm,
+                machine_scale=machine_scale,
             )
 
         self.bbs = []
@@ -3380,6 +3389,7 @@ def bb_projection_with_rotation(
     gantry: float,
     couch: float,
     sad: float = 1000,
+    machine_scale: MachineScale = MachineScale.IEC61217,
 ) -> (float, float):
     """Calculate the isoplane projection onto the panel at the given SSD.
 
@@ -3408,11 +3418,18 @@ def bb_projection_with_rotation(
     # Define the BB positions in the patient coordinate system (ap, lr, si)
     bb_positions = np.array([offset_up, offset_left, offset_in])
 
+    gantry_rot, _, couch_rot = convert(
+        input_scale=machine_scale,
+        output_scale=MachineScale.IEC61217,
+        gantry=gantry,
+        collimator=0,
+        rotation=couch,
+    )
     # Apply the rotation matrix to the BB positions
     collimator = 0  # Collimator doesn't change positional projection onto panel
     rotation_matrix = Rotation.from_euler(
         "xyz",
-        [-couch, collimator, gantry],
+        [-couch_rot, collimator, gantry_rot],
         degrees=True,  # negative couch due to origin shift vs coordinate space
     )
     rotated_positions = rotation_matrix.apply(bb_positions)
