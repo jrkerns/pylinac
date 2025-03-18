@@ -10,6 +10,14 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.33.0
+--------
+
+* :bdg-warning:`Fixed` When passing a coordinate system other than IEC61217 and also applying a virtual shift ``apply_virtual_shift=True``,
+  the resulting shift would not be 0. This was due to assuming IEC61217 internally when calculting BB positions in 3D space.
+* :bdg-success:`Feature` The ``WinstonLutz2D`` method ``analyze`` now accepts a ``machine_scale`` parameter,
+  similar to what ``WinstonLutz`` already does.
+
 v 3.32.0
 --------
 
@@ -69,10 +77,6 @@ Winston-Lutz
   when calculating field->EPID and BB->EPID distances. This will affect the keys ``<max|mean|median>_cax2epid_distance`` in the results data.
   Separately, users may notice a difference in more results when ``open_field`` is true, such as the gantry iso size (so far this has only ever reduced the value in our tests) and for BB->field/EPID distances (``cax2bb_...``) .
   This is because for open fields, there is no field separate from the EPID, so the distance is directly from the BB to the EPID, and now the EPID position takes the translation into account.
-* :bdg-warning:`Fixed` When passing a coordinate system other than IEC61217 and also applying a virtual shift ``apply_virtual_shift=True``,
-  the resulting shift would not be 0. This was due to assuming IEC61217 internally when calculting BB positions in 3D space.
-* :bdg-success:`Feature` The ``WinstonLutz2D`` method ``analyze`` now accepts a ``machine_scale`` parameter,
-  similar to what ``WinstonLutz`` already does.
 
 v 3.31.0
 --------

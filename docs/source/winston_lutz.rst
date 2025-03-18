@@ -92,7 +92,7 @@ Coordinate Space
 
 When interpreting results from a Winston-Lutz test, it's important to know the coordinates, origin, etc. Pylinac uses
 IEC 61217 `(FIXED) coordinate space <https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_c.8.8.25.6.html>`__
- for Cartesian shifts. Colloquial descriptions are as if standing at the foot of the couch looking at the gantry.
+for Cartesian shifts. Colloquial descriptions are as if standing at the foot of the couch looking at the gantry.
 
 .. image:: images/IEC61217.svg
 
