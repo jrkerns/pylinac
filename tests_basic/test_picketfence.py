@@ -588,6 +588,37 @@ class PFTestMixin(CloudFileMixin):
             self.assertEqual(self.max_error_leaf, self.pf.max_error_leaf)
 
 
+class SyntheticPF:
+    """Generate a synthetic picketfence image for testing."""
+
+    file: str
+    num_pickets = 5
+    picket_width_mm = 3
+    picket_spacing_mm = 15
+    simulator = AS1200Image(sid=1500)
+    final_layers = [GaussianFilterLayer()]
+
+    @classmethod
+    def tearDownClass(cls):
+        Path(cls.file).unlink(missing_ok=True)
+        super().tearDownClass()
+
+    @classmethod
+    def get_filename(cls) -> str:
+        f = tempfile.NamedTemporaryFile(delete=False)
+        cls.file = f.name
+        generate_picketfence(
+            simulator=cls.simulator,
+            field_layer=FilteredFieldLayer,
+            file_out=f.name,
+            final_layers=cls.final_layers,
+            pickets=cls.num_pickets,
+            picket_width_mm=cls.picket_width_mm,
+            picket_spacing_mm=cls.picket_spacing_mm,
+        )
+        return f.name
+
+
 class PFDemo(PFTestMixin, TestCase):
     """Tests specifically for the EPID demo image."""
 
@@ -678,7 +709,7 @@ class WideGapSimulation(PFTestMixin, TestCase):
 
 class WideGapSimulationSeparate(WideGapSimulation):
     separate_leaves = True
-    nominal_gap_mm = 16
+    nominal_gap_mm = 24
     max_error = 0.3
     abs_median_error = 0.07
     percent_passing = 100
@@ -690,6 +721,30 @@ class FFFWideGapSimulation(PFTestMixin, TestCase):
     abs_median_error = 0.06
     num_pickets = 7
     mean_picket_spacing = 30
+
+
+class WideGapSimulated1500(SyntheticPF, PFTestMixin, TestCase):
+    simulator = AS1200Image(sid=1500)  # note the 1500 SID
+    num_pickets = 5
+    picket_width_mm = 15
+    picket_spacing_mm = 30
+    mean_picket_spacing = (
+        30  # mean picket spacing should be the same as the stated picket spacing
+    )
+    nominal_gap_mm = 15.2  # nominal gap should be the same as the picket width although pixelation of the synthetic image will cause up to 1/2 pixel error
+    separate_leaves = True
+
+
+class WideGapSimulated1000(SyntheticPF, PFTestMixin, TestCase):
+    simulator = AS1200Image(sid=1000)  # note the 1000 SID
+    num_pickets = 5
+    picket_width_mm = 15
+    picket_spacing_mm = 30
+    mean_picket_spacing = (
+        30  # mean picket spacing should be the same as the stated picket spacing
+    )
+    nominal_gap_mm = 15.4  # nominal gap should be the same as the picket width although pixelation of the synthetic image will cause up to 1/2 pixel error
+    separate_leaves = True
 
 
 class AS1200(PFTestMixin, TestCase):
