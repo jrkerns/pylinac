@@ -2,16 +2,6 @@ import copy
 import io
 import json
 import os
-from tests_basic.conftest import (
-    as500_path,
-    bad_tif_path,
-    dcm_path,
-    png_path,
-    tif_path,
-    xim_dcm_path,
-    xim_path,
-)
-import pytest
 import shutil
 import tempfile
 import unittest
@@ -26,6 +16,7 @@ import pydicom
 from numpy.testing import assert_array_almost_equal
 from parameterized import parameterized
 from pydicom.uid import UID
+import pytest
 
 from pylinac import settings
 from pylinac.core import image
@@ -53,28 +44,40 @@ from tests_basic.utils import (
     save_file,
 )
 
+
 pytestmark = pytest.mark.proprietary
 
 
-dcm_url = "https://storage.googleapis.com/pylinac_demo_files/EPID-PF-LR.dcm"
+class ImageBase(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.bad_tif_path = get_file_from_cloud_test_repo(["Winston-Lutz", "AQA_A_03082023.tif"])
+        cls.tif_path = get_file_from_cloud_test_repo(["Starshot", "Starshot-1.tif"])
+        cls.png_path = get_file_from_cloud_test_repo(["Starshot", "Starshot-1.png"])
+        cls.dcm_path = get_file_from_cloud_test_repo(["VMAT", "DRGSdmlc-105-example.dcm"])
+        cls.as500_path = get_file_from_cloud_test_repo(["picket_fence", "AS500#5.dcm"])
+        cls.xim_path = get_file_from_cloud_test_repo(["ximdcmtest.xim"])
+        cls.xim_dcm_path = get_file_from_cloud_test_repo(["ximdcmtest.dcm"])
+        cls.dcm_url = "https://storage.googleapis.com/pylinac_demo_files/EPID-PF-LR.dcm"
 
 
-class TestFromMultiples(TestCase):
+
+class TestFromMultiples(ImageBase):
     def test_from_multiples(self):
         """Test that loading multiple images works"""
-        paths = [dcm_path, dcm_path, dcm_path]
+        paths = [self.dcm_path, self.dcm_path, self.dcm_path]
         img = image.load_multiples(paths)
         self.assertIsInstance(img, DicomImage)
 
     def test_different_sizes_fails(self):
         """Different-sized images can't be superimposed"""
-        paths = [dcm_path, tif_path]
+        paths = [self.dcm_path, self.tif_path]
         with self.assertRaises(ValueError):
             image.load_multiples(paths)
 
     def test_round_trip_via_temp_file(self):
         """Test that loading multiple images works"""
-        paths = [dcm_path, dcm_path]
+        paths = [self.dcm_path, self.dcm_path]
         img = image.load_multiples(paths)
         with tempfile.NamedTemporaryFile(delete=False) as tf:
             img.save(tf.name)
@@ -84,7 +87,7 @@ class TestFromMultiples(TestCase):
 
     def test_round_trip_via_stream(self):
         """Test that loading multiple images works"""
-        paths = [dcm_path, dcm_path]
+        paths = [self.dcm_path, self.dcm_path]
         img = image.load_multiples(paths)
         with io.BytesIO() as stream:
             img.save(stream)
@@ -95,19 +98,19 @@ class TestFromMultiples(TestCase):
 
     def test_max_stays_same(self):
         """Test the max value of the image stays the same when using max method"""
-        paths = [dcm_path, dcm_path]
+        paths = [self.dcm_path, self.dcm_path]
         img = image.load_multiples(paths, method="max", stretch_each=False)
-        self.assertEqual(np.max(image.load(dcm_path).array), np.max(img.array))
+        self.assertEqual(np.max(image.load(self.dcm_path).array), np.max(img.array))
 
     def test_max_goes_to_1_with_stretch(self):
         """Test the max value of the image goes to 1 when using max method and stretch"""
-        paths = [dcm_path, dcm_path]
+        paths = [self.dcm_path, self.dcm_path]
         img = image.load_multiples(paths, method="max", stretch_each=True)
         self.assertEqual(np.max(img.array), 1)
 
     def test_rescale_to_int16_max_stretch_true(self):
         """Test that loading multiple images works"""
-        paths = [dcm_path, dcm_path]
+        paths = [self.dcm_path, self.dcm_path]
         img = image.load_multiples(
             paths, stretch_each=True, method="max"
         )  # will cause a value >1
@@ -119,7 +122,7 @@ class TestFromMultiples(TestCase):
 
     def test_rescale_to_int16_max_stretch_false(self):
         """Test that loading multiple images works"""
-        paths = [dcm_path, dcm_path]
+        paths = [self.dcm_path, self.dcm_path]
         img = image.load_multiples(
             paths, stretch_each=False, method="max"
         )  # will still be a float array.
@@ -130,26 +133,26 @@ class TestFromMultiples(TestCase):
         self.assertEqual(np.max(img_cropped.array), 65535)  # max of uint16
 
 
-class TestDICOMScaling(TestCase):
+class TestDICOMScaling(ImageBase):
     def test_raw_pixels_doesnt_change_array(self):
         """Test that loading a dicom with raw_pixels=True doesn't change the array"""
-        ds = pydicom.dcmread(dcm_path)
+        ds = pydicom.dcmread(self.dcm_path)
         array = _rescale_dicom_values(ds.pixel_array, ds, raw_pixels=True)
         assert np.array_equal(ds.pixel_array, array)
 
     def test_mr_storage_doesnt_rescale(self):
         """Test that loading a dicom with MR storage doesn't rescale"""
-        dcm_path = get_file_from_cloud_test_repo(["ACR", "MRI", "GE - 3T", "IM_0001"])
-        ds = pydicom.dcmread(dcm_path)
+        mr_dcm_path = get_file_from_cloud_test_repo(["ACR", "MRI", "GE - 3T", "IM_0001"])
+        ds = pydicom.dcmread(mr_dcm_path)
         array = _rescale_dicom_values(ds.pixel_array, ds, raw_pixels=False)
         assert np.array_equal(ds.pixel_array, array)
 
     def test_ct_image(self):
         """Test an older CT Image where we are guaranteed to have rescale slope and intercept tags"""
-        dcm_path = get_file_from_cloud_test_repo(
+        old_ct_dcm_path = get_file_from_cloud_test_repo(
             ["CBCT", "CatPhan_504", "Case3_Philips_1mm", "1mm", "EE035381"]
         )
-        ds = pydicom.dcmread(dcm_path)
+        ds = pydicom.dcmread(old_ct_dcm_path)
         array = _rescale_dicom_values(ds.pixel_array, ds, raw_pixels=False)
         assert not np.array_equal(ds.pixel_array, array)
         assert np.isclose(array.max(), 194)
@@ -191,25 +194,25 @@ class TestDICOMScaling(TestCase):
         assert np.isclose(scaled_array.max(), -999)
 
 
-class TestDICOMUnscaling(TestCase):
+class TestDICOMUnscaling(ImageBase):
     def test_unscale_raw_pixels(self):
         """Test when we unscale the image that the values are the same"""
-        ds = pydicom.dcmread(dcm_path)
+        ds = pydicom.dcmread(self.dcm_path)
         array = _unscale_dicom_values(ds.pixel_array, ds, raw_pixels=True)
         assert np.array_equal(ds.pixel_array, array)
 
     def test_unscale_mr_storage(self):
-        dcm_path = get_file_from_cloud_test_repo(["ACR", "MRI", "GE - 3T", "IM_0001"])
-        ds = pydicom.dcmread(dcm_path)
+        mr_dcm_path = get_file_from_cloud_test_repo(["ACR", "MRI", "GE - 3T", "IM_0001"])
+        ds = pydicom.dcmread(mr_dcm_path)
         array = _unscale_dicom_values(ds.pixel_array, ds, raw_pixels=False)
         assert np.array_equal(ds.pixel_array, array)
 
     def test_unscale_ct_image(self):
         """Test an older CT Image where we are guaranteed to have rescale slope and intercept tags"""
-        dcm_path = get_file_from_cloud_test_repo(
+        old_ct_dcm_path = get_file_from_cloud_test_repo(
             ["CBCT", "CatPhan_504", "Case3_Philips_1mm", "1mm", "EE035381"]
         )
-        ds = pydicom.dcmread(dcm_path)
+        ds = pydicom.dcmread(old_ct_dcm_path)
         original_array = ds.pixel_array
         scaled_array = _rescale_dicom_values(ds.pixel_array, ds, raw_pixels=False)
         unscaled_array = _unscale_dicom_values(scaled_array, ds, raw_pixels=False)
@@ -238,7 +241,7 @@ class TestDICOMUnscaling(TestCase):
         assert np.array_equal(unscaled_array, original_array)
 
 
-class TestEquateImages(TestCase):
+class TestEquateImages(ImageBase):
     def test_same_sized_images_work(self):
         """As found here: https://github.com/jrkerns/pylinac/issues/446"""
 
@@ -250,39 +253,39 @@ class TestEquateImages(TestCase):
         self.assertEqual(img1.shape, img2.shape)
 
 
-class TestLoaders(TestCase):
+class TestLoaders(ImageBase):
     """Test the image loading functions."""
 
     def test_load_url(self):
-        img = image.load_url(dcm_url)
+        img = image.load_url(self.dcm_url)
         self.assertIsInstance(img, DicomImage)
 
     def test_load_dicom(self):
-        img = image.load(dcm_path)
+        img = image.load(self.dcm_path)
         self.assertIsInstance(img, DicomImage)
 
     def test_load_dicom_from_stream(self):
-        img_ref = image.load(dcm_path)
-        with open(dcm_path, "rb") as f:
+        img_ref = image.load(self.dcm_path)
+        with open(self.dcm_path, "rb") as f:
             p = io.BytesIO(f.read())
             img = image.load(p)
         self.assertIsInstance(img, DicomImage)
         self.assertEqual(img.dpi, img_ref.dpi)
 
     def test_load_dicom_from_file_object(self):
-        img_ref = image.load(dcm_path)
-        with open(dcm_path, "rb") as f:
+        img_ref = image.load(self.dcm_path)
+        with open(self.dcm_path, "rb") as f:
             img = image.load(f)
         self.assertIsInstance(img, DicomImage)
         self.assertEqual(img.dpi, img_ref.dpi)
 
     def test_load_file(self):
-        img = image.load(tif_path)
+        img = image.load(self.tif_path)
         self.assertIsInstance(img, FileImage)
 
     def test_load_file_from_stream(self):
-        img_ref = image.load(tif_path)
-        with open(tif_path, "rb") as f:
+        img_ref = image.load(self.tif_path)
+        with open(self.tif_path, "rb") as f:
             p = io.BytesIO(f.read())
             img = image.load(p)
         self.assertIsInstance(img, FileImage)
@@ -290,9 +293,9 @@ class TestLoaders(TestCase):
         self.assertEqual(img.center, img_ref.center)
 
     def test_load_file_from_temp_file(self):
-        img_ref = image.load(tif_path)
+        img_ref = image.load(self.tif_path)
         tmp = tempfile.NamedTemporaryFile(delete=False)
-        tmp.write(open(tif_path, "rb").read())
+        tmp.write(open(self.tif_path, "rb").read())
         img = image.load(tmp)
         self.assertIsInstance(img, FileImage)
         self.assertIsInstance(img.path, str)
@@ -300,8 +303,8 @@ class TestLoaders(TestCase):
         self.assertEqual(img.center, img_ref.center)
 
     def test_load_file_from_file_object(self):
-        img_ref = image.load(tif_path)
-        with open(tif_path, "rb") as f:
+        img_ref = image.load(self.tif_path)
+        with open(self.tif_path, "rb") as f:
             img = image.load(f)
         self.assertIsInstance(img, FileImage)
         self.assertEqual(img.center, img_ref.center)
@@ -312,18 +315,18 @@ class TestLoaders(TestCase):
         self.assertIsInstance(img, ArrayImage)
 
     def test_load_multiples(self):
-        paths = [dcm_path, dcm_path, dcm_path]
+        paths = [self.dcm_path, self.dcm_path, self.dcm_path]
         img = image.load_multiples(paths)
         self.assertIsInstance(img, DicomImage)
 
         # test non-superimposable images
-        paths = [dcm_path, tif_path]
+        paths = [self.dcm_path, self.tif_path]
         with self.assertRaises(ValueError):
             image.load_multiples(paths)
 
     def test_load_multiples_custom_loader(self):
         """Use a custom loader to load multiple images"""
-        paths = [dcm_path, dcm_path, dcm_path]
+        paths = [self.dcm_path, self.dcm_path, self.dcm_path]
         img = image.load_multiples(paths, loader=image.LinacDicomImage)
         self.assertIsInstance(img, image.LinacDicomImage)
 
@@ -332,7 +335,7 @@ class TestLoaders(TestCase):
             image.load("blahblah")
 
     def test_is_image(self):
-        self.assertTrue(image.is_image(dcm_path))
+        self.assertTrue(image.is_image(self.dcm_path))
         # not an image
         self.assertFalse(
             image.is_image(
@@ -341,13 +344,13 @@ class TestLoaders(TestCase):
         )
 
 
-class TestBaseImage(TestCase):
+class TestBaseImage(ImageBase):
     """Test the basic methods of BaseImage. Since it's a semi-abstract class, its subclasses (DicomImage,
     ArrayImage, and FileImage) are tested."""
 
     def setUp(self):
-        self.img = image.load(tif_path)
-        self.dcm = image.load(dcm_path)
+        self.img = image.load(self.tif_path)
+        self.dcm = image.load(self.dcm_path)
         array = np.arange(42).reshape(6, 7)
         self.arr = image.load(array)
 
@@ -480,10 +483,7 @@ class TestBaseImage(TestCase):
         self.assertAlmostEqual(average_gamma, expected_avg_gamma, delta=0.02)
 
 
-class TestDicomImage(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.dcm: DicomImage = image.load(dcm_path)
+class TestDicomImage(ImageBase):
 
     def test_sid(self):
         self.assertEqual(self.dcm.sid, 1050)
@@ -501,8 +501,8 @@ class TestDicomImage(TestCase):
         save_file(self.dcm.save)
 
     def test_save_round_trip_has_same_pixel_values(self):
-        original_dcm = pydicom.dcmread(dcm_path)
-        dcm_img = DicomImage(dcm_path)
+        original_dcm = pydicom.dcmread(self.dcm_path)
+        dcm_img = DicomImage(self.dcm_path)
         with io.BytesIO() as stream:
             dcm_img.save(stream)
             stream.seek(0)
@@ -522,8 +522,8 @@ class TestDicomImage(TestCase):
     def test_save_out_of_bounds_values_normalizes(self):
         # this occurs if we add multiple images together and the values go out of bounds
         # causing a bit overflow
-        original_dcm = pydicom.dcmread(dcm_path)
-        dcm_img = DicomImage(dcm_path)
+        original_dcm = pydicom.dcmread(self.dcm_path)
+        dcm_img = DicomImage(self.dcm_path)
         dcm_img.array *= 10e6  # values out of normal bounds of uint16
         with io.BytesIO() as stream, self.assertWarns(UserWarning):
             dcm_img.save(stream)
@@ -539,7 +539,7 @@ class TestDicomImage(TestCase):
         )
 
     def test_manipulation_still_saves_correctly(self):
-        dcm = image.load(dcm_path)
+        dcm = image.load(self.dcm_path)
         original_shape = dcm.shape
         dcm.crop(15)
         with tempfile.NamedTemporaryFile(delete=False) as tf:
@@ -554,11 +554,11 @@ class TestDicomImage(TestCase):
         )  # 15 from each side = 2 * 15 = 30
 
     def test_raw_pixels_via_load(self):
-        dcm_ds = pydicom.dcmread(dcm_path)
-        dcm_raw = image.load(dcm_path, raw_pixels=True)
+        dcm_ds = pydicom.dcmread(self.dcm_path)
+        dcm_raw = image.load(self.dcm_path, raw_pixels=True)
         assert np.array_equal(dcm_raw.array, dcm_ds.pixel_array)
         # test that the pixels are corrected otherwise
-        dcm_corr = image.load(dcm_path)
+        dcm_corr = image.load(self.dcm_path)
         assert not np.array_equal(dcm_corr.array, dcm_ds.pixel_array)
 
     def test_z_location_mri(self):
@@ -598,9 +598,9 @@ class TestDicomImage(TestCase):
         self.assertAlmostEqual(stack[1].slice_spacing, 2, places=1)
 
 
-class TestXIMImage(TestCase):
+class TestXIMImage(ImageBase):
     def test_normal_load(self):
-        xim = XIM(xim_path)
+        xim = XIM(self.xim_path)
         self.assertIsInstance(xim.array, np.ndarray)
         self.assertEqual(xim.array.shape, (1280, 1280))
         self.assertIsInstance(xim.properties, dict)
@@ -613,19 +613,19 @@ class TestXIMImage(TestCase):
         XIM(get_file_from_cloud_test_repo(["xim_2byte_diff.xim"]))
 
     def test_dont_read_pixels(self):
-        xim = XIM(xim_path, read_pixels=False)
+        xim = XIM(self.xim_path, read_pixels=False)
         with self.assertRaises(AttributeError):
             xim.array
         self.assertIsInstance(xim.properties, dict)
 
     def test_equivalent_to_dcm(self):
         """The pixel info should be the same between dicom and xim"""
-        dcm_img = DicomImage(xim_dcm_path)
-        xim_img = XIM(xim_path)
+        dcm_img = DicomImage(self.xim_dcm_path)
+        xim_img = XIM(self.xim_path)
         assert_array_almost_equal(dcm_img.array, xim_img.array)
 
     def test_save_png_stream(self):
-        xim = XIM(xim_path)
+        xim = XIM(self.xim_path)
         s = io.BytesIO()
         xim.save_as(s, format="png")
         s.seek(0)
@@ -634,7 +634,7 @@ class TestXIMImage(TestCase):
         assert_array_almost_equal(png_array, xim.array)
 
     def test_save_png(self):
-        xim = XIM(xim_path)
+        xim = XIM(self.xim_path)
         with tempfile.NamedTemporaryFile(delete=False) as tf:
             xim.save_as(tf, format="png")
             pimg = PIL.Image.open(tf.name)
@@ -649,7 +649,7 @@ class TestXIMImage(TestCase):
         self.assertIsInstance(mlc_a, list)
 
     def test_save_tiff(self):
-        xim = XIM(xim_path)
+        xim = XIM(self.xim_path)
         with tempfile.NamedTemporaryFile(delete=False) as tf:
             xim.save_as(tf, format="tiff")
             pimg = PIL.Image.open(tf.name)
@@ -661,26 +661,26 @@ class TestXIMImage(TestCase):
         # set overflow to cause errors
         # shouldn't raise
         np.seterr(all="raise")
-        xim_path = get_file_from_cloud_test_repo(["IsoCal-kV-08.xim"])
-        XIM(xim_path)
+        self.xim_path = get_file_from_cloud_test_repo(["IsoCal-kV-08.xim"])
+        XIM(self.xim_path)
         # reset to old settings
         np.seterr(**old_settings)
 
     def test_32bit_image(self):
-        xim_path = get_file_from_cloud_test_repo(["xim_uint32.xim"])
-        xim = XIM(xim_path)
+        self.xim_path = get_file_from_cloud_test_repo(["xim_uint32.xim"])
+        xim = XIM(self.xim_path)
         self.assertEqual(xim.array.dtype, np.uint32)
         self.assertEqual(xim.array.max(), 38822)
 
 
-class TestLinacDicomImage(TestCase):
+class TestLinacDicomImage(ImageBase):
     def test_normal_image(self):
-        img = LinacDicomImage(as500_path, use_filenames=False)
+        img = LinacDicomImage(self.as500_path, use_filenames=False)
         self.assertEqual(img.gantry_angle, 0)
 
     def test_passing_axis_info_through_filename(self):
-        new_name = as500_path.replace("AS500#5", "AS500Gantry78Coll13Couch44")
-        shutil.copy(as500_path, new_name)
+        new_name = self.as500_path.replace("AS500#5", "AS500Gantry78Coll13Couch44")
+        shutil.copy(self.as500_path, new_name)
         img = LinacDicomImage(new_name, use_filenames=True)
         self.assertEqual(img.gantry_angle, 78)
         self.assertEqual(img.collimator_angle, 13)
@@ -688,7 +688,7 @@ class TestLinacDicomImage(TestCase):
 
     def test_passing_axis_info_directly(self):
         img = LinacDicomImage(
-            as500_path, use_filenames=False, gantry=24, coll=60, couch=8
+            self.as500_path, use_filenames=False, gantry=24, coll=60, couch=8
         )
         self.assertEqual(img.gantry_angle, 24)
         self.assertEqual(img.collimator_angle, 60)
@@ -696,7 +696,7 @@ class TestLinacDicomImage(TestCase):
 
     def test_using_axes_no_precision_doesnt_round(self):
         img = LinacDicomImage(
-            as500_path,
+            self.as500_path,
             use_filenames=False,
             axes_precision=None,
             gantry=0.12345,
@@ -709,7 +709,7 @@ class TestLinacDicomImage(TestCase):
 
     def test_using_axes_2precision(self):
         img = LinacDicomImage(
-            as500_path,
+            self.as500_path,
             use_filenames=False,
             axes_precision=2,
             gantry=0.12345,
@@ -722,7 +722,7 @@ class TestLinacDicomImage(TestCase):
 
     def test_using_axes_0precision(self):
         img = LinacDicomImage(
-            as500_path,
+            self.as500_path,
             use_filenames=False,
             axes_precision=0,
             gantry=0.12345,
@@ -734,14 +734,15 @@ class TestLinacDicomImage(TestCase):
         self.assertEqual(img.couch_angle, 0)
 
 
-class TestFileImage(TestCase):
+class TestFileImage(ImageBase):
+
     def test_sid(self):
         # default sid is None
-        fi = FileImage(tif_path)
+        fi = FileImage(self.tif_path)
         self.assertIsNone(fi.sid)
 
         # SID can be set though
-        fi2 = FileImage(tif_path, sid=1500)
+        fi2 = FileImage(self.tif_path, sid=1500)
         self.assertEqual(fi2.sid, 1500)
 
         # SID also affects the dpi
@@ -751,29 +752,29 @@ class TestFileImage(TestCase):
 
     def test_dpi_dpmm(self):
         # DPI is usually in TIF files
-        fi = FileImage(tif_path)
+        fi = FileImage(self.tif_path)
         # shouldn't raise
         fi.dpi
         fi.dpmm
 
         # not in certain other files
-        fi_jpg = FileImage(png_path)
+        fi_jpg = FileImage(self.png_path)
         self.assertIsNone(fi_jpg.dpi)
 
         # but DPI can be set though
-        fi_jpg2 = FileImage(png_path, dpi=100)
+        fi_jpg2 = FileImage(self.png_path, dpi=100)
         # shouldn't raise
         fi_jpg2.dpi
         fi_jpg2.dpmm
 
     def test_dpi_abnormal(self):
         # has DPI of 1. Nonsensical
-        fimg = FileImage(bad_tif_path)
+        fimg = FileImage(self.bad_tif_path)
         with self.assertRaises(ValueError):
             fimg.dpi
 
 
-class TestTiff(TestCase):
+class TestTiff(ImageBase):
     """A special case of the FileImage"""
 
     def test_all_tiffs_have_tags_and_are_2d(self):
@@ -786,7 +787,7 @@ class TestTiff(TestCase):
                 self.assertEqual(len(fimg.array.shape), 2)
 
 
-class TestArrayImage(TestCase):
+class TestArrayImage(ImageBase):
     def test_dpmm(self):
         arr = np.arange(42).reshape(6, 7)
         ai = ArrayImage(arr)
@@ -798,7 +799,7 @@ class TestArrayImage(TestCase):
         self.assertEqual(ai2.dpmm, 20 / 25.4)
 
 
-class TestDicomStack(TestCase):
+class TestDicomStack(ImageBase):
     @classmethod
     def setUpClass(cls):
         cls.stack_location = get_file_from_cloud_test_repo(["CBCT", "CBCT_4.zip"])
@@ -888,7 +889,7 @@ class TestDicomStack(TestCase):
         self.assertAlmostEqual(dstack.slice_spacing, 10, delta=0.001)
 
 
-class TestRawImages(TestCase):
+class TestRawImages(ImageBase):
     def test_3d_shape_fails(self):
         """Test that a 3D array fails to load"""
         path = get_file_from_cloud_test_repo(["Misc", "VisionRT_960_600_uint32.raw"])
@@ -964,10 +965,11 @@ class TestRawImages(TestCase):
         self.assertEqual(img.dpi, 100)
 
 
-class TestTiffToDicom(TestCase):
+class TestTiffToDicom(ImageBase):
+
     def test_conversion_can_be_loaded_as_dicom(self):
         ds = tiff_to_dicom(
-            tif_path,
+            self.tif_path,
             sid=1000,
             dpi=200,
             gantry=10,
@@ -979,7 +981,7 @@ class TestTiffToDicom(TestCase):
 
     def test_conversion_captures_axes(self):
         ds = tiff_to_dicom(
-            tif_path,
+            self.tif_path,
             sid=1000,
             dpi=200,
             gantry=10,
@@ -992,15 +994,15 @@ class TestTiffToDicom(TestCase):
         self.assertEqual(dicom_img.couch_angle, 33)
 
     def test_conversion_of_dpmm(self):
-        ds = tiff_to_dicom(tif_path, sid=1000, gantry=10, coll=22, couch=33)
+        ds = tiff_to_dicom(self.tif_path, sid=1000, gantry=10, coll=22, couch=33)
         dicom_img = LinacDicomImage.from_dataset(ds)
         self.assertEqual(dicom_img.dpi, 150)
         self.assertEqual(dicom_img.dpmm, 150 / 25.4)
 
     def test_conversion_keeps_datatype(self):
-        tiff_img = FileImage(tif_path)
+        tiff_img = FileImage(self.tif_path)
         ds = tiff_to_dicom(
-            tif_path,
+            self.tif_path,
             sid=1000,
             dpi=200,
             gantry=10,

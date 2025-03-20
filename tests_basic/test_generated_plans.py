@@ -9,8 +9,12 @@ from pathlib import Path
 from unittest import TestCase
 
 import pydicom
+import pytest
 
 from tests_basic.utils import get_folder_from_cloud_repo
+
+
+pytestmark = pytest.mark.proprietary
 
 
 class TestGeneratedPlans(TestCase):
