@@ -91,7 +91,8 @@ Coordinate Space
 
 
 When interpreting results from a Winston-Lutz test, it's important to know the coordinates, origin, etc. Pylinac uses
-IEC 61217 coordinate space. Colloquial descriptions are as if standing at the foot of the couch looking at the gantry.
+IEC 61217 `(FIXED) coordinate space <https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_c.8.8.25.6.html>`__
+for Cartesian shifts. Colloquial descriptions are as if standing at the foot of the couch looking at the gantry.
 
 .. image:: images/IEC61217.svg
 
@@ -105,6 +106,15 @@ Passing a coordinate system
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. versionadded:: 3.6
+
+.. warning::
+
+    If using DICOM images that include the gantry (300A,011E), collimator (300A,0120), and couch (300A,0122) tags,
+    they will be in IEC61217, regardless of what coordinate system is set up locally. I.e. if you use Varian IEC,
+    the machine values locally will follow this convention, but when saved to DICOM, they will be converted to IEC61217
+    under the hood for you.
+
+    You should only need to change the coordinate system when also using the ``axis_mapping`` parameter in ``analyze``.
 
 It is possible to pass in your machine's coordinate scale/system to the analyze parameter like so:
 
@@ -272,7 +282,16 @@ This class does not have all the methods that ``WinstonLutz`` has for mostly obv
 Passing in Axis values
 ----------------------
 
+.. important::
+
+    When passing in axis values manually, you can also use ``machine_scale`` in conjunction to specify the
+    coordinate system you are stating the axes to be in. See :ref:`passing-a-coordinate-system`.
+
 If your linac EPID images do not include axis information (such as Elekta) there are two ways to pass the data in.
+
+via filenames
+^^^^^^^^^^^^^
+
 First, you can specify it in the file name.
 Any and all of the three axes can be defined. If one is not defined and is not in the DICOM tags, it will default to 0.
 The syntax to define the axes: "<*>gantry0<*>coll0<*>couch0<*>". There can be any text before, after, or in between each axis definition.
@@ -301,6 +320,9 @@ Using the filenames within the code is done by passing the ``use_filenames=True`
 .. note:: If using filenames any relevant axes must be defined, otherwise they will default to zero. For example,
           if the acquisition was at gantry=45, coll=15, couch=0 then the filename must include both the gantry and collimator
           in the name (<...gantry45...coll15....dcm>). For this example, the couch need not be defined since it is 0.
+
+via ``axis_mapping``
+^^^^^^^^^^^^^^^^^^^^
 
 The other way of inputting axis information is passing the ``axis_mapping`` parameter to the constructor. This is a
 dictionary with the filenames as keys and a tuple of ints for the gantry, coll, and couch:
@@ -671,6 +693,7 @@ Analysis Parameters
           For kV WL, you will generally need to check this and also check the low-density BB flag.
 
       * **Coordinate system**: The coordinate system of the machine. This is used to determine the shift instructions. See :ref:`passing-a-coordinate-system`.
+        This should only be changed if the axis values (gantry, collimator, couch) are being changed or entered manually.
       * **Pixels/inch**: The resolution of the images in pixels per inch. This is used to convert the pixel distances to mm.
 
         .. note::

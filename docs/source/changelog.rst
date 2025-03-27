@@ -10,6 +10,14 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.33.0
+--------
+
+* :bdg-warning:`Fixed` When passing a coordinate system other than IEC61217 and also applying a virtual shift ``apply_virtual_shift=True``,
+  the resulting shift would not be 0. This was due to assuming IEC61217 internally when calculting BB positions in 3D space.
+* :bdg-success:`Feature` The ``WinstonLutz2D`` method ``analyze`` now accepts a ``machine_scale`` parameter,
+  similar to what ``WinstonLutz`` already does.
+
 v 3.32.0
 --------
 
