@@ -2196,7 +2196,7 @@ class iXIsocal(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 0.73
     cax2bb_median_distance = 0.33
     cax2bb_mean_distance = 0.34
-    cax2epid_max_distance = 0.8
+    cax2epid_max_distance = 0.2
 
 
 class iXNoIsocal(iXIsocal):

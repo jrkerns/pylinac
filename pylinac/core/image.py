@@ -1474,15 +1474,18 @@ class DicomImage(BaseImage):
           with above, this means we must subtract from the x-axis and
           add from the y-axis to get the correct pixel location because
           the CAX is in the opposite direction of the translation.
+        * We currently assume that the shift is AT THE PANEL, meaning
+          we have to back-correct the shift for the magnification.
         """
+        mag_factor = self.sid / self.sad
         try:
             x = (
                 self.center.x
-                - self.metadata.XRayImageReceptorTranslation[0] * self.dpmm
+                - self.metadata.XRayImageReceptorTranslation[0] * self.dpmm / mag_factor
             )
             y = (
                 self.center.y
-                + self.metadata.XRayImageReceptorTranslation[1] * self.dpmm
+                + self.metadata.XRayImageReceptorTranslation[1] * self.dpmm / mag_factor
             )
         except (AttributeError, ValueError, TypeError):
             return self.center

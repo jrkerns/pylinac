@@ -491,10 +491,11 @@ class TestDicomImage(TestCase):
 
     def test_cax(self):
         # in the image the 3002,000D tag is [-0.05,1.076,-50]
-        # meaning the CAX is at (-0.05, 1.076) from the center (mm)
+        # meaning the CAX is at (-0.05, 1.076) from the center (mm) at the panel.
+        # We also have to back-correct for the magnification.
         self.assertAlmostEqual(
             self.dcm.cax.distance_to(self.dcm.center),
-            math.hypot(-0.05, 1.076) * self.dcm.dpmm,
+            math.hypot(-0.05, 1.076) * self.dcm.dpmm * self.dcm.sad / self.dcm.sid,
             delta=0.01,
         )
 

@@ -13,10 +13,16 @@ Legend
 v 3.33.0
 --------
 
+Winston Lutz
+^^^^^^^^^^^^
+
 * :bdg-warning:`Fixed` When passing a coordinate system other than IEC61217 and also applying a virtual shift ``apply_virtual_shift=True``,
-  the resulting shift would not be 0. This was due to assuming IEC61217 internally when calculting BB positions in 3D space.
+  the resulting shift would not be 0. This was due to assuming IEC61217 internally when calculating BB positions in 3D space.
 * :bdg-success:`Feature` The ``WinstonLutz2D`` method ``analyze`` now accepts a ``machine_scale`` parameter,
   similar to what ``WinstonLutz`` already does.
+* :bdg-warning:`Fixed` The EPID translation introduced in 3.32 was not accounting for the EPID magnification
+  factor. See the release not in 3.32 for the keys that this might affect. For TrueBeams, this effect is small.
+  For Clinacs, this effect could be large and the CAX->EPID error may be smaller as the EPID correction is now smaller.
 
 v 3.32.0
 --------
