@@ -415,8 +415,8 @@ class FieldProfileAnalysis(ResultsDataMixin[FieldProfileResult]):
             as_dict=True, by_alias=True, exclude={"pylinac_version"}
         )
         # drop values; that's too much info
-        data["X Metrics"].pop("values")
-        data["Y Metrics"].pop("values")
+        data["x_metrics"].pop("values")
+        data["y_metrics"].pop("values")
         offset = 0
         for i, (key, value) in enumerate(data.items()):
             if isinstance(value, str):
