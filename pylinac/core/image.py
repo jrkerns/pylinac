@@ -856,7 +856,7 @@ class BaseImage:
         distTA: float = 1,
         threshold: float = 0.1,
         ground: bool = True,
-        normalize: bool = True,
+        normalize: bool = False,
     ) -> np.ndarray:
         """Calculate the gamma between the current image (reference) and a comparison image.
 
@@ -932,9 +932,13 @@ class BaseImage:
 
         # equation: (measurement - reference) / sqrt ( doseTA^2 + distTA^2 * image_gradient^2 )
         subtracted_img = np.abs(comp_img - ref_img)
-        denominator = np.sqrt(
-            ((doseTA / 100.0) ** 2) + ((distTA_pixels**2) * (grad_img**2))
-        )
+
+        if normalize:
+            aux_ref = 1
+        else:
+            aux_ref = np.hypot(ref_img/np.sqrt(2), ref_img/np.sqrt(2))
+            
+        denominator = np.sqrt((aux_ref ** 2 * (doseTA / 100.0) ** 2) + (distTA_pixels**2 * grad_img**2))
         gamma_map = subtracted_img / denominator
 
         return gamma_map
