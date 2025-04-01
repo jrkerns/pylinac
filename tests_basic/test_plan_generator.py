@@ -6,6 +6,7 @@ import pydicom
 from matplotlib.figure import Figure
 from parameterized import parameterized
 
+from pylinac.core.image_generator import AS1200Image
 from pylinac.plan_generator.dicom import (
     STACK,
     Beam,
@@ -136,6 +137,22 @@ class TestPlanGenerator(TestCase):
         )
         pg_dcm = pg.as_dicom()
         self.assertNotEqual(pg_dcm.SOPInstanceUID, dcm.SOPInstanceUID)
+
+    def test_invert_array(self):
+        pg = PlanGenerator.from_rt_plan_file(
+            RT_PLAN_FILE, plan_label="label", plan_name="my name"
+        )
+        pg.add_open_field_beam(x1=100, x2=200, y1=100, y2=200, mu=100)
+        # test that non-inverted array is 0
+        pg_dcm = pg.to_dicom_images(simulator=AS1200Image, invert=False)
+        non_inverted_array = pg_dcm[0].pixel_array
+        # when inverted, the corner should NOT be 0
+        self.assertAlmostEqual(non_inverted_array[0, 0], 0)
+
+        pg_dcm = pg.to_dicom_images(simulator=AS1200Image, invert=True)
+        inverted_array = pg_dcm[0].pixel_array
+        # when inverted, the corner should NOT be 0
+        self.assertAlmostEqual(inverted_array[0, 0], 1000)
 
 
 def create_beam(**kwargs) -> Beam:

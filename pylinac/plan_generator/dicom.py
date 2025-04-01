@@ -1921,7 +1921,7 @@ class PlanGenerator:
                 gantry_angle=beam_info.GantryAngle,
                 coll_angle=beam_info.BeamLimitingDeviceAngle,
                 table_angle=beam_info.PatientSupportAngle,
-                invert=invert,
+                invert_array=invert,
             )
             image_ds.append(ds)
         return image_ds

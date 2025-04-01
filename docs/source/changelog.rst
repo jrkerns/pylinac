@@ -13,7 +13,7 @@ Legend
 v 3.33.0
 --------
 
-Winston Lutz
+Winston-Lutz
 ^^^^^^^^^^^^
 
 * :bdg-warning:`Fixed` When passing a coordinate system other than IEC61217 and also applying a virtual shift ``apply_virtual_shift=True``,
@@ -23,6 +23,12 @@ Winston Lutz
 * :bdg-warning:`Fixed` The EPID translation introduced in 3.32 was not accounting for the EPID magnification
   factor. See the release not in 3.32 for the keys that this might affect. For TrueBeams, this effect is small.
   For Clinacs, this effect could be large and the CAX->EPID error may be smaller as the EPID correction is now smaller.
+
+Plan Generator
+^^^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` When passing invert to the generated DICOM images (``.to_dicom_images(..., invert=True)``),
+  the call would fail due to a parameter typo.
 
 v 3.32.0
 --------
