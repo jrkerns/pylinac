@@ -693,6 +693,7 @@ class GammaFluence(FluenceBase):
         distTA: int | float = 1,
         threshold: int | float = 0.1,
         resolution: int | float = 0.1,
+        normalize: bool = False,
         calc_individual_maps: bool = False,
     ) -> np.ndarray:
         """Calculate the gamma from the actual and expected fluences.
@@ -734,8 +735,8 @@ class GammaFluence(FluenceBase):
 
         actual_img = image.load(self._actual_fluence.array, dpi=25.4 / resolution)
         expected_img = image.load(self._expected_fluence.array, dpi=25.4 / resolution)
-        gamma_map = actual_img.gamma(
-            expected_img, doseTA=doseTA, distTA=distTA, threshold=threshold
+        gamma_map = expected_img.gamma(
+            actual_img, doseTA=doseTA, distTA=distTA, threshold=threshold, normalize=normalize
         )
 
         # calculate standard metrics
