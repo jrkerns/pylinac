@@ -215,18 +215,22 @@ class MachineLogs(list):
         distTA: int | float = 1,
         threshold: int | float = 0.1,
         resolution: int | float = 0.1,
+        normalize: bool = False
     ) -> float:
         """Calculate and return the average gamma of all logs. See :meth:`~pylinac.log_analyzer.GammaFluence.calc_map()`
         for further parameter info."""
         self._check_empty()
         gamma_list = np.zeros(self.num_logs)
+        mu_list = np.zeros(self.num_logs)
 
         for num, log in enumerate(self):
-            log.fluence.gamma.calc_map(doseTA, distTA, threshold, resolution)
+            log.fluence.gamma.calc_map(doseTA, distTA, threshold, resolution, normalize)
             gamma_list[num] = log.fluence.gamma.avg_gamma
+            mu_list[num] = np.max(log.axis_data.mu.expected)
+            gamma_overall = np.sum(gamma_list * mu_list)/np.sum(mu_list)
             print(f"Calculating gammas: {num+1} of {self.num_logs}", end="\r")
         print("")
-        return gamma_list.mean()
+        return gamma_overall
 
     def avg_gamma_pct(
         self,
@@ -234,20 +238,24 @@ class MachineLogs(list):
         distTA: int | float = 1,
         threshold: int | float = 0.1,
         resolution: int | float = 0.1,
+        normalize: bool = False
     ) -> float:
         """Calculate and return the average gamma pass percent of all logs. See :meth:`~pylinac.log_analyzer.GammaFluence.calc_map()`
         for further parameter info."""
         self._check_empty()
         gamma_list = np.zeros(self.num_logs)
+        mu_list = np.zeros(self.num_logs)
 
         for num, log in enumerate(self):
-            log.fluence.gamma.calc_map(doseTA, distTA, threshold, resolution)
+            log.fluence.gamma.calc_map(doseTA, distTA, threshold, resolution, normalize)
             gamma_list[num] = log.fluence.gamma.pass_prcnt
+            mu_list[num] = np.max(log.axis_data.mu.expected)
+            gamma_overall = np.sum(gamma_list * mu_list)/np.sum(mu_list)
             print(
                 f"Calculating gamma pass percent: {num+1} of {self.num_logs}", end="\r"
             )
         print("")
-        return gamma_list.mean()
+        return gamma_overall
 
     def to_csv(self) -> list[str]:
         """Write trajectory logs to CSV. If there are both dynalogs and trajectory logs,
@@ -693,6 +701,7 @@ class GammaFluence(FluenceBase):
         distTA: int | float = 1,
         threshold: int | float = 0.1,
         resolution: int | float = 0.1,
+        normalize: bool = False,
         calc_individual_maps: bool = False,
     ) -> np.ndarray:
         """Calculate the gamma from the actual and expected fluences.
@@ -734,8 +743,8 @@ class GammaFluence(FluenceBase):
 
         actual_img = image.load(self._actual_fluence.array, dpi=25.4 / resolution)
         expected_img = image.load(self._expected_fluence.array, dpi=25.4 / resolution)
-        gamma_map = actual_img.gamma(
-            expected_img, doseTA=doseTA, distTA=distTA, threshold=threshold
+        gamma_map = expected_img.gamma(
+            actual_img, doseTA=doseTA, distTA=distTA, threshold=threshold, normalize=normalize
         )
 
         # calculate standard metrics
