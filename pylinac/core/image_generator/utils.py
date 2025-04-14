@@ -158,6 +158,7 @@ def generate_winstonlutz(
     clean_dir: bool = True,
     field_alpha: float = 1.0,
     bb_alpha: float = -0.5,
+    tags: dict | None = None,
 ) -> list[str]:
     """Create a mock set of WL images. Used for benchmarking the WL algorithm. Produces one image for each item in ``image_axes``.
 
@@ -198,6 +199,8 @@ def generate_winstonlutz(
     bb_alpha
         The normalized alpha (in the case of the BB think of it as attenuation) of the BB against the radiation field. More negative values
         attenuate (remove signal) more.
+    tags
+        Extra DICOM tags that will be applied to all the DICOM files generated.
     """
     if field_alpha + bb_alpha > 1:
         raise ValueError("field_alpha and bb_alpha must sum to <=1")
@@ -254,6 +257,7 @@ def generate_winstonlutz(
             gantry_angle=gantry,
             coll_angle=coll,
             table_angle=couch,
+            tags=tags,
         )
         file_names.append(file_name)
     return file_names

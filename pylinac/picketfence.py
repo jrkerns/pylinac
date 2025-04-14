@@ -1705,10 +1705,7 @@ class MLCValue:
             if (
                 self._separate_leaves
             ):  # offset the picket position by the DLG and nominal gap
-                mag_factor = self._image.sid / 1000
-                picket_pos += (
-                    sign * self._nominal_gap_mm * mag_factor / 2 * self._image.dpmm
-                )
+                picket_pos += sign * self._nominal_gap_mm / 2 * self._image.dpmm
             errors.append((mlc_pos - picket_pos) / self._image.dpmm)
         return errors
 
@@ -1929,9 +1926,8 @@ class Picket:
             ]
         else:
             other_fit = copy.copy(l_fit)
-            mag_factor = self.image.sid / 1000
-            l_fit[-1] += self._nominal_gap * mag_factor / 2 * self.image.dpmm
-            other_fit[-1] -= self._nominal_gap * mag_factor / 2 * self.image.dpmm
+            l_fit[-1] += self._nominal_gap / 2 * self.image.dpmm
+            other_fit[-1] -= self._nominal_gap / 2 * self.image.dpmm
             return [np.poly1d(l_fit), np.poly1d(other_fit)]
 
     @property
@@ -1945,9 +1941,8 @@ class Picket:
             ]
         else:
             other_fit = copy.copy(r_fit)
-            mag_factor = self.image.sid / 1000
-            r_fit[-1] -= self._nominal_gap * mag_factor / 2 * self.image.dpmm
-            other_fit[-1] += self._nominal_gap * mag_factor / 2 * self.image.dpmm
+            r_fit[-1] -= self._nominal_gap / 2 * self.image.dpmm
+            other_fit[-1] += self._nominal_gap / 2 * self.image.dpmm
             return [np.poly1d(r_fit), np.poly1d(other_fit)]
 
     def plotly_guardrails(self, fig: go.Figure, picket: int) -> None:

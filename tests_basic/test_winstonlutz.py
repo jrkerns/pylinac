@@ -49,10 +49,6 @@ from tests_basic.utils import (
 TEST_DIR = "Winston-Lutz"  # comment trigger
 
 
-def create_wl_dataset():
-    generate_winstonlutz()
-
-
 def apply_rotation_to_points(
     points: list[Point], angle: float | Sequence[float], axis: str
 ) -> list[Point]:
@@ -853,6 +849,57 @@ class GeneralTests(TestCase):
         self.assertEqual(wl.detection_conditions, wl.images[0].detection_conditions)
 
 
+class TestShiftScales(CloudFileMixin, TestCase):
+    file_name = "varian standard.zip"
+    dir_path = ["Winston-Lutz"]
+    # these are the gantry/coll/couch values in the given coordinate system
+    # they are all equivalent, but expressed in their own coordinate system.
+    axes_map = {
+        MachineScale.VARIAN_STANDARD: {
+            "RI.01222025.G0-4_1_4.dcm": (0, 0, 180 - 2.1),
+            "RI.01222025.G90-3_1_3.dcm": (90, 0, 180 - 2.1),
+            "RI.01222025.G180-2_1_2.dcm": (180, 0, 180 - 2.1),
+            "RI.01222025.G270-1_1_1.dcm": (270, 0, 180 - 2.1),
+        },
+        MachineScale.IEC61217: {
+            # matches DICOM tags
+            "RI.01222025.G0-4_1_4.dcm": (180, 0, -2.1),
+            "RI.01222025.G90-3_1_3.dcm": (90, 0, -2.1),
+            "RI.01222025.G180-2_1_2.dcm": (0, 0, -2.1),
+            "RI.01222025.G270-1_1_1.dcm": (270, 0, -2.1),
+        },
+        MachineScale.VARIAN_IEC: {
+            "RI.01222025.G0-4_1_4.dcm": (180, 0, 360 - 2.1),
+            "RI.01222025.G90-3_1_3.dcm": (90, 0, 360 - 2.1),
+            "RI.01222025.G180-2_1_2.dcm": (0, 0, 360 - 2.1),
+            "RI.01222025.G270-1_1_1.dcm": (270, 0, 360 - 2.1),
+        },
+    }
+
+    def test_all_scales_have_same_shift(self):
+        # see RAM-4491
+        for scale, mapping in self.axes_map.items():
+            wl = WinstonLutz.from_zip(self.get_filename(), axis_mapping=mapping)
+            wl.analyze(machine_scale=scale, apply_virtual_shift=True)
+            # the final shift should always be ~0
+            self.assertAlmostEqual(
+                wl.bb_shift_vector.x, 0, delta=0.01, msg=f"Scale: {scale}"
+            )
+            self.assertAlmostEqual(
+                wl.bb_shift_vector.y, 0, delta=0.01, msg=f"Scale: {scale}"
+            )
+            self.assertAlmostEqual(
+                wl.bb_shift_vector.z, 0, delta=0.01, msg=f"Scale: {scale}"
+            )
+            # the max 2D error value should be the same
+            self.assertAlmostEqual(
+                wl.results_data().max_2d_cax_to_bb_mm,
+                0.73,
+                delta=0.03,
+                msg=f"Scale: {scale}",
+            )
+
+
 class TestPublishPDF(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -933,6 +980,7 @@ class WinstonLutzMixin(CloudFileMixin):
     cax2bb_max_distance = 0
     cax2bb_median_distance = 0
     cax2bb_mean_distance = 0
+    cax2epid_max_distance = 0
     epid_deviation = None
     bb_shift_vector = Vector()  # vector to place BB at iso
     machine_scale = MachineScale.IEC61217
@@ -1033,6 +1081,11 @@ class WinstonLutzMixin(CloudFileMixin):
             self.wl.cax2bb_distance(metric="median"),
             self.cax2bb_median_distance,
             delta=0.1,
+        )
+
+    def test_cax_to_epid_distance(self):
+        self.assertAlmostEqual(
+            self.wl.cax2epid_distance("max"), self.cax2epid_max_distance, delta=0.1
         )
 
     def test_bb_mean_distance(self):
@@ -1242,6 +1295,7 @@ class Synthetic1mmLeftNoCouch(SyntheticWLMixin, TestCase):
     cax2bb_max_distance = 1
     cax2bb_mean_distance = 0.5
     cax2bb_median_distance = 0.5
+    cax2epid_max_distance = 1
 
 
 class Synthetic1mmLeft(SyntheticWLMixin, TestCase):
@@ -1251,6 +1305,7 @@ class Synthetic1mmLeft(SyntheticWLMixin, TestCase):
     cax2bb_max_distance = 1
     cax2bb_mean_distance = 0.67
     cax2bb_median_distance = 1
+    cax2epid_max_distance = 1.02
     couch_iso_size = 2
 
 
@@ -1259,6 +1314,7 @@ class Synthetic1mmRight(SyntheticWLMixin, TestCase):
     cax2bb_max_distance = 1.0
     cax2bb_mean_distance = 0.75
     cax2bb_median_distance = 1
+    cax2epid_max_distance = 1.02
     couch_iso_size = 2
 
 
@@ -1267,6 +1323,7 @@ class Synthetic1mmUp(SyntheticWLMixin, TestCase):
     cax2bb_max_distance = 1.0
     cax2bb_mean_distance = 0.25
     cax2bb_median_distance = 0
+    cax2epid_max_distance = 1
 
 
 class Synthetic1mmDown(SyntheticWLMixin, TestCase):
@@ -1274,6 +1331,7 @@ class Synthetic1mmDown(SyntheticWLMixin, TestCase):
     cax2bb_max_distance = 1.0
     cax2bb_mean_distance = 0.25
     cax2bb_median_distance = 0
+    cax2epid_max_distance = 1
     couch_iso_size = 0
 
 
@@ -1282,6 +1340,7 @@ class Synthetic1mmIn(SyntheticWLMixin, TestCase):
     cax2bb_max_distance = 1.0
     cax2bb_mean_distance = 1.0
     cax2bb_median_distance = 1
+    cax2epid_max_distance = 1.02
     couch_iso_size = 2.0
 
 
@@ -1291,6 +1350,7 @@ class Synthetic1mmOut(SyntheticWLMixin, TestCase):
     cax2bb_mean_distance = 1.0
     cax2bb_median_distance = 1
     couch_iso_size = 2.0
+    cax2epid_max_distance = 1
 
 
 class Synthetic1mmIn1mmLeft(SyntheticWLMixin, TestCase):
@@ -1299,6 +1359,7 @@ class Synthetic1mmIn1mmLeft(SyntheticWLMixin, TestCase):
     cax2bb_max_distance = 1.41
     cax2bb_mean_distance = 1.3
     cax2bb_median_distance = 1.4
+    cax2epid_max_distance = 1.42
     couch_iso_size = 2.8
 
 
@@ -1308,6 +1369,7 @@ class Synthetic1mmOut1mmRight(SyntheticWLMixin, TestCase):
     cax2bb_max_distance = 1.41
     cax2bb_mean_distance = 1.3
     cax2bb_median_distance = 1.4
+    cax2epid_max_distance = 1.42
     couch_iso_size = 2.8
 
 
@@ -1317,6 +1379,7 @@ class Synthetic2mmUp1mmLeft(SyntheticWLMixin, TestCase):
     cax2bb_max_distance = 2.0
     cax2bb_mean_distance = 1.25
     cax2bb_median_distance = 1.0
+    cax2epid_max_distance = 2.02
     couch_iso_size = 2.0
 
 
@@ -1326,6 +1389,7 @@ class Synthetic2mmRight1mmDown(SyntheticWLMixin, TestCase):
     cax2bb_max_distance = 2.0
     cax2bb_mean_distance = 1.75
     cax2bb_median_distance = 2.0
+    cax2epid_max_distance = 2.02
     couch_iso_size = 4.0
 
 
@@ -1334,6 +1398,7 @@ class Synthetic1mmOut1SidedCouch(SyntheticWLMixin, TestCase):
     cax2bb_max_distance = 1.0
     cax2bb_mean_distance = 1.0
     cax2bb_median_distance = 1
+    cax2epid_max_distance = 1.02
     couch_iso_size = 1.42
     images_axes = (
         (0, 0, 0),
@@ -1353,6 +1418,7 @@ class WLDemo(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1.2
     cax2bb_median_distance = 0.7
     cax2bb_mean_distance = 0.6
+    cax2epid_max_distance = 2.36
     machine_scale = MachineScale.VARIAN_IEC
     epid_deviation = 1.3
     axis_of_rotation = {0: Axis.REFERENCE}
@@ -1447,8 +1513,9 @@ class WLLateral3mm(WinstonLutzMixin, TestCase):
     num_images = 4
     gantry_iso_size = 0.5
     cax2bb_max_distance = 3.8
-    cax2bb_median_distance = 2.3
+    cax2bb_median_distance = 2.24
     cax2bb_mean_distance = 2.3
+    cax2epid_max_distance = 3.68
     bb_shift_vector = Vector(x=-3.6, y=0.5, z=0.6)
 
 
@@ -1463,6 +1530,7 @@ class WLReferenceIsLargestRMS(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1
     cax2bb_median_distance = 0
     cax2bb_mean_distance = 0.33
+    cax2epid_max_distance = 1
     bb_shift_vector = Vector(x=1, y=0, z=0)
 
     def test_largest_error_at_ref_is_reported(self):
@@ -1477,8 +1545,9 @@ class WLLongitudinal3mm(WinstonLutzMixin, TestCase):
     num_images = 4
     gantry_iso_size = 0.5
     cax2bb_max_distance = 3.9
-    cax2bb_median_distance = 3.7
+    cax2bb_median_distance = 3.6
     cax2bb_mean_distance = 3.7
+    cax2epid_max_distance = 3.97
     bb_shift_vector = Vector(x=-0.63, y=3.6, z=0.6)
 
 
@@ -1486,11 +1555,16 @@ class WLVertical3mm(WinstonLutzMixin, TestCase):
     file_name = "vrt3mm.zip"
     num_images = 4
     gantry_iso_size = 0.5
-    cax2bb_max_distance = 3.8
+    cax2bb_max_distance = 3.7
     cax2bb_median_distance = 2.3
     cax2bb_mean_distance = 2.3
+    cax2epid_max_distance = 3.98
     bb_shift_vector = Vector(x=-0.5, y=0.5, z=3.6)
     print_results = True
+
+    def test_setting_proximity_too_low_fails(self):
+        with self.assertRaises(ValueError):
+            self.wl.analyze(bb_proximity_mm=1)
 
 
 class WLDontUseFileNames(WinstonLutzMixin, TestCase):
@@ -1500,6 +1574,7 @@ class WLDontUseFileNames(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 0.9
     cax2bb_median_distance = 0.8
     cax2bb_mean_distance = 0.8
+    cax2epid_max_distance = 1.14
     bb_shift_vector = Vector(x=-0.4, y=0.6, z=0.6)
     axis_of_rotation = {
         0: Axis.REFERENCE,
@@ -1519,6 +1594,7 @@ class WLUseFileNames(WinstonLutzMixin, PlotlyTestMixin, TestCase):
     cax2bb_max_distance = 0.9
     cax2bb_median_distance = 0.8
     cax2bb_mean_distance = 0.8
+    cax2epid_max_distance = 1.14
     bb_shift_vector = Vector(y=0.6)
     axis_of_rotation = {
         0: Axis.COLLIMATOR,
@@ -1551,6 +1627,7 @@ class KatyiX0(WinstonLutzMixin, PlotlyTestMixin, TestCase):
     cax2bb_max_distance = 1.2
     cax2bb_median_distance = 0.8
     cax2bb_mean_distance = 0.7
+    cax2epid_max_distance = 1.3
     machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=-0.4, y=0.15, z=-0.5)
     print_results = True
@@ -1583,6 +1660,7 @@ class KatyiX1(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1.2
     cax2bb_median_distance = 0.3
     cax2bb_mean_distance = 0.4
+    cax2epid_max_distance = 1.4
     bb_shift_vector = Vector(x=0.3, y=-0.2, z=0.3)
 
 
@@ -1595,6 +1673,7 @@ class KatyiX2(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1.1
     cax2bb_median_distance = 0.5
     cax2bb_mean_distance = 0.6
+    cax2epid_max_distance = 1.1
     machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=0.15, y=-0.15, z=0.1)
 
@@ -1608,6 +1687,7 @@ class KatyiX3(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1.25
     cax2bb_median_distance = 0.8
     cax2bb_mean_distance = 0.75
+    cax2epid_max_distance = 1.28
     machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=-0.1, y=0.2, z=-0.5)
 
@@ -1619,8 +1699,9 @@ class KatyTB0(WinstonLutzMixin, TestCase):
     collimator_iso_size = 0.8
     couch_iso_size = 1.3
     cax2bb_max_distance = 1.07
-    cax2bb_median_distance = 0.8
+    cax2bb_median_distance = 0.74
     cax2bb_mean_distance = 0.8
+    cax2epid_max_distance = 0.82
     machine_scale = MachineScale.VARIAN_IEC
     axis_of_rotation = {-1: Axis.REFERENCE}
     bb_shift_vector = Vector(x=-0.4, y=-0.1, z=-0.25)
@@ -1635,6 +1716,7 @@ class KatyTB1(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1
     cax2bb_median_distance = 0.7
     cax2bb_mean_distance = 0.6
+    cax2epid_max_distance = 0.76
     axis_of_rotation = {0: Axis.GANTRY}
     machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=-0.3, y=-0.2)
@@ -1649,6 +1731,7 @@ class KatyTB2(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1.1
     cax2bb_median_distance = 0.4
     cax2bb_mean_distance = 0.5
+    cax2epid_max_distance = 0.5
     axis_of_rotation = {-1: Axis.REFERENCE}
     bb_shift_vector = Vector(x=0.0, y=-0.2, z=-0.6)
 
@@ -1663,6 +1746,7 @@ class ChicagoTBFinal(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 0.5
     cax2bb_median_distance = 0.3
     cax2bb_mean_distance = 0.3
+    cax2epid_max_distance = 0.26
     axis_of_rotation = {0: Axis.GBP_COMBO}
     bb_shift_vector = Vector(y=0.1)
 
@@ -1676,7 +1760,9 @@ class ChicagoTB52915(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 0.5
     cax2bb_median_distance = 0.3
     cax2bb_mean_distance = 0.3
+    cax2epid_max_distance = 0.31
     bb_shift_vector = Vector(z=0.2)
+    print_results = True
 
 
 class TrueBeam3120213(WinstonLutzMixin, TestCase):
@@ -1685,6 +1771,7 @@ class TrueBeam3120213(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 0.9
     cax2bb_median_distance = 0.35
     cax2bb_mean_distance = 0.4
+    cax2epid_max_distance = 0.81
     gantry_iso_size = 1.1
     collimator_iso_size = 0.7
     couch_iso_size = 0.7
@@ -1700,6 +1787,7 @@ class SugarLandiX2015(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1.67
     cax2bb_median_distance = 1.05
     cax2bb_mean_distance = 1.1
+    cax2epid_max_distance = 1.66
     machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=0.6, y=-0.5, z=0.1)
 
@@ -1712,8 +1800,9 @@ class BayAreaiX0(WinstonLutzMixin, TestCase):
     collimator_iso_size = 1.1
     couch_iso_size = 2.3
     cax2bb_max_distance = 1.25
-    cax2bb_median_distance = 0.6
+    cax2bb_median_distance = 0.69
     cax2bb_mean_distance = 0.6
+    cax2epid_max_distance = 2.36
     machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=0, y=-0.3, z=-0.2)
 
@@ -1727,6 +1816,7 @@ class DAmoursElektaOffset(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 17.5
     cax2bb_median_distance = 14.3
     cax2bb_mean_distance = 13.8
+    cax2epid_max_distance = 16.64
     bb_shift_vector = Vector(x=10.2, y=-9.2, z=-11.1)  # independently verified
 
 
@@ -1739,6 +1829,7 @@ class DAmoursElektaXOffset(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 9.5
     cax2bb_median_distance = 6.9
     cax2bb_mean_distance = 6
+    cax2epid_max_distance = 9.93
     bb_shift_vector = Vector(x=-9.5, y=0.3, z=0.1)  # independently verified
 
 
@@ -1753,6 +1844,7 @@ class DAmoursElektaCentered(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 0.8
     cax2bb_median_distance = 0.5
     cax2bb_mean_distance = 0.6
+    cax2epid_max_distance = 2.23
     bb_shift_vector = Vector(y=0.4)
 
 
@@ -1767,6 +1859,7 @@ class DeBr6XElekta(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1.0
     cax2bb_median_distance = 0.7
     cax2bb_mean_distance = 0.6
+    cax2epid_max_distance = 1.57
     bb_shift_vector = Vector(x=0.4, y=-0.2)
 
 
@@ -1781,6 +1874,7 @@ class LargeFieldCouchPresent(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1.3
     cax2bb_median_distance = 1
     cax2bb_mean_distance = 1
+    cax2epid_max_distance = 1.11
     bb_shift_vector = Vector(x=0.5, y=-0.7, z=0.8)
 
 
@@ -1813,6 +1907,7 @@ class kVImages(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 0.26
     cax2bb_median_distance = 0.18
     cax2bb_mean_distance = 0.18
+    cax2epid_max_distance = 0.28
     axis_of_rotation = {-1: Axis.REFERENCE}
     bb_shift_vector = Vector(x=-0.24, y=0, z=0)
 
@@ -1836,6 +1931,7 @@ class TIFFImages(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 0.75
     cax2bb_median_distance = 0.5
     cax2bb_mean_distance = 0.5
+    cax2epid_max_distance = 0.67
     axis_of_rotation = {-1: Axis.GANTRY}
     bb_shift_vector = Vector(x=0.74, y=0.16, z=-0.14)
 
@@ -1854,6 +1950,7 @@ class VarianBBkV(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 0.42
     cax2bb_median_distance = 0.31
     cax2bb_mean_distance = 0.28
+    cax2epid_max_distance = 0.41
     axis_of_rotation = {-1: Axis.REFERENCE}
     bb_shift_vector = Vector(x=-0.24, y=0.2, z=-0.15)
 
@@ -1966,6 +2063,7 @@ class TestFrenchCBCT(CBCTWinstonLutzMixin, TestCase):
     cax2bb_max_distance = 0.23
     cax2bb_median_distance = 0.22
     cax2bb_mean_distance = 0.22
+    cax2epid_max_distance = 0.27
     machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=0.2, y=0, z=-0.2)
 
@@ -1983,6 +2081,7 @@ class TestOffsetLeftCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
     cax2bb_max_distance = 5
     cax2bb_median_distance = 2.5
     cax2bb_mean_distance = 2.5
+    cax2epid_max_distance = 5
     bb_shift_vector = Vector(x=-5, y=0, z=0)
 
 
@@ -1991,6 +2090,7 @@ class TestOffsetDownCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
     cax2bb_max_distance = 5
     cax2bb_median_distance = 2.5
     cax2bb_mean_distance = 2.5
+    cax2epid_max_distance = 5
     bb_shift_vector = Vector(x=0, y=0, z=5)
 
 
@@ -1999,6 +2099,7 @@ class TestOffsetInCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
     cax2bb_max_distance = 5
     cax2bb_median_distance = 5
     cax2bb_mean_distance = 5
+    cax2epid_max_distance = 5
     bb_shift_vector = Vector(x=0, y=-5, z=0)
 
 
@@ -2010,12 +2111,13 @@ class TestIndividualInverts(WinstonLutzMixin, TestCase):
     low_density_bb = True
     open_field = True
     bb_size = 5
-    gantry_iso_size = 0.57
+    gantry_iso_size = 0.32
     collimator_iso_size = None
     couch_iso_size = None
     cax2bb_max_distance = 0.55
     cax2bb_median_distance = 0.37
     cax2bb_mean_distance = 0.36
+    cax2epid_max_distance = 0.42
     axis_of_rotation = {-1: Axis.REFERENCE}
     bb_shift_vector = Vector(x=0.13, y=0.22, z=-0.3)
 
@@ -2032,3 +2134,75 @@ class TestIndividualInverts(WinstonLutzMixin, TestCase):
         for img in wl.images:
             img.crop(pixels=50)
         return wl
+
+
+class TestIsocal(TestCase):
+    """Test that if isocal is applied (3002,000D), the EPID position takes this into account."""
+
+    def test_isocal_synthetic(self):
+        shift = tempfile.TemporaryDirectory()
+        generate_winstonlutz(
+            simulator=AS1200Image(1000),
+            field_layer=PerfectFieldLayer,
+            dir_out=shift.name,
+            tags={"XRayImageReceptorTranslation": [1, 1, -500]},
+        )
+        no_shift = tempfile.TemporaryDirectory()
+        generate_winstonlutz(
+            simulator=AS1200Image(1000),
+            field_layer=PerfectFieldLayer,
+            dir_out=no_shift.name,
+            tags={"XRayImageReceptorTranslation": [0, 0, -500]},
+        )
+        wl_shift = WinstonLutz(shift.name)
+        wl_shift.analyze()
+        wl_shift_results = wl_shift.results_data()
+        # translation was set to 1mm in both x and y, thus sqrt(2) away
+        self.assertAlmostEqual(
+            wl_shift_results.max_2d_cax_to_epid_mm, 1.414, delta=0.01
+        )
+        wl_no_shift = WinstonLutz(no_shift.name)
+        wl_no_shift.analyze()
+        wl_no_shift_results = wl_no_shift.results_data()
+        self.assertAlmostEqual(wl_no_shift_results.max_2d_cax_to_epid_mm, 0)
+        # but that no other metric was changed
+        self.assertEqual(
+            wl_shift_results.max_gantry_rms_deviation_mm,
+            wl_no_shift_results.max_gantry_rms_deviation_mm,
+        )
+        self.assertEqual(
+            wl_shift_results.max_couch_rms_deviation_mm,
+            wl_no_shift_results.max_couch_rms_deviation_mm,
+        )
+        self.assertEqual(
+            wl_shift_results.max_coll_rms_deviation_mm,
+            wl_no_shift_results.max_coll_rms_deviation_mm,
+        )
+        self.assertEqual(
+            wl_shift_results.gantry_3d_iso_diameter_mm,
+            wl_no_shift_results.gantry_3d_iso_diameter_mm,
+        )
+
+
+class iXIsocal(WinstonLutzMixin, TestCase):
+    """An iX with a very large isocal offset"""
+
+    file_name = ["iX Linac with isocal.zip"]
+    bb_size = 10
+    num_images = 14
+    gantry_iso_size = 0.8
+    collimator_iso_size = None
+    couch_iso_size = None
+    cax2bb_max_distance = 0.73
+    cax2bb_median_distance = 0.33
+    cax2bb_mean_distance = 0.34
+    cax2epid_max_distance = 0.2
+
+
+class iXNoIsocal(iXIsocal):
+    """An iX without Isocal applied. Sister dataset to above made by stripping out 3002,000D tag.
+    The test inherits from iXIsocal, proving that all the values are the same except the cax2epid distance.
+    """
+
+    file_name = ["iX Linac isocal removed.zip"]
+    cax2epid_max_distance = 1.5  # only difference from the parent test

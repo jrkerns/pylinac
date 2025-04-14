@@ -1345,6 +1345,7 @@ class Katy1(CatPhan504Mixin, TestCase):
     """CBCT with very high HU values."""
 
     file_name = "Katy-iX-Monday, March 10, 2014 1-05-47 PM (super high HU).zip"
+    expected_roll = -0.3
     origin_slice = 44
     hu_values = {
         "Poly": 584,
@@ -1420,7 +1421,6 @@ class AGElekta2(CatPhan503Mixin, TestCase):
     }
     unif_values = {"Center": 707, "Left": 758, "Right": 748, "Top": 750, "Bottom": 758}
     mtf_values = {50: 0.22}
-    avg_line_length = 50.2
     slice_thickness = 1
 
 
@@ -1535,7 +1535,7 @@ class UNC120kV(CatPhan503Mixin, TestCase):
 
 class CatPhan600_1(CatPhan600Mixin, TestCase):
     file_name = "zzCAT201601.zip"
-    expected_roll = -1.1
+    expected_roll = -0.7
     origin_slice = 158
     hu_values = {
         "Poly": -31,
@@ -1934,6 +1934,32 @@ class CatPhan604DD3(CatPhan604Mixin, TestCase):
     lowcon_visible = 6
 
 
+class CatPhan503XVI507(CatPhan503Mixin, TestCase):
+    file_name = "catphan_MFOV_5.0.7.1.zip"
+    expected_roll = -0.3
+    origin_slice = 106
+    avg_line_length = 49.85
+    hu_values = {
+        "Poly": -193,
+        "Acrylic": -87,
+        "Delrin": 58,
+        "Air": -825,
+        "Teflon": 440,
+        "PMP": -291,
+        "LDPE": -231,
+    }
+    unif_values = {
+        "Center": -177,
+        "Left": -151,
+        "Right": -148,
+        "Top": -151,
+        "Bottom": -151,
+    }
+    mtf_values = {50: 0.58}
+    lowcon_visible = 4
+    slice_thickness = 1.4
+
+
 class CatPhan504NearEdge(CatPhan504Mixin, TestCase):
     file_name = "phantom_edge.zip"
     expected_roll = 1.4
@@ -1951,3 +1977,43 @@ class CatPhan504NearEdge(CatPhan504Mixin, TestCase):
     mtf_values = {50: 0.33}
     lowcon_visible = 4
     slice_thickness = 3
+
+
+class CatPhan503Nodes(CatPhan503Mixin, TestCase):
+    file_name = "GK-nodes-small.zip"
+    origin_slice = 257
+    hu_values = {
+        "Poly": 0,
+        "Acrylic": 170,
+        "Delrin": 421,
+        "Air": -958,
+        "Teflon": 940,
+        "PMP": -174,
+        "LDPE": -82,
+    }
+    unif_values = {"Center": 139, "Left": -19, "Right": 125, "Top": 48, "Bottom": 59}
+    mtf_values = {50: 0.45}
+    lowcon_visible = 4
+    slice_thickness = 0.49
+
+
+class CatPhan503Nodes2(CatPhan503Mixin, TestCase):
+    # separate test from another institution
+    # the origin slice is off due to the HU module at the edge of
+    # the recon FOV. Included for baselining.
+    file_name = "gknodes2-small.zip"
+    origin_slice = 244
+    hu_values = {
+        "Poly": -34,
+        "Acrylic": 174,
+        "Delrin": 457,
+        "Air": -920,
+        "Teflon": 990,
+        "PMP": -149,
+        "LDPE": -109,
+    }
+    expected_roll = 0.447
+    unif_values = {"Center": 162, "Left": -10, "Right": 101, "Top": 44, "Bottom": 39}
+    mtf_values = {50: 0.15}  # TODO: RAM-4472
+    lowcon_visible = 4
+    slice_thickness = 0.49

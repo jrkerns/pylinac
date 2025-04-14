@@ -10,14 +10,85 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.33.0
+--------
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` When passing a coordinate system other than IEC61217 and also applying a virtual shift ``apply_virtual_shift=True``,
+  the resulting shift would not be 0. This was due to assuming IEC61217 internally when calculating BB positions in 3D space.
+* :bdg-success:`Feature` The ``WinstonLutz2D`` method ``analyze`` now accepts a ``machine_scale`` parameter,
+  similar to what ``WinstonLutz`` already does.
+* :bdg-warning:`Fixed` The EPID translation introduced in 3.32 was not accounting for the EPID magnification
+  factor. See the release not in 3.32 for the keys that this might affect. For TrueBeams, this effect is small.
+  For Clinacs, this effect could be large and the CAX->EPID error may be smaller as the EPID correction is now smaller.
+
+Plan Generator
+^^^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` When passing invert to the generated DICOM images (``.to_dicom_images(..., invert=True)``),
+  the call would fail due to a parameter typo.
+
 v 3.32.0
 --------
 
+Picket Fence
+^^^^^^^^^^^^
+
+* :bdg-danger:`Change` When analyzing with ``separate_leaves=True`` for images with an SID != SAD,
+  the nominal gap was double-correcting for the magnification factor. This means, e.g., a picket with a gap
+  of 5mm at an SID of 1500mm would need to set the nominal gap to ~3.3mm (5/1.5) to get an error of ~0mm.
+  To adjust existing code for nominal gaps that were empirically determined, use the following formula:
+
+  .. math::
+
+        \text{new nominal gap} = \text{old nominal gap} * \frac{SID}{SAD}
+
+CT
+^^
+
+* :bdg-warning:`Fixed` Certain scans from a GammaKnife would cause geometric nodes on the HU linearity module
+  to be incorrectly detected. Node detection is now more robust.
+* :bdg-warning:`Fixed` Certain CBCT datasets from the XVI v5.0.7 imager were failing due to high-artifact rings.
+  The CT-like algorithm for phantom roll determination should be more robust, however, some test datasets had a
+  detected roll change by up to 0.4 degrees. In some cases this moved the ROIs by approximately a pixel.
 
 Image
 ^^^^^
 
 * :bdg-primary:`Refactor` XIM image reading has been increased by ~30x. Thanks to `@purepani <https://github.com/purepani>`__ for the contribution.
+* :bdg-warning:`Fixed` The ``cax`` property of ``DICOMImage`` was not correctly applying the `(3002,000D) <https://dicom.innolitics.com/ciods/rt-image/rt-image/3002000d>`__ tag. The tag
+  indicates the values are in mm, but the values were being used as pixels. This has been fixed.
+
+Image Generator
+^^^^^^^^^^^^^^^
+
+* :bdg-success:`Feature` The utility function ``generate_winstonlutz`` now accepts a ``tags`` parameter for passing
+  extra DICOM tags to the generated image set.
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` Some SNC MultiMet datasets were giving very large values for the BB error values.
+  This had to do with the tolerance of nominal BB position vs detected BB position and field position.
+  The tolerance was inadvertently 20mm. Since the SNC MultiMet has BB's placed closer than this,
+  the BB and field matcher was matching a hidden BB and field to a visible one. In some cases,
+  the matched BB was on one side of the hidden BB and the matched field was on the other, causing
+  and apparent error of ~30mm. Fixing this involved adding a separate tolerance for the MTWL. See below.
+
+  .. image:: images/RAM_4405.jpg
+
+* :bdg-success:`Feature` A new parameter ``bb_proximity_mm`` has been added to :meth:`~pylinac.winston_lutz.WinstonLutzMultiTargetMultiField.analyze()`. This
+  lets the user control how far away the BB can be from the nominal position. For single-BB, isocentric
+  WLs, this is 20 by default for historical consistency. For MTWL, this value is now 10mm by default.
+* :bdg-danger:`Change` The Demo dataset for the ``WinstonLutzMultiTargetMultiField`` class has been changed to
+  a real SNC MultiMet dataset since most datasets currently analyzed are for that phantom.
+  The ``DEMO`` BB Arrangement has also been changed to match that of the ``SNC_MULTIMET`` configuration for compatibility.
+* :bdg-warning:`Fixed` Winston-Lutz now accounts for the EPID translation applied by algorithms like Isocal
+  when calculating field->EPID and BB->EPID distances. This will affect the keys ``<max|mean|median>_cax2epid_distance`` in the results data.
+  Separately, users may notice a difference in more results when ``open_field`` is true, such as the gantry iso size (so far this has only ever reduced the value in our tests) and for BB->field/EPID distances (``cax2bb_...``) .
+  This is because for open fields, there is no field separate from the EPID, so the distance is directly from the BB to the EPID, and now the EPID position takes the translation into account.
 
 v 3.31.0
 --------

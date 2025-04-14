@@ -1356,7 +1356,9 @@ class DicomImage(BaseImage):
         else:
             self.array = self.metadata.pixel_array.copy()
         # convert values to HU or CU
-        self.array = _rescale_dicom_values(self.array, self.metadata, raw_pixels=raw_pixels)
+        self.array = _rescale_dicom_values(
+            self.array, self.metadata, raw_pixels=raw_pixels
+        )
 
     @classmethod
     def from_dataset(cls, dataset: Dataset):
@@ -1463,12 +1465,32 @@ class DicomImage(BaseImage):
 
     @property
     def cax(self) -> Point:
-        """The position of the beam central axis. If no DICOM translation tags are found then the center is returned.
+        """The center of the image, accounting for EPID translations (e.g. Isocal). If no DICOM translation tags are found then the center is returned.
         Uses this tag: https://dicom.innolitics.com/ciods/rt-beams-delivery-instruction/rt-beams-delivery-instruction/00741020/00741030/3002000d
+        which is in mm.
+
+        Notes
+        -----
+        * The DICOM tag is in mm, so the value must be converted to pixels.
+        * The DICOM tag is (x,y,z) using the Gantry IEC coordinate space,
+          meaning +x is right, +y is in.
+        * DICOM y-axis pixel indices INCREASE going down the image. Combined
+          with above, this means we must subtract from the x-axis and
+          add from the y-axis to get the correct pixel location because
+          the CAX is in the opposite direction of the translation.
+        * We currently assume that the shift is AT THE PANEL, meaning
+          we have to back-correct the shift for the magnification.
         """
+        mag_factor = self.sid / self.sad
         try:
-            x = self.center.x - self.metadata.XRayImageReceptorTranslation[0]
-            y = self.center.y - self.metadata.XRayImageReceptorTranslation[1]
+            x = (
+                self.center.x
+                - self.metadata.XRayImageReceptorTranslation[0] * self.dpmm / mag_factor
+            )
+            y = (
+                self.center.y
+                + self.metadata.XRayImageReceptorTranslation[1] * self.dpmm / mag_factor
+            )
         except (AttributeError, ValueError, TypeError):
             return self.center
         else:
@@ -1805,8 +1827,13 @@ class LazyDicomImageStack:
         return metadata, matched_paths
 
     def side_view(self, axis: int) -> np.ndarray:
-        """Return the side view of the stack. E.g. if axis=0, return the maximum value along the 0th axis."""
-        return np.stack([i for i in self], axis=-1).max(axis=axis)
+        """Return the side view of the stack."""
+        # we perform a loop instead of a simple max(axis=-1) to avoid loading all the images into memory at once
+        side_array = np.zeros(shape=(self[0].array.shape[0], len(self)))
+        for idx, image in enumerate(self):
+            max_col = image.array.max(axis=-1)
+            side_array[:, idx] = max_col
+        return side_array
 
     @cached_property
     def metadata(self) -> pydicom.FileDataset:
