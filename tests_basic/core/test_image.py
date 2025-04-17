@@ -819,6 +819,7 @@ class TestDicomStack(TestCase):
     def test_lazy_with_multiple_uids_updates_paths(self):
         # issue 494
         # join two stacks into a temporary dir
+        # TODO test stack order issue #551
         stack1 = get_file_from_cloud_test_repo(["CBCT", "CatPhan_504", "CBCT_5.zip"])
         stack2 = get_file_from_cloud_test_repo(["CBCT", "CatPhan_504", "CBCT_3.zip"])
         new_dir = tempfile.mkdtemp()
