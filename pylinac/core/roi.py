@@ -572,7 +572,7 @@ class RectangleROI(Rectangle):
 
     @cached_property
     def pixel_value(self) -> float:
-        """The pixel array within the ROI."""
+        """The mean pixel value within the ROI."""
         return float(np.mean(self.pixel_array))
 
     @cached_property
