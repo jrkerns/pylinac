@@ -4,7 +4,10 @@ import math
 
 import numpy as np
 from scipy.interpolate import interp1d
-from skimage.draw import disk
+from scipy.ndimage import vectorized_filter
+
+from skimage.morphology import disk
+from skimage.draw import disk as disk_indices
 
 from . import validators
 from .array_utils import (
@@ -271,63 +274,44 @@ def gamma_2d(
         raise ValueError(
             f"Reference and evaluation arrays must be 2D. Got reference: {reference.ndim} and evaluation: {evaluation.ndim}"
         )
+    threshold = reference.max() / 100 * dose_threshold
+    # convert dose to agreement
+    dose_ta = (
+        dose_to_agreement
+        / 100
+        * (np.full_like(reference, reference.max()) if global_dose else reference)
+    )
+    footprint: np.ndarray = disk(distance_to_agreement, strict_radius=True) == 1
+    rs, cs = disk_indices(
+        (0, 0),
+        distance_to_agreement + 1,
+    )
+    footprint_distances2 = (rs**2 + cs**2).reshape(footprint.shape)[footprint]
 
-    # convert dose-to-agreement to % of global-max or % of local-value
-    if global_dose:
-        dose_ta = dose_to_agreement / 100 * reference.max()
-    else:
-        dose_ta = dose_to_agreement / 100 * reference
+    kernel_input = np.stack((reference, evaluation, dose_ta), axis=2)
+    # footprint shape should always be odd, so this should work
+    center_ind = tuple(ind // 2 for ind in footprint.shape[-1:-3])
+    dist_frac = footprint_distances2 / distance_to_agreement**2
 
-    # Work with normalized values to avoid normalization inside the loop
-    eval_normalized = evaluation / dose_ta
-    reference_normalized = reference / dose_ta
-    threshold_normalized = dose_threshold / 100
+    def kernel(window: np.ndarray, *, axis: int | tuple):
+        ref_point = window[0, ..., *center_ind]
+        dose = window[1] - ref_point
+        dose_ta = window[2, ..., *center_ind]
+        dose_frac = (dose / dose_ta) ** 2
+        capital_gammas = np.sqrt(dist_frac + dose_frac)
+        capital_gammas = np.nanmin(capital_gammas, axis=axis)
+        capital_gammas[capital_gammas > gamma_cap_value] = gamma_cap_value
+        return capital_gammas
 
-    # pad eval array on both edges so our search does not go out of bounds
-    eval_normalized = np.pad(eval_normalized, distance_to_agreement, mode="edge")
-
-    # use scikit-image to compute the indices of a disk around the reference point
-    # we can then compute gamma over the eval points at these indices
-    # we use DTA+1 in disk because it looks like the results are exclusive of edges.
-    disk_rr, disk_cc = disk((0, 0), distance_to_agreement + 1)
-
-    # pre-calculate as much as possible not to repeat inside the loop
-    # For each row/col these are the indexes which are covered by the disk
-    row_r = np.array(range(reference.shape[0]))[np.newaxis].T + disk_rr
-    col_r = np.array(range(reference.shape[1]))[np.newaxis].T + disk_cc
-    # For the evaluation image the row/col indexes are offset by the padding distance
-    row_e = row_r + distance_to_agreement
-    col_e = col_r + distance_to_agreement
-    # The spatial distance depends only on the disk so it can be precalculated
-    dist_row = disk_rr / distance_to_agreement
-    dist_col = disk_cc / distance_to_agreement
-    dist_r_2 = dist_row**2 + dist_col**2
-
-    gamma_cap_value_2 = gamma_cap_value**2
-    gamma = np.full(reference.shape, float(gamma_cap_value))
-    # iterate over each reference element, computing distance value and dose value
-    for row_idx in range(reference.shape[0]):
-        for col_idx in range(reference.shape[1]):
-            ref_point = reference_normalized[row_idx, col_idx]
-
-            # skip if below dose threshold
-            if math.isnan(ref_point) or ref_point < threshold_normalized:
-                gamma[row_idx, col_idx] = fill_value
-                continue
-
-            # roi from evaluation
-            eval_roi = eval_normalized[row_e[row_idx, :], col_e[col_idx, :]]
-
-            # Normalized dose difference between evaluated and reference dose points
-            dist_dose = eval_roi - ref_point
-
-            # capital gamma square (avoid sqrt and memory access if above cap)
-            capital_gamma_2 = np.nanmin(dist_r_2 + dist_dose * dist_dose)
-            if capital_gamma_2 >= gamma_cap_value_2:
-                continue
-            gamma[row_idx, col_idx] = np.sqrt(capital_gamma_2)
-
-    return np.asarray(gamma)
+    gamma = vectorized_filter(
+        kernel_input,
+        kernel,
+        footprint=footprint,
+        mode="nearest",
+        axes=(0, 1),
+    )
+    gamma[gamma < threshold] = fill_value
+    return gamma
 
 
 def gamma_1d(
