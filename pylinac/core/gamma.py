@@ -4,7 +4,10 @@ import math
 
 import numpy as np
 from scipy.interpolate import interp1d
-from skimage.draw import disk
+from scipy.ndimage import vectorized_filter
+
+from skimage.morphology import disk
+from skimage.draw import disk as disk_indices
 
 from . import validators
 from .array_utils import (
@@ -272,47 +275,43 @@ def gamma_2d(
             f"Reference and evaluation arrays must be 2D. Got reference: {reference.ndim} and evaluation: {evaluation.ndim}"
         )
     threshold = reference.max() / 100 * dose_threshold
-    # convert dose to agreement to % of global max; ignored later if local dose
-    dose_ta = dose_to_agreement / 100 * reference.max()
-    # pad eval array on both edges so our search does not go out of bounds
-    eval_padded = np.pad(evaluation, distance_to_agreement, mode="edge")
-    # iterate over each reference element, computing distance value and dose value
-    gamma = np.zeros(reference.shape)
-    for row_idx, row in enumerate(reference):
-        for col_idx, ref_point in enumerate(row):
-            # skip if below dose threshold
-            if ref_point < threshold:
-                gamma[row_idx, col_idx] = fill_value
-                continue
-            # use scikit-image to compute the indices of a disk around the reference point
-            # we can then compute gamma over the eval points at these indices
-            # unlike the 1D computation, we have to search at an index offset by the distance to agreement
-            # we use DTA+1 in disk because it looks like the results are exclusive of edges.
-            # https://scikit-image.org/docs/stable/api/skimage.draw.html#disk
-            rs, cs = disk(
-                (row_idx + distance_to_agreement, col_idx + distance_to_agreement),
-                distance_to_agreement + 1,
-            )
+    # convert dose to agreement
+    dose_ta = (
+        dose_to_agreement
+        / 100
+        * (np.full_like(reference, reference.max()) if global_dose else reference)
+    )
+    footprint: np.ndarray = disk(distance_to_agreement, strict_radius=True) == 1
+    rs, cs = disk_indices(
+        (0, 0),
+        distance_to_agreement + 1,
+    )
+    footprint_distances2 = (rs**2 + cs**2).reshape(footprint.shape)[footprint]
 
-            capital_gammas = []
-            for r, c in zip(rs, cs):
-                eval_point = eval_padded[r, c]
-                # for the distance, we compare the ref row/col to the eval padded matrix
-                # but remember the padded array is padded by DTA, so to compare distances, we
-                # have to cancel the offset we used for dose purposes.
-                dist = math.dist(
-                    (row_idx, col_idx),
-                    (r - distance_to_agreement, c - distance_to_agreement),
-                )
-                dose = float(eval_point) - float(ref_point)
-                if not global_dose:
-                    dose_ta = dose_to_agreement / 100 * ref_point
-                capital_gamma = math.sqrt(
-                    dist**2 / distance_to_agreement**2 + dose**2 / dose_ta**2
-                )
-                capital_gammas.append(capital_gamma)
-            gamma[row_idx, col_idx] = min(np.nanmin(capital_gammas), gamma_cap_value)
-    return np.asarray(gamma)
+    kernel_input = np.stack((reference, evaluation, dose_ta), axis=2)
+    # footprint shape should always be odd, so this should work
+    center_ind = tuple(ind // 2 for ind in footprint.shape[-1:-3])
+    dist_frac = footprint_distances2 / distance_to_agreement**2
+
+    def kernel(window: np.ndarray, *, axis: int | tuple):
+        ref_point = window[0, ..., *center_ind]
+        dose = window[1] - ref_point
+        dose_ta = window[2, ..., *center_ind]
+        dose_frac = (dose / dose_ta) ** 2
+        capital_gammas = np.sqrt(dist_frac + dose_frac)
+        capital_gammas = np.nanmin(capital_gammas, axis=axis)
+        capital_gammas[capital_gammas > gamma_cap_value] = gamma_cap_value
+        return capital_gammas
+
+    gamma = vectorized_filter(
+        kernel_input,
+        kernel,
+        footprint=footprint,
+        mode="nearest",
+        axes=(0, 1),
+    )
+    gamma[gamma < threshold] = fill_value
+    return gamma
 
 
 def gamma_1d(
