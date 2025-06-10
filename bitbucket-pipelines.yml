@@ -7,8 +7,14 @@ definitions:
     precommit: ~/.cache/pre-commit
     uv: ~/.cache/uv
   steps:
+    - step: &bb-runner
+        runs-on:
+          - self.hosted
+          - linux
+          - radmachine
     - step: &pre-commit-checks-and-setup
         name: Pre-commit checks & env setup
+        <<: *bb-runner
         script:
           - apt-get update
           - apt-get -y install git
@@ -21,6 +27,7 @@ definitions:
           - .venv/**
     - step: &push-to-github
         name: Push to Github
+        <<: *bb-runner
         clone:
           depth: full
         script:
@@ -29,6 +36,7 @@ definitions:
           - git push git@github.com:jrkerns/pylinac.git $BITBUCKET_BRANCH
     - step: &build-docs
         name: Build Docs
+        <<: *bb-runner
         script:
           - uv run nox -s build_docs
         condition:
@@ -38,6 +46,7 @@ definitions:
               - "*.rst"
     - step: &cbct-tests
         name: Run CBCT Tests
+        <<: *bb-runner
         script:
           # set up memory monitoring
           - apt-get update && apt-get install -y --no-install-recommends procps jq
@@ -59,6 +68,7 @@ definitions:
           - memory_usage.log
     - step: &quart-tests
         name: Run Quart Tests
+        <<: *bb-runner
         script:
           - # set up memory monitoring
           - apt-get update && apt-get install -y --no-install-recommends procps jq
@@ -81,6 +91,7 @@ definitions:
               - "pylinac/ct.py"
     - step: &acr-tests
         name: Run ACR CT/MRI Tests
+        <<: *bb-runner
         script:
           - # set up memory monitoring
           - apt-get update && apt-get install -y --no-install-recommends procps jq
@@ -103,6 +114,7 @@ definitions:
               - "pylinac/acr.py"
     - step: &cheese-tests
         name: Run Cheese Phantom Tests
+        <<: *bb-runner
         script:
           - # set up memory monitoring
           - apt-get update && apt-get install -y --no-install-recommends procps jq
@@ -125,6 +137,7 @@ definitions:
               - "pylinac/cheese.py"
     - step: &planar-tests
         name: Run Planar Imaging Tests
+        <<: *bb-runner
         script:
           - # set up memory monitoring
           - apt-get update && apt-get install -y --no-install-recommends procps jq
@@ -146,6 +159,7 @@ definitions:
               - "pylinac/planar_imaging.py"
     - step: &dlg-tests
         name: Run DLG Tests
+        <<: *bb-runner
         script:
           - uv run pytest tests_basic/test_dlg.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
@@ -158,6 +172,7 @@ definitions:
               - "pylinac/dlg.py"
     - step: &field-analysis-tests
         name: Run Field Analysis Tests
+        <<: *bb-runner
         script:
           - uv run pytest tests_basic/test_field_analysis.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
@@ -170,6 +185,7 @@ definitions:
               - "pylinac/field_analysis.py"
     - step: &machine-log-tests
         name: Run Machine Logs Tests
+        <<: *bb-runner
         script:
           - uv run pytest tests_basic/test_logs.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
@@ -182,6 +198,7 @@ definitions:
               - "pylinac/log_analyzer.py"
     - step: &picket-fence-tests
         name: Run Picket Fence Tests
+        <<: *bb-runner
         script:
           - # set up memory monitoring
           - apt-get update && apt-get install -y --no-install-recommends procps jq
@@ -203,6 +220,7 @@ definitions:
               - "pylinac/picketfence.py"
     - step: &starshot-tests
         name: Run Starshot Tests
+        <<: *bb-runner
         script:
           - uv run pytest tests_basic/test_starshot.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
@@ -215,6 +233,7 @@ definitions:
               - "pylinac/starshot.py"
     - step: &calibration-tests
         name: Run TG-51/TRS-398 Tests
+        <<: *bb-runner
         script:
           - uv run pytest tests_basic/test_tg51.py tests_basic/test_trs398.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
@@ -228,6 +247,7 @@ definitions:
               - "pylinac/vmat.py"
     - step: &vmat-tests
         name: Run VMAT Tests
+        <<: *bb-runner
         script:
           - uv run pytest tests_basic/test_vmat.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
@@ -240,6 +260,7 @@ definitions:
               - "pylinac/vmat.py"
     - step: &winston-lutz-tests
         name: Run Winston-Lutz Tests
+        <<: *bb-runner
         script:
             # set up memory monitoring
           - apt-get update && apt-get install -y --no-install-recommends procps jq
@@ -259,6 +280,7 @@ definitions:
           - memory_usage.log
     - step: &winston-lutz-mtmf-tests
         name: Run Winston-Lutz Multi-Target Multi-Field Tests
+        <<: *bb-runner
         script:
           # set up memory monitoring
           - apt-get update && apt-get install -y --no-install-recommends procps jq
@@ -278,6 +300,7 @@ definitions:
           - memory_usage.log
     - step: &plan-generator-tests
         name: Plan generator tests
+        <<: *bb-runner
         script:
           - uv run pytest tests_basic/test_plan_generator.py tests_basic/test_generated_plans.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
@@ -289,6 +312,7 @@ definitions:
                 - "scripts/prefab_plan_generator.py"
     - step: &core-module-tests
         name: Run core module tests
+        <<: *bb-runner
         script:
           - uv run pytest tests_basic/core --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
@@ -300,6 +324,7 @@ definitions:
               - "tests_basic/core/**"
     - step: &update-dev-kraken
         name: Update Dev Kraken
+        <<: *bb-runner
         script:
           - apt-get update
           - apt-get install wget -y
@@ -311,6 +336,7 @@ definitions:
           - uv run nox -s update_dev_kraken
     - step: &run-min-python-version
         name: Run against min Python version
+        <<: *bb-runner
         image: ghcr.io/astral-sh/uv:python3.9-bookworm-slim
         caches:
           - uv
@@ -328,6 +354,7 @@ pipelines:
     pypi:
       - step:
             name: Set up Env
+            <<: *bb-runner
             caches:
               - pip
             script:
@@ -339,6 +366,7 @@ pipelines:
               - venv/**
       - step:
           name: Push to PYPI
+          <<: *bb-runner
           script:
             - source venv/bin/activate
             - pipe: atlassian/pypi-publish:0.3.1
