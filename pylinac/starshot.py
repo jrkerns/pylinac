@@ -60,7 +60,7 @@ class StarshotResults(ResultBase):
         title="Diameter of fitted circle (mm)",
     )
     circle_radius_mm: float = Field(
-        description="The diameter of the minimum circle that touches all the star lines in mm.",
+        description="The radius of the minimum circle that touches all the star lines in mm.",
         title="Radius of fitted circle (mm)",
     )
     circle_center_x_y: tuple[float, float] = Field(
@@ -229,6 +229,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         self,
         radius: float = 0.85,
         min_peak_height: float = 0.25,
+        max_wobble_diameter: float = 2.0,
         tolerance: float = 1.0,
         start_point: Point | tuple | None = None,
         fwhm: bool = True,
@@ -249,6 +250,8 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             The percentage minimum height a peak must be to be considered a valid peak. A lower value catches
             radiation peaks that vary in magnitude (e.g. different MU delivered or gantry shot), but could also pick up noise.
             If necessary, lower value for gantry shots and increase for noisy images.
+        max_wobble_diameter: float, optional
+            Max wobble diameter in mm. Used only when ``recursive=True``, and in that case a larger value results in an unreasonable wobble.
         tolerance : int, float, optional
             The tolerance in mm to test against for a pass/fail result.
         start_point : 2-element iterable, optional
@@ -289,12 +292,12 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             start_point = auto_point
 
         self._get_reasonable_wobble(
-            start_point, fwhm, min_peak_height, radius, recursive, local_max
+            start_point, fwhm, min_peak_height, radius, recursive, local_max, max_wobble_diameter
         )
         self.angles = calculate_angles(self.lines)
 
     def _get_reasonable_wobble(
-        self, start_point, fwhm, min_peak_height, radius, recursive, local_max
+        self, start_point, fwhm, min_peak_height, radius, recursive, local_max, max_wobble_diameter
     ):
         """Determine a wobble that is "reasonable". If recursive is false, the first iteration will be passed,
         otherwise the parameters will be tweaked to search for a reasonable wobble."""
@@ -351,7 +354,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
                         self.wobble.center.distance_to(focus_point)
                         < 10 * self.image.dpmm
                     )
-                    if self.wobble.diameter_mm < 2 and focus_near_center:
+                    if self.wobble.diameter_mm < max_wobble_diameter and focus_near_center:
                         wobble_unreasonable = False
                     # otherwise, iterate through peak height
                     else:

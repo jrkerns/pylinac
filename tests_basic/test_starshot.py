@@ -133,6 +133,7 @@ class StarMixin(CloudFileMixin):
     passes = True
     min_peak_height = 0.25
     radius = 0.85
+    max_wobble_diameter = 2.0
     test_all_radii = True
     radii_range = np.linspace(0.9, 0.25, 8)
     fwxm = True
@@ -148,6 +149,7 @@ class StarMixin(CloudFileMixin):
             min_peak_height=cls.min_peak_height,
             fwhm=cls.fwxm,
             radius=cls.radius,
+            max_wobble_diameter=cls.max_wobble_diameter
         )
 
     @classmethod
@@ -169,6 +171,7 @@ class StarMixin(CloudFileMixin):
             min_peak_height=self.min_peak_height,
             fwhm=self.fwxm,
             radius=self.radius,
+            max_wobble_diameter=self.max_wobble_diameter,
         )
         self.assertEqual(
             self.star.passed, self.passes, msg="Wobble was not within tolerance"
@@ -210,6 +213,7 @@ class StarMixin(CloudFileMixin):
                     min_peak_height=self.min_peak_height,
                     recursive=self.recursive,
                     fwhm=self.fwxm,
+                    max_wobble_diameter=self.max_wobble_diameter
                 )
                 diameters.append(star.wobble.diameter_mm)
             if self.verbose:
@@ -587,3 +591,12 @@ class SyntheticLowValues(StarMixin, TestCase):
     wobble_center = Point(593, 593)
     wobble_diameter_mm = 0.2
     num_rad_lines = 6
+
+class Startshot3mm(StarMixin, TestCase):
+    file_name = "Starshot-3mm-wobble.tif"
+    num_rad_lines = 6
+    wobble_center = Point(1369,1424)
+    wobble_diameter_mm = 2.1
+    passes = False
+    max_wobble_diameter = 3.0
+    test_all_radii = False  # disable since there are annotations in the top right corner that will break the analysis
