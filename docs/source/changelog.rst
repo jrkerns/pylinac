@@ -10,6 +10,14 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.34.0
+--------
+
+Starshot
+^^^^^^^^^^^^
+
+* :bdg-success:`Feature` The ``Starshot`` method ``analyze`` now accepts a ``max_wobble_diameter`` parameter. It's used if ``recursive=True`` to increase the search range. The default value is 2mm.
+
 v 3.33.0
 --------
 
