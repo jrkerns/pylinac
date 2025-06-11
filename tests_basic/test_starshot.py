@@ -593,7 +593,7 @@ class SyntheticLowValues(StarMixin, TestCase):
     num_rad_lines = 6
 
 
-class Startshot3mm(StarMixin, TestCase):
+class StartshotLargeWobble(StarMixin, TestCase):
     file_name = "Starshot-large-wobble.tif"
     num_rad_lines = 6
     wobble_center = Point(1369, 1424)
