@@ -25,6 +25,7 @@ import copy
 import io
 import math
 import webbrowser
+from itertools import product
 from pathlib import Path
 from typing import BinaryIO
 
@@ -60,7 +61,7 @@ class StarshotResults(ResultBase):
         title="Diameter of fitted circle (mm)",
     )
     circle_radius_mm: float = Field(
-        description="The diameter of the minimum circle that touches all the star lines in mm.",
+        description="The radius of the minimum circle that touches all the star lines in mm.",
         title="Radius of fitted circle (mm)",
     )
     circle_center_x_y: tuple[float, float] = Field(
@@ -229,6 +230,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         self,
         radius: float = 0.85,
         min_peak_height: float = 0.25,
+        max_wobble_diameter: float = 2.0,
         tolerance: float = 1.0,
         start_point: Point | tuple | None = None,
         fwhm: bool = True,
@@ -249,6 +251,8 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             The percentage minimum height a peak must be to be considered a valid peak. A lower value catches
             radiation peaks that vary in magnitude (e.g. different MU delivered or gantry shot), but could also pick up noise.
             If necessary, lower value for gantry shots and increase for noisy images.
+        max_wobble_diameter: float, optional
+            Max wobble diameter in mm. Used only when ``recursive=True``, and in that case a larger value results in an unreasonable wobble.
         tolerance : int, float, optional
             The tolerance in mm to test against for a pass/fail result.
         start_point : 2-element iterable, optional
@@ -260,9 +264,8 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
 
             .. note:: In practice, this ends up being a very small difference. Set to false if peak locations are offset or unexpected.
         recursive : bool
-            If True (default), will recursively search for a "reasonable" wobble, meaning the wobble radius is
-            <3mm. If the wobble found was unreasonable,
-            the minimum peak height is iteratively adjusted from low to high at the passed radius.
+            If True (default), will recursively search for a "reasonable" wobble, meaning the wobble radius is less than max_wobble_diameter
+            If the wobble found was unreasonable, the minimum peak height is iteratively adjusted from low to high at the passed radius.
             If for all peak heights at the given radius the wobble is still unreasonable, the
             radius is then iterated over from most distant inward, iterating over minimum peak heights at each radius.
             If False, will simply return the first determined value or raise error if a reasonable wobble could not be determined.
@@ -289,20 +292,39 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             start_point = auto_point
 
         self._get_reasonable_wobble(
-            start_point, fwhm, min_peak_height, radius, recursive, local_max
+            start_point,
+            fwhm,
+            min_peak_height,
+            radius,
+            recursive,
+            local_max,
+            max_wobble_diameter,
         )
         self.angles = calculate_angles(self.lines)
 
     def _get_reasonable_wobble(
-        self, start_point, fwhm, min_peak_height, radius, recursive, local_max
+        self,
+        start_point,
+        fwhm,
+        min_peak_height,
+        radius,
+        recursive,
+        local_max,
+        max_wobble_diameter,
     ):
         """Determine a wobble that is "reasonable". If recursive is false, the first iteration will be passed,
         otherwise the parameters will be tweaked to search for a reasonable wobble."""
-        wobble_unreasonable = True
+        wobble_reasonable = False
         focus_point = copy.copy(start_point)
-        peak_gen = get_peak_height()
-        radius_gen = get_radius()
-        while wobble_unreasonable:
+        peak_height_recursive_candidates = np.append(
+            min_peak_height, np.linspace(0.05, 0.95, 10)
+        )
+        radius_recursive_candidates = np.append(radius, np.linspace(0.95, 0.1, 10))
+        radius_and_peak_gen = product(
+            radius_recursive_candidates, peak_height_recursive_candidates
+        )
+
+        while not wobble_reasonable:
             try:
                 min_height = min_peak_height * local_max
                 self.circle_profile = StarProfile(
@@ -312,61 +334,45 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
                 if (len(self.circle_profile.peaks) < 6) or (
                     len(self.circle_profile.peaks) % 2 != 0
                 ):
-                    raise ValueError
+                    if not recursive:
+                        raise RuntimeError(
+                            "The algorithm was unable to properly detect the radiation lines. Try setting "
+                            "recursive to True or lower the minimum peak height"
+                        )
+                    else:
+                        raise ValueError
+
                 self.lines = LineManager(
                     self.circle_profile.peaks,
                     focus_point=focus_point,
                     dpmm=self.image.dpmm,
                 )
                 self._find_wobble_minimize()
-            except ValueError:
-                if not recursive:
-                    raise RuntimeError(
-                        "The algorithm was unable to properly detect the radiation lines. Try setting "
-                        "recursive to True or lower the minimum peak height"
-                    )
-                else:
-                    try:
-                        min_peak_height = next(peak_gen)
-                    except StopIteration:
-                        # if no height setting works, change the radius and reset the height
-                        try:
-                            radius = next(radius_gen)
-                            peak_gen = get_peak_height()
-                        except StopIteration:
-                            raise RuntimeError(
-                                "The algorithm was unable to determine a reasonable wobble. Try setting "
-                                "recursive to False and manually adjusting algorithm parameters"
-                            )
 
-            else:  # if no errors are raised
-                # stop after first iteration if not recursive
-                if not recursive:
-                    wobble_unreasonable = False
-                # otherwise, check if the wobble is reasonable
-                else:
-                    # see if the wobble is reasonable and near the center
-                    # if so, we can assume we found the wobble
-                    focus_near_center = (
-                        self.wobble.center.distance_to(focus_point)
-                        < 10 * self.image.dpmm
+                # see if the wobble is reasonable and near the center
+                # if so, we can assume we found the wobble
+                focus_near_center = (
+                    self.wobble.center.distance_to(focus_point) < 10 * self.image.dpmm
+                )
+                if (
+                    (
+                        self.wobble.diameter_mm < max_wobble_diameter
+                        and focus_near_center
                     )
-                    if self.wobble.diameter_mm < 2 and focus_near_center:
-                        wobble_unreasonable = False
-                    # otherwise, iterate through peak height
-                    else:
-                        try:
-                            min_peak_height = next(peak_gen)
-                        except StopIteration:
-                            # if no height setting works, change the radius and reset the height
-                            try:
-                                radius = next(radius_gen)
-                                peak_gen = get_peak_height()
-                            except StopIteration:
-                                raise RuntimeError(
-                                    "The algorithm was unable to determine a reasonable wobble. Try setting "
-                                    "recursive to False and manually adjusting algorithm parameters"
-                                )
+                    or not recursive  # stop after first iteration if not recursive
+                ):
+                    wobble_reasonable = True
+                else:
+                    raise ValueError
+
+            except ValueError:
+                try:
+                    radius, min_peak_height = next(radius_and_peak_gen)
+                except StopIteration:
+                    raise RuntimeError(
+                        "The algorithm was unable to determine a reasonable wobble. Try setting "
+                        "recursive to False and manually adjusting algorithm parameters"
+                    )
 
     def _find_wobble_minimize(self) -> None:
         """Find the minimum distance wobble location and radius to all radiation lines.
@@ -805,14 +811,6 @@ class StarProfile(CollapsedCircleProfile):
             )
         else:
             self.find_peaks(min_peak_height, min_peak_distance)
-
-
-def get_peak_height():
-    yield from np.linspace(0.05, 0.95, 10)
-
-
-def get_radius():
-    yield from np.linspace(0.95, 0.1, 10)
 
 
 def calculate_angles(lines: list[Line]) -> list[float]:
