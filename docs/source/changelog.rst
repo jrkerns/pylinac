@@ -14,10 +14,11 @@ v 3.34.0
 --------
 
 Starshot
-^^^^^^^^^^^^
+^^^^^^^^
 
 * :bdg-success:`Feature` The ``Starshot`` method ``analyze`` now accepts a ``max_wobble_diameter`` parameter.
   It's used if ``recursive=True`` to increase the search range. The default value is 2mm.
+  Setting to a higher value for older machines, noisy images, or Elekta machines may be necessary.
 
 v 3.33.0
 --------
