@@ -63,8 +63,8 @@ def apply_rotation_to_points(
 class TestAlignPoints3D(TestCase):
     def test_perfect(self):
         v, yaw, pitch, roll = align_points(
-            measured_points=[Point(0, 0, 0), Point(1, 1, 1)],
-            ideal_points=[Point(0, 0, 0), Point(1, 1, 1)],
+            measured_points=[Point(0, 0, 0), Point(1, 1, 1), Point(1, 0, 0)],
+            ideal_points=[Point(0, 0, 0), Point(1, 1, 1), Point(1, 0, 0)],
         )
         self.assertAlmostEqual(v.x, 0)
         self.assertAlmostEqual(v.y, 0)
