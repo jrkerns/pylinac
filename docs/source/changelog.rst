@@ -16,7 +16,8 @@ v 3.34.0
 Starshot
 ^^^^^^^^^^^^
 
-* :bdg-success:`Feature` The ``Starshot`` method ``analyze`` now accepts a ``max_wobble_diameter`` parameter. It's used if ``recursive=True`` to increase the search range. The default value is 2mm.
+* :bdg-success:`Feature` The ``Starshot`` method ``analyze`` now accepts a ``max_wobble_diameter`` parameter.
+  It's used if ``recursive=True`` to increase the search range. The default value is 2mm.
 
 v 3.33.0
 --------
