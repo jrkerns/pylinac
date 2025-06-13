@@ -13,6 +13,12 @@ Legend
 v 3.34.0
 --------
 
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` Corrected the nominal size of the SNC MV (Lead) phantom.
+  Phantom detection is now more robust.
+
 Starshot
 ^^^^^^^^
 
