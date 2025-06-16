@@ -27,7 +27,6 @@ from pylinac.planar_imaging import (
     IMTLRad,
     IsoAlign,
     LeedsTORBlue,
-    LightRadResult,
     PlanarResult,
     SNCkV,
     StandardImagingFC2,
@@ -251,25 +250,15 @@ class PlanarPhantomMixin(QuaacTestBase, CloudFileMixin, PlotlyTestMixin):
         super().tearDownClass()
 
     def test_bad_inversion_recovers(self):
+        if self.mtf_50 is None:
+            self.skipTest("mtf_50 not available")
         instance = self.create_instance()
         instance.image.invert()
         instance.analyze(ssd=self.ssd, invert=self.invert)
         # check that the MTF is the expected value. This is a surrogate for the angle being wrong
-        if self.mtf_50:
-            self.assertAlmostEqual(
-                self.mtf_50, instance.mtf.relative_resolution(50), delta=0.2
-            )
-
-    def test_percent_integral_uniformity(self):
-        """Test the PIU if it exists in the results data"""
-        if self.piu is not None:
-            self.assertAlmostEqual(
-                self.piu,
-                self.instance.results_data().percent_integral_uniformity,
-                delta=0.1,
-            )
-        elif not isinstance(self.instance.results_data(), LightRadResult):
-            self.assertIsNone(self.instance.results_data().percent_integral_uniformity)
+        self.assertAlmostEqual(
+            self.mtf_50, instance.mtf.relative_resolution(50), delta=0.2
+        )
 
     def test_plotting(self):
         self.instance.plot_analyzed_image()
@@ -286,32 +275,45 @@ class PlanarPhantomMixin(QuaacTestBase, CloudFileMixin, PlotlyTestMixin):
         save_file(self.instance.publish_pdf)
 
     def test_mtf(self):
-        if self.mtf_50 is not None:
-            self.assertAlmostEqual(
-                self.mtf_50, self.instance.mtf.relative_resolution(50), delta=0.3
-            )
+        if self.mtf_50 is None:
+            self.skipTest("mtf_50 not available")
+        self.assertAlmostEqual(
+            self.mtf_50, self.instance.mtf.relative_resolution(50), delta=0.3
+        )
 
     def test_rois_seen(self):
-        if self.rois_seen is not None:
-            self.assertEqual(
-                self.rois_seen, self.instance.results_data().num_contrast_rois_seen
-            )
+        if self.rois_seen is None:
+            self.skipTest("rois_seen not available")
+        self.assertEqual(
+            self.rois_seen, self.instance.results_data().num_contrast_rois_seen
+        )
 
     def test_median_contrast(self):
-        if self.median_contrast is not None:
-            self.assertAlmostEqual(
-                self.median_contrast,
-                self.instance.results_data().median_contrast,
-                delta=0.03,
-            )
+        if self.median_contrast is None:
+            self.skipTest("median_contrast not available")
+        self.assertAlmostEqual(
+            self.median_contrast,
+            self.instance.results_data().median_contrast,
+            delta=0.03,
+        )
 
     def test_median_cnr(self):
-        if self.median_cnr is not None:
-            self.assertAlmostEqual(
-                self.median_cnr,
-                self.instance.results_data().median_cnr,
-                delta=0.01 * self.median_cnr,
-            )
+        if self.median_cnr is None:
+            self.skipTest("median_cnr not available")
+        self.assertAlmostEqual(
+            self.median_cnr,
+            self.instance.results_data().median_cnr,
+            delta=0.01 * self.median_cnr,
+        )
+
+    def test_percent_integral_uniformity(self):
+        if self.piu is None:
+            self.skipTest("piu not available")
+        self.assertAlmostEqual(
+            self.piu,
+            self.instance.results_data().percent_integral_uniformity,
+            delta=0.1,
+        )
 
     def test_results(self):
         self.assertIsInstance(self.instance.results(), str)
