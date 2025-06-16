@@ -720,6 +720,30 @@ class SNCMV12510_Jig(PlanarPhantomMixin, TestCase):
     piu = 96.7
 
 
+class SNCMV12510_HighRes(PlanarPhantomMixin, TestCase):
+    """The HighRes and LowRes tests use the same phantom but different imaging resolution"""
+
+    klass = SNCMV12510
+    mtf_50 = 0.92
+    median_contrast = 0.23
+    median_cnr = 63.5
+    dir_path = ["planar_imaging", "SNC MV Old"]
+    file_name = "SNC_MV_Old3_HighRes.dcm"
+    piu = 97.3
+
+
+class SNCMV12510_LowRes(PlanarPhantomMixin, TestCase):
+    """The HighRes and LowRes tests use the same phantom but different imaging resolution"""
+
+    klass = SNCMV12510
+    mtf_50 = 0.71
+    median_contrast = 0.23
+    median_cnr = 61.8
+    dir_path = ["planar_imaging", "SNC MV Old"]
+    file_name = "SNC_MV_Old3_LowRes.dcm"
+    piu = 97.3
+
+
 class IBAPrimusDemo(PlanarPhantomMixin, TestCase):
     klass = IBAPrimusA
     dir_path = ["planar_imaging", "PrimusL"]

@@ -2462,7 +2462,7 @@ class SNCMV12510(SNCMV):
 
     _demo_filename = "SNC_MV_12510.dcm"
     common_name = "SNC MV-QA (12510)"
-    phantom_bbox_size_mm2 = 136**2
+    phantom_bbox_size_mm2 = 130**2
     phantom_outline_object = {"Rectangle": {"width ratio": 7.3, "height ratio": 6.2}}
     high_contrast_roi_settings = {
         "roi 1": {
