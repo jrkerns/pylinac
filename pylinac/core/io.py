@@ -22,7 +22,7 @@ from .profile import SingleProfile
 
 
 def is_dicom(file: str | Path) -> bool:
-    """Boolean specifying if file is a proper DICOM file.
+    """Boolean specifying if the file is a proper DICOM file.
 
     This function is a pared down version of read_preamble meant for a fast return.
     The file is read for a proper preamble ('DICM'), returning True if so,

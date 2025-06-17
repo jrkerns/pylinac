@@ -425,10 +425,18 @@ class Synthetic2BBYaw(SyntheticMultiMetMixin, TestCase):
             rad_size_mm=20,
         ),
         BBConfig(
-            name="Left",
+            name="In",
             offset_left_mm=0,
             offset_up_mm=0,
             offset_in_mm=-30,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="Out",
+            offset_left_mm=0,
+            offset_up_mm=0,
+            offset_in_mm=30,
             bb_size_mm=5,
             rad_size_mm=20,
         ),
@@ -443,13 +451,14 @@ class Synthetic2BBYaw(SyntheticMultiMetMixin, TestCase):
     )
     bb_size = 5
     field_size = (20, 20)
-    field_offsets = [(0, 0, 0), (0, 0, -30), (0, 40, 0)]  # left, up in
-    bb_offsets = [(0, 0, 0), (1, 0, -30), (0, 40, 0)]
+    field_offsets = [(0, 0, 0), (0, 0, -30), (0, 40, 0), (0, 0, 30)]  # left, up in
+    bb_offsets = [(0, 0, 0), (1, 0, -30), (0, 40, 0), (-1, 0, 30)]
     max_2d_distance = 1
     median_2d_distance = 0
-    mean_2d_distance = 0.25
-    bb_yaw = 1.9  # one bb is off in the x, creating a yaw rotation
-    bb_max_2d_yaw = 91.8  # not realistic due to choice of BB placement symmetry (roll is 180 degrees in one case), but it's the max; note the 91.8-90=1.8
+    mean_2d_distance = 0.37
+    bb_yaw = 1.9  # two bb's are off in the x, creating a yaw rotation
+    # the bb yaw is opposite the max 2d yaw below which is the poorly-named term for the couch yaw "error"
+    bb_max_2d_yaw = -1.8
 
 
 class Synthetic2BBRoll(SyntheticMultiMetMixin, TestCase):

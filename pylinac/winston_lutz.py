@@ -1619,7 +1619,12 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         initial_guess = np.array([0, 0, 0])
         bounds = [(-20, 20), (-20, 20), (-20, 20)]
         result = optimize.minimize(
-            max_distance_to_lines, initial_guess, args=things, bounds=bounds
+            max_distance_to_lines,
+            initial_guess,
+            args=things,
+            bounds=bounds,
+            # eps default seems to cause test differences on different CPU platforms
+            options={"eps": 1e-7},
         )
         return result
 

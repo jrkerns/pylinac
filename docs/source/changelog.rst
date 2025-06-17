@@ -10,6 +10,22 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.35.0
+--------
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` Scipy's ``minimize`` function is used for calculating the 3D isocenter size for the gantry. It's been found
+  to be somewhat unstable depending on the CPU architecture and possibly ``scipy`` version. A number of
+  tests were run across different architectures and versions but no definitive conclusion could be drawn about
+  what the ultimate cause was. These differences caused changes in the isocenter size by up to ~0.2mm.
+  Only one test case was found that changed this much however.
+  The overall best solution found was to set the ``eps`` parameter to ``1e-7``. This value minimized changes
+  to the gantry isocenter size across tested architectures (``x64`` with various SIMD instructions), Python versions (3.9-3.11) and ``scipy`` versions (1.11-1.15).
+  This also seems only to affect ``scipy`` version 1.13.0 and lower. Unfortunately, I don't have any better
+  guidance at this time. If you are seeing significant changes in the isocenter size, feel free to open an issue.
+
 v 3.34.0
 --------
 
