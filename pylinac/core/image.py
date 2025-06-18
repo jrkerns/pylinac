@@ -66,6 +66,7 @@ IMAGE = "Image"
 
 FILE_TYPE = "file"
 STREAM_TYPE = "stream"
+DATASET_TYPE = "dataset"
 
 XIM_PROP_INT = 0
 XIM_PROP_DOUBLE = 1
@@ -153,7 +154,7 @@ def retrieve_image_files(path: str) -> list[str]:
     return retrieve_filenames(directory=path, func=is_image)
 
 
-def load(path: str | Path | ImageLike | np.ndarray | BinaryIO, **kwargs) -> ImageLike:
+def load(path: str | Path | ImageLike | np.ndarray | BinaryIO | Dataset, **kwargs) -> ImageLike:
     r"""Load a DICOM image, JPG/TIF/BMP image, or numpy 2D array.
 
     Parameters
@@ -188,7 +189,7 @@ def load(path: str | Path | ImageLike | np.ndarray | BinaryIO, **kwargs) -> Imag
 
     if _is_array(path):
         return ArrayImage(path, **kwargs)
-    elif _is_dicom(path):
+    elif _is_dicom(path) or _is_dataset(path):
         return DicomImage(path, **kwargs)
     elif _is_image_file(path):
         return FileImage(path, **kwargs)
@@ -380,6 +381,11 @@ def _is_array(obj: Any) -> bool:
     return isinstance(obj, np.ndarray)
 
 
+def _is_dataset(obj: Any) -> bool:
+    """Whether the object is a pydicom dataset"""
+    return isinstance(obj, Dataset)
+
+
 class BaseImage:
     """Base class for the Image classes.
 
@@ -398,7 +404,7 @@ class BaseImage:
     source: FILE_TYPE | STREAM_TYPE
 
     def __init__(
-        self, path: str | Path | BytesIO | ImageLike | np.ndarray | BufferedReader
+        self, path: str | Path | BytesIO | ImageLike | np.ndarray | BufferedReader | Dataset
     ):
         """
         Parameters
@@ -417,6 +423,9 @@ class BaseImage:
             self.path = path
             self.base_path = osp.basename(path)
             self.source = FILE_TYPE
+        elif isinstance(path, Dataset):
+            self.source = DATASET_TYPE
+            self.path = ""
         else:
             self.source = STREAM_TYPE
             path.seek(0)
@@ -1305,7 +1314,7 @@ class DicomImage(BaseImage):
 
     def __init__(
         self,
-        path: str | Path | BytesIO | BufferedReader,
+        path: str | Path | BytesIO | BufferedReader | Dataset,
         *,
         dtype: np.dtype | None = None,
         dpi: float = None,
@@ -1343,8 +1352,11 @@ class DicomImage(BaseImage):
         self._sid = sid
         self._dpi = dpi
         self._sad = sad
-        # read the file once to get just the DICOM metadata
-        self.metadata = retrieve_dicom_file(path)
+        if isinstance(path, Dataset):
+            self.metadata = path
+        else:
+            # read the file once to get just the DICOM metadata
+            self.metadata = retrieve_dicom_file(path)
         self._original_dtype = self.metadata.pixel_array.dtype
         self._raw_pixels = raw_pixels
         if dtype is not None:
@@ -1359,9 +1371,7 @@ class DicomImage(BaseImage):
     @classmethod
     def from_dataset(cls, dataset: Dataset):
         """Create a DICOM image instance from a pydicom Dataset."""
-        stream = io.BytesIO()
-        dataset.save_as(stream)
-        return cls(path=stream)
+        return cls(dataset)
 
     def save(self, filename: str | Path) -> str | Path:
         """Save the image instance back out to a .dcm file.
@@ -1728,12 +1738,13 @@ class ArrayImage(BaseImage):
 
 
 class LazyDicomImageStack:
-    _image_path_keys: list[Path | str]
+    _image_path_keys: list[Path | str | Dataset]
     metadatas: list[pydicom.Dataset]
+    sorted_method = "No sort"
 
     def __init__(
         self,
-        folder: str | Path | Sequence[str | Path],
+        folder: str | Path | Sequence[str | Path] | Dataset,
         dtype: np.dtype | None = None,
         min_number: int = 39,
         check_uid: bool = True,
@@ -1767,14 +1778,24 @@ class LazyDicomImageStack:
         # error checking
         if check_uid:
             most_common_uid = self._get_common_uid_imgs(metadatas, min_number)
+            paths = [p for p, m in zip(paths, metadatas)
+                     if m.SeriesInstanceUID == most_common_uid]
             metadatas = [m for m in metadatas if m.SeriesInstanceUID == most_common_uid]
-            paths = [
-                p
-                for p, m in zip(paths, metadatas)
-                if m.SeriesInstanceUID == most_common_uid
-            ]
         # sort according to physical order
-        order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
+        # TODO write tests for these
+        order = np.arange(0,len(metadatas))
+        if hasattr(metadatas[0], "ImagePositionPatient"):
+            order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
+            self.sorted_method = "Image position patient"
+        # if ImagePositionPatient is not available use Instance Number
+        elif hasattr(metadatas[0], "InstanceNumber"):
+            order = np.argsort([m.InstanceNumber for m in metadatas])
+            self.sorted_method = "Instance number"
+        # if InstanceNumber is not avalable use SOPInstanceUID
+        elif hasattr(metadatas[0], "SOPInstanceUID"):
+            order = np.argsort([m.SOPInstanceUID for m in metadatas])
+            self.sorted_method = "SOP Instance UID"
+        # else just use the order they came in
         self.metadatas = [metadatas[i] for i in order]
         self._image_path_keys = [paths[i] for i in order]
 
@@ -1807,14 +1828,17 @@ class LazyDicomImageStack:
         return most_common_uid[0]
 
     def _get_path_metadatas(
-        self, paths: list[Path]
+        self, paths: list[Path] | list[Dataset]
     ) -> (list[pydicom.Dataset], list[Path]):
         """Get the metadata for the images. This also filters out non-image files."""
         metadata = []
         matched_paths = []
         for path in paths:
             try:
-                ds = pydicom.dcmread(path, force=True, stop_before_pixels=True)
+                if isinstance(path, Dataset):
+                    ds = path
+                else:
+                    ds = pydicom.dcmread(path, force=True, stop_before_pixels=True)
                 if "Image Storage" in ds.SOPClassUID.name:
                     metadata.append(ds)
                     matched_paths.append(path)
@@ -1903,12 +1927,9 @@ class LazyZipDicomImageStack(LazyDicomImageStack):
         # error checking
         if check_uid:
             most_common_uid = self._get_common_uid_imgs(metadatas, min_number)
+            paths = [p for p, m in zip(paths, metadatas)
+                     if m.SeriesInstanceUID == most_common_uid]
             metadatas = [m for m in metadatas if m.SeriesInstanceUID == most_common_uid]
-            paths = [
-                p
-                for p, m in zip(paths, metadatas)
-                if m.SeriesInstanceUID == most_common_uid
-            ]
         # sort according to physical order
         order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
         self.metadatas = [metadatas[i] for i in order]
@@ -1999,7 +2020,7 @@ class DicomImageStack(LazyDicomImageStack):
 
     def __init__(
         self,
-        folder: str | Path,
+        folder: str | Path | Dataset,
         dtype: np.dtype | None = None,
         min_number: int = 39,
         check_uid: bool = True,
