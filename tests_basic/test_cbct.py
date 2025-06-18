@@ -394,24 +394,24 @@ class CatPhanMixin(CloudFileMixin):
 
     catphan = CatPhan504
     check_uid = True
-    origin_slice = 0
+    origin_slice: int | None = None
     dir_path = ["CBCT"]
     hu_tolerance = 40
     scaling_tolerance = 1
     hu_origin_variance: int | None = None
     zip = True
-    expected_roll = 0
-    hu_values = {}
-    unif_values = {}
-    mtf_values = {}
-    avg_line_length = 50
-    slice_thickness = 2
+    expected_roll: float | None = None
+    hu_values: dict | None = None
+    unif_values: dict | None = None
+    mtf_values: dict | None = None
+    avg_line_length: float | None = None
+    slice_thickness: float | None = None
     thickness_slice_straddle = "auto"
-    lowcon_visible = 0
+    lowcon_visible: int | None = None
     memory_efficient = True
     print_debug = False
-    avg_noise_power = None
-    max_noise_power_frequency = 0
+    avg_noise_power: float | None = None
+    max_noise_power_frequency: float | None = None
     x_adjustment: float = 0
     y_adjustment: float = 0
     angle_adjustment: float = 0
@@ -451,27 +451,38 @@ class CatPhanMixin(CloudFileMixin):
 
     def test_slice_thickness(self):
         """Test the slice thickness."""
+        if self.slice_thickness is None:
+            self.skipTest("slice_thickness not available")
         self.assertAlmostEqual(
             self.cbct.ctp404.meas_slice_thickness, self.slice_thickness, delta=0.3
         )
 
     def test_lowcontrast_bubbles(self):
         """Test the number of low contrast bubbles visible."""
-        if not isinstance(self.cbct, CatPhan503):
-            self.assertAlmostEqual(
-                self.cbct.ctp515.rois_visible, self.lowcon_visible, delta=1
-            )
+        if isinstance(self.cbct, CatPhan503):
+            self.skipTest("CatPhan503 does not have this module")
+        if self.lowcon_visible is None:
+            self.skipTest("lowcon_visible not available")
+        self.assertAlmostEqual(
+            self.cbct.ctp515.rois_visible, self.lowcon_visible, delta=1
+        )
 
     def test_slice_locations(self):
         """Test the locations of the slices of interest."""
+        if self.origin_slice is None:
+            self.skipTest("origin_slice not available")
         self.assertAlmostEqual(self.cbct.origin_slice, self.origin_slice, delta=1)
 
     def test_phantom_roll(self):
         """Test the roll of the phantom."""
+        if self.expected_roll is None:
+            self.skipTest("expected_roll not available")
         self.assertAlmostEqual(self.cbct.catphan_roll, self.expected_roll, delta=0.3)
 
     def test_HU_values(self):
         """Test HU values."""
+        if self.hu_values is None:
+            self.skipTest("hu_values not available")
         for key, roi in self.cbct.ctp404.rois.items():
             exp_val = self.hu_values[key]
             meas_val = roi.pixel_value
@@ -479,31 +490,39 @@ class CatPhanMixin(CloudFileMixin):
 
     def test_uniformity_values(self):
         """Test Uniformity HU values."""
+        if self.unif_values is None:
+            self.skipTest("unif_values not available")
         for key, exp_val in self.unif_values.items():
             meas_val = self.cbct.ctp486.rois[key].pixel_value
             self.assertAlmostEqual(exp_val, meas_val, delta=5)
 
     def test_geometry_line_length(self):
         """Test the geometry distances."""
+        if self.avg_line_length is None:
+            self.skipTest("avg_line_length values not available")
         self.assertAlmostEqual(
             self.avg_line_length, self.cbct.ctp404.avg_line_length, delta=0.1
         )
 
     def test_avg_noise_power(self):
-        if self.avg_noise_power:
-            self.assertAlmostEqual(
-                self.avg_noise_power, self.cbct.ctp486.avg_noise_power, delta=0.1
-            )
+        if self.avg_noise_power is None:
+            self.skipTest("avg_noise_power values not available")
+        self.assertAlmostEqual(
+            self.avg_noise_power, self.cbct.ctp486.avg_noise_power, delta=0.1
+        )
 
     def test_max_noise_frequency(self):
-        if self.max_noise_power_frequency:
-            self.assertEqual(
-                self.cbct.ctp486.max_noise_power_frequency,
-                self.max_noise_power_frequency,
-            )
+        if self.max_noise_power_frequency is None:
+            self.skipTest("max_noise_power_frequency values not available")
+        self.assertEqual(
+            self.cbct.ctp486.max_noise_power_frequency,
+            self.max_noise_power_frequency,
+        )
 
     def test_MTF_values(self):
         """Test MTF values."""
+        if self.mtf_values is None:
+            self.skipTest("mtf_values not available")
         for key, exp_mtf in self.mtf_values.items():
             meas_mtf = self.cbct.ctp528.mtf.relative_resolution(key)
             self.assertAlmostEqual(exp_mtf, meas_mtf, delta=0.1)
