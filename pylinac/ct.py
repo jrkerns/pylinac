@@ -1,4 +1,4 @@
-"""The CT module automatically analyzes DICOM images of a CatPhan 504, 503, 600, Quart DVT, or ACR phantoms acquired when doing CBCT or CT quality assurance.
+"""The CT module automatically analyzes DICOM images of a CatPhan 503, 504, 600, 604, 700, Quart DVT, or ACR phantoms acquired when doing CBCT or CT quality assurance.
 It can load a folder or zip file that the images are in and automatically correct for translational and rotational errors.
 It can analyze the HU regions and image scaling (CTP404), the high-contrast line pairs (CTP528) to calculate the modulation transfer function (MTF),
 the HU uniformity (CTP486), and Low Contrast (CTP515) on the corresponding slices.
@@ -63,16 +63,17 @@ from .core.warnings import capture_warnings
 # fixes the length to represent it as if it were perpendicular to the imaging axis.
 RAMP_ANGLE_RATIO = 0.42
 
-AIR = -1000
-PMP = -196
-LDPE = -104
-POLY = -47
-ACRYLIC = 115
-DELRIN = 365
-TEFLON = 1000
-BONE_20 = 237
-BONE_50 = 725
-WATER = 0
+AIR = -1000  # -1046 : -986
+LUNG_7112 = -868  #  -925 : -810
+PMP = -196  #  -220 : -172
+LDPE = -104  #  -121 :  -87
+POLY = -47  #   -65 :  -29
+WATER = 0  #    -7 :    7
+ACRYLIC = 115  #    92 :  137
+BONE_20 = 237  #   211 :  263
+DELRIN = 365  #   344 :  387
+BONE_50 = 725  #   667 :  783
+TEFLON = 1000  #   941 : 1060
 
 
 class ROIResult(BaseModel):
@@ -757,7 +758,8 @@ class CTP404CP504(CatPhanModule):
         self._replace_hu_values()
         super()._setup_rois()
         self._setup_thickness_rois()
-        self._setup_geometry_rois()
+        if len(self.geometry_roi_settings) > 0:
+            self._setup_geometry_rois()
 
     def _setup_thickness_rois(self) -> None:
         for name, setting in self.thickness_roi_settings.items():
@@ -1509,6 +1511,120 @@ class CTP528CP503(CTP528CP504):
     start_angle = 0
     ccw = False
     boundaries = (0, 0.111, 0.176, 0.240, 0.289, 0.339, 0.390, 0.436, 0.481)
+
+
+class CTP404CP700(CTP404CP504):
+    roi_dist_mm = 58.7
+    roi_radius_mm = 5
+    roi_settings = {
+        "Air": {
+            "value": AIR,
+            "angle": -90,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "PMP": {
+            "value": PMP,
+            "angle": -120,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Lung #7112": {
+            "value": LUNG_7112,
+            "angle": -165,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Delrin": {
+            "value": DELRIN,
+            "angle": 165,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Poly": {
+            "value": POLY,
+            "angle": 120,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Teflon": {
+            "value": TEFLON,
+            "angle": 90,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Bone 20%": {
+            "value": BONE_20,
+            "angle": 60,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "LDPE": {
+            "value": LDPE,
+            "angle": 15,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Bone 50%": {
+            "value": BONE_50,
+            "angle": -15,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Acrylic": {
+            "value": ACRYLIC,
+            "angle": -60,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+    }
+    for roi in roi_settings.values():
+        roi["angle"] = 180 - roi["angle"]
+
+    background_roi_settings = {
+        "1": {
+            "angle": -37.5,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },  # NEE Between BONE_50 and ACRYLIC
+        "2": {
+            "angle": -142.5,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },  # NWW Between PMP and Lung_7112
+        "3": {
+            "angle": 142.5,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },  # SWW Between DELRIN and POLY
+        "4": {
+            "angle": 37.5,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },  # SEE Between BONE_20 and LDPE
+    }
+    # thickness
+    # The CatPhan 700 has wire ramps on top and bottom only.
+    # One the left and right there are bead ramps which require a different evaluation
+    thickness_roi_height = 40
+    thickness_roi_width = 10
+    thickness_roi_distance_mm = 40
+    thickness_roi_settings = {
+        "Bottom": {
+            "angle": 90,
+            "width": thickness_roi_height,
+            "height": thickness_roi_width,
+            "distance": thickness_roi_distance_mm,
+        },
+        "Top": {
+            "angle": -90,
+            "width": thickness_roi_height,
+            "height": thickness_roi_width,
+            "distance": thickness_roi_distance_mm,
+        },
+    }
+    # geometry
+    geometry_roi_settings = {}
 
 
 class GeometricLine(Line):
@@ -2975,6 +3091,21 @@ class CatPhan600(CatPhanBase):
         if abs(angle) < 10:
             return angle
         return angle + 75
+
+
+@capture_warnings
+class CatPhan700(CatPhanBase):
+    """A class for loading and analyzing CT DICOM files of a CatPhan 700.
+    Analyzes: Uniformity (CTP486/CTP712), High-Contrast Spatial Resolution (CTP714),
+    Image Scaling & HU Linearity (CTP404CP700/CTP682), Low contrast (CTP515) and slice geometry (CTP721)
+    """
+
+    # _demo_url = "CatPhan600.zip"
+    _model = "700"
+    catphan_radius_mm = 101
+    modules = {
+        CTP404CP700: {"offset": 0},
+    }
 
 
 def get_regions(

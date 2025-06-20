@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pytest import mark
 
-from pylinac import CatPhan503, CatPhan504, CatPhan600, CatPhan604
+from pylinac import CatPhan503, CatPhan504, CatPhan600, CatPhan604, CatPhan700
 from pylinac.core.geometry import Point
 from pylinac.core.image import (
     DicomImageStack,
@@ -238,6 +238,13 @@ class TestGeneral(TestCase):
         self.assertEqual(ct.origin_slice, 46)
 
 
+class Test503Quaac(QuaacTestBase, TestCase):
+    def quaac_instance(self):
+        ct = CatPhan503.from_demo_images()
+        ct.analyze()
+        return ct
+
+
 class Test504Quaac(QuaacTestBase, TestCase):
     def quaac_instance(self):
         ct = CatPhan504.from_demo_images()
@@ -259,9 +266,10 @@ class Test604Quaac(QuaacTestBase, TestCase):
         return ct
 
 
-class Test503Quaac(QuaacTestBase, TestCase):
+@skip("Demo image not yet defined")
+class Test700Quaac(QuaacTestBase, TestCase):
     def quaac_instance(self):
-        ct = CatPhan503.from_demo_images()
+        ct = CatPhan700.from_demo_images()
         ct.analyze()
         return ct
 
@@ -313,6 +321,10 @@ class TestDemos(TestCase):
 
     def test_604(self):
         CatPhan604.run_demo()
+
+    @skip("Demo image not yet defined")
+    def test_700(self):
+        CatPhan700.run_demo()
 
 
 class TestCustomHUValues(TestCase):
@@ -787,6 +799,11 @@ class CatPhan600Mixin(CatPhanMixin):
 class CatPhan604Mixin(CatPhanMixin):
     catphan = CatPhan604
     dir_path = [TEST_DIR, "CatPhan_604"]
+
+
+class CatPhan700Mixin(CatPhanMixin):
+    catphan = CatPhan700
+    dir_path = [TEST_DIR, "CatPhan_700"]
 
 
 class VarianPelvis(CatPhan504Mixin, TestCase):
@@ -2036,3 +2053,22 @@ class CatPhan503Nodes2(CatPhan503Mixin, TestCase):
     mtf_values = {50: 0.15}  # TODO: RAM-4472
     lowcon_visible = 4
     slice_thickness = 0.49
+
+
+class CatPhan700_series1(CatPhan700Mixin, TestCase):
+    file_name = "Series_1.zip"
+    expected_roll = 0.0
+    origin_slice = 102 - 10
+
+    hu_values = {
+        "Air": -990,
+        "PMP": -215,
+        "Lung #7112": -820,
+        "Delrin": 324,
+        "Poly": -71,
+        "Teflon": 980,
+        "Bone 20%": 230,
+        "LDPE": -130,
+        "Bone 50%": 940,
+        "Acrylic": 93,
+    }
