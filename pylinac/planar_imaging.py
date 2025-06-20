@@ -474,7 +474,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         return bg_rois, avg_bg
 
     def _sample_high_contrast_rois(self) -> list[HighContrastDiskROI]:
-        """Sample the high-contrast line pair regions. Test"""
+        """Sample the high-contrast line pair regions."""
         hc_rois = []
         for stng in self.high_contrast_roi_settings.values():
             roi = HighContrastDiskROI.from_phantom_center(
