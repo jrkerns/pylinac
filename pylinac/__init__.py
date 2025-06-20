@@ -18,7 +18,7 @@ from .cheese import CIRS062M, TomoCheese
 from .core import decorators, geometry, image, io, mask, profile, roi, utilities
 from .core.profile import Centering
 from .core.utilities import assign2machine, clear_data_files
-from .ct import CatPhan503, CatPhan504, CatPhan600, CatPhan604
+from .ct import CatPhan503, CatPhan504, CatPhan600, CatPhan604, CatPhan700
 from .field_analysis import (
     Device,
     DeviceFieldAnalysis,
