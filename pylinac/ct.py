@@ -1098,6 +1098,120 @@ class CTP404CP604(CTP404CP504):
     }
 
 
+class CTP404CP700(CTP404CP504):
+    roi_dist_mm = 58.7
+    roi_radius_mm = 5
+    # The angles in the available scans are 180 - drawings.
+    # If it is found that the slices need flipping some additional logic is needed, but for now it's hardcoded
+    roi_settings = {
+        "Air": {
+            "value": AIR,
+            "angle": 180 - -90,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "PMP": {
+            "value": PMP,
+            "angle": 180 - -120,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Lung #7112": {
+            "value": LUNG_7112,
+            "angle": 180 - -165,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Delrin": {
+            "value": DELRIN,
+            "angle": 180 - 165,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Poly": {
+            "value": POLY,
+            "angle": 180 - 120,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Teflon": {
+            "value": TEFLON,
+            "angle": 180 - 90,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Bone 20%": {
+            "value": BONE_20,
+            "angle": 180 - 60,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "LDPE": {
+            "value": LDPE,
+            "angle": 180 - 15,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Bone 50%": {
+            "value": BONE_50,
+            "angle": 180 - -15,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Acrylic": {
+            "value": ACRYLIC,
+            "angle": 180 - -60,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+    }
+
+    background_roi_settings = {
+        "1": {
+            "angle": -37.5,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },  # NEE Between BONE_50 and ACRYLIC
+        "2": {
+            "angle": -142.5,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },  # NWW Between PMP and Lung_7112
+        "3": {
+            "angle": 142.5,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },  # SWW Between DELRIN and POLY
+        "4": {
+            "angle": 37.5,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },  # SEE Between BONE_20 and LDPE
+    }
+    # thickness
+    # The CatPhan 700 has wire ramps on top and bottom only.
+    # On the left and right there are bead ramps which require a different evaluation
+    thickness_roi_height = 40
+    thickness_roi_width = 10
+    thickness_roi_distance_mm = 40
+    thickness_roi_settings = {
+        "Bottom": {
+            "angle": 90,
+            "width": thickness_roi_height,
+            "height": thickness_roi_width,
+            "distance": thickness_roi_distance_mm,
+        },
+        "Top": {
+            "angle": -90,
+            "width": thickness_roi_height,
+            "height": thickness_roi_width,
+            "distance": thickness_roi_distance_mm,
+        },
+    }
+    # geometry
+    geometry_roi_settings = {}
+
+
 class CTP486(CatPhanModule):
     """Class for analysis of the Uniformity slice of the CTP module. Measures 5 ROIs around the slice that
     should all be close to the same value.
@@ -1514,120 +1628,6 @@ class CTP528CP503(CTP528CP504):
     start_angle = 0
     ccw = False
     boundaries = (0, 0.111, 0.176, 0.240, 0.289, 0.339, 0.390, 0.436, 0.481)
-
-
-class CTP404CP700(CTP404CP504):
-    roi_dist_mm = 58.7
-    roi_radius_mm = 5
-    # The angles in the available scans are 180 - drawings.
-    # If it is found that the slices need flipping some additional logic is needed, but for now it's hardcoded
-    roi_settings = {
-        "Air": {
-            "value": AIR,
-            "angle": 180 - -90,
-            "distance": roi_dist_mm,
-            "radius": roi_radius_mm,
-        },
-        "PMP": {
-            "value": PMP,
-            "angle": 180 - -120,
-            "distance": roi_dist_mm,
-            "radius": roi_radius_mm,
-        },
-        "Lung #7112": {
-            "value": LUNG_7112,
-            "angle": 180 - -165,
-            "distance": roi_dist_mm,
-            "radius": roi_radius_mm,
-        },
-        "Delrin": {
-            "value": DELRIN,
-            "angle": 180 - 165,
-            "distance": roi_dist_mm,
-            "radius": roi_radius_mm,
-        },
-        "Poly": {
-            "value": POLY,
-            "angle": 180 - 120,
-            "distance": roi_dist_mm,
-            "radius": roi_radius_mm,
-        },
-        "Teflon": {
-            "value": TEFLON,
-            "angle": 180 - 90,
-            "distance": roi_dist_mm,
-            "radius": roi_radius_mm,
-        },
-        "Bone 20%": {
-            "value": BONE_20,
-            "angle": 180 - 60,
-            "distance": roi_dist_mm,
-            "radius": roi_radius_mm,
-        },
-        "LDPE": {
-            "value": LDPE,
-            "angle": 180 - 15,
-            "distance": roi_dist_mm,
-            "radius": roi_radius_mm,
-        },
-        "Bone 50%": {
-            "value": BONE_50,
-            "angle": 180 - -15,
-            "distance": roi_dist_mm,
-            "radius": roi_radius_mm,
-        },
-        "Acrylic": {
-            "value": ACRYLIC,
-            "angle": 180 - -60,
-            "distance": roi_dist_mm,
-            "radius": roi_radius_mm,
-        },
-    }
-
-    background_roi_settings = {
-        "1": {
-            "angle": -37.5,
-            "distance": roi_dist_mm,
-            "radius": roi_radius_mm,
-        },  # NEE Between BONE_50 and ACRYLIC
-        "2": {
-            "angle": -142.5,
-            "distance": roi_dist_mm,
-            "radius": roi_radius_mm,
-        },  # NWW Between PMP and Lung_7112
-        "3": {
-            "angle": 142.5,
-            "distance": roi_dist_mm,
-            "radius": roi_radius_mm,
-        },  # SWW Between DELRIN and POLY
-        "4": {
-            "angle": 37.5,
-            "distance": roi_dist_mm,
-            "radius": roi_radius_mm,
-        },  # SEE Between BONE_20 and LDPE
-    }
-    # thickness
-    # The CatPhan 700 has wire ramps on top and bottom only.
-    # On the left and right there are bead ramps which require a different evaluation
-    thickness_roi_height = 40
-    thickness_roi_width = 10
-    thickness_roi_distance_mm = 40
-    thickness_roi_settings = {
-        "Bottom": {
-            "angle": 90,
-            "width": thickness_roi_height,
-            "height": thickness_roi_width,
-            "distance": thickness_roi_distance_mm,
-        },
-        "Top": {
-            "angle": -90,
-            "width": thickness_roi_height,
-            "height": thickness_roi_width,
-            "distance": thickness_roi_distance_mm,
-        },
-    }
-    # geometry
-    geometry_roi_settings = {}
 
 
 class GeometricLine(Line):
