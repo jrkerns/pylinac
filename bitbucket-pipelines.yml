@@ -6,6 +6,8 @@ definitions:
     testfiles: tests_basic/test_files
     precommit: ~/.cache/pre-commit
     uv: ~/.cache/uv
+    nox-build-docs: .nox/build_docs
+
   steps:
     - step: &bb-runner
         runs-on:
@@ -18,7 +20,8 @@ definitions:
         script:
           - apt-get update
           - apt-get -y install git
-          - uv sync --frozen --quiet
+          - uv venv
+          - uv pip install .[developer]
           - uv pip freeze
           - uv tool run pre-commit run --all-files
         caches:
@@ -40,11 +43,14 @@ definitions:
         <<: *bb-runner
         script:
           - uv run nox -s build_docs
+        caches:
+          - nox-build-docs
         condition:
           changesets:
             includePaths:
               - "**/*.rst"
               - "*.rst"
+              - "docs/**"  # e.g. conf.py
     - step: &cbct-tests
         name: Run CBCT Tests
         <<: *bb-runner
@@ -295,7 +301,7 @@ definitions:
           changesets:
             includePaths:
               - "pylinac/core/**"
-              - "tests_basic/test_winstonlutz.py"
+              - "tests_basic/test_winstonlutz_mtmf.py"
               - "pylinac/winston_lutz.py"
         artifacts:
           - memory_usage.log

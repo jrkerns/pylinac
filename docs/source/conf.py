@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 sys.path.insert(0, os.path.abspath("../.."))
 # sys.path.append(os.path.abspath('sphinxext'))
 
-# suppress pydicom VR length warnings; just creates noise
+# suppress pydicom VR length warnings; just creates noise.
 
 
 plt.set_cmap("gray")
