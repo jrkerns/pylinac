@@ -63,6 +63,9 @@ from .core.warnings import capture_warnings
 # fixes the length to represent it as if it were perpendicular to the imaging axis.
 RAMP_ANGLE_RATIO = 0.42
 
+
+# The values in comment are the HU ranges taken from the Catphan manuals
+# The nominal values are approximately the mid point.
 AIR = -1000  # -1046 : -986
 LUNG_7112 = -868  #  -925 : -810
 PMP = -196  #  -220 : -172
@@ -1516,70 +1519,70 @@ class CTP528CP503(CTP528CP504):
 class CTP404CP700(CTP404CP504):
     roi_dist_mm = 58.7
     roi_radius_mm = 5
+    # The angles in the available scans are 180 - drawings.
+    # If it is found that the slices need flipping some additional logic is needed, but for now it's hardcoded
     roi_settings = {
         "Air": {
             "value": AIR,
-            "angle": -90,
+            "angle": 180 - -90,
             "distance": roi_dist_mm,
             "radius": roi_radius_mm,
         },
         "PMP": {
             "value": PMP,
-            "angle": -120,
+            "angle": 180 - -120,
             "distance": roi_dist_mm,
             "radius": roi_radius_mm,
         },
         "Lung #7112": {
             "value": LUNG_7112,
-            "angle": -165,
+            "angle": 180 - -165,
             "distance": roi_dist_mm,
             "radius": roi_radius_mm,
         },
         "Delrin": {
             "value": DELRIN,
-            "angle": 165,
+            "angle": 180 - 165,
             "distance": roi_dist_mm,
             "radius": roi_radius_mm,
         },
         "Poly": {
             "value": POLY,
-            "angle": 120,
+            "angle": 180 - 120,
             "distance": roi_dist_mm,
             "radius": roi_radius_mm,
         },
         "Teflon": {
             "value": TEFLON,
-            "angle": 90,
+            "angle": 180 - 90,
             "distance": roi_dist_mm,
             "radius": roi_radius_mm,
         },
         "Bone 20%": {
             "value": BONE_20,
-            "angle": 60,
+            "angle": 180 - 60,
             "distance": roi_dist_mm,
             "radius": roi_radius_mm,
         },
         "LDPE": {
             "value": LDPE,
-            "angle": 15,
+            "angle": 180 - 15,
             "distance": roi_dist_mm,
             "radius": roi_radius_mm,
         },
         "Bone 50%": {
             "value": BONE_50,
-            "angle": -15,
+            "angle": 180 - -15,
             "distance": roi_dist_mm,
             "radius": roi_radius_mm,
         },
         "Acrylic": {
             "value": ACRYLIC,
-            "angle": -60,
+            "angle": 180 - -60,
             "distance": roi_dist_mm,
             "radius": roi_radius_mm,
         },
     }
-    for roi in roi_settings.values():
-        roi["angle"] = 180 - roi["angle"]
 
     background_roi_settings = {
         "1": {
@@ -1605,7 +1608,7 @@ class CTP404CP700(CTP404CP504):
     }
     # thickness
     # The CatPhan 700 has wire ramps on top and bottom only.
-    # One the left and right there are bead ramps which require a different evaluation
+    # On the left and right there are bead ramps which require a different evaluation
     thickness_roi_height = 40
     thickness_roi_width = 10
     thickness_roi_distance_mm = 40

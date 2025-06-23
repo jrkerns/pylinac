@@ -2055,9 +2055,11 @@ class CatPhan503Nodes2(CatPhan503Mixin, TestCase):
     slice_thickness = 0.49
 
 
-class CatPhan700_series1(CatPhan700Mixin, TestCase):
+class CatPhan700Series1(CatPhan700Mixin, TestCase):
     file_name = "Series_1.zip"
     expected_roll = 0.0
+    # The scan is inverted longitudinally. 102 is the number of slices, 10 is the scanned slice,
+    # 92 is the slice after sorting in longitudinal direction.
     origin_slice = 102 - 10
 
     hu_values = {
