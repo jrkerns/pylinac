@@ -22,8 +22,9 @@ def run_min_version_test(session):
     )
 
 
-@nox.session(python=False)
+@nox.session(reuse_venv=True, venv_backend="uv|virtualenv")
 def serve_docs(session):
+    session.install(".[docs]")
     session.run(
         "sphinx-autobuild",
         "docs/source",
@@ -34,9 +35,10 @@ def serve_docs(session):
     )
 
 
-@nox.session(python=False)
+@nox.session(reuse_venv=True, venv_backend="uv|virtualenv")
 def build_docs(session):
     """Build the docs; used in CI pipelines to test the build. Will always rebuild and will always fail if there are any warnings"""
+    session.install(".[docs]")
     session.run(
         "sphinx-build",
         "docs/source",
@@ -49,6 +51,13 @@ def build_docs(session):
         "html",
         "-q",
     )
+
+
+@nox.session(reuse_venv=True, venv_backend="uv")
+def build_wheel(session):
+    """Build the wheel and sdist"""
+    session.install(".[developer]")
+    session.run("uv", "build")
 
 
 @nox.session(python=False)

@@ -19,7 +19,7 @@ from pylinac.winston_lutz import BBArrangement, BBConfig
 from tests_basic.core.test_utilities import ResultsDataBase
 from tests_basic.utils import CloudFileMixin, PlotlyTestMixin
 
-TEST_DIR = "Winston-Lutz"  # comment trigger
+TEST_DIR = "Winston-Lutz"  # comment trigger 2
 
 
 class TestWLMultiImageDemo(TestCase):
