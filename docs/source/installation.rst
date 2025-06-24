@@ -18,7 +18,7 @@ Great! To get started install via pip:
 
 .. note::
 
-    If you plan on developing or contributing to pylinac, you'll want to set up a development environment. See :ref:`setup_dev_env`.
+    If you plan on developing or contributing to pylinac, you'll want to set up a development environment. See :ref:`developer-guide`.
 
 I'm new to Python
 -----------------

@@ -67,5 +67,6 @@
 
    troubleshooting
    contributing
+   developer
    v4_changes
    changelog
