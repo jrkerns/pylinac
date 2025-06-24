@@ -340,6 +340,8 @@ definitions:
           - tar -xf gcloud_cli.tar.gz
           - ./google-cloud-sdk/install.sh --quiet
           - export PATH="./google-cloud-sdk/bin:$PATH"
+          - uv venv
+          - uv pip install nox
           - uv run nox -s update_dev_kraken
     - step: &run-min-python-version
         name: Run against min Python version
