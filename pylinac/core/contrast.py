@@ -6,7 +6,7 @@ from ..core.utilities import OptionListMixin
 
 
 class Contrast(OptionListMixin):
-    """Contrast calculation technique. See :ref:`visibility`"""
+    """Contrast calculation technique. See :ref:`visibility`."""
 
     MICHELSON = "Michelson"  #:
     WEBER = "Weber"  #:
