@@ -22,6 +22,13 @@ def run_min_version_test(session):
     )
 
 
+@nox.session(python="3.11", reuse_venv=True, venv_backend="uv|virtualenv")
+def run_tests(session):
+    """Run the tests. Doing it via nox will create an isolated venv."""
+    session.install(".[developer]")
+    session.run("pytest")
+
+
 @nox.session(reuse_venv=True, venv_backend="uv|virtualenv")
 def serve_docs(session):
     session.install(".[docs]")
