@@ -46,7 +46,7 @@ dependencies = [
     "plotly>=5.0",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 docs = [
     "sphinx-autobuild>=2021.3.14",
     "sphinx-copybutton>=0.5.2",
@@ -55,7 +55,8 @@ docs = [
     "furo>=2024.8.6",
     "autodoc-pydantic>=2.1.0",
 ]
-developer = [
+
+dev = [
     "google-cloud-storage>=2.18.2",
     "nox>=2024.4.15",
     "parameterized>=0.9.0",
