@@ -7,6 +7,20 @@ definitions:
     precommit: ~/.cache/pre-commit
     uv: ~/.cache/uv
     nox-build-docs: .nox/build_docs
+    starshot: tests_basic/test_files/Starshot
+    picket-fence: tests_basic/test_files/picket_fence
+    planar-imaging: tests_basic/test_files/planar_imaging
+    quart: tests_basic/test_files/CBCT/Quart
+    plan-generator: tests_basic/test_files/plan_generator
+    winston-lutz: tests_basic/test_files/Winston-Lutz
+    machine-logs: tests_basic/test_files/mlc_logs
+    catphan503: tests_basic/test_files/CBCT/CatPhan_503
+    catphan504: tests_basic/test_files/CBCT/CatPhan_504
+    catphan604: tests_basic/test_files/CBCT/CatPhan_604
+    catphan600: tests_basic/test_files/CBCT/CatPhan_600
+    acr: tests_basic/test_files/ACR
+    cheese: tests_basic/test_files/Tomo
+    vmat: tests_basic/test_files/VMAT
 
   steps:
     - step: &bb-runner
@@ -64,7 +78,10 @@ definitions:
           # clean up memory monitor
           - kill $MONITOR_PID
         caches:
-          - testfiles
+          - catphan503
+          - catphan504
+          - catphan600
+          - catphan604
         condition:
           changesets:
             includePaths:
@@ -88,7 +105,7 @@ definitions:
         artifacts:
           - memory_usage.log
         caches:
-          - testfiles
+          - quart
         condition:
           changesets:
             includePaths:
@@ -111,7 +128,7 @@ definitions:
         artifacts:
           - memory_usage.log
         caches:
-          - testfiles
+          - acr
         condition:
           changesets:
             includePaths:
@@ -134,7 +151,7 @@ definitions:
         artifacts:
           - memory_usage.log
         caches:
-          - testfiles
+          - cheese
         condition:
           changesets:
             includePaths:
@@ -157,7 +174,7 @@ definitions:
         artifacts:
           - memory_usage.log
         caches:
-          - testfiles
+          - planar-imaging
         condition:
           changesets:
             includePaths:
@@ -196,7 +213,7 @@ definitions:
         script:
           - uv run pytest tests_basic/test_logs.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
-          - testfiles
+          - machine-logs
         condition:
           changesets:
             includePaths:
@@ -218,7 +235,7 @@ definitions:
         artifacts:
           - memory_usage.log
         caches:
-          - testfiles
+          - picket-fence
         condition:
           changesets:
             includePaths:
@@ -231,7 +248,7 @@ definitions:
         script:
           - uv run pytest tests_basic/test_starshot.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
-          - testfiles
+          - starshot
         condition:
           changesets:
             includePaths:
@@ -243,8 +260,6 @@ definitions:
         <<: *bb-runner
         script:
           - uv run pytest tests_basic/test_tg51.py tests_basic/test_trs398.py --cov-report term --junitxml=./test-reports/pytest_results.xml
-        caches:
-          - testfiles
         condition:
           changesets:
             includePaths:
@@ -258,7 +273,7 @@ definitions:
         script:
           - uv run pytest tests_basic/test_vmat.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
-          - testfiles
+          - vmat
         condition:
           changesets:
             includePaths:
@@ -277,6 +292,8 @@ definitions:
           - uv run pytest tests_basic/test_winstonlutz.py --cov-report term --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
+        caches:
+          - winston-lutz
         condition:
           changesets:
             includePaths:
@@ -297,6 +314,8 @@ definitions:
           - uv run pytest tests_basic/test_winstonlutz_mtmf.py --cov-report term --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
+        caches:
+          - winston-lutz
         condition:
           changesets:
             includePaths:
@@ -310,6 +329,8 @@ definitions:
         <<: *bb-runner
         script:
           - uv run pytest tests_basic/test_plan_generator.py tests_basic/test_generated_plans.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+        caches:
+          - plan-generator
         condition:
             changesets:
                 includePaths:

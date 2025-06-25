@@ -12,4 +12,8 @@ HIDE_PLOTS = True
 if os.environ.get("CI") or HIDE_PLOTS:
     matplotlib.use("Agg")
 
-DELETE_FILES = bool(os.environ.get("DELETE_FILES", default=False))
+DELETE_FILES = os.environ.get("DELETE_FILES", default="False").lower() in [
+    "true",
+    "1",
+    "yes",
+]
