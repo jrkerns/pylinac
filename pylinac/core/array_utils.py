@@ -27,7 +27,7 @@ def array_not_empty(array: np.ndarray) -> None:
 
 
 def single_dimension(array: np.ndarray) -> None:
-    """Check an array is a single dimension"""
+    """Check an array is a single dimension."""
     if array.ndim > 1:
         raise ValueError(
             f"Array was multidimensional. Must pass 1D array; found {array.ndim}"

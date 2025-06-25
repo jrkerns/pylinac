@@ -165,10 +165,8 @@ def retrieve_demo_file(name: str, force: bool = False) -> Path:
     """
     true_url = r"https://storage.googleapis.com/pylinac_demo_files/" + name
     demo_path = Path(__file__).parent.parent / "demo_files" / name
-    # demo_file = osp.join(osp.dirname(osp.dirname(__file__)), "demo_files", name)
     demo_dir = demo_path.parent
-    if not demo_dir.exists():
-        os.makedirs(demo_dir)
+    os.makedirs(demo_dir, exist_ok=True)
     if force or not demo_path.exists():
         get_url(true_url, destination=demo_path)
     return demo_path

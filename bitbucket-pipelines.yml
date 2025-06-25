@@ -74,7 +74,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_cbct.py -n 2 --cov=pylinac.cbct --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_cbct.py -n 3 --cov=pylinac.cbct --cov-report term --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
         caches:
@@ -99,7 +99,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_quart.py --cov=pylinac.quart --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_quart.py -n 3 --cov=pylinac.quart --cov-report term --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
         artifacts:
@@ -122,7 +122,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_acr.py --cov=pylinac.acr --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_acr.py -n 3 --cov=pylinac.acr --cov-report term --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
         artifacts:
@@ -145,7 +145,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_cheese.py --cov=pylinac.cheese --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_cheese.py -n 3 --cov=pylinac.cheese --cov-report term --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
         artifacts:
@@ -168,7 +168,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_planar_imaging.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_planar_imaging.py -n 3 --cov-report term --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
         artifacts:
@@ -229,7 +229,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_picketfence.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_picketfence.py -n 3 --cov-report term --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
         artifacts:
@@ -246,7 +246,7 @@ definitions:
         name: Run Starshot Tests
         <<: *bb-runner
         script:
-          - uv run pytest tests_basic/test_starshot.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_starshot.py -n 3 --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - starshot
         condition:
@@ -289,7 +289,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_winstonlutz.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_winstonlutz.py -n 3 --cov-report term --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
         caches:
@@ -311,7 +311,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_winstonlutz_mtmf.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_winstonlutz_mtmf.py -n 2 --cov-report term --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
         caches:
