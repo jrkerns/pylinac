@@ -2056,7 +2056,7 @@ class CatPhan503Nodes2(CatPhan503Mixin, TestCase):
 
 
 class CatPhan700Series1(CatPhan700Mixin, TestCase):
-    file_name = "Series_1.zip"
+    file_name = "Series1.zip"
     expected_roll = 0.0
     # The scan is inverted longitudinally. 102 is the number of slices, 10 is the scanned slice,
     # 92 is the slice after sorting in longitudinal direction.
