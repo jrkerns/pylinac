@@ -181,11 +181,28 @@ class TestRectangle(unittest.TestCase):
             Rectangle(width=30, height=-3, center=self.center)
 
     def test_corners(self):
-        rect = Rectangle(width=self.width, height=self.height, center=self.center)
+        rect = Rectangle(
+            width=self.width,
+            height=self.height,
+            center=self.center,
+            coordinate_system="cartesian",
+        )
         point_equality_validation(rect.bl_corner, self.bl_corner)
         point_equality_validation(rect.br_corner, self.br_corner)
         point_equality_validation(rect.tr_corner, self.tr_corner)
         point_equality_validation(rect.tl_corner, self.tl_corner)
+
+    def test_corners_dicom(self):
+        """In DICOM, y is flipped; +y is down."""
+        rect = Rectangle(width=4, height=4, center=(0, 0), coordinate_system="dicom")
+        self.assertEqual(rect.bl_corner.x, -2)
+        self.assertEqual(rect.bl_corner.y, 2)
+        self.assertEqual(rect.br_corner.x, 2)
+        self.assertEqual(rect.br_corner.y, 2)
+        self.assertEqual(rect.tl_corner.x, -2)
+        self.assertEqual(rect.tl_corner.y, -2)
+        self.assertEqual(rect.tr_corner.x, 2)
+        self.assertEqual(rect.tr_corner.y, -2)
 
     def test_area(self):
         r = Rectangle(width=10, height=10, center=(0, 0))

@@ -36,19 +36,10 @@ Core
 * :bdg-success:`Feature` The :class:`~pylinac.core.roi.RectangleROI` constructor now have ``rotation`` and ``coordinate_system`` parameters which will allow
   for arbitrary rotation of the ROI. This is useful for non-cardinal ROIs. The class method ``from_phantom_center``
   also accepts these new parameters.
-* :bdg-danger:`Change` Due to above, the ``.pixel_array`` of the ROI is no longer a 2D numpy array, but rather a flattened 1D array.
-  This does not affect non-spatial statistics like mean, max, etc. No internal use cases are affected.
-  However, if no rotation is passed, and a 2D array is needed,
-  the pixel array can be reshaped into a 2D array like so. See the docstring for ``.pixel_array`` for more details:
-
-  .. code-block:: python
-
-    roi = RectangleROI(...)
-    flat_array = roi.pixel_array
-    # for odd widths/heights
-    reshaped_array = flat_array.reshape(roi.height, roi.width)
-    # for even widths/heights
-    reshaped_array = flat_array.reshape(roi.height + 1, roi.width + 1)
+* :bdg-danger:`Change` Due to above, the ``.pixel_array`` property of the class will raise an error if the rotation is nonzero
+  since it cannot be neatly reshaped to a 2D pixel array. When rotation is zero, this property acts as it always has.
+* :bdg-success:`Feature` A new property ``.pixels_flat`` is now available for the RectangleROI. This is a flattened array of the pixels
+  in the ROI. This can be used to calculate statistics even when rotation is nonzero.
 
 v 3.34.0
 --------

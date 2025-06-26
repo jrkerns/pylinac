@@ -603,7 +603,7 @@ class RectangleROI(Rectangle):
     #                angle=angle, dist_from_center=distance, phantom_center=phan_center)
 
     @cached_property
-    def pixel_array(self) -> np.ndarray:
+    def pixels_flat(self) -> np.ndarray:
         """A flattened array of the pixel values within the ROI.
 
         It is a flattened array because the ROI may be rotated. We only
@@ -622,18 +622,6 @@ class RectangleROI(Rectangle):
         The alternative would be to use the full image size and set pixels outside the
         ROI to NaN. We could consider this in the future, but for now, we try to stay
         away from NaN values.
-
-        If the rotation is 0, it is possible to reconstruct a 2D array from the pixel values
-        by reshaping:
-
-        .. code-block:: python
-
-            roi = RectangleROI(...)
-            flat_array = roi.pixel_array
-            # for odd widths/heights
-            reshaped_array = flat_array.reshape(roi.height, roi.width)
-            # for even widths/heights
-            reshaped_array = flat_array.reshape(roi.height + 1, roi.width + 1)
         """
         corners = np.array(
             [
@@ -641,6 +629,10 @@ class RectangleROI(Rectangle):
                 (self.br_corner.x, self.br_corner.y),  # bottom-right
                 (self.tr_corner.x, self.tr_corner.y),  # top-right
                 (self.tl_corner.x, self.tl_corner.y),  # top-left
+                (
+                    self.bl_corner.x,
+                    self.bl_corner.y,
+                ),  # repeat bottom-left to complete the polygon
             ]
         )
         row_coords = corners[:, 1]
@@ -649,26 +641,48 @@ class RectangleROI(Rectangle):
         return self._array[rr, cc]
 
     @cached_property
+    def pixel_array(self) -> np.ndarray:
+        """A 2D array of the pixel values within the ROI.
+
+        This is a reshaped version of the flattened pixel array.
+
+        Raises
+        ------
+        ValueError
+            If the rotation is != 0, the array cannot be reshaped into a 2D array.
+        """
+        if self.rotation != 0:
+            raise ValueError(
+                "The pixel array cannot be reshaped into a 2D array when the rotation is not 0."
+            )
+        flat_array = self.pixels_flat
+        # see pixels_flat docstring for why we add 1 to the height and width
+        height = self.height + 1 if self.height % 2 == 0 else self.height
+        width = self.width + 1 if self.width % 2 == 0 else self.width
+        reshaped_array = flat_array.reshape(height, width)
+        return reshaped_array
+
+    @cached_property
     def pixel_value(self) -> float:
         """The pixel array within the ROI."""
-        return float(np.mean(self.pixel_array))
+        return float(np.mean(self.pixels_flat))
 
     @cached_property
     def mean(self) -> float:
         """The mean value within the ROI."""
-        return float(np.mean(self.pixel_array))
+        return float(np.mean(self.pixels_flat))
 
     @cached_property
     def std(self) -> float:
         """The std within the ROI."""
-        return float(np.std(self.pixel_array))
+        return float(np.std(self.pixels_flat))
 
     @cached_property
     def min(self) -> float:
         """The min value within the ROI."""
-        return float(np.min(self.pixel_array))
+        return float(np.min(self.pixels_flat))
 
     @cached_property
     def max(self) -> float:
         """The max value within the ROI."""
-        return float(np.max(self.pixel_array))
+        return float(np.max(self.pixels_flat))

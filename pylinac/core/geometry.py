@@ -583,8 +583,9 @@ class Rectangle:
         argue.verify_bounds(width, argue.POSITIVE)
         argue.verify_bounds(height, argue.POSITIVE)
         if as_int:
-            self.width = int(np.round(width))
-            self.height = int(np.round(height))
+            # round to nearest even number
+            self.width = int(round(width / 2.0)) * 2
+            self.height = int(round(height / 2.0)) * 2
         else:
             self.width = width
             self.height = height
@@ -597,6 +598,7 @@ class Rectangle:
             self.rotation = -rotation
         elif coordinate_system == "cartesian":
             self.rotation = rotation  # in degrees, CW
+        self.coordinate_system = coordinate_system
 
     @property
     def area(self) -> float:
@@ -606,9 +608,13 @@ class Rectangle:
     @property
     def br_corner(self) -> Point:
         """The location of the bottom right corner."""
+        if self.coordinate_system == "dicom":
+            y = self.center.y + self.height / 2
+        else:
+            y = self.center.y - self.height / 2
         un_rotated_point = Point(
             self.center.x + self.width / 2,
-            self.center.y - self.height / 2,
+            y,
             as_int=self._as_int,
         )
         return rotate_points(
@@ -618,9 +624,13 @@ class Rectangle:
     @property
     def bl_corner(self) -> Point:
         """The location of the bottom left corner."""
+        if self.coordinate_system == "dicom":
+            y = self.center.y + self.height / 2
+        else:
+            y = self.center.y - self.height / 2
         un_rotated_point = Point(
             self.center.x - self.width / 2,
-            self.center.y - self.height / 2,
+            y,
             as_int=self._as_int,
         )
         return rotate_points(
@@ -630,9 +640,13 @@ class Rectangle:
     @property
     def tl_corner(self) -> Point:
         """The location of the top left corner."""
+        if self.coordinate_system == "dicom":
+            y = self.center.y - self.height / 2
+        else:
+            y = self.center.y + self.height / 2
         un_rotated_point = Point(
             self.center.x - self.width / 2,
-            self.center.y + self.height / 2,
+            y,
             as_int=self._as_int,
         )
         return rotate_points(
@@ -642,9 +656,13 @@ class Rectangle:
     @property
     def tr_corner(self) -> Point:
         """The location of the top right corner."""
+        if self.coordinate_system == "dicom":
+            y = self.center.y - self.height / 2
+        else:
+            y = self.center.y + self.height / 2
         un_rotated_point = Point(
             self.center.x + self.width / 2,
-            self.center.y + self.height / 2,
+            y,
             as_int=self._as_int,
         )
         return rotate_points(
@@ -717,13 +735,28 @@ class Rectangle:
         va: str
             Vertical alignment of the text. See https://matplotlib.org/stable/api/text_api.html#matplotlib.text.Text
         """
+        # We have already corrected for rotation.
+        # However, MPL expects the bottom-left corner of the rectangle
+        # BEFORE rotation. So, we have to "unrotate" to get the original
+        # bottom-left corner.
+        # Furthermore, if an axis is inverted, the origin point for MPL
+        # may not be the bottom-left corner. See https://matplotlib.org/stable/api/_as_gen/matplotlib.patches.Rectangle.html
+        # So for DICOM, where +y is down, the "xy" point is actually the top-left corner.
+        # For cartesian, the "xy" point is the bottom-left corner and matches the MPL docstring.
+        if self.coordinate_system == "dicom":
+            point = self.tl_corner
+        else:
+            point = self.bl_corner
+        unrotated_xy = rotate_points(
+            points=[point], angle=-self.rotation, pivot=self.center
+        )[0]
         axes.add_patch(
             mpl_Rectangle(
-                (self.bl_corner.x, self.bl_corner.y),
+                (unrotated_xy.x, unrotated_xy.y),
                 width=self.width,
                 height=self.height,
                 rotation_point="center",
-                angle=self.rotation,
+                angle=-self.rotation,  # MPL expects the angle to be CCW, but we define it as CW.
                 edgecolor=edgecolor,
                 alpha=alpha,
                 facecolor=facecolor,
@@ -779,3 +812,35 @@ def rotate_points(
     )
 
     return [Point(x, y) for x, y in rotated_points]
+
+
+def round_to_nearest_odd(x: float) -> int:
+    """
+    Round a float to the nearest odd integer.
+
+    Parameters
+    ----------
+    x : float
+        Input value to round.
+
+    Returns
+    -------
+    int
+        The odd integer closest to `x`. If `x` is exactly between two odd integers,
+        the larger odd integer is returned.
+    """
+    # Largest odd integer <= x
+    lower = math.floor(x)
+    if lower % 2 == 0:
+        lower -= 1
+
+    # Smallest odd integer >= x
+    upper = math.ceil(x)
+    if upper % 2 == 0:
+        upper += 1
+
+    # Choose the closer one; ties go to the larger odd integer (upper)
+    if (x - lower) < (upper - x):
+        return lower
+    else:
+        return upper
