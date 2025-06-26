@@ -479,6 +479,8 @@ class CatPhanMixin(CloudFileMixin):
             self.cbct.ctp515.rois_visible, self.lowcon_visible, delta=1
         )
 
+        self.cbct.plotly_analyzed_images()
+
     def test_slice_locations(self):
         """Test the locations of the slices of interest."""
         if self.origin_slice is None:
@@ -2076,6 +2078,7 @@ class CatPhan700Series1(CatPhan700Mixin, TestCase):
     }
     slice_thickness = 1.87
     unif_values = {"Center": -17, "Left": -17, "Right": -17, "Top": -18, "Bottom": -19}
+    lowcon_visible = 3
 
 
 class CatPhan700Series2(CatPhan700Mixin, TestCase):
@@ -2099,3 +2102,4 @@ class CatPhan700Series2(CatPhan700Mixin, TestCase):
     }
     slice_thickness = 4.74
     unif_values = {"Center": 2.6, "Left": 1.9, "Right": 2.8, "Top": 2.3, "Bottom": 2.2}
+    lowcon_visible = 6
