@@ -2074,3 +2074,24 @@ class CatPhan700Series1(CatPhan700Mixin, TestCase):
         "Bone 50%": 940,
         "Acrylic": 93,
     }
+
+
+class CatPhan700Series2(CatPhan700Mixin, TestCase):
+    file_name = "Series2.zip"
+    expected_roll = 0.3
+    # The scan is inverted longitudinally. 41 is the number of slices, 5 is the scanned slice,
+    # 36 is the slice after sorting in longitudinal direction.
+    origin_slice = 41 - 5
+
+    hu_values = {
+        "Air": -990,
+        "PMP": -189,
+        "Lung #7112": -820,
+        "Delrin": 342,
+        "Poly": -47,
+        "Teflon": 937,
+        "Bone 20%": 183,
+        "LDPE": -103,
+        "Bone 50%": 730,
+        "Acrylic": 111,
+    }
