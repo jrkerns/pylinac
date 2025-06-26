@@ -479,8 +479,6 @@ class CatPhanMixin(CloudFileMixin):
             self.cbct.ctp515.rois_visible, self.lowcon_visible, delta=1
         )
 
-        self.cbct.plotly_analyzed_images()
-
     def test_slice_locations(self):
         """Test the locations of the slices of interest."""
         if self.origin_slice is None:
