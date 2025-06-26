@@ -1164,6 +1164,12 @@ class CTP404CP700(CTP404CP504):
             "distance": roi_dist_mm,
             "radius": roi_radius_mm,
         },
+        "Vial": {
+            "value": WATER,
+            "angle": 180 - -135,
+            "distance": 28,
+            "radius": roi_radius_mm,
+        },
     }
 
     background_roi_settings = {
@@ -1210,6 +1216,12 @@ class CTP404CP700(CTP404CP504):
     }
     # geometry
     geometry_roi_settings = {}
+
+    def _setup_rois(self) -> None:
+        """For the 700, the water vial is an optional slot. If the HU is near water we leave it, otherwise we remove it so as not to flag false failures"""
+        super()._setup_rois()
+        if self.rois["Vial"].pixel_value < -500:  # closer to air than water
+            self.rois.pop("Vial")
 
 
 class CTP486(CatPhanModule):
