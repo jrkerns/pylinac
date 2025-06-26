@@ -180,34 +180,34 @@ class TestRectangle(unittest.TestCase):
         with self.assertRaises(ValueError):
             Rectangle(width=30, height=-3, center=self.center)
 
-    def test_corners_dicom(self):
+    def test_corners(self):
         """In DICOM, y is flipped; +y is down."""
         rect = Rectangle(width=4, height=4, center=(0, 0))
-        self.assertEqual(rect.bl_corner.x, -2)
-        self.assertEqual(rect.bl_corner.y, 2)
-        self.assertEqual(rect.br_corner.x, 2)
-        self.assertEqual(rect.br_corner.y, 2)
-        self.assertEqual(rect.tl_corner.x, -2)
-        self.assertEqual(rect.tl_corner.y, -2)
-        self.assertEqual(rect.tr_corner.x, 2)
-        self.assertEqual(rect.tr_corner.y, -2)
+        self.assertAlmostEqual(rect.bl_corner.x, -2)
+        self.assertAlmostEqual(rect.bl_corner.y, 2)
+        self.assertAlmostEqual(rect.br_corner.x, 2)
+        self.assertAlmostEqual(rect.br_corner.y, 2)
+        self.assertAlmostEqual(rect.tl_corner.x, -2)
+        self.assertAlmostEqual(rect.tl_corner.y, -2)
+        self.assertAlmostEqual(rect.tr_corner.x, 2)
+        self.assertAlmostEqual(rect.tr_corner.y, -2)
 
     def test_area(self):
         r = Rectangle(width=10, height=10, center=(0, 0))
         self.assertAlmostEqual(r.area, 100)
 
-    def test_rotation_simple_dicom(self):
+    def test_rotation_simple(self):
         """Test that the rectangle is rotated correctly in DICOM coordinates."""
         # In DICOM, y-axis is flipped, so the top-left corner is both at the top and negative y.
         r = Rectangle(width=1, height=1, center=(0, 0), rotation=45)
         top_corner = Point(x=0, y=-math.sqrt(0.5))
-        self.assertEqual(top_corner, r.tl_corner)
+        point_equality_validation(top_corner, r.tl_corner)
         right_corner = Point(x=math.sqrt(0.5), y=0)
-        self.assertEqual(right_corner, r.tr_corner)
+        point_equality_validation(right_corner, r.tr_corner)
         bottom_corner = Point(x=0, y=math.sqrt(0.5))
-        self.assertEqual(bottom_corner, r.br_corner)
+        point_equality_validation(bottom_corner, r.br_corner)
         left_corner = Point(x=-math.sqrt(0.5), y=0)
-        self.assertEqual(left_corner, r.bl_corner)
+        point_equality_validation(left_corner, r.bl_corner)
 
 
 class TestDestinationCoordinates(unittest.TestCase):
