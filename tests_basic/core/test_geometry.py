@@ -10,8 +10,10 @@ from pylinac.core.geometry import (
     Line,
     Point,
     Rectangle,
+    cos,
     direction_to_coords,
     rotate_points,
+    sin,
 )
 from tests_basic.utils import point_equality_validation
 
@@ -243,19 +245,19 @@ class TestDestinationCoordinates(unittest.TestCase):
 class TestRotatePoints(unittest.TestCase):
     @parameterized.expand(
         [
-            ("no-op", (0, 0), 0, (0, 0), (0, 0), "cw"),
-            ("90-degrees", (1, 0), 90, (0, 0), (0, -1), "cw"),
-            ("-90-degrees", (1, 0), -90, (0, 0), (0, 1), "cw"),
-            ("no-op offset", (1, 1), 0, (1, 1), (1, 1), "cw"),
-            ("180 degrees", (1, 0), 180, (0, 0), (-1, 0), "cw"),
-            ("180 offset", (2, 2), 180, (1, 1), (0, 0), "cw"),
-            ("90-degrees CCW", (1, 0), 90, (0, 0), (0, 1), "ccw"),
-            ("10 degrees CW", (1, 1), 10, (0, 0), (1.158, 0.811), "cw"),
+            ("no-op", (0, 0), 0, (0, 0), (0, 0)),
+            ("+90-degrees (CW)", (1, 0), 90, (0, 0), (0, 1)),
+            ("-90-degrees (CCW)", (1, 0), -90, (0, 0), (0, -1)),
+            ("no-op offset", (1, 1), 0, (1, 1), (1, 1)),
+            ("+180 degrees (CW)", (1, 0), 180, (0, 0), (-1, 0)),
+            ("+180 offset (CW)", (2, 2), 180, (1, 1), (0, 0)),
+            ("-180 degrees (CCW)", (1, 0), -180, (0, 0), (-1, 0)),
+            ("+30 degrees (CW)", (1, 0), 30, (0, 0), (cos(30), sin(30))),
         ]
     )
-    def test_point_rotation(self, _, point, angle, center, expected, direction):
+    def test_point_rotation(self, _, point, angle, center, expected):
         rotated_points = rotate_points(
-            points=[Point(point)], angle=angle, pivot=Point(center), direction=direction
+            points=[Point(point)], angle=angle, pivot=Point(center)
         )
         expected_p = Point(expected)
         self.assertAlmostEqual(rotated_points[0].x, expected_p.x, places=3)

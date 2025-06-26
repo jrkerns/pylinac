@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable
 from itertools import zip_longest
-from typing import Annotated, Literal
+from typing import Annotated
 
 import argue
 import matplotlib.pyplot as plt
@@ -579,7 +579,8 @@ class Rectangle:
         as_int : bool
             If False (default), inputs are left as-is. If True, all inputs are converted to integers.
         rotation : float
-            The rotation of the rectangle in degrees clockwise. Default is 0 (no rotation).
+            The rotation of the rectangle in degrees clockwise, following the "x goes to y" rule and assuming DICOM coordinate system.
+            Default is 0 (no rotation).
         """
         argue.verify_bounds(width, argue.POSITIVE)
         argue.verify_bounds(height, argue.POSITIVE)
@@ -591,10 +592,7 @@ class Rectangle:
             self.height = height
         self._as_int = as_int
         self.center = Point(center, as_int=as_int)
-        # We assume DICOM coordinates where +x is right and +y is down.
-        # When we actually rotate, we use ``rotate_points`` which assumes +x is right and +y is up.
-        # Thus, we reverse the rotation.
-        self.rotation = -rotation
+        self.rotation = rotation
 
     @property
     def area(self) -> float:
@@ -761,30 +759,26 @@ def rotate_points(
     points: list[Point],
     angle: float,
     pivot: Point,
-    direction: Literal["cw", "ccw"] = "cw",
 ) -> list[Point]:
     """Rotate a list of points around a pivot point.
 
     .. warning::
 
-        This assumes a standard coordinate system where +x is right and +y is up.
-        In DICOM, +y is down. If implementing in a DICOM context,
-        you will need to flip the angle sign or the direction to match.
+        This assumes the DICOM/image/screen coordinate system where +x is right and +y is down.
+        If implementing in a Cartesian context,
+        you will need to flip the angle sign.
 
     Parameters
     ----------
     points : list of Point
         The points to rotate.
     angle : float
-        The angle to rotate the points in degrees clockwise.
+        The angle to rotate the points in degrees clockwise. A DICOM coordinate system is assumed, so +x is right and +y is down.
+        In this context, clockwise is positive. To rotate counter-clockwise, pass a negative angle.
     pivot : Point
         The pivot point.
-    direction : {'cw', 'ccw'}
-        The direction to rotate the points.
     """
-    angle = np.radians(angle)
-    if direction == "ccw":
-        angle = -angle
+    angle = np.radians(-angle)
     # Rotation matrix
     rotation_matrix = np.array(
         [[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]

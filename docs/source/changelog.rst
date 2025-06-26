@@ -40,6 +40,9 @@ Core
   since it cannot be neatly reshaped to a 2D pixel array. When rotation is zero, this property acts as it always has.
 * :bdg-success:`Feature` A new property ``.pixels_flat`` is now available for the RectangleROI. This is a flattened array of the pixels
   in the ROI. This can be used to calculate statistics even when rotation is nonzero.
+* :bdg-danger:`Change` The ``rotate_points`` function (used internally by the ``Rectangle`` class) now assumes a DICOM/image
+  coordinate system. Previously, it assumed a Cartesian coordinate system. The ``direction`` parameter has also been removed.
+
 
 v 3.34.0
 --------
