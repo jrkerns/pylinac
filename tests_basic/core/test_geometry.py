@@ -201,13 +201,17 @@ class TestRectangle(unittest.TestCase):
         # In DICOM, y-axis is flipped, so the top-left corner is both at the top and negative y.
         r = Rectangle(width=1, height=1, center=(0, 0), rotation=45)
         top_corner = Point(x=0, y=-math.sqrt(0.5))
-        point_equality_validation(top_corner, r.tl_corner)
+        self.assertAlmostEqual(top_corner.x, r.tl_corner.x, places=3)
+        self.assertAlmostEqual(top_corner.y, r.tl_corner.y, places=3)
         right_corner = Point(x=math.sqrt(0.5), y=0)
-        point_equality_validation(right_corner, r.tr_corner)
+        self.assertAlmostEqual(right_corner.x, r.tr_corner.x, places=3)
+        self.assertAlmostEqual(right_corner.y, r.tr_corner.y, places=3)
         bottom_corner = Point(x=0, y=math.sqrt(0.5))
-        point_equality_validation(bottom_corner, r.br_corner)
+        self.assertAlmostEqual(bottom_corner.x, r.br_corner.x, places=3)
+        self.assertAlmostEqual(bottom_corner.y, r.br_corner.y, places=3)
         left_corner = Point(x=-math.sqrt(0.5), y=0)
-        point_equality_validation(left_corner, r.bl_corner)
+        self.assertAlmostEqual(left_corner.x, r.bl_corner.x, places=3)
+        self.assertAlmostEqual(left_corner.y, r.bl_corner.y, places=3)
 
 
 class TestDestinationCoordinates(unittest.TestCase):
