@@ -495,9 +495,9 @@ class CatPhanMixin(CloudFileMixin):
         """Test HU values."""
         if self.hu_values is None:
             self.skipTest("hu_values not available")
-        for key, roi in self.cbct.ctp404.rois.items():
-            exp_val = self.hu_values[key]
-            meas_val = roi.pixel_value
+        for key, value in self.hu_values.items():
+            exp_val = value
+            meas_val = self.cbct.ctp404.rois[key].pixel_value
             self.assertAlmostEqual(exp_val, meas_val, delta=5)
 
     def test_uniformity_values(self):
@@ -2084,6 +2084,9 @@ class CatPhan700Series1(CatPhan700Mixin, TestCase):
     }  # measured using imageJ
     lowcon_visible = 3
 
+    def test_vial_roi(self):
+        self.assertNotIn("Vial", self.cbct.ctp404.rois)
+
 
 class CatPhan700Series2(CatPhan700Mixin, TestCase):
     file_name = "Series2.zip"
@@ -2113,3 +2116,6 @@ class CatPhan700Series2(CatPhan700Mixin, TestCase):
         "Bottom": 2.2,
     }  # measured using imageJ
     lowcon_visible = 6
+
+    def test_vial_roi(self):
+        self.assertNotIn("Vial", self.cbct.ctp404.rois)
