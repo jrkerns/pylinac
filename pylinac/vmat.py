@@ -130,11 +130,11 @@ class Segment(Rectangle):
     def r_corr(self) -> float:
         """Return the ratio of the mean pixel values of DMLC/OPEN images."""
         dmlc_value = self._dmlc_image.array[
-            self.bl_corner.y : self.bl_corner.y + self.height,
+            self.tl_corner.y : self.tl_corner.y + self.height,
             self.bl_corner.x : self.bl_corner.x + self.width,
         ].mean()
         open_value = self._open_image.array[
-            self.bl_corner.y : self.bl_corner.y + self.height,
+            self.tl_corner.y : self.tl_corner.y + self.height,
             self.bl_corner.x : self.bl_corner.x + self.width,
         ].mean()
         ratio = (dmlc_value / open_value) * 100
@@ -144,11 +144,11 @@ class Segment(Rectangle):
     def stdev(self) -> float:
         """Return the standard deviation of the segment."""
         dmlc_value = self._dmlc_image.array[
-            self.bl_corner.y : self.bl_corner.y + self.height,
+            self.tl_corner.y : self.tl_corner.y + self.height,
             self.bl_corner.x : self.bl_corner.x + self.width,
         ]
         open_value = self._open_image.array[
-            self.bl_corner.y : self.bl_corner.y + self.height,
+            self.tl_corner.y : self.tl_corner.y + self.height,
             self.bl_corner.x : self.bl_corner.x + self.width,
         ]
         # we multiply by 100 to be consistent w/ r_corr. I.e. this is a % value.
