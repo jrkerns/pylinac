@@ -734,7 +734,7 @@ class Rectangle:
                 width=self.width,
                 height=self.height,
                 rotation_point="center",
-                angle=-self.rotation,  # MPL expects the angle to be CCW, but we define it as CW.
+                angle=self.rotation,
                 edgecolor=edgecolor,
                 alpha=alpha,
                 facecolor=facecolor,
