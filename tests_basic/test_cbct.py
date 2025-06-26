@@ -2074,6 +2074,7 @@ class CatPhan700Series1(CatPhan700Mixin, TestCase):
         "Bone 50%": 940,
         "Acrylic": 93,
     }
+    slice_thickness = 1.87
 
 
 class CatPhan700Series2(CatPhan700Mixin, TestCase):
@@ -2095,3 +2096,4 @@ class CatPhan700Series2(CatPhan700Mixin, TestCase):
         "Bone 50%": 730,
         "Acrylic": 111,
     }
+    slice_thickness = 4.74
