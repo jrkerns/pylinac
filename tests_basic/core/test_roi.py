@@ -36,7 +36,7 @@ class TestRectangleROI(TestCase):
             height=50,
             center=Point(250, 250),
         )
-        self.assertEqual(rect.pixel_array.size, 1071)
+        self.assertEqual(rect.pixel_array.size, 1000)
         self.assertEqual(rect.center.x, 250)
         self.assertEqual(rect.center.y, 250)
 
@@ -65,7 +65,7 @@ class TestRectangleROI(TestCase):
             dist_from_center=10,
             phantom_center=Point(250, 250),
         )
-        self.assertEqual(rect.pixel_array.size, 1071)
+        self.assertEqual(rect.pixel_array.size, 1000)
         # center is shifted by 10 in x (angle=0)
         self.assertEqual(rect.center.x, 260)
         self.assertEqual(rect.center.y, 250)
@@ -92,8 +92,8 @@ class TestRectangleROI(TestCase):
         )
         self.assertEqual(rect_unrotated.max, 1000)  # spike in view
 
-    def test_reshape(self):
-        """If there is no rotation, we can reshape the pixel array back into a 2D array."""
+    def test_flat_pixels(self):
+        """If there is no rotation, the statistics of the flat pixels should be the same as the pixel_array."""
         # see note in RectangleROI.pixel_array docstring; even widths/heights are rounded up.
         array = np.ones((100, 100))
         rect = RectangleROI(
@@ -102,21 +102,10 @@ class TestRectangleROI(TestCase):
             height=20,
             center=Point(50, 50),
         )
-        flattened_array = rect.pixel_array
-        self.assertEqual(flattened_array.shape, (861,))  # 41*21
-        # not erroring means reshape is valid
-        np.reshape(flattened_array, (41, 21))
-
-        # reshape an odd-sized rectangle; note the size will still be 41x41
-        odd_rect = RectangleROI(
-            array,
-            width=41,
-            height=21,
-            center=Point(50, 50),
-        )
-        odd_flattened_array = odd_rect.pixel_array
-        self.assertEqual(odd_flattened_array.shape, (861,))  # 41*21
-        np.reshape(odd_flattened_array, (41, 21))
+        array_2d = rect.pixel_array
+        self.assertEqual(array_2d.size, 800)
+        array_flat = rect.pixels_flat
+        self.assertEqual(array_flat.size, 800)
 
 
 class TestRectangleStats(TestCase):

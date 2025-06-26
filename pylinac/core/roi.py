@@ -595,33 +595,17 @@ class RectangleROI(Rectangle):
     def pixels_flat(self) -> np.ndarray:
         """A flattened array of the pixel values within the ROI.
 
-        It is a flattened array because the ROI may be rotated. We only
-        want to include pixels within the ROI for both calculation speed and accuracy.
-        The one downside is the flattened nature. This means we can't, say,
-        extract a profile from this ROI, as the pixels are not in a grid format.
-        However, with the expectation that the statistics we pull are non-spatial,
-        this is fine.
-
-        Note that the effective size of the pixel array may be "off by 1" for even widths/heights
-        due to integer rounding of the width and height. The ROI must map to physical pixels,
-        hence the ``as_int=True`` parameter in the parent class constructor.
-        E.g. an ROI with a width of 4 pixels and height of 2 pixels will have a pixel array
-        of effective size 5 * 3 = 15 pixels, not 4 * 2 = 8 pixels.
-
-        The alternative would be to use the full image size and set pixels outside the
-        ROI to NaN. We could consider this in the future, but for now, we try to stay
-        away from NaN values.
+        This is always available, even for rotated ROIs. However,
+        it is flattened, so spatial statistics cannot be calculated.
         """
         corners = np.array(
             [
-                (self.bl_corner.x, self.bl_corner.y),  # bottom-left
-                (self.br_corner.x, self.br_corner.y),  # bottom-right
-                (self.tr_corner.x, self.tr_corner.y),  # top-right
+                # note the -1; this is due to the numpy exclusive indexing in `.pixel_array`
+                # to keep these two properties consistent.
+                (self.bl_corner.x, self.bl_corner.y - 1),  # bottom-left
+                (self.br_corner.x - 1, self.br_corner.y - 1),  # bottom-right
+                (self.tr_corner.x - 1, self.tr_corner.y),  # top-right
                 (self.tl_corner.x, self.tl_corner.y),  # top-left
-                (
-                    self.bl_corner.x,
-                    self.bl_corner.y,
-                ),  # repeat bottom-left to complete the polygon
             ]
         )
         row_coords = corners[:, 1]
@@ -631,9 +615,7 @@ class RectangleROI(Rectangle):
 
     @cached_property
     def pixel_array(self) -> np.ndarray:
-        """A 2D array of the pixel values within the ROI.
-
-        This is a reshaped version of the flattened pixel array.
+        """A 2D array of the pixel values within the ROI. Only available for non-rotated ROIs.
 
         Raises
         ------
@@ -644,12 +626,11 @@ class RectangleROI(Rectangle):
             raise ValueError(
                 "The pixel array cannot be reshaped into a 2D array when the rotation is not 0."
             )
-        flat_array = self.pixels_flat
-        # see pixels_flat docstring for why we add 1 to the height and width
-        height = self.height + 1 if self.height % 2 == 0 else self.height
-        width = self.width + 1 if self.width % 2 == 0 else self.width
-        reshaped_array = flat_array.reshape(height, width)
-        return reshaped_array
+        # note that numpy indexing is exclusive of the end index! This might be considered a bug,
+        # but for historical compatibility, we keep it this way.
+        return self._array[
+            self.tl_corner.y : self.bl_corner.y, self.bl_corner.x : self.br_corner.x
+        ]
 
     @cached_property
     def pixel_value(self) -> float:

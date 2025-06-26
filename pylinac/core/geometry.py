@@ -584,9 +584,8 @@ class Rectangle:
         argue.verify_bounds(width, argue.POSITIVE)
         argue.verify_bounds(height, argue.POSITIVE)
         if as_int:
-            # round to nearest even number
-            self.width = int(round(width / 2.0)) * 2
-            self.height = int(round(height / 2.0)) * 2
+            self.width = int(np.round(width))
+            self.height = int(np.round(height))
         else:
             self.width = width
             self.height = height
