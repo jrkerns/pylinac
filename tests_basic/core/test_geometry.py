@@ -245,6 +245,7 @@ class TestDestinationCoordinates(unittest.TestCase):
 class TestRotatePoints(unittest.TestCase):
     @parameterized.expand(
         [
+            # name, (x, y), angle, pivot point, (expected x, expected y)
             ("no-op", (0, 0), 0, (0, 0), (0, 0)),
             ("+90-degrees (CW)", (1, 0), 90, (0, 0), (0, 1)),
             ("-90-degrees (CCW)", (1, 0), -90, (0, 0), (0, -1)),
