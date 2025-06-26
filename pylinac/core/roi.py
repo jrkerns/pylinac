@@ -6,6 +6,7 @@ from functools import cached_property
 import matplotlib.pyplot as plt
 import numpy as np
 from skimage import draw
+from skimage.draw import polygon
 from skimage.measure._regionprops import _RegionProperties
 
 from .contrast import Contrast, contrast, michelson, ratio, rms, visibility, weber
@@ -496,6 +497,8 @@ class RectangleROI(Rectangle):
         angle: float,
         dist_from_center: float,
         phantom_center: Point,
+        rotation: float = 0.0,
+        coordinate_system: typing.Literal["cartesian", "dicom"] = "dicom",
     ):
         """
         Parameters
@@ -512,6 +515,16 @@ class RectangleROI(Rectangle):
             The distance of the ROI from the phantom center.
         phantom_center : tuple
             The location of the phantom center.
+        rotation : float
+            The rotation of the ROI itself in degrees. Defaults to 0.0.
+
+            .. warning::
+
+                This is separate from the angle parameter, which is the angle of the ROI from the phantom center.
+
+        coordinate_system : {'cartesian', 'dicom'}
+            The coordinate system of the rectangle. ``cartesian`` means the y-axis is up, and ``dicom`` means the y-axis is down.
+            For both coordinate systems, the x-axis is to the right.
 
         Notes
         -----
@@ -521,7 +534,14 @@ class RectangleROI(Rectangle):
         y_shift = np.sin(np.deg2rad(angle)) * dist_from_center
         x_shift = np.cos(np.deg2rad(angle)) * dist_from_center
         center = Point(phantom_center.x + x_shift, phantom_center.y + y_shift)
-        return cls(array=array, width=width, height=height, center=center)
+        return cls(
+            array=array,
+            width=width,
+            height=height,
+            center=center,
+            rotation=rotation,
+            coordinate_system=coordinate_system,
+        )
 
     def __init__(
         self,
@@ -529,6 +549,8 @@ class RectangleROI(Rectangle):
         width: float,
         height: float,
         center: Point,
+        rotation: float = 0.0,
+        coordinate_system: typing.Literal["cartesian", "dicom"] = "dicom",
     ):
         """
         Parameters
@@ -541,13 +563,30 @@ class RectangleROI(Rectangle):
             The height of the ROI in pixels.
         center : Point
             The location of the ROI center.
+        rotation : float
+            The rotation of the ROI itself in degrees. Defaults to 0.0.
+
+            .. warning::
+
+                This is separate from the angle parameter, which is the angle of the ROI from the phantom center.
+
+        coordinate_system : {'cartesian', 'dicom'}
+            The coordinate system of the rectangle. ``cartesian`` means the y-axis is up, and ``dicom`` means the y-axis is down.
+            For both coordinate systems, the x-axis is to the right.
         """
         # the ROI must be 'real', i.e. >= 2x2 matrix
         if width < 2:
             raise ValueError(f"The width must be >= 2. Given {width}")
         if height < 2:
             raise ValueError(f"The height must be >= 2. Given {height}")
-        super().__init__(width, height, center, as_int=True)
+        super().__init__(
+            width,
+            height,
+            center,
+            as_int=True,
+            rotation=rotation,
+            coordinate_system=coordinate_system,
+        )
         self._array = array
 
     def __repr__(self):
@@ -563,12 +602,51 @@ class RectangleROI(Rectangle):
     #     return cls(regionprop.intensity_image, width=width, height=height,
     #                angle=angle, dist_from_center=distance, phantom_center=phan_center)
 
-    @cached_property
+    @property
     def pixel_array(self) -> np.ndarray:
-        """The pixel array within the ROI."""
-        return self._array[
-            self.bl_corner.y : self.tr_corner.y, self.bl_corner.x : self.tr_corner.x
-        ]
+        """A flattened array of the pixel values within the ROI.
+
+        It is a flattened array because the ROI may be rotated. We only
+        want to include pixels within the ROI for both calculation speed and accuracy.
+        The one downside is the flattened nature. This means we can't, say,
+        extract a profile from this ROI, as the pixels are not in a grid format.
+        However, with the expectation that the statistics we pull are non-spatial,
+        this is fine.
+
+        Note that the effective size of the pixel array may be "off by 1" for even widths/heights
+        due to integer rounding of the width and height. The ROI must map to physical pixels,
+        hence the ``as_int=True`` parameter in the parent class constructor.
+        E.g. an ROI with a width of 4 pixels and height of 2 pixels will have a pixel array
+        of effective size 5 * 3 = 15 pixels, not 4 * 2 = 8 pixels.
+
+        The alternative would be to use the full image size and set pixels outside the
+        ROI to NaN. We could consider this in the future, but for now, we try to stay
+        away from NaN values.
+
+        If the rotation is 0, it is possible to reconstruct a 2D array from the pixel values
+        by reshaping:
+
+        .. code-block:: python
+
+            roi = RectangleROI(...)
+            flat_array = roi.pixel_array
+            # for odd widths/heights
+            reshaped_array = flat_array.reshape(roi.height, roi.width)
+            # for even widths/heights
+            reshaped_array = flat_array.reshape(roi.height + 1, roi.width + 1)
+        """
+        corners = np.array(
+            [
+                (self.bl_corner.x, self.bl_corner.y),  # bottom-left
+                (self.br_corner.x, self.br_corner.y),  # bottom-right
+                (self.tr_corner.x, self.tr_corner.y),  # top-right
+                (self.tl_corner.x, self.tl_corner.y),  # top-left
+            ]
+        )
+        row_coords = corners[:, 1]
+        col_coords = corners[:, 0]
+        rr, cc = polygon(r=row_coords, c=col_coords, shape=self._array.shape)
+        return self._array[rr, cc]
 
     @cached_property
     def pixel_value(self) -> float:

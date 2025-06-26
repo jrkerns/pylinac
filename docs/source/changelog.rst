@@ -26,6 +26,30 @@ Winston-Lutz
   This also seems only to affect ``scipy`` version 1.13.0 and lower. Unfortunately, I don't have any better
   guidance at this time. If you are seeing significant changes in the isocenter size, feel free to open an issue.
 
+Core
+^^^^
+
+* :bdg-success:`Feature` The :class:`~pylinac.core.geometry.Rectangle` constructor now have ``rotation`` and ``coordinate_system`` parameters which will allow
+  for arbitrary rotation of the rectangle.
+* :bdg-danger:`Change` Due to above, the ``plot2axes`` method no longer accepts the ``angle`` parameter and the ``rotation``
+  value passed to the constructor is used instead.
+* :bdg-success:`Feature` The :class:`~pylinac.core.roi.RectangleROI` constructor now have ``rotation`` and ``coordinate_system`` parameters which will allow
+  for arbitrary rotation of the ROI. This is useful for non-cardinal ROIs. The class method ``from_phantom_center``
+  also accepts these new parameters.
+* :bdg-danger:`Change` Due to above, the ``.pixel_array`` of the ROI is no longer a 2D numpy array, but rather a flattened 1D array.
+  This does not affect non-spatial statistics like mean, max, etc. No internal use cases are affected.
+  However, if no rotation is passed, and a 2D array is needed,
+  the pixel array can be reshaped into a 2D array like so. See the docstring for ``.pixel_array`` for more details:
+
+  .. code-block:: python
+
+    roi = RectangleROI(...)
+    flat_array = roi.pixel_array
+    # for odd widths/heights
+    reshaped_array = flat_array.reshape(roi.height, roi.width)
+    # for even widths/heights
+    reshaped_array = flat_array.reshape(roi.height + 1, roi.width + 1)
+
 v 3.34.0
 --------
 

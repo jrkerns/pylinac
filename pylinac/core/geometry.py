@@ -560,6 +560,8 @@ class Rectangle:
         height: float,
         center: Point | tuple,
         as_int: bool = False,
+        rotation: float = 0.0,
+        coordinate_system: Literal["cartesian", "dicom"] = "dicom",
     ):
         """
         Parameters
@@ -572,6 +574,11 @@ class Rectangle:
             Center point of rectangle.
         as_int : bool
             If False (default), inputs are left as-is. If True, all inputs are converted to integers.
+        rotation : float
+            The rotation of the rectangle in degrees clockwise. Default is 0 (no rotation).
+        coordinate_system : {'cartesian', 'dicom'}
+            The coordinate system of the rectangle. ``cartesian`` means the y-axis is up, and ``dicom`` means the y-axis is down.
+            For both coordinate systems, the x-axis is to the right.
         """
         argue.verify_bounds(width, argue.POSITIVE)
         argue.verify_bounds(height, argue.POSITIVE)
@@ -583,6 +590,13 @@ class Rectangle:
             self.height = height
         self._as_int = as_int
         self.center = Point(center, as_int=as_int)
+        if coordinate_system == "dicom":
+            # DICOM coordinate system has the y-axis down.
+            # This effectively flips the rotation to be CCW instead of CW.
+            # By negating the rotation, we can keep the same rotation direction.
+            self.rotation = -rotation
+        elif coordinate_system == "cartesian":
+            self.rotation = rotation  # in degrees, CW
 
     @property
     def area(self) -> float:
@@ -592,70 +606,74 @@ class Rectangle:
     @property
     def br_corner(self) -> Point:
         """The location of the bottom right corner."""
-        return Point(
+        un_rotated_point = Point(
             self.center.x + self.width / 2,
             self.center.y - self.height / 2,
             as_int=self._as_int,
         )
+        return rotate_points(
+            points=[un_rotated_point], angle=self.rotation, pivot=self.center
+        )[0]
 
     @property
     def bl_corner(self) -> Point:
         """The location of the bottom left corner."""
-        return Point(
+        un_rotated_point = Point(
             self.center.x - self.width / 2,
             self.center.y - self.height / 2,
             as_int=self._as_int,
         )
+        return rotate_points(
+            points=[un_rotated_point], angle=self.rotation, pivot=self.center
+        )[0]
 
     @property
     def tl_corner(self) -> Point:
         """The location of the top left corner."""
-        return Point(
+        un_rotated_point = Point(
             self.center.x - self.width / 2,
             self.center.y + self.height / 2,
             as_int=self._as_int,
         )
+        return rotate_points(
+            points=[un_rotated_point], angle=self.rotation, pivot=self.center
+        )[0]
 
     @property
     def tr_corner(self) -> Point:
         """The location of the top right corner."""
-        return Point(
+        un_rotated_point = Point(
             self.center.x + self.width / 2,
             self.center.y + self.height / 2,
             as_int=self._as_int,
         )
+        return rotate_points(
+            points=[un_rotated_point], angle=self.rotation, pivot=self.center
+        )[0]
 
     def plotly(
         self,
         fig: go.Figure,
         fill: bool = False,
-        angle: float = 0.0,
-        direction: Literal["cw", "ccw"] = "cw",
         **kwargs,
     ) -> None:
         """Draw the rectangle on a plotly figure."""
         # we use scatter so we can have hovertext/info, etc. Easier
         # with add_shape but we don't have the same options. Makes interface more consistent.
-        bl_corner, tl_corner, tr_corner, br_corner = rotate_points(
-            [self.bl_corner, self.tl_corner, self.tr_corner, self.br_corner],
-            angle,
-            self.center,
-            direction=direction,
-        )
         fig.add_scatter(
             x=[
-                bl_corner.x,
-                tl_corner.x,
-                tr_corner.x,
-                br_corner.x,
-                bl_corner.x,
+                self.bl_corner.x,
+                self.tl_corner.x,
+                self.tr_corner.x,
+                self.br_corner.x,
+                self.bl_corner.x,
             ],
             y=[
-                bl_corner.y,
-                tl_corner.y,
-                tr_corner.y,
-                br_corner.y,
-                bl_corner.y,
+                self.bl_corner.y,
+                self.tl_corner.y,
+                self.tr_corner.y,
+                self.br_corner.y,
+                self.bl_corner.y,
             ],
             mode="lines",
             fill="toself" if fill else "none",
@@ -666,7 +684,6 @@ class Rectangle:
         self,
         axes: plt.Axes,
         edgecolor: str = "black",
-        angle: float = 0.0,
         fill: bool = False,
         alpha: float = 1,
         facecolor: str = "g",
@@ -686,8 +703,6 @@ class Rectangle:
             An MPL axes to plot to.
         edgecolor : str
             The color of the circle.
-        angle : float
-            Angle of the rectangle.
         fill : bool
             Whether to fill the rectangle with color or leave hollow.
         text: str
@@ -708,7 +723,7 @@ class Rectangle:
                 width=self.width,
                 height=self.height,
                 rotation_point="center",
-                angle=angle,
+                angle=self.rotation,
                 edgecolor=edgecolor,
                 alpha=alpha,
                 facecolor=facecolor,

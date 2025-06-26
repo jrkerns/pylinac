@@ -36,8 +36,7 @@ class TestRectangleROI(TestCase):
             height=50,
             center=Point(250, 250),
         )
-        self.assertEqual(rect.pixel_array.shape[0], 50)  # rows
-        self.assertEqual(rect.pixel_array.shape[1], 20)  # cols
+        self.assertEqual(rect.pixel_array.size, 1071)
         self.assertEqual(rect.center.x, 250)
         self.assertEqual(rect.center.y, 250)
 
@@ -66,11 +65,58 @@ class TestRectangleROI(TestCase):
             dist_from_center=10,
             phantom_center=Point(250, 250),
         )
-        self.assertEqual(rect.pixel_array.shape[0], 50)  # rows
-        self.assertEqual(rect.pixel_array.shape[1], 20)  # cols
+        self.assertEqual(rect.pixel_array.size, 1071)
         # center is shifted by 10 in x (angle=0)
         self.assertEqual(rect.center.x, 260)
         self.assertEqual(rect.center.y, 250)
+
+    def test_rotation(self):
+        # we add a spike near a corner. After we rotate, the spike should
+        # no longer be in view of the rotated rectangle.
+        array_with_spike = np.ones((100, 100))
+        array_with_spike[33, 33] = 1000
+        rect_rotated = RectangleROI(
+            array_with_spike,
+            width=40,
+            height=40,
+            center=Point(50, 50),
+            rotation=45,
+        )
+        self.assertEqual(rect_rotated.max, 1)  # spike not in view
+        # but an un-rotated rectangle should see the spike
+        rect_unrotated = RectangleROI(
+            array_with_spike,
+            width=40,
+            height=40,
+            center=Point(50, 50),
+        )
+        self.assertEqual(rect_unrotated.max, 1000)  # spike in view
+
+    def test_reshape(self):
+        """If there is no rotation, we can reshape the pixel array back into a 2D array."""
+        # see note in RectangleROI.pixel_array docstring; even widths/heights are rounded up.
+        array = np.ones((100, 100))
+        rect = RectangleROI(
+            array,
+            width=40,
+            height=20,
+            center=Point(50, 50),
+        )
+        flattened_array = rect.pixel_array
+        self.assertEqual(flattened_array.shape, (861,))  # 41*21
+        # not erroring means reshape is valid
+        np.reshape(flattened_array, (41, 21))
+
+        # reshape an odd-sized rectangle; note the size will still be 41x41
+        odd_rect = RectangleROI(
+            array,
+            width=41,
+            height=21,
+            center=Point(50, 50),
+        )
+        odd_flattened_array = odd_rect.pixel_array
+        self.assertEqual(odd_flattened_array.shape, (861,))  # 41*21
+        np.reshape(odd_flattened_array, (41, 21))
 
 
 class TestRectangleStats(TestCase):
