@@ -498,7 +498,6 @@ class RectangleROI(Rectangle):
         dist_from_center: float,
         phantom_center: Point,
         rotation: float = 0.0,
-        coordinate_system: typing.Literal["cartesian", "dicom"] = "dicom",
     ):
         """
         Parameters
@@ -522,10 +521,6 @@ class RectangleROI(Rectangle):
 
                 This is separate from the angle parameter, which is the angle of the ROI from the phantom center.
 
-        coordinate_system : {'cartesian', 'dicom'}
-            The coordinate system of the rectangle. ``cartesian`` means the y-axis is up, and ``dicom`` means the y-axis is down.
-            For both coordinate systems, the x-axis is to the right.
-
         Notes
         -----
         Parameter names are different from the regular class constructor
@@ -540,7 +535,6 @@ class RectangleROI(Rectangle):
             height=height,
             center=center,
             rotation=rotation,
-            coordinate_system=coordinate_system,
         )
 
     def __init__(
@@ -550,7 +544,6 @@ class RectangleROI(Rectangle):
         height: float,
         center: Point,
         rotation: float = 0.0,
-        coordinate_system: typing.Literal["cartesian", "dicom"] = "dicom",
     ):
         """
         Parameters
@@ -570,9 +563,6 @@ class RectangleROI(Rectangle):
 
                 This is separate from the angle parameter, which is the angle of the ROI from the phantom center.
 
-        coordinate_system : {'cartesian', 'dicom'}
-            The coordinate system of the rectangle. ``cartesian`` means the y-axis is up, and ``dicom`` means the y-axis is down.
-            For both coordinate systems, the x-axis is to the right.
         """
         # the ROI must be 'real', i.e. >= 2x2 matrix
         if width < 2:
@@ -585,7 +575,6 @@ class RectangleROI(Rectangle):
             center,
             as_int=True,
             rotation=rotation,
-            coordinate_system=coordinate_system,
         )
         self._array = array
 

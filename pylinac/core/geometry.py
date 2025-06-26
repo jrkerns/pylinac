@@ -547,7 +547,12 @@ LineSerialized = Annotated[Line, PlainSerializer(to_json)]
 
 
 class Rectangle:
-    """A rectangle with width, height, center Point, top-left corner Point, and bottom-left corner Point."""
+    """A rectangle with width, height, center Point, top-left corner Point, and bottom-left corner Point.
+
+    This always assumes a DICOM coordinate system where +x is to the right and +y is down.
+    Thus, the "top-left" corner are colloquial terms and is the point with the lowest x and y coordinate values.
+    From the users' perspective, it is the upper-most and left-most corner.
+    """
 
     width: int | float
     height: int | float
@@ -561,7 +566,6 @@ class Rectangle:
         center: Point | tuple,
         as_int: bool = False,
         rotation: float = 0.0,
-        coordinate_system: Literal["cartesian", "dicom"] = "dicom",
     ):
         """
         Parameters
@@ -576,9 +580,6 @@ class Rectangle:
             If False (default), inputs are left as-is. If True, all inputs are converted to integers.
         rotation : float
             The rotation of the rectangle in degrees clockwise. Default is 0 (no rotation).
-        coordinate_system : {'cartesian', 'dicom'}
-            The coordinate system of the rectangle. ``cartesian`` means the y-axis is up, and ``dicom`` means the y-axis is down.
-            For both coordinate systems, the x-axis is to the right.
         """
         argue.verify_bounds(width, argue.POSITIVE)
         argue.verify_bounds(height, argue.POSITIVE)
@@ -591,14 +592,7 @@ class Rectangle:
             self.height = height
         self._as_int = as_int
         self.center = Point(center, as_int=as_int)
-        if coordinate_system == "dicom":
-            # DICOM coordinate system has the y-axis down.
-            # This effectively flips the rotation to be CCW instead of CW.
-            # By negating the rotation, we can keep the same rotation direction.
-            self.rotation = -rotation
-        elif coordinate_system == "cartesian":
-            self.rotation = rotation  # in degrees, CW
-        self.coordinate_system = coordinate_system
+        self.rotation = -rotation  # in degrees, CW
 
     @property
     def area(self) -> float:
@@ -608,13 +602,9 @@ class Rectangle:
     @property
     def br_corner(self) -> Point:
         """The location of the bottom right corner."""
-        if self.coordinate_system == "dicom":
-            y = self.center.y + self.height / 2
-        else:
-            y = self.center.y - self.height / 2
         un_rotated_point = Point(
             self.center.x + self.width / 2,
-            y,
+            self.center.y + self.height / 2,
             as_int=self._as_int,
         )
         rotated_point = rotate_points(
@@ -628,13 +618,9 @@ class Rectangle:
     @property
     def bl_corner(self) -> Point:
         """The location of the bottom left corner."""
-        if self.coordinate_system == "dicom":
-            y = self.center.y + self.height / 2
-        else:
-            y = self.center.y - self.height / 2
         un_rotated_point = Point(
             self.center.x - self.width / 2,
-            y,
+            self.center.y + self.height / 2,
             as_int=self._as_int,
         )
         rotated_point = rotate_points(
@@ -648,13 +634,9 @@ class Rectangle:
     @property
     def tl_corner(self) -> Point:
         """The location of the top left corner."""
-        if self.coordinate_system == "dicom":
-            y = self.center.y - self.height / 2
-        else:
-            y = self.center.y + self.height / 2
         un_rotated_point = Point(
             self.center.x - self.width / 2,
-            y,
+            self.center.y - self.height / 2,
             as_int=self._as_int,
         )
         rotated_point = rotate_points(
@@ -668,13 +650,9 @@ class Rectangle:
     @property
     def tr_corner(self) -> Point:
         """The location of the top right corner."""
-        if self.coordinate_system == "dicom":
-            y = self.center.y - self.height / 2
-        else:
-            y = self.center.y + self.height / 2
         un_rotated_point = Point(
             self.center.x + self.width / 2,
-            y,
+            self.center.y - self.height / 2,
             as_int=self._as_int,
         )
         rotated_point = rotate_points(
@@ -758,11 +736,7 @@ class Rectangle:
         # Furthermore, if an axis is inverted, the origin point for MPL
         # may not be the bottom-left corner. See https://matplotlib.org/stable/api/_as_gen/matplotlib.patches.Rectangle.html
         # So for DICOM, where +y is down, the "xy" point is actually the top-left corner.
-        # For cartesian, the "xy" point is the bottom-left corner and matches the MPL docstring.
-        if self.coordinate_system == "dicom":
-            point = self.tl_corner
-        else:
-            point = self.bl_corner
+        point = self.tl_corner
         unrotated_xy = rotate_points(
             points=[point], angle=-self.rotation, pivot=self.center
         )[0]

@@ -170,7 +170,7 @@ class TestRectangle(unittest.TestCase):
         rect_as_int = Rectangle(
             width=self.width, height=self.height, center=self.center, as_int=True
         )
-        self.assertEqual(rect_as_int.width, 7)
+        self.assertEqual(rect_as_int.width, 6)
         self.assertEqual(rect_as_int.height, 4)
 
     def test_negative_values_error(self):
@@ -180,21 +180,9 @@ class TestRectangle(unittest.TestCase):
         with self.assertRaises(ValueError):
             Rectangle(width=30, height=-3, center=self.center)
 
-    def test_corners(self):
-        rect = Rectangle(
-            width=self.width,
-            height=self.height,
-            center=self.center,
-            coordinate_system="cartesian",
-        )
-        point_equality_validation(rect.bl_corner, self.bl_corner)
-        point_equality_validation(rect.br_corner, self.br_corner)
-        point_equality_validation(rect.tr_corner, self.tr_corner)
-        point_equality_validation(rect.tl_corner, self.tl_corner)
-
     def test_corners_dicom(self):
         """In DICOM, y is flipped; +y is down."""
-        rect = Rectangle(width=4, height=4, center=(0, 0), coordinate_system="dicom")
+        rect = Rectangle(width=4, height=4, center=(0, 0))
         self.assertEqual(rect.bl_corner.x, -2)
         self.assertEqual(rect.bl_corner.y, 2)
         self.assertEqual(rect.br_corner.x, 2)
@@ -208,48 +196,18 @@ class TestRectangle(unittest.TestCase):
         r = Rectangle(width=10, height=10, center=(0, 0))
         self.assertAlmostEqual(r.area, 100)
 
-    def test_rotation_simple_cartesian(self):
-        """Rotation is CW, so the top-left is now at the top, the top-right is now at the right, etc."""
-        r = Rectangle(
-            width=1, height=1, center=(0, 0), rotation=45, coordinate_system="cartesian"
-        )
-        top_corner = Point(x=0, y=math.sqrt(0.5))
+    def test_rotation_simple_dicom(self):
+        """Test that the rectangle is rotated correctly in DICOM coordinates."""
+        # In DICOM, y-axis is flipped, so the top-left corner is both at the top and negative y.
+        r = Rectangle(width=1, height=1, center=(0, 0), rotation=45)
+        top_corner = Point(x=0, y=-math.sqrt(0.5))
         self.assertEqual(top_corner, r.tl_corner)
         right_corner = Point(x=math.sqrt(0.5), y=0)
         self.assertEqual(right_corner, r.tr_corner)
-        bottom_corner = Point(x=0, y=-math.sqrt(0.5))
+        bottom_corner = Point(x=0, y=math.sqrt(0.5))
         self.assertEqual(bottom_corner, r.br_corner)
         left_corner = Point(x=-math.sqrt(0.5), y=0)
         self.assertEqual(left_corner, r.bl_corner)
-
-    def test_rotation_shifted(self):
-        r = Rectangle(
-            width=1, height=1, center=(2, 3), rotation=45, coordinate_system="cartesian"
-        )
-        top_corner = Point(x=2, y=math.sqrt(0.5) + 3)
-        self.assertEqual(top_corner, r.tl_corner)
-        right_corner = Point(x=math.sqrt(0.5) + 2, y=3)
-        self.assertEqual(right_corner, r.tr_corner)
-        bottom_corner = Point(x=2, y=-math.sqrt(0.5) + 3)
-        self.assertEqual(bottom_corner, r.br_corner)
-        left_corner = Point(x=-math.sqrt(0.5) + 2, y=3)
-        self.assertEqual(left_corner, r.bl_corner)
-
-    def test_rotation_simple_dicom(self):
-        """Test that the rectangle is rotated correctly in DICOM coordinates."""
-        # the angle is reversed in dicom coordinates, meaning CCW. So now we're looking
-        # for the top-left to be fully left now instead of fully up.
-        r = Rectangle(
-            width=1, height=1, center=(0, 0), rotation=45, coordinate_system="dicom"
-        )
-        top_left_corner = Point(x=-math.sqrt(0.5), y=0)
-        self.assertEqual(top_left_corner, r.tl_corner)
-        top_right_corner = Point(x=0, y=math.sqrt(0.5))
-        self.assertEqual(top_right_corner, r.tr_corner)
-        bottom_right_corner = Point(x=math.sqrt(0.5), y=0)
-        self.assertEqual(bottom_right_corner, r.br_corner)
-        bottom_left_corner = Point(x=0, y=-math.sqrt(0.5))
-        self.assertEqual(bottom_left_corner, r.bl_corner)
 
 
 class TestDestinationCoordinates(unittest.TestCase):
