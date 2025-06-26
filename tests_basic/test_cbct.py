@@ -2062,7 +2062,7 @@ class CatPhan700Series1(CatPhan700Mixin, TestCase):
     # 92 is the slice after sorting in longitudinal direction.
     origin_slice = 102 - 10
 
-    hu_values = {
+    hu_values = {  # measured using imageJ
         "Air": -990,
         "PMP": -215,
         "Lung #7112": -820,
@@ -2074,6 +2074,7 @@ class CatPhan700Series1(CatPhan700Mixin, TestCase):
         "Bone 50%": 940,
         "Acrylic": 93,
     }
+    slice_thickness = 2.1  # measured using imageJ: plot profile take FWHM * 0.42
 
 
 class CatPhan700Series2(CatPhan700Mixin, TestCase):
@@ -2083,7 +2084,7 @@ class CatPhan700Series2(CatPhan700Mixin, TestCase):
     # 36 is the slice after sorting in longitudinal direction.
     origin_slice = 41 - 5
 
-    hu_values = {
+    hu_values = {  # measured using imageJ
         "Air": -990,
         "PMP": -189,
         "Lung #7112": -820,
@@ -2095,3 +2096,4 @@ class CatPhan700Series2(CatPhan700Mixin, TestCase):
         "Bone 50%": 730,
         "Acrylic": 111,
     }
+    slice_thickness = 4.64  # measured using imageJ: plot profile take FWHM * 0.42
