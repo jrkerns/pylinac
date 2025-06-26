@@ -602,7 +602,7 @@ class RectangleROI(Rectangle):
     #     return cls(regionprop.intensity_image, width=width, height=height,
     #                angle=angle, dist_from_center=distance, phantom_center=phan_center)
 
-    @property
+    @cached_property
     def pixel_array(self) -> np.ndarray:
         """A flattened array of the pixel values within the ROI.
 
