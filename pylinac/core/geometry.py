@@ -591,7 +591,10 @@ class Rectangle:
             self.height = height
         self._as_int = as_int
         self.center = Point(center, as_int=as_int)
-        self.rotation = -rotation  # in degrees, CW
+        # We assume DICOM coordinates where +x is right and +y is down.
+        # When we actually rotate, we use ``rotate_points`` which assumes +x is right and +y is up.
+        # Thus, we reverse the rotation.
+        self.rotation = -rotation
 
     @property
     def area(self) -> float:
@@ -609,10 +612,7 @@ class Rectangle:
         rotated_point = rotate_points(
             points=[un_rotated_point], angle=self.rotation, pivot=self.center
         )[0]
-        if self._as_int:
-            # if as_int, round to nearest even number
-            return Point(rotated_point.x, rotated_point.y, as_int=True)
-        return rotated_point
+        return Point(rotated_point.x, rotated_point.y, as_int=self._as_int)
 
     @property
     def bl_corner(self) -> Point:
@@ -625,10 +625,7 @@ class Rectangle:
         rotated_point = rotate_points(
             points=[un_rotated_point], angle=self.rotation, pivot=self.center
         )[0]
-        if self._as_int:
-            # if as_int, round to nearest even number
-            return Point(rotated_point.x, rotated_point.y, as_int=True)
-        return rotated_point
+        return Point(rotated_point.x, rotated_point.y, as_int=self._as_int)
 
     @property
     def tl_corner(self) -> Point:
@@ -641,10 +638,7 @@ class Rectangle:
         rotated_point = rotate_points(
             points=[un_rotated_point], angle=self.rotation, pivot=self.center
         )[0]
-        if self._as_int:
-            # if as_int, round to nearest even number
-            return Point(rotated_point.x, rotated_point.y, as_int=True)
-        return rotated_point
+        return Point(rotated_point.x, rotated_point.y, as_int=self._as_int)
 
     @property
     def tr_corner(self) -> Point:
@@ -657,10 +651,7 @@ class Rectangle:
         rotated_point = rotate_points(
             points=[un_rotated_point], angle=self.rotation, pivot=self.center
         )[0]
-        if self._as_int:
-            # if as_int, round to nearest even number
-            return Point(rotated_point.x, rotated_point.y, as_int=True)
-        return rotated_point
+        return Point(rotated_point.x, rotated_point.y, as_int=self._as_int)
 
     def plotly(
         self,
@@ -774,6 +765,12 @@ def rotate_points(
 ) -> list[Point]:
     """Rotate a list of points around a pivot point.
 
+    .. warning::
+
+        This assumes a standard coordinate system where +x is right and +y is up.
+        In DICOM, +y is down. If implementing in a DICOM context,
+        you will need to flip the angle sign or the direction to match.
+
     Parameters
     ----------
     points : list of Point
@@ -801,35 +798,3 @@ def rotate_points(
     )
 
     return [Point(x, y) for x, y in rotated_points]
-
-
-def round_to_nearest_odd(x: float) -> int:
-    """
-    Round a float to the nearest odd integer.
-
-    Parameters
-    ----------
-    x : float
-        Input value to round.
-
-    Returns
-    -------
-    int
-        The odd integer closest to `x`. If `x` is exactly between two odd integers,
-        the larger odd integer is returned.
-    """
-    # Largest odd integer <= x
-    lower = math.floor(x)
-    if lower % 2 == 0:
-        lower -= 1
-
-    # Smallest odd integer >= x
-    upper = math.ceil(x)
-    if upper % 2 == 0:
-        upper += 1
-
-    # Choose the closer one; ties go to the larger odd integer (upper)
-    if (x - lower) < (upper - x):
-        return lower
-    else:
-        return upper

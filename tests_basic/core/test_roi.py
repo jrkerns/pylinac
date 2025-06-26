@@ -36,7 +36,8 @@ class TestRectangleROI(TestCase):
             height=50,
             center=Point(250, 250),
         )
-        self.assertEqual(rect.pixel_array.size, 1000)
+        self.assertEqual(rect.pixel_array.shape[0], 50)  # rows
+        self.assertEqual(rect.pixel_array.shape[1], 20)  # cols
         self.assertEqual(rect.center.x, 250)
         self.assertEqual(rect.center.y, 250)
 
@@ -65,7 +66,8 @@ class TestRectangleROI(TestCase):
             dist_from_center=10,
             phantom_center=Point(250, 250),
         )
-        self.assertEqual(rect.pixel_array.size, 1000)
+        self.assertEqual(rect.pixel_array.shape[0], 50)  # rows
+        self.assertEqual(rect.pixel_array.shape[1], 20)  # cols
         # center is shifted by 10 in x (angle=0)
         self.assertEqual(rect.center.x, 260)
         self.assertEqual(rect.center.y, 250)

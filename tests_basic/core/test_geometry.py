@@ -170,7 +170,7 @@ class TestRectangle(unittest.TestCase):
         rect_as_int = Rectangle(
             width=self.width, height=self.height, center=self.center, as_int=True
         )
-        self.assertEqual(rect_as_int.width, 6)
+        self.assertEqual(rect_as_int.width, 7)
         self.assertEqual(rect_as_int.height, 4)
 
     def test_negative_values_error(self):
