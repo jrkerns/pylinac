@@ -617,9 +617,13 @@ class Rectangle:
             y,
             as_int=self._as_int,
         )
-        return rotate_points(
+        rotated_point = rotate_points(
             points=[un_rotated_point], angle=self.rotation, pivot=self.center
         )[0]
+        if self._as_int:
+            # if as_int, round to nearest even number
+            return Point(rotated_point.x, rotated_point.y, as_int=True)
+        return rotated_point
 
     @property
     def bl_corner(self) -> Point:
@@ -633,9 +637,13 @@ class Rectangle:
             y,
             as_int=self._as_int,
         )
-        return rotate_points(
+        rotated_point = rotate_points(
             points=[un_rotated_point], angle=self.rotation, pivot=self.center
         )[0]
+        if self._as_int:
+            # if as_int, round to nearest even number
+            return Point(rotated_point.x, rotated_point.y, as_int=True)
+        return rotated_point
 
     @property
     def tl_corner(self) -> Point:
@@ -649,9 +657,13 @@ class Rectangle:
             y,
             as_int=self._as_int,
         )
-        return rotate_points(
+        rotated_point = rotate_points(
             points=[un_rotated_point], angle=self.rotation, pivot=self.center
         )[0]
+        if self._as_int:
+            # if as_int, round to nearest even number
+            return Point(rotated_point.x, rotated_point.y, as_int=True)
+        return rotated_point
 
     @property
     def tr_corner(self) -> Point:
@@ -665,9 +677,13 @@ class Rectangle:
             y,
             as_int=self._as_int,
         )
-        return rotate_points(
+        rotated_point = rotate_points(
             points=[un_rotated_point], angle=self.rotation, pivot=self.center
         )[0]
+        if self._as_int:
+            # if as_int, round to nearest even number
+            return Point(rotated_point.x, rotated_point.y, as_int=True)
+        return rotated_point
 
     def plotly(
         self,
