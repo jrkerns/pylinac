@@ -72,6 +72,36 @@ class TestRectangleROI(TestCase):
         self.assertEqual(rect.center.x, 260)
         self.assertEqual(rect.center.y, 250)
 
+    def test_2d_array_not_available_for_rotated_rectangle(self):
+        """If the rectangle is rotated, the pixel_array is not a 2D array."""
+        array = np.ones((100, 100))
+        rect = RectangleROI(
+            array,
+            width=40,
+            height=40,
+            center=Point(50, 50),
+            rotation=45,
+        )
+        with self.assertRaises(ValueError):
+            rect.pixel_array
+        # but the flat array is
+        rect.pixels_flat
+
+    def test_stats_are_available_for_rotated_rectangle(self):
+        """Even if the pixel_array is not a 2D array, the stats should still be available."""
+        array = np.ones((100, 100))
+        rect = RectangleROI(
+            array,
+            width=40,
+            height=40,
+            center=Point(50, 50),
+            rotation=45,
+        )
+        self.assertEqual(rect.mean, 1)
+        self.assertEqual(rect.max, 1)
+        self.assertEqual(rect.min, 1)
+        self.assertEqual(rect.std, 0)
+
     def test_rotation(self):
         # we add a spike near a corner. After we rotate, the spike should
         # no longer be in view of the rotated rectangle.
