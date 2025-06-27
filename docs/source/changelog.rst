@@ -29,13 +29,13 @@ Winston-Lutz
 Core
 ^^^^
 
-* :bdg-success:`Feature` The :class:`~pylinac.core.geometry.Rectangle` constructor now have ``rotation`` and ``coordinate_system`` parameters which will allow
-  for arbitrary rotation of the rectangle.
+* :bdg-success:`Feature` The :class:`~pylinac.core.geometry.Rectangle` constructor now has a ``rotation`` parameter
+  which will allow for arbitrary rotation of the rectangle.
 * :bdg-danger:`Change` Due to above, the ``plot2axes`` method no longer accepts the ``angle`` parameter and the ``rotation``
   value passed to the constructor is used instead.
-* :bdg-success:`Feature` The :class:`~pylinac.core.roi.RectangleROI` constructor now have ``rotation`` and ``coordinate_system`` parameters which will allow
+* :bdg-success:`Feature` The :class:`~pylinac.core.roi.RectangleROI` constructor now has ``rotation`` parameter which will allow
   for arbitrary rotation of the ROI. This is useful for non-cardinal ROIs. The class method ``from_phantom_center``
-  also accepts these new parameters.
+  also accepts this new parameter.
 * :bdg-danger:`Change` Due to above, the ``.pixel_array`` property of the class will raise an error if the rotation is nonzero
   since it cannot be neatly reshaped to a 2D pixel array. When rotation is zero, this property acts as it always has.
 * :bdg-success:`Feature` A new property ``.pixels_flat`` is now available for the RectangleROI. This is a flattened array of the pixels

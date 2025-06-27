@@ -194,6 +194,15 @@ class TestRectangle(unittest.TestCase):
         self.assertAlmostEqual(rect.tr_corner.x, 2)
         self.assertAlmostEqual(rect.tr_corner.y, -2)
 
+    def test_vertices(self):
+        """Test that the rectangle vertices are correctly calculated."""
+        # assuming the corners are correct, which we can prove with the above test.
+        rect = Rectangle(width=6, height=4, center=(0, 0))
+        self.assertEqual(rect.vertices[0], rect.tl_corner)
+        self.assertEqual(rect.vertices[1], rect.tr_corner)
+        self.assertEqual(rect.vertices[2], rect.br_corner)
+        self.assertEqual(rect.vertices[3], rect.bl_corner)
+
     def test_area(self):
         r = Rectangle(width=10, height=10, center=(0, 0))
         self.assertAlmostEqual(r.area, 100)

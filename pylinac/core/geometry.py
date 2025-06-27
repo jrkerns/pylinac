@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
 from matplotlib.patches import Circle as mpl_Circle
-from matplotlib.patches import Rectangle as mpl_Rectangle
+from matplotlib.patches import Polygon as mpl_Polygon
 from mpl_toolkits.mplot3d.art3d import Line3D
 from pydantic import PlainSerializer
 
@@ -547,9 +547,9 @@ LineSerialized = Annotated[Line, PlainSerializer(to_json)]
 
 
 class Rectangle:
-    """A rectangle with width, height, center Point, top-left corner Point, and bottom-left corner Point.
+    """A rectangle with 4 vertices.
 
-    This always assumes a DICOM coordinate system where +x is to the right and +y is down.
+    This always assumes an image/screen coordinate system where +x is to the right and +y is down.
     Thus, the "top-left" corner are colloquial terms and is the point with the lowest x and y coordinate values.
     From the users' perspective, it is the upper-most and left-most corner.
     """
@@ -579,7 +579,7 @@ class Rectangle:
         as_int : bool
             If False (default), inputs are left as-is. If True, all inputs are converted to integers.
         rotation : float
-            The rotation of the rectangle in degrees clockwise, following the "x goes to y" rule and assuming DICOM coordinate system.
+            The rotation of the rectangle in degrees, using the "x goes to y" rule and assuming image coordinate system, a positive rotation is clockwise.
             Default is 0 (no rotation).
         """
         argue.verify_bounds(width, argue.POSITIVE)
@@ -598,6 +598,16 @@ class Rectangle:
     def area(self) -> float:
         """The area of the rectangle."""
         return self.width * self.height
+
+    @property
+    def vertices(self) -> list[Point]:
+        """The four corners of the rectangle."""
+        return [
+            self.tl_corner,
+            self.tr_corner,
+            self.br_corner,
+            self.bl_corner,
+        ]
 
     @property
     def br_corner(self) -> Point:
@@ -660,21 +670,11 @@ class Rectangle:
         """Draw the rectangle on a plotly figure."""
         # we use scatter so we can have hovertext/info, etc. Easier
         # with add_shape but we don't have the same options. Makes interface more consistent.
+        xs = [v.x for v in self.vertices]
+        ys = [v.y for v in self.vertices]
         fig.add_scatter(
-            x=[
-                self.bl_corner.x,
-                self.tl_corner.x,
-                self.tr_corner.x,
-                self.br_corner.x,
-                self.bl_corner.x,
-            ],
-            y=[
-                self.bl_corner.y,
-                self.tl_corner.y,
-                self.tr_corner.y,
-                self.br_corner.y,
-                self.bl_corner.y,
-            ],
+            x=xs,
+            y=ys,
             mode="lines",
             fill="toself" if fill else "none",
             **kwargs,
@@ -717,24 +717,11 @@ class Rectangle:
         va: str
             Vertical alignment of the text. See https://matplotlib.org/stable/api/text_api.html#matplotlib.text.Text
         """
-        # We have already corrected for rotation.
-        # However, MPL expects the bottom-left corner of the rectangle
-        # BEFORE rotation. So, we have to "unrotate" to get the original
-        # bottom-left corner.
-        # Furthermore, if an axis is inverted, the origin point for MPL
-        # may not be the bottom-left corner. See https://matplotlib.org/stable/api/_as_gen/matplotlib.patches.Rectangle.html
-        # So for DICOM, where +y is down, the "xy" point is actually the top-left corner.
-        point = self.tl_corner
-        unrotated_xy = rotate_points(
-            points=[point], angle=-self.rotation, pivot=self.center
-        )[0]
+        vertices = np.array([p.as_array(("x", "y")) for p in self.vertices])
         axes.add_patch(
-            mpl_Rectangle(
-                (unrotated_xy.x, unrotated_xy.y),
-                width=self.width,
-                height=self.height,
-                rotation_point="center",
-                angle=self.rotation,
+            mpl_Polygon(
+                xy=vertices,
+                closed=True,
                 edgecolor=edgecolor,
                 alpha=alpha,
                 facecolor=facecolor,
