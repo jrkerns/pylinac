@@ -1181,7 +1181,7 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
             ax.boxplot(
                 x=error_dists,
                 positions=np.array(pos),
-                vert=False,
+                vert=False,  # in MPL 3.10 this changes to orientation='horizontal'
                 manage_ticks=False,
                 **barplot_kwargs,
             )

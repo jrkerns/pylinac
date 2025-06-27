@@ -4,29 +4,99 @@ from pathlib import Path
 import nox
 
 
-@nox.session(python="3.9", reuse_venv=True)
-def run_min_version_test(session):
-    # explicit venv to avoid overwriting local venv if exists
-    py_str = "test-venv"
-    session.run(
-        "uv",
-        "sync",
-        env={"UV_PROJECT_ENVIRONMENT": py_str, "VIRTUAL_ENV": py_str},
-    )
-    session.run(
-        "uv",
-        "run",
-        "pytest",
-        "tests_basic/core",
-        env={"UV_PROJECT_ENVIRONMENT": py_str, "VIRTUAL_ENV": py_str},
-    )
-
-
-@nox.session(python="3.11", reuse_venv=True, venv_backend="uv|virtualenv")
-def run_tests(session):
-    """Run the tests. Doing it via nox will create an isolated venv."""
+@nox.session(
+    python="3.9",
+    reuse_venv=True,
+    venv_backend="uv",
+)
+def run_basic_test_suite_39(session):
     session.install(".[developer]")
-    session.run("pytest")
+    session.install("pip")
+    session.run("pip", "freeze")
+    session.run(
+        "pytest",
+        "-n5",
+        "tests_basic/core",
+        "--cov-report",
+        "term",
+        "--junitxml=./test-reports/pytest_results.xml",
+    )
+
+
+@nox.session(
+    python="3.10",
+    reuse_venv=True,
+    venv_backend="uv",
+)
+def run_basic_test_suite_310(session):
+    session.install(".[developer]")
+    session.install("pip")
+    session.run("pip", "freeze")
+    session.run(
+        "pytest",
+        "-n5",
+        "tests_basic/core",
+        "--cov-report",
+        "term",
+        "--junitxml=./test-reports/pytest_results.xml",
+    )
+
+
+@nox.session(
+    python="3.11",
+    reuse_venv=True,
+    venv_backend="uv",
+)
+def run_basic_test_suite_311(session):
+    session.install(".[developer]")
+    session.install("pip")
+    session.run("pip", "freeze")
+    session.run(
+        "pytest",
+        "-n5",
+        "tests_basic/core",
+        "--cov-report",
+        "term",
+        "--junitxml=./test-reports/pytest_results.xml",
+    )
+
+
+@nox.session(
+    python="3.12",
+    reuse_venv=True,
+    venv_backend="uv",
+)
+def run_basic_test_suite_312(session):
+    session.install(".[developer]")
+    session.install("pip")
+    session.run("pip", "freeze")
+    session.run(
+        "pytest",
+        "-n5",
+        "tests_basic/core",
+        "--cov-report",
+        "term",
+        "--junitxml=./test-reports/pytest_results.xml",
+    )
+
+
+@nox.session(
+    python="3.13",
+    reuse_venv=True,
+    venv_backend="uv",
+)
+def run_basic_test_suite_313(session):
+    session.install(".[developer]")
+    session.install("pip")
+    session.run("pip", "freeze")
+    session.run(
+        "pytest",
+        "-n5",
+        "tests_basic/core",
+        "--cov-report",
+        "term",
+        "--junitxml=./test-reports/pytest_results.xml",
+    )
 
 
 @nox.session(reuse_venv=True, venv_backend="uv|virtualenv")

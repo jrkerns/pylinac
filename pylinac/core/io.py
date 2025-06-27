@@ -96,7 +96,7 @@ class TemporaryZipDirectory(TemporaryDirectory):
             Whether to delete the temporary directory when the context manager exits.
         """
         # this is a hack. In Python 3.12, we can pass the delete argument to TemporaryDirectory directly
-        self.delete = delete
+        self._delete = delete
         if delete:
             super().__init__()
             name = self.name
@@ -109,7 +109,7 @@ class TemporaryZipDirectory(TemporaryDirectory):
         zfiles.extractall(path=name)
 
     def cleanup(self) -> None:
-        if self.delete:
+        if self._delete:
             super().cleanup()
         else:
             pass
