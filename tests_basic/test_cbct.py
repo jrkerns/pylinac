@@ -2082,6 +2082,7 @@ class CatPhan700Series1(CatPhan700Mixin, TestCase):
         "Top": -18,
         "Bottom": -19,
     }  # measured using imageJ
+    lowcon_visible = 3
 
 
 class CatPhan700Series2(CatPhan700Mixin, TestCase):
@@ -2111,3 +2112,4 @@ class CatPhan700Series2(CatPhan700Mixin, TestCase):
         "Top": 2.3,
         "Bottom": 2.2,
     }  # measured using imageJ
+    lowcon_visible = 6
