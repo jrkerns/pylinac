@@ -3108,6 +3108,7 @@ class CatPhan700(CatPhanBase):
     catphan_radius_mm = 101
     modules = {
         CTP404CP700: {"offset": 0},
+        CTP486: {"offset": -160},
     }
 
 

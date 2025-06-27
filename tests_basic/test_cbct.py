@@ -2075,6 +2075,7 @@ class CatPhan700Series1(CatPhan700Mixin, TestCase):
         "Acrylic": 93,
     }
     slice_thickness = 2.1  # measured using imageJ: plot profile take FWHM * 0.42
+    unif_values = {"Center": -17, "Left": -17, "Right": -17, "Top": -18, "Bottom": -19}
 
 
 class CatPhan700Series2(CatPhan700Mixin, TestCase):
@@ -2097,3 +2098,4 @@ class CatPhan700Series2(CatPhan700Mixin, TestCase):
         "Acrylic": 111,
     }
     slice_thickness = 4.64  # measured using imageJ: plot profile take FWHM * 0.42
+    unif_values = {"Center": 2.6, "Left": 1.9, "Right": 2.8, "Top": 2.3, "Bottom": 2.2}
