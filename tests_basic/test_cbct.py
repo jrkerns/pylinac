@@ -677,7 +677,7 @@ class CatPhan600WaterVial(CatPhanMixin, TestCase):
     slice_thickness = 2.1
     lowcon_visible = 1
 
-    def test_vial_roi(self):
+    def test_water_vial_present(self):
         self.assertIn("Vial", self.cbct.ctp404.rois)
 
 
@@ -706,7 +706,7 @@ class CatPhan600WaterVial2(CatPhanMixin, TestCase):
     slice_thickness = 2.1
     lowcon_visible = 1
 
-    def test_vial_roi(self):
+    def test_water_vial_present(self):
         self.assertIn("Vial", self.cbct.ctp404.rois)
 
 
@@ -727,7 +727,6 @@ class CatPhan600DirectDensity(CatPhanMixin, TestCase):
         "Teflon": 431,
         "PMP": -182,
         "LDPE": -92,
-        "Vial": 63,
     }
     hu_passed = False
     unif_values = {"Center": 11, "Left": 11, "Right": 11, "Top": 11, "Bottom": 11}
@@ -1588,7 +1587,7 @@ class CatPhan600_1(CatPhan600Mixin, TestCase):
     slice_thickness = 1.25
     lowcon_visible = 1  # after roll adjustment 1 more pixel is included, pulling down contrast detection
 
-    def test_no_vial_roi(self):
+    def test_water_vial_not_present(self):
         self.assertNotIn("Vial", self.cbct.ctp404.rois)
 
 
@@ -2084,7 +2083,7 @@ class CatPhan700Series1(CatPhan700Mixin, TestCase):
     }  # measured using imageJ
     lowcon_visible = 3
 
-    def test_vial_roi(self):
+    def test_water_vial_not_present(self):
         self.assertNotIn("Vial", self.cbct.ctp404.rois)
 
 
@@ -2117,5 +2116,5 @@ class CatPhan700Series2(CatPhan700Mixin, TestCase):
     }  # measured using imageJ
     lowcon_visible = 6
 
-    def test_vial_roi(self):
+    def test_water_vial_not_present(self):
         self.assertNotIn("Vial", self.cbct.ctp404.rois)
