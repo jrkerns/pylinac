@@ -1859,6 +1859,12 @@ class CTP515CP600(CTP515):
     }
 
 
+class CTP515CP700(CTP515CP600):
+    """Alias for namespace consistency."""
+
+    pass
+
+
 class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
     """A class for loading and analyzing CT DICOM files of a CatPhan 504 & CatPhan 503. Can be from a CBCT or CT scanner
     Analyzes: Uniformity (CTP486), High-Contrast Spatial Resolution (CTP528), Image Scaling & HU Linearity (CTP404).
@@ -3108,6 +3114,7 @@ class CatPhan700(CatPhanBase):
     catphan_radius_mm = 101
     modules = {
         CTP404CP700: {"offset": 0},
+        CTP515CP700: {"offset": -80},
         CTP486: {"offset": -160},
     }
 
