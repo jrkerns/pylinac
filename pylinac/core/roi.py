@@ -5,8 +5,9 @@ from functools import cached_property
 
 import matplotlib.pyplot as plt
 import numpy as np
+import plotly.graph_objects as go
 from skimage import draw
-from skimage.draw import polygon
+from skimage.draw import polygon, polygon2mask
 from skimage.measure._regionprops import _RegionProperties
 
 from .contrast import Contrast, contrast, michelson, ratio, rms, visibility, weber
@@ -590,6 +591,66 @@ class RectangleROI(Rectangle):
     #     distance = phan_center.distance_to(Point(regionprop.centroid[1], regionprop.centroid[0]))
     #     return cls(regionprop.intensity_image, width=width, height=height,
     #                angle=angle, dist_from_center=distance, phantom_center=phan_center)
+
+    def plotly_debug(self):
+        """Plot the ROI against the image array along with highlighting of the pixels within the ROI.
+
+        Useful for debugging and visualizing the ROI."""
+        # largely copied from Image.plotly()
+        fig = go.Figure()
+        fig.add_heatmap(
+            z=self._array.array,
+            colorscale="gray",
+            name="Image",
+            showlegend=True,
+            showscale=False,
+        )
+        fig.update_traces(showscale=True)
+        fig.add_heatmap(
+            z=self.masked_array,
+            colorscale="Viridis",
+            name="ROI pixels",
+            showlegend=True,
+            showscale=False,
+        )
+        fig.update_layout(
+            xaxis_showticklabels=False,
+            yaxis_showticklabels=False,
+            # this inverts the y axis so 0 is at the top
+            # note that this will cause later `range=(...)` calls to fail;
+            # appears to be bug in plotly.
+            yaxis_autorange="reversed",
+            yaxis_scaleanchor="x",
+            yaxis_constrain="domain",
+            xaxis_scaleanchor="y",
+            xaxis_constrain="domain",
+            legend={"x": 0},
+            showlegend=True,
+        )
+        self.plotly(fig=fig, name="ROI Outline", showlegend=True)
+        fig.show()
+
+    @cached_property
+    def masked_array(self) -> np.ndarray:
+        """A 2D array the same shape as the underlying image array,
+        with the pixels within the ROI set to their pixel values, and the rest set to NaN.
+
+        This can be useful for plotting. We can also calculate non-spatial statistics on this array,
+        but requires using special functions like `np.nanmean()` or `np.nanstd()`.
+
+        It's better to calculate statistics on the `pixels_flat` property, which is always available.
+        """
+        vertices_array = np.array(
+            # polygon2mask expects the vertices in (row, col) format
+            [v.as_array(("y", "x")) for v in self.vertices]
+        )
+        mask = polygon2mask(image_shape=self._array.shape, polygon=vertices_array)
+        mask = mask.astype(
+            self._array.dtype
+        )  # convert from boolean  to the same dtype as the image
+        mask[mask == 0] = np.nan  # set the mask to NaN where it is not part of the ROI
+        image_mask = mask * self._array
+        return image_mask
 
     @cached_property
     def pixels_flat(self) -> np.ndarray:

@@ -402,7 +402,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
     @property
     def passed(self) -> bool:
         """Boolean specifying whether the determined wobble was within tolerance."""
-        return self.wobble.radius_mm * 2 < self.tolerance
+        return bool(self.wobble.radius_mm * 2 < self.tolerance)
 
     @property
     def _passfail_str(self) -> str:

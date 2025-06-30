@@ -1164,6 +1164,12 @@ class CTP404CP700(CTP404CP504):
             "distance": roi_dist_mm,
             "radius": roi_radius_mm,
         },
+        "Vial": {
+            "value": WATER,
+            "angle": 180 - -135,
+            "distance": 28,
+            "radius": roi_radius_mm,
+        },
     }
 
     background_roi_settings = {
@@ -1210,6 +1216,12 @@ class CTP404CP700(CTP404CP504):
     }
     # geometry
     geometry_roi_settings = {}
+
+    def _setup_rois(self) -> None:
+        """For the 700, the water vial is an optional slot. If the HU is near water we leave it, otherwise we remove it so as not to flag false failures"""
+        super()._setup_rois()
+        if self.rois["Vial"].pixel_value < -500:  # closer to air than water
+            self.rois.pop("Vial")
 
 
 class CTP486(CatPhanModule):
@@ -1857,6 +1869,12 @@ class CTP515CP600(CTP515):
             "radius": roi_radius_mm[5],
         },
     }
+
+
+class CTP515CP700(CTP515CP600):
+    """Alias for namespace consistency."""
+
+    pass
 
 
 class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
@@ -3108,6 +3126,8 @@ class CatPhan700(CatPhanBase):
     catphan_radius_mm = 101
     modules = {
         CTP404CP700: {"offset": 0},
+        CTP515CP700: {"offset": -80},
+        CTP486: {"offset": -160},
     }
 
 

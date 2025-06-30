@@ -495,9 +495,9 @@ class CatPhanMixin(CloudFileMixin):
         """Test HU values."""
         if self.hu_values is None:
             self.skipTest("hu_values not available")
-        for key, roi in self.cbct.ctp404.rois.items():
-            exp_val = self.hu_values[key]
-            meas_val = roi.pixel_value
+        for key, value in self.hu_values.items():
+            exp_val = value
+            meas_val = self.cbct.ctp404.rois[key].pixel_value
             self.assertAlmostEqual(exp_val, meas_val, delta=5)
 
     def test_uniformity_values(self):
@@ -677,7 +677,7 @@ class CatPhan600WaterVial(CatPhanMixin, TestCase):
     slice_thickness = 2.1
     lowcon_visible = 1
 
-    def test_vial_roi(self):
+    def test_water_vial_present(self):
         self.assertIn("Vial", self.cbct.ctp404.rois)
 
 
@@ -706,7 +706,7 @@ class CatPhan600WaterVial2(CatPhanMixin, TestCase):
     slice_thickness = 2.1
     lowcon_visible = 1
 
-    def test_vial_roi(self):
+    def test_water_vial_present(self):
         self.assertIn("Vial", self.cbct.ctp404.rois)
 
 
@@ -727,7 +727,6 @@ class CatPhan600DirectDensity(CatPhanMixin, TestCase):
         "Teflon": 431,
         "PMP": -182,
         "LDPE": -92,
-        "Vial": 63,
     }
     hu_passed = False
     unif_values = {"Center": 11, "Left": 11, "Right": 11, "Top": 11, "Bottom": 11}
@@ -1588,7 +1587,7 @@ class CatPhan600_1(CatPhan600Mixin, TestCase):
     slice_thickness = 1.25
     lowcon_visible = 1  # after roll adjustment 1 more pixel is included, pulling down contrast detection
 
-    def test_no_vial_roi(self):
+    def test_water_vial_not_present(self):
         self.assertNotIn("Vial", self.cbct.ctp404.rois)
 
 
@@ -2062,7 +2061,7 @@ class CatPhan700Series1(CatPhan700Mixin, TestCase):
     # 92 is the slice after sorting in longitudinal direction.
     origin_slice = 102 - 10
 
-    hu_values = {
+    hu_values = {  # measured using imageJ
         "Air": -990,
         "PMP": -215,
         "Lung #7112": -820,
@@ -2074,3 +2073,48 @@ class CatPhan700Series1(CatPhan700Mixin, TestCase):
         "Bone 50%": 940,
         "Acrylic": 93,
     }
+    slice_thickness = 2.1  # measured using imageJ: plot profile take FWHM * 0.42
+    unif_values = {
+        "Center": -17,
+        "Left": -17,
+        "Right": -17,
+        "Top": -18,
+        "Bottom": -19,
+    }  # measured using imageJ
+    lowcon_visible = 3
+
+    def test_water_vial_not_present(self):
+        self.assertNotIn("Vial", self.cbct.ctp404.rois)
+
+
+class CatPhan700Series2(CatPhan700Mixin, TestCase):
+    file_name = "Series2.zip"
+    expected_roll = 0.3
+    # The scan is inverted longitudinally. 41 is the number of slices, 5 is the scanned slice,
+    # 36 is the slice after sorting in longitudinal direction.
+    origin_slice = 41 - 5
+
+    hu_values = {  # measured using imageJ
+        "Air": -990,
+        "PMP": -189,
+        "Lung #7112": -820,
+        "Delrin": 342,
+        "Poly": -47,
+        "Teflon": 937,
+        "Bone 20%": 183,
+        "LDPE": -103,
+        "Bone 50%": 730,
+        "Acrylic": 111,
+    }
+    slice_thickness = 4.64  # measured using imageJ: plot profile take FWHM * 0.42
+    unif_values = {
+        "Center": 2.6,
+        "Left": 1.9,
+        "Right": 2.8,
+        "Top": 2.3,
+        "Bottom": 2.2,
+    }  # measured using imageJ
+    lowcon_visible = 6
+
+    def test_water_vial_not_present(self):
+        self.assertNotIn("Vial", self.cbct.ctp404.rois)
