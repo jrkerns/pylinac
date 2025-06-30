@@ -139,6 +139,23 @@ class TestRectangleROI(TestCase):
         array_flat = rect.pixels_flat
         self.assertEqual(array_flat.size, 800)
 
+    def test_masked_array(self):
+        """Test that the masked array is correctly created."""
+        rng = np.random.default_rng(seed=123)
+        array = rng.random((100, 100))
+        rect = RectangleROI(
+            array,
+            width=40,
+            height=20,
+            center=Point(50, 50),
+        )
+        masked_array = rect.masked_array
+        self.assertEqual(masked_array.shape, (100, 100))
+        self.assertTrue(np.isnan(masked_array[0, 0]))  # outside the rectangle is NaN
+        self.assertEqual(
+            array[40, 40], masked_array[40, 40]
+        )  # inside the rectangle is the original value
+
 
 class TestRectangleStats(TestCase):
     @classmethod
