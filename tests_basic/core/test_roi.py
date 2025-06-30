@@ -72,6 +72,73 @@ class TestRectangleROI(TestCase):
         self.assertEqual(rect.center.x, 260)
         self.assertEqual(rect.center.y, 250)
 
+    def test_2d_array_not_available_for_rotated_rectangle(self):
+        """If the rectangle is rotated, the pixel_array is not a 2D array."""
+        array = np.ones((100, 100))
+        rect = RectangleROI(
+            array,
+            width=40,
+            height=40,
+            center=Point(50, 50),
+            rotation=45,
+        )
+        with self.assertRaises(ValueError):
+            rect.pixel_array
+        # but the flat array is
+        rect.pixels_flat
+
+    def test_stats_are_available_for_rotated_rectangle(self):
+        """Even if the pixel_array is not a 2D array, the stats should still be available."""
+        array = np.ones((100, 100))
+        rect = RectangleROI(
+            array,
+            width=40,
+            height=40,
+            center=Point(50, 50),
+            rotation=45,
+        )
+        self.assertEqual(rect.mean, 1)
+        self.assertEqual(rect.max, 1)
+        self.assertEqual(rect.min, 1)
+        self.assertEqual(rect.std, 0)
+
+    def test_rotation(self):
+        # we add a spike near a corner. After we rotate, the spike should
+        # no longer be in view of the rotated rectangle.
+        array_with_spike = np.ones((100, 100))
+        array_with_spike[33, 33] = 1000
+        rect_rotated = RectangleROI(
+            array_with_spike,
+            width=40,
+            height=40,
+            center=Point(50, 50),
+            rotation=45,
+        )
+        self.assertEqual(rect_rotated.max, 1)  # spike not in view
+        # but an un-rotated rectangle should see the spike
+        rect_unrotated = RectangleROI(
+            array_with_spike,
+            width=40,
+            height=40,
+            center=Point(50, 50),
+        )
+        self.assertEqual(rect_unrotated.max, 1000)  # spike in view
+
+    def test_flat_pixels(self):
+        """If there is no rotation, the statistics of the flat pixels should be the same as the pixel_array."""
+        # see note in RectangleROI.pixel_array docstring; even widths/heights are rounded up.
+        array = np.ones((100, 100))
+        rect = RectangleROI(
+            array,
+            width=40,
+            height=20,
+            center=Point(50, 50),
+        )
+        array_2d = rect.pixel_array
+        self.assertEqual(array_2d.size, 800)
+        array_flat = rect.pixels_flat
+        self.assertEqual(array_flat.size, 800)
+
 
 class TestRectangleStats(TestCase):
     @classmethod

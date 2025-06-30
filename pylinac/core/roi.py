@@ -6,6 +6,7 @@ from functools import cached_property
 import matplotlib.pyplot as plt
 import numpy as np
 from skimage import draw
+from skimage.draw import polygon
 from skimage.measure._regionprops import _RegionProperties
 
 from .contrast import Contrast, contrast, michelson, ratio, rms, visibility, weber
@@ -496,6 +497,7 @@ class RectangleROI(Rectangle):
         angle: float,
         dist_from_center: float,
         phantom_center: Point,
+        rotation: float = 0.0,
     ):
         """
         Parameters
@@ -512,6 +514,12 @@ class RectangleROI(Rectangle):
             The distance of the ROI from the phantom center.
         phantom_center : tuple
             The location of the phantom center.
+        rotation : float
+            The rotation of the ROI itself in degrees. Defaults to 0.0.
+
+            .. warning::
+
+                This is separate from the angle parameter, which is the angle of the ROI from the phantom center.
 
         Notes
         -----
@@ -521,7 +529,13 @@ class RectangleROI(Rectangle):
         y_shift = np.sin(np.deg2rad(angle)) * dist_from_center
         x_shift = np.cos(np.deg2rad(angle)) * dist_from_center
         center = Point(phantom_center.x + x_shift, phantom_center.y + y_shift)
-        return cls(array=array, width=width, height=height, center=center)
+        return cls(
+            array=array,
+            width=width,
+            height=height,
+            center=center,
+            rotation=rotation,
+        )
 
     def __init__(
         self,
@@ -529,6 +543,7 @@ class RectangleROI(Rectangle):
         width: float,
         height: float,
         center: Point,
+        rotation: float = 0.0,
     ):
         """
         Parameters
@@ -541,13 +556,26 @@ class RectangleROI(Rectangle):
             The height of the ROI in pixels.
         center : Point
             The location of the ROI center.
+        rotation : float
+            The rotation of the ROI itself in degrees. Defaults to 0.0.
+
+            .. warning::
+
+                This is separate from the angle parameter, which is the angle of the ROI from the phantom center.
+
         """
         # the ROI must be 'real', i.e. >= 2x2 matrix
         if width < 2:
             raise ValueError(f"The width must be >= 2. Given {width}")
         if height < 2:
             raise ValueError(f"The height must be >= 2. Given {height}")
-        super().__init__(width, height, center, as_int=True)
+        super().__init__(
+            width,
+            height,
+            center,
+            as_int=True,
+            rotation=rotation,
+        )
         self._array = array
 
     def __repr__(self):
@@ -564,33 +592,67 @@ class RectangleROI(Rectangle):
     #                angle=angle, dist_from_center=distance, phantom_center=phan_center)
 
     @cached_property
+    def pixels_flat(self) -> np.ndarray:
+        """A flattened array of the pixel values within the ROI.
+
+        This is always available, even for rotated ROIs. However,
+        it is flattened, so spatial statistics cannot be calculated.
+        """
+        corners = np.array(
+            [
+                # note the -1; this is due to the numpy exclusive indexing in `.pixel_array`
+                # to keep these two properties consistent.
+                (self.bl_corner.x, self.bl_corner.y - 1),  # bottom-left
+                (self.br_corner.x - 1, self.br_corner.y - 1),  # bottom-right
+                (self.tr_corner.x - 1, self.tr_corner.y),  # top-right
+                (self.tl_corner.x, self.tl_corner.y),  # top-left
+            ]
+        )
+        row_coords = corners[:, 1]
+        col_coords = corners[:, 0]
+        rr, cc = polygon(r=row_coords, c=col_coords, shape=self._array.shape)
+        return self._array[rr, cc]
+
+    @cached_property
     def pixel_array(self) -> np.ndarray:
-        """The pixel array within the ROI."""
+        """A 2D array of the pixel values within the ROI. Only available for non-rotated ROIs.
+
+        Raises
+        ------
+        ValueError
+            If the rotation is != 0, the array cannot be reshaped into a 2D array.
+        """
+        if self.rotation != 0:
+            raise ValueError(
+                "The pixel array cannot be reshaped into a 2D array when the rotation is not 0."
+            )
+        # note that numpy indexing is exclusive of the end index! This might be considered a bug,
+        # but for historical compatibility, we keep it this way.
         return self._array[
-            self.bl_corner.y : self.tr_corner.y, self.bl_corner.x : self.tr_corner.x
+            self.tl_corner.y : self.bl_corner.y, self.bl_corner.x : self.br_corner.x
         ]
 
     @cached_property
     def pixel_value(self) -> float:
         """The pixel array within the ROI."""
-        return float(np.mean(self.pixel_array))
+        return float(np.mean(self.pixels_flat))
 
     @cached_property
     def mean(self) -> float:
         """The mean value within the ROI."""
-        return float(np.mean(self.pixel_array))
+        return float(np.mean(self.pixels_flat))
 
     @cached_property
     def std(self) -> float:
         """The std within the ROI."""
-        return float(np.std(self.pixel_array))
+        return float(np.std(self.pixels_flat))
 
     @cached_property
     def min(self) -> float:
         """The min value within the ROI."""
-        return float(np.min(self.pixel_array))
+        return float(np.min(self.pixels_flat))
 
     @cached_property
     def max(self) -> float:
         """The max value within the ROI."""
-        return float(np.max(self.pixel_array))
+        return float(np.max(self.pixels_flat))

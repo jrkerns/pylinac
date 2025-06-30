@@ -5,14 +5,14 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable
 from itertools import zip_longest
-from typing import Annotated, Literal
+from typing import Annotated
 
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
 from matplotlib.patches import Circle as mpl_Circle
-from matplotlib.patches import Rectangle as mpl_Rectangle
+from matplotlib.patches import Polygon as mpl_Polygon
 from mpl_toolkits.mplot3d.art3d import Line3D
 from pydantic import PlainSerializer
 
@@ -547,7 +547,12 @@ LineSerialized = Annotated[Line, PlainSerializer(to_json)]
 
 
 class Rectangle:
-    """A rectangle with width, height, center Point, top-left corner Point, and bottom-left corner Point."""
+    """A rectangle with 4 vertices.
+
+    This always assumes an image/screen coordinate system where +x is to the right and +y is down.
+    Thus, the "top-left" corner are colloquial terms and is the point with the lowest x and y coordinate values.
+    From the users' perspective, it is the upper-most and left-most corner.
+    """
 
     width: int | float
     height: int | float
@@ -560,6 +565,7 @@ class Rectangle:
         height: float,
         center: Point | tuple,
         as_int: bool = False,
+        rotation: float = 0.0,
     ):
         """
         Parameters
@@ -572,6 +578,9 @@ class Rectangle:
             Center point of rectangle.
         as_int : bool
             If False (default), inputs are left as-is. If True, all inputs are converted to integers.
+        rotation : float
+            The rotation of the rectangle in degrees, using the "x goes to y" rule and assuming image coordinate system, a positive rotation is clockwise.
+            Default is 0 (no rotation).
         """
         argue.verify_bounds(width, argue.POSITIVE)
         argue.verify_bounds(height, argue.POSITIVE)
@@ -583,6 +592,7 @@ class Rectangle:
             self.height = height
         self._as_int = as_int
         self.center = Point(center, as_int=as_int)
+        self.rotation = rotation
 
     @property
     def area(self) -> float:
@@ -590,73 +600,81 @@ class Rectangle:
         return self.width * self.height
 
     @property
+    def vertices(self) -> list[Point]:
+        """The four corners of the rectangle."""
+        return [
+            self.tl_corner,
+            self.tr_corner,
+            self.br_corner,
+            self.bl_corner,
+        ]
+
+    @property
     def br_corner(self) -> Point:
         """The location of the bottom right corner."""
-        return Point(
+        un_rotated_point = Point(
             self.center.x + self.width / 2,
-            self.center.y - self.height / 2,
+            self.center.y + self.height / 2,
             as_int=self._as_int,
         )
+        rotated_point = rotate_points(
+            points=[un_rotated_point], angle=self.rotation, pivot=self.center
+        )[0]
+        return Point(rotated_point.x, rotated_point.y, as_int=self._as_int)
 
     @property
     def bl_corner(self) -> Point:
         """The location of the bottom left corner."""
-        return Point(
+        un_rotated_point = Point(
             self.center.x - self.width / 2,
-            self.center.y - self.height / 2,
+            self.center.y + self.height / 2,
             as_int=self._as_int,
         )
+        rotated_point = rotate_points(
+            points=[un_rotated_point], angle=self.rotation, pivot=self.center
+        )[0]
+        return Point(rotated_point.x, rotated_point.y, as_int=self._as_int)
 
     @property
     def tl_corner(self) -> Point:
         """The location of the top left corner."""
-        return Point(
+        un_rotated_point = Point(
             self.center.x - self.width / 2,
-            self.center.y + self.height / 2,
+            self.center.y - self.height / 2,
             as_int=self._as_int,
         )
+        rotated_point = rotate_points(
+            points=[un_rotated_point], angle=self.rotation, pivot=self.center
+        )[0]
+        return Point(rotated_point.x, rotated_point.y, as_int=self._as_int)
 
     @property
     def tr_corner(self) -> Point:
         """The location of the top right corner."""
-        return Point(
+        un_rotated_point = Point(
             self.center.x + self.width / 2,
-            self.center.y + self.height / 2,
+            self.center.y - self.height / 2,
             as_int=self._as_int,
         )
+        rotated_point = rotate_points(
+            points=[un_rotated_point], angle=self.rotation, pivot=self.center
+        )[0]
+        return Point(rotated_point.x, rotated_point.y, as_int=self._as_int)
 
     def plotly(
         self,
         fig: go.Figure,
         fill: bool = False,
-        angle: float = 0.0,
-        direction: Literal["cw", "ccw"] = "cw",
         **kwargs,
     ) -> None:
         """Draw the rectangle on a plotly figure."""
         # we use scatter so we can have hovertext/info, etc. Easier
         # with add_shape but we don't have the same options. Makes interface more consistent.
-        bl_corner, tl_corner, tr_corner, br_corner = rotate_points(
-            [self.bl_corner, self.tl_corner, self.tr_corner, self.br_corner],
-            angle,
-            self.center,
-            direction=direction,
-        )
+        xs = [v.x for v in self.vertices]
+        ys = [v.y for v in self.vertices]
         fig.add_scatter(
-            x=[
-                bl_corner.x,
-                tl_corner.x,
-                tr_corner.x,
-                br_corner.x,
-                bl_corner.x,
-            ],
-            y=[
-                bl_corner.y,
-                tl_corner.y,
-                tr_corner.y,
-                br_corner.y,
-                bl_corner.y,
-            ],
+            x=xs,
+            y=ys,
             mode="lines",
             fill="toself" if fill else "none",
             **kwargs,
@@ -666,7 +684,6 @@ class Rectangle:
         self,
         axes: plt.Axes,
         edgecolor: str = "black",
-        angle: float = 0.0,
         fill: bool = False,
         alpha: float = 1,
         facecolor: str = "g",
@@ -686,8 +703,6 @@ class Rectangle:
             An MPL axes to plot to.
         edgecolor : str
             The color of the circle.
-        angle : float
-            Angle of the rectangle.
         fill : bool
             Whether to fill the rectangle with color or leave hollow.
         text: str
@@ -702,13 +717,11 @@ class Rectangle:
         va: str
             Vertical alignment of the text. See https://matplotlib.org/stable/api/text_api.html#matplotlib.text.Text
         """
+        vertices = np.array([p.as_array(("x", "y")) for p in self.vertices])
         axes.add_patch(
-            mpl_Rectangle(
-                (self.bl_corner.x, self.bl_corner.y),
-                width=self.width,
-                height=self.height,
-                rotation_point="center",
-                angle=angle,
+            mpl_Polygon(
+                xy=vertices,
+                closed=True,
                 edgecolor=edgecolor,
                 alpha=alpha,
                 facecolor=facecolor,
@@ -733,24 +746,26 @@ def rotate_points(
     points: list[Point],
     angle: float,
     pivot: Point,
-    direction: Literal["cw", "ccw"] = "cw",
 ) -> list[Point]:
     """Rotate a list of points around a pivot point.
+
+    .. warning::
+
+        This assumes the DICOM/image/screen coordinate system where +x is right and +y is down.
+        If implementing in a Cartesian context,
+        you will need to flip the angle sign.
 
     Parameters
     ----------
     points : list of Point
         The points to rotate.
     angle : float
-        The angle to rotate the points in degrees clockwise.
+        The angle to rotate the points in degrees clockwise. A DICOM coordinate system is assumed, so +x is right and +y is down.
+        In this context, clockwise is positive. To rotate counter-clockwise, pass a negative angle.
     pivot : Point
         The pivot point.
-    direction : {'cw', 'ccw'}
-        The direction to rotate the points.
     """
-    angle = np.radians(angle)
-    if direction == "ccw":
-        angle = -angle
+    angle = np.radians(-angle)
     # Rotation matrix
     rotation_matrix = np.array(
         [[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]

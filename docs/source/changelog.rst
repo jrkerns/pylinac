@@ -26,6 +26,24 @@ Winston-Lutz
   This also seems only to affect ``scipy`` version 1.13.0 and lower. Unfortunately, I don't have any better
   guidance at this time. If you are seeing significant changes in the isocenter size, feel free to open an issue.
 
+Core
+^^^^
+
+* :bdg-success:`Feature` The :class:`~pylinac.core.geometry.Rectangle` constructor now has a ``rotation`` parameter
+  which will allow for arbitrary rotation of the rectangle.
+* :bdg-danger:`Change` Due to above, the ``plot2axes`` method no longer accepts the ``angle`` parameter and the ``rotation``
+  value passed to the constructor is used instead.
+* :bdg-success:`Feature` The :class:`~pylinac.core.roi.RectangleROI` constructor now has ``rotation`` parameter which will allow
+  for arbitrary rotation of the ROI. This is useful for non-cardinal ROIs. The class method ``from_phantom_center``
+  also accepts this new parameter.
+* :bdg-danger:`Change` Due to above, the ``.pixel_array`` property of the class will raise an error if the rotation is nonzero
+  since it cannot be neatly reshaped to a 2D pixel array. When rotation is zero, this property acts as it always has.
+* :bdg-success:`Feature` A new property ``.pixels_flat`` is now available for the RectangleROI. This is a flattened array of the pixels
+  in the ROI. This can be used to calculate statistics even when rotation is nonzero.
+* :bdg-danger:`Change` The ``rotate_points`` function (used internally by the ``Rectangle`` class) now assumes a DICOM/image
+  coordinate system. Previously, it assumed a Cartesian coordinate system. The ``direction`` parameter has also been removed.
+
+
 v 3.34.0
 --------
 

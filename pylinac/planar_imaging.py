@@ -554,18 +554,17 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         regions = measure.regionprops(labeled, intensity_image=self.image.array)
         return regions
 
-    def _create_phantom_outline_object(self) -> tuple[Rectangle | Circle, dict]:
+    def _create_phantom_outline_object(self) -> Rectangle | Circle:
         """Construct the phantom outline object which will be plotted on the image for visual inspection."""
         outline_type = list(self.phantom_outline_object)[0]
         outline_settings = list(self.phantom_outline_object.values())[0]
-        settings = {}
         if outline_type == "Rectangle":
             obj = Rectangle(
                 width=self.phantom_radius * outline_settings["width ratio"],
                 height=self.phantom_radius * outline_settings["height ratio"],
                 center=self.phantom_center,
+                rotation=self.phantom_angle,
             )
-            settings["angle"] = self.phantom_angle
         elif outline_type == "Circle":
             obj = Circle(
                 center_point=self.phantom_center,
@@ -575,7 +574,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             raise ValueError(
                 "An outline object was passed but was not a Circle or Rectangle."
             )
-        return obj, settings
+        return obj
 
     def percent_integral_uniformity(
         self, percentiles: tuple[float, float] = (1, 99)
@@ -636,14 +635,12 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
 
         # plot the outline image
         if self.phantom_outline_object is not None:
-            outline_obj, settings = self._create_phantom_outline_object()
+            outline_obj = self._create_phantom_outline_object()
             # we do CCW here because the image is rendered with the y-axis origin at the top.
             outline_obj.plotly(
                 image_fig,
                 line_color="blue",
                 name="Outline",
-                direction="ccw",
-                **settings,
             )
         # plot the low contrast background ROIs
         if self.low_contrast_rois:
@@ -757,8 +754,8 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
 
             # plot the outline image
             if self.phantom_outline_object is not None:
-                outline_obj, settings = self._create_phantom_outline_object()
-                outline_obj.plot2axes(img_ax, edgecolor="b", **settings)
+                outline_obj = self._create_phantom_outline_object()
+                outline_obj.plot2axes(img_ax, edgecolor="b")
             # plot the low contrast background ROIs
             for roi in self.low_contrast_background_rois:
                 roi.plot2axes(img_ax, edgecolor="b")
@@ -1058,7 +1055,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
     @property
     def phantom_area(self) -> float:
         """The area of the detected ROI in mm^2"""
-        area_px = self._create_phantom_outline_object()[0].area
+        area_px = self._create_phantom_outline_object().area
         return area_px / self.image.dpmm**2
 
     def _phantom_center_calc(self) -> Point:

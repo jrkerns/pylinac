@@ -168,7 +168,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_planar_imaging.py -n 3 --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_planar_imaging.py --cov-report term --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
         artifacts:
