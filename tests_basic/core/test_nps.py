@@ -10,8 +10,6 @@ from pylinac.core.nps import (
     noise_power_spectrum_2d,
 )
 
-np.random.seed(123)  # noqa: NPY002
-
 
 def generate_gaussian_noise_map(
     shape: (int, int), scale: int = 10, intensity: float = 0.5
@@ -28,7 +26,8 @@ def generate_gaussian_noise_map(
     """
     # Create low-resolution noise
     low_res_shape = (shape[0] // scale, shape[1] // scale)
-    low_res_noise = np.random.normal(  # noqa: NPY002
+    rng = np.random.default_rng(seed=123)
+    low_res_noise = rng.normal(  # noqa: NPY002
         loc=0, scale=intensity, size=low_res_shape
     )
 
@@ -133,7 +132,7 @@ class TestAvgPower(TestCase):
     def test_avg_power(self):
         nps1d = noise_power_spectrum_1d(self.nps2d)
         avg_power = average_power(nps1d)
-        self.assertAlmostEqual(avg_power, 0.0207, delta=0.005)
+        self.assertAlmostEqual(avg_power, 0.0145, delta=0.005)
 
     def test_odd_roi_size_same_as_even(self):
         nps1d = noise_power_spectrum_1d(self.nps2d)

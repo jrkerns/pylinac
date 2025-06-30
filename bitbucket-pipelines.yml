@@ -364,20 +364,57 @@ definitions:
           - uv venv
           - uv pip install nox
           - uv run nox -s update_dev_kraken
-    - step: &run-min-python-version
-        name: Run against min Python version
+    - step: &run-python-39-tests
+        name: Run against Python 3.9
         <<: *bb-runner
-        image: ghcr.io/astral-sh/uv:python3.9-bookworm-slim
-        caches:
-          - uv
+        image: ghcr.io/astral-sh/uv:bookworm
         script:
-            - uv run nox -s run_min_version_test
+          - uv venv
+          - uv pip install nox
+          - uv run nox -s run_basic_test_suite_39
+    - step: &run-python-310-tests
+        name: Run against Python 3.10
+        <<: *bb-runner
+        image: ghcr.io/astral-sh/uv:bookworm
+        script:
+          - uv venv
+          - uv pip install nox
+          - uv run nox -s run_basic_test_suite_310
+    - step: &run-python-311-tests
+        name: Run against Python 3.11
+        <<: *bb-runner
+        image: ghcr.io/astral-sh/uv:bookworm
+        script:
+          - uv venv
+          - uv pip install nox
+          - uv run nox -s run_basic_test_suite_311
+    - step: &run-python-312-tests
+        name: Run against Python 3.12
+        <<: *bb-runner
+        image: ghcr.io/astral-sh/uv:bookworm
+        script:
+          - uv venv
+          - uv pip install nox
+          - uv run nox -s run_basic_test_suite_312
+    - step: &run-python-313-tests
+        name: Run against Python 3.13
+        <<: *bb-runner
+        image: ghcr.io/astral-sh/uv:bookworm
+        script:
+          - uv venv
+          - uv pip install nox
+          - uv run nox -s run_basic_test_suite_313
 
 pipelines:
 
   custom:
-    run-min-python-version:
-      - step: *run-min-python-version
+    run-python-version-tests:
+      - parallel:
+          - step: *run-python-39-tests
+          - step: *run-python-310-tests
+          - step: *run-python-311-tests
+          - step: *run-python-312-tests
+          - step: *run-python-313-tests
     update-kraken:
       - step: *pre-commit-checks-and-setup
       - step: *update-dev-kraken
@@ -429,7 +466,6 @@ pipelines:
 
   branches:
     release*:
-      - step: *run-min-python-version
       - step: *push-to-github
     master:
       - step: *push-to-github
