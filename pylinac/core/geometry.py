@@ -627,7 +627,7 @@ class Rectangle:
         # This is the same as EuclideanTransform(rotation) + EuclideanTransform(translation)
         tform = transform.EuclideanTransform(translation=translation, rotation=rotation)
         p_rotated = transform.matrix_transform(scaled_rectangle, tform)
-        p_rotated_as_point = [Point(p) for p in p_rotated]
+        p_rotated_as_point = [Point(p, as_int=self._as_int) for p in p_rotated]
         return p_rotated_as_point
 
     @property
