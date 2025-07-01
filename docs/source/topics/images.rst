@@ -48,6 +48,34 @@ We can also test whether a file is image-like without causing an error if it's n
 
     is_image = image.is_image("path/to/questionable.file")  # True or False
 
+Coordinate System
+^^^^^^^^^^^^^^^^^
+
+.. note::
+
+    Do not confuse this with linac coordinate systems, aka "machine scales", which are different. See :ref:`scale`.
+
+Images in pylinac are oriented in "image" or "screen" coordinates.
+This means that the origin (0, 0) is at the top-left corner of the image, with the x-axis increasing to the right and the y-axis increasing downwards.
+This is also how DICOM images are oriented, so pylinac images are consistent with DICOM standards.
+
+This is in contrast to "Cartesian" coordinates, where the origin is at the bottom-left corner of the image,
+and +x is to the right while +y is up.
+
+Using right-hand rule conventions, positive angle is clockwise. Aka "x goes to y".
+
+.. warning::
+
+    This can sometimes be confusing when dealing with the y-axis, as what is viewed as the "top" of the image
+    has the lowest y index values.
+
+.. image:: ../images/screen-coordinates.png
+   :width: 400px
+   :align: center
+   :alt: Image coordinates
+
+This can also be visualized `here <https://www.slicer.org/wiki/Coordinate_systems#Image_coordinate_system>`__.
+
 Image Manipulation
 ^^^^^^^^^^^^^^^^^^
 
