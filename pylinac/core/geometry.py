@@ -551,22 +551,22 @@ class Rectangle:
     """A rectangle with 4 vertices.
 
     This always assumes an image/screen coordinate system where +x is to the right and +y is down.
-    Thus, the "top-left" corner are colloquial terms and is the point with the lowest x and y coordinate values.
+    Thus, the "top-left" corner of the UNROTATED rectangle are colloquial terms and is the point with the lowest x and y coordinate values.
     From the users' perspective, it is the upper-most and left-most corner.
 
-            ¦
-            ¦
-    ------------------------------------------------------> x
-            ¦
-            ¦            [0] TL *---------------* [1] TR
-            ¦                   ¦               ¦
-            ¦                   ¦               ¦
-            ¦                   ¦               ¦
-            ¦            [3] BL *---------------* [2] BR
-            ¦
-            ¦
-            v
-            y
+         ¦                                                ¦
+         ¦                                                ¦
+    -------------------------------------> +x          -------------------------------------> +x
+         ¦                                                ¦
+         ¦  [0] TL *----------* [1] TR                    ¦  [3] BL *----------* [0] TL
+         ¦         ¦          ¦              +90 deg      ¦         ¦          ¦
+         ¦         ¦          ¦             --------->    ¦         ¦          ¦
+         ¦         ¦          ¦                           ¦         ¦          ¦
+         ¦  [3] BL *----------* [2] BR                    ¦  [2] BR *----------* [1] TR
+         ¦                                                ¦
+         ¦                                                ¦
+         v                                                v
+        +y                                               +y
 
     """
 
