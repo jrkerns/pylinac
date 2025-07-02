@@ -292,7 +292,7 @@ def array_to_dicom(
     # See here for recommendations:
     # https://pydicom.github.io/pydicom/stable/tutorials/pixel_data/creation.html#creating-float-pixel-data-and-double-float-pixel-data
     if not array.dtype.isnative:
-        array = array.byteswap().newbyteorder("=")
+        array = array.byteswap().view(array.dtype.newbyteorder("="))
     if np.issubdtype(array.dtype, np.floating):
         ds.FloatPixelData = array.tobytes()
     else:

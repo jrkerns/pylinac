@@ -74,7 +74,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_cbct.py -n 3 --cov=pylinac.cbct --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_cbct.py -n 3 --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
         caches:
@@ -99,7 +99,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_quart.py -n 3 --cov=pylinac.quart --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_quart.py -n 3 --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
         artifacts:
@@ -122,7 +122,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_acr.py -n 3 --cov=pylinac.acr --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_acr.py -n 3 --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
         artifacts:
@@ -145,7 +145,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_cheese.py -n 3 --cov=pylinac.cheese --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_cheese.py -n 3 --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
         artifacts:
@@ -168,7 +168,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_planar_imaging.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_planar_imaging.py --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
         artifacts:
@@ -185,7 +185,7 @@ definitions:
         name: Run DLG Tests
         <<: *bb-runner
         script:
-          - uv run pytest tests_basic/test_dlg.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_dlg.py --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -198,7 +198,7 @@ definitions:
         name: Run Field Analysis Tests
         <<: *bb-runner
         script:
-          - uv run pytest tests_basic/test_field_analysis.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_field_analysis.py --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -211,7 +211,7 @@ definitions:
         name: Run Machine Logs Tests
         <<: *bb-runner
         script:
-          - uv run pytest tests_basic/test_logs.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_logs.py --junitxml=./test-reports/pytest_results.xml
         caches:
           - machine-logs
         condition:
@@ -229,7 +229,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_picketfence.py -n 3 --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_picketfence.py -n 3 --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
         artifacts:
@@ -246,7 +246,7 @@ definitions:
         name: Run Starshot Tests
         <<: *bb-runner
         script:
-          - uv run pytest tests_basic/test_starshot.py -n 3 --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_starshot.py -n 3 --junitxml=./test-reports/pytest_results.xml
         caches:
           - starshot
         condition:
@@ -259,7 +259,7 @@ definitions:
         name: Run TG-51/TRS-398 Tests
         <<: *bb-runner
         script:
-          - uv run pytest tests_basic/test_tg51.py tests_basic/test_trs398.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_tg51.py tests_basic/test_trs398.py --junitxml=./test-reports/pytest_results.xml
         condition:
           changesets:
             includePaths:
@@ -271,7 +271,7 @@ definitions:
         name: Run VMAT Tests
         <<: *bb-runner
         script:
-          - uv run pytest tests_basic/test_vmat.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_vmat.py --junitxml=./test-reports/pytest_results.xml
         caches:
           - vmat
         condition:
@@ -289,7 +289,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_winstonlutz.py -n 3 --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_winstonlutz.py -n 3 --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
         caches:
@@ -311,7 +311,7 @@ definitions:
           - chmod +x memory_monitor.sh
           - nohup ./memory_monitor.sh &
           - MONITOR_PID=$!
-          - uv run pytest tests_basic/test_winstonlutz_mtmf.py -n 2 --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_winstonlutz_mtmf.py -n 2 --junitxml=./test-reports/pytest_results.xml
           # clean up memory monitor
           - kill $MONITOR_PID
         caches:
@@ -328,7 +328,7 @@ definitions:
         name: Plan generator tests
         <<: *bb-runner
         script:
-          - uv run pytest tests_basic/test_plan_generator.py tests_basic/test_generated_plans.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/test_plan_generator.py tests_basic/test_generated_plans.py --junitxml=./test-reports/pytest_results.xml
         caches:
           - plan-generator
         condition:
@@ -342,7 +342,7 @@ definitions:
         name: Run core module tests
         <<: *bb-runner
         script:
-          - uv run pytest tests_basic/core --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - uv run pytest tests_basic/core --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:

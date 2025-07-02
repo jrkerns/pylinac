@@ -28,8 +28,7 @@ GCP_BUCKET_NAME = "pylinac_test_files"
 LOCAL_TEST_DIR = "test_files"
 
 # make the local test dir if it doesn't exist
-if not osp.isdir(osp.join(osp.dirname(__file__), LOCAL_TEST_DIR)):
-    os.mkdir(osp.join(osp.dirname(__file__), LOCAL_TEST_DIR))
+os.makedirs(osp.join(osp.dirname(__file__), LOCAL_TEST_DIR), exist_ok=True)
 
 
 @contextlib.contextmanager

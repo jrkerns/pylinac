@@ -35,7 +35,7 @@ def get_mlc_y_extent(ds: Dataset, scale: float) -> int:
             mlc_bounds = device.get("LeafPositionBoundaries")
             if mlc_bounds:
                 extent = max(
-                    extent, get_scaled_leaf_boundaries(mlc_bounds, scale).ptp()
+                    extent, np.ptp(get_scaled_leaf_boundaries(mlc_bounds, scale))
                 )
     return int(extent)
 

@@ -2,105 +2,111 @@ import os
 from pathlib import Path
 
 import nox
+from nox import Session
 
 
+@nox.parametrize("numpy", ["1.23.5", "1.24.4", "1.25.2", "1.26.4"])
+@nox.parametrize("scipy", ["1.11.0", "1.12.0", "1.13.1"])
 @nox.session(
     python="3.9",
     reuse_venv=True,
     venv_backend="uv",
 )
-def run_basic_test_suite_39(session):
+def run_basic_test_suite_39(session: Session, numpy: str, scipy: str):
     session.install(".[developer]")
+    session.install(f"numpy~={numpy}", f"scipy~={scipy}")
     session.install("pip")
     session.run("pip", "freeze")
     session.run(
         "pytest",
         "-n5",
         "tests_basic/core",
-        "--cov-report",
-        "term",
-        "--junitxml=./test-reports/pytest_results.xml",
     )
 
 
+@nox.parametrize(
+    "numpy", ["1.23.5", "1.24.4", "1.25.2", "1.26.4", "2.0.0", "2.1.0", "2.2.0"]
+)
+@nox.parametrize("scipy", ["1.13.1", "1.14.1", "1.15.0"])
 @nox.session(
     python="3.10",
     reuse_venv=True,
     venv_backend="uv",
 )
-def run_basic_test_suite_310(session):
+def run_basic_test_suite_310(session: Session, numpy: str, scipy: str):
     session.install(".[developer]")
+    session.install(f"numpy~={numpy}", f"scipy~={scipy}")
     session.install("pip")
     session.run("pip", "freeze")
     session.run(
         "pytest",
         "-n5",
         "tests_basic/core",
-        "--cov-report",
-        "term",
-        "--junitxml=./test-reports/pytest_results.xml",
     )
 
 
+@nox.parametrize(
+    "numpy",
+    ["1.23.5", "1.24.4", "1.25.2", "1.26.4", "2.0.0", "2.1.0", "2.2.0"],
+)
+@nox.parametrize("scipy", ["1.13.1", "1.14.1", "1.15.0"])
 @nox.session(
     python="3.11",
     reuse_venv=True,
     venv_backend="uv",
 )
-def run_basic_test_suite_311(session):
+def run_basic_test_suite_311(session: Session, numpy: str, scipy: str):
     session.install(".[developer]")
+    session.install(f"numpy~={numpy}", f"scipy~={scipy}")
     session.install("pip")
     session.run("pip", "freeze")
     session.run(
         "pytest",
         "-n5",
         "tests_basic/core",
-        "--cov-report",
-        "term",
-        "--junitxml=./test-reports/pytest_results.xml",
     )
 
 
+@nox.parametrize("numpy", ["1.26.4", "2.0.0", "2.1.0", "2.2.0"])
+@nox.parametrize("scipy", ["1.13.1", "1.14.1", "1.15.0"])
 @nox.session(
     python="3.12",
     reuse_venv=True,
     venv_backend="uv",
 )
-def run_basic_test_suite_312(session):
+def run_basic_test_suite_312(session: Session, numpy: str, scipy: str):
     session.install(".[developer]")
+    session.install(f"numpy~={numpy}", f"scipy~={scipy}")
     session.install("pip")
     session.run("pip", "freeze")
     session.run(
         "pytest",
         "-n5",
         "tests_basic/core",
-        "--cov-report",
-        "term",
-        "--junitxml=./test-reports/pytest_results.xml",
     )
 
 
+@nox.parametrize("numpy", ["2.1.0", "2.2.0"])
+@nox.parametrize("scipy", ["1.14.1", "1.15.0"])
 @nox.session(
     python="3.13",
     reuse_venv=True,
     venv_backend="uv",
 )
-def run_basic_test_suite_313(session):
+def run_basic_test_suite_313(session: Session, numpy: str, scipy: str):
     session.install(".[developer]")
+    session.install(f"numpy~={numpy}", f"scipy~={scipy}")
     session.install("pip")
     session.run("pip", "freeze")
     session.run(
         "pytest",
         "-n5",
         "tests_basic/core",
-        "--cov-report",
-        "term",
-        "--junitxml=./test-reports/pytest_results.xml",
     )
 
 
 @nox.session(reuse_venv=True, venv_backend="uv|virtualenv")
-def serve_docs(session):
+def serve_docs(session: Session):
     session.install(".[docs]")
     session.run(
         "sphinx-autobuild",
@@ -113,7 +119,7 @@ def serve_docs(session):
 
 
 @nox.session(reuse_venv=True, venv_backend="uv|virtualenv")
-def build_docs(session):
+def build_docs(session: Session):
     """Build the docs; used in CI pipelines to test the build. Will always rebuild and will always fail if there are any warnings"""
     session.install(".[docs]")
     session.run(
@@ -131,14 +137,14 @@ def build_docs(session):
 
 
 @nox.session(reuse_venv=True, venv_backend="uv")
-def build_wheel(session):
+def build_wheel(session: Session):
     """Build the wheel and sdist"""
     session.install(".[developer]")
     session.run("uv", "build")
 
 
 @nox.session(python=False)
-def update_dev_kraken(session):
+def update_dev_kraken(session: Session):
     """Run the Kraken build to update it with new pylinac changes"""
     if Path("GCP_creds.json").exists():
         os.environ["GCP_BUILD_CREDS"] = Path("gcp_build_creds.json").open().read()
