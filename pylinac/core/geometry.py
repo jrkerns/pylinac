@@ -15,6 +15,7 @@ from matplotlib.patches import Circle as mpl_Circle
 from matplotlib.patches import Polygon as mpl_Polygon
 from mpl_toolkits.mplot3d.art3d import Line3D
 from pydantic import PlainSerializer
+from skimage import transform
 
 from .utilities import is_iterable
 
@@ -550,8 +551,23 @@ class Rectangle:
     """A rectangle with 4 vertices.
 
     This always assumes an image/screen coordinate system where +x is to the right and +y is down.
-    Thus, the "top-left" corner are colloquial terms and is the point with the lowest x and y coordinate values.
+    Thus, the "top-left" corner are colloquial terms and is the point with the lowest x and y coordinate values of the UNROTATED rectangle.
     From the users' perspective, it is the upper-most and left-most corner.
+
+         ¦                                                ¦
+         ¦                                                ¦
+    -------------------------------------> +x          -------------------------------------> +x
+         ¦                                                ¦
+         ¦  [0] TL *----------* [1] TR                    ¦  [3] BL *----------* [0] TL
+         ¦         ¦          ¦              +90 deg      ¦         ¦          ¦
+         ¦         ¦          ¦             --------->    ¦         ¦          ¦
+         ¦         ¦          ¦                           ¦         ¦          ¦
+         ¦  [3] BL *----------* [2] BR                    ¦  [2] BR *----------* [1] TR
+         ¦                                                ¦
+         ¦                                                ¦
+         v                                                v
+        +y                                               +y
+
     """
 
     width: int | float
@@ -602,64 +618,37 @@ class Rectangle:
     @property
     def vertices(self) -> list[Point]:
         """The four corners of the rectangle."""
-        return [
-            self.tl_corner,
-            self.tr_corner,
-            self.br_corner,
-            self.bl_corner,
-        ]
-
-    @property
-    def br_corner(self) -> Point:
-        """The location of the bottom right corner."""
-        un_rotated_point = Point(
-            self.center.x + self.width / 2,
-            self.center.y + self.height / 2,
-            as_int=self._as_int,
-        )
-        rotated_point = rotate_points(
-            points=[un_rotated_point], angle=self.rotation, pivot=self.center
-        )[0]
-        return Point(rotated_point.x, rotated_point.y, as_int=self._as_int)
-
-    @property
-    def bl_corner(self) -> Point:
-        """The location of the bottom left corner."""
-        un_rotated_point = Point(
-            self.center.x - self.width / 2,
-            self.center.y + self.height / 2,
-            as_int=self._as_int,
-        )
-        rotated_point = rotate_points(
-            points=[un_rotated_point], angle=self.rotation, pivot=self.center
-        )[0]
-        return Point(rotated_point.x, rotated_point.y, as_int=self._as_int)
+        square = np.array([[-1, -1], [1, -1], [1, 1], [-1, 1]])
+        scaled_rectangle = square @ np.diag((self.width, self.height)) / 2
+        translation = self.center.as_array(("x", "y"))
+        rotation = np.deg2rad(self.rotation)
+        # Extrinsic Coordinate System: First rotate then translate
+        # Intrinsic Coordinate System: First translate then rotate
+        # This is the same as EuclideanTransform(rotation) + EuclideanTransform(translation)
+        tform = transform.EuclideanTransform(translation=translation, rotation=rotation)
+        p_rotated = transform.matrix_transform(scaled_rectangle, tform)
+        p_rotated_as_point = [Point(p, as_int=self._as_int) for p in p_rotated]
+        return p_rotated_as_point
 
     @property
     def tl_corner(self) -> Point:
         """The location of the top left corner."""
-        un_rotated_point = Point(
-            self.center.x - self.width / 2,
-            self.center.y - self.height / 2,
-            as_int=self._as_int,
-        )
-        rotated_point = rotate_points(
-            points=[un_rotated_point], angle=self.rotation, pivot=self.center
-        )[0]
-        return Point(rotated_point.x, rotated_point.y, as_int=self._as_int)
+        return self.vertices[0]
 
     @property
     def tr_corner(self) -> Point:
         """The location of the top right corner."""
-        un_rotated_point = Point(
-            self.center.x + self.width / 2,
-            self.center.y - self.height / 2,
-            as_int=self._as_int,
-        )
-        rotated_point = rotate_points(
-            points=[un_rotated_point], angle=self.rotation, pivot=self.center
-        )[0]
-        return Point(rotated_point.x, rotated_point.y, as_int=self._as_int)
+        return self.vertices[1]
+
+    @property
+    def br_corner(self) -> Point:
+        """The location of the bottom right corner."""
+        return self.vertices[2]
+
+    @property
+    def bl_corner(self) -> Point:
+        """The location of the bottom left corner."""
+        return self.vertices[3]
 
     def plotly(
         self,
@@ -740,42 +729,3 @@ class Rectangle:
                 horizontalalignment=ha,
                 verticalalignment=va,
             )
-
-
-def rotate_points(
-    points: list[Point],
-    angle: float,
-    pivot: Point,
-) -> list[Point]:
-    """Rotate a list of points around a pivot point.
-
-    .. warning::
-
-        This assumes the DICOM/image/screen coordinate system where +x is right and +y is down.
-        If implementing in a Cartesian context,
-        you will need to flip the angle sign.
-
-    Parameters
-    ----------
-    points : list of Point
-        The points to rotate.
-    angle : float
-        The angle to rotate the points in degrees clockwise. A DICOM coordinate system is assumed, so +x is right and +y is down.
-        In this context, clockwise is positive. To rotate counter-clockwise, pass a negative angle.
-    pivot : Point
-        The pivot point.
-    """
-    angle = np.radians(-angle)
-    # Rotation matrix
-    rotation_matrix = np.array(
-        [[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]
-    )
-
-    p = np.asarray([p.as_array(("x", "y")) for p in points])
-    # Translate points to origin, apply rotation, translate back
-    translated_points = p - pivot.as_array(("x", "y"))
-    rotated_points = np.dot(translated_points, rotation_matrix) + pivot.as_array(
-        ("x", "y")
-    )
-
-    return [Point(x, y) for x, y in rotated_points]

@@ -3,17 +3,12 @@
 import math
 import unittest
 
-from parameterized import parameterized
-
 from pylinac.core.geometry import (
     Circle,
     Line,
     Point,
     Rectangle,
-    cos,
     direction_to_coords,
-    rotate_points,
-    sin,
 )
 from tests_basic.utils import point_equality_validation
 
@@ -210,17 +205,17 @@ class TestRectangle(unittest.TestCase):
     def test_rotation_simple(self):
         """Test that the rectangle is rotated correctly in DICOM coordinates."""
         # In DICOM, y-axis is flipped, so the top-left corner is both at the top and negative y.
-        r = Rectangle(width=1, height=1, center=(0, 0), rotation=45)
-        top_corner = Point(x=0, y=-math.sqrt(0.5))
+        r = Rectangle(width=10, height=10, center=(5, 5), rotation=45)
+        top_corner = Point(x=5, y=5 - 5 * math.sqrt(2))
         self.assertAlmostEqual(top_corner.x, r.tl_corner.x, places=3)
         self.assertAlmostEqual(top_corner.y, r.tl_corner.y, places=3)
-        right_corner = Point(x=math.sqrt(0.5), y=0)
+        right_corner = Point(x=5 + 5 * math.sqrt(2), y=5)
         self.assertAlmostEqual(right_corner.x, r.tr_corner.x, places=3)
         self.assertAlmostEqual(right_corner.y, r.tr_corner.y, places=3)
-        bottom_corner = Point(x=0, y=math.sqrt(0.5))
+        bottom_corner = Point(x=5, y=5 + 5 * math.sqrt(2))
         self.assertAlmostEqual(bottom_corner.x, r.br_corner.x, places=3)
         self.assertAlmostEqual(bottom_corner.y, r.br_corner.y, places=3)
-        left_corner = Point(x=-math.sqrt(0.5), y=0)
+        left_corner = Point(x=5 - 5 * math.sqrt(2), y=5)
         self.assertAlmostEqual(left_corner.x, r.bl_corner.x, places=3)
         self.assertAlmostEqual(left_corner.y, r.bl_corner.y, places=3)
 
@@ -249,26 +244,3 @@ class TestDestinationCoordinates(unittest.TestCase):
     def test_starting_position(self):
         self.assertAlmostEqual(direction_to_coords(5, 5, 10, 0)[0], 15, places=3)
         self.assertAlmostEqual(direction_to_coords(5, 5, 10, 0)[1], 5, places=3)
-
-
-class TestRotatePoints(unittest.TestCase):
-    @parameterized.expand(
-        [
-            # name, (x, y), angle, pivot point, (expected x, expected y)
-            ("no-op", (0, 0), 0, (0, 0), (0, 0)),
-            ("+90-degrees (CW)", (1, 0), 90, (0, 0), (0, 1)),
-            ("-90-degrees (CCW)", (1, 0), -90, (0, 0), (0, -1)),
-            ("no-op offset", (1, 1), 0, (1, 1), (1, 1)),
-            ("+180 degrees (CW)", (1, 0), 180, (0, 0), (-1, 0)),
-            ("+180 offset (CW)", (2, 2), 180, (1, 1), (0, 0)),
-            ("-180 degrees (CCW)", (1, 0), -180, (0, 0), (-1, 0)),
-            ("+30 degrees (CW)", (1, 0), 30, (0, 0), (cos(30), sin(30))),
-        ]
-    )
-    def test_point_rotation(self, _, point, angle, center, expected):
-        rotated_points = rotate_points(
-            points=[Point(point)], angle=angle, pivot=Point(center)
-        )
-        expected_p = Point(expected)
-        self.assertAlmostEqual(rotated_points[0].x, expected_p.x, places=3)
-        self.assertAlmostEqual(rotated_points[0].y, expected_p.y, places=3)
