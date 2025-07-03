@@ -104,7 +104,8 @@ class UniformityModuleOutput(CTModuleOutput):
     Use the following attributes as normal class attributes."""
 
     center_roi_stdev: float = Field(
-        description="The standard deviation of the center ROI."
+        description="The standard deviation of the center ROI.",
+        title="Center ROI Standard Deviation",
     )
 
 
@@ -203,7 +204,8 @@ class SpatialResolutionModuleOutput(CTModuleOutput):
     Use the following attributes as normal class attributes."""
 
     lpmm_to_rmtf: dict = Field(
-        description="Line pair to relative modulation transfer mapping. The keys are the line pair values and the values are the relative modulation transfer values."
+        description="Line pair to relative modulation transfer mapping. The keys are the line pair values and the values are the relative modulation transfer values.",
+        title="Line Pair to Relative MTF",
     )
 
 
