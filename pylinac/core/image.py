@@ -1320,6 +1320,11 @@ class DicomImage(BaseImage):
             If True, no correction will be applied. This is typically used
             for scenarios when you want to match behavior to older or different
             software.
+        invert_pixels : bool | None
+            Whether to invert the pixel values (inverted = max + min - original).
+            If True, the pixel value will be inverted.
+            If False, the pixel value will be not inverted.
+            If None, the pixel value will be inverted if PixelIntensityRelationshipSign=-1
         """
         super().__init__(path)
         self._sid = sid
