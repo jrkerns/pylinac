@@ -274,9 +274,12 @@ def load_multiples(
 
 
 def _rescale_dicom_values(
-    unscaled_array: np.ndarray, metadata: Dataset, raw_pixels: bool
+    unscaled_array: np.ndarray,
+    metadata: Dataset,
+    raw_pixels: bool,
+    invert_pixels: bool | None,
 ) -> np.ndarray:
-    """Rescale the DICOM pixel values depending on the tags available.
+    """Rescale and invert the DICOM pixel values depending on the tags available.
 
     See Also
     --------
@@ -289,16 +292,21 @@ def _rescale_dicom_values(
     scaled_array = pixels.apply_rescale(unscaled_array, metadata)
 
     pixel_intensity_relationship_sign = metadata.get("PixelIntensityRelationshipSign")
-    if pixel_intensity_relationship_sign == -1:
-        # invert it
-        scaled_array = -scaled_array + scaled_array.max() + scaled_array.min()
+    if invert_pixels or (
+        invert_pixels is None and pixel_intensity_relationship_sign == -1
+    ):
+        # invert if forced or based on pixel_intensity_relationship_sign
+        scaled_array = scaled_array.max() + scaled_array.min() - scaled_array
     return scaled_array
 
 
 def _unscale_dicom_values(
-    scaled_array: np.ndarray, metadata: Dataset, raw_pixels: bool
+    scaled_array: np.ndarray,
+    metadata: Dataset,
+    raw_pixels: bool,
+    invert_pixels: bool | None,
 ) -> np.ndarray:
-    """Unscale the DICOM pixel values depending on the tags available.
+    """Unscale and invert the DICOM pixel values depending on the tags available.
 
     This is the inverse of _rescale_dicom_values; specifically, when we
     want to save the DICOM image we want to save the raw values
@@ -308,9 +316,11 @@ def _unscale_dicom_values(
         return scaled_array
 
     pixel_intensity_relationship_sign = metadata.get("PixelIntensityRelationshipSign")
-    if pixel_intensity_relationship_sign == -1:
-        # invert it
-        un_scaled_array = -scaled_array + scaled_array.max() + scaled_array.min()
+    if invert_pixels or (
+        invert_pixels is None and pixel_intensity_relationship_sign == -1
+    ):
+        # invert if forced or based on pixel_intensity_relationship_sign
+        un_scaled_array = scaled_array.max() + scaled_array.min() - scaled_array
     else:
         un_scaled_array = scaled_array
 
@@ -1283,6 +1293,7 @@ class DicomImage(BaseImage):
         sid: float = None,
         sad: float = 1000,
         raw_pixels: bool = False,
+        invert_pixels: bool | None = None,
     ):
         """
         Parameters
@@ -1318,13 +1329,17 @@ class DicomImage(BaseImage):
         self.metadata = retrieve_dicom_file(path)
         self._original_dtype = self.metadata.pixel_array.dtype
         self._raw_pixels = raw_pixels
+        self._invert_pixels = invert_pixels
         if dtype is not None:
             self.array = self.metadata.pixel_array.astype(dtype)
         else:
             self.array = self.metadata.pixel_array.copy()
         # convert values to HU or CU
         self.array = _rescale_dicom_values(
-            self.array, self.metadata, raw_pixels=raw_pixels
+            self.array,
+            self.metadata,
+            raw_pixels=raw_pixels,
+            invert_pixels=invert_pixels,
         )
 
     @classmethod
@@ -1347,7 +1362,7 @@ class DicomImage(BaseImage):
         A string pointing to the new filename.
         """
         unscaled_array = _unscale_dicom_values(
-            self.array, self.metadata, self._raw_pixels
+            self.array, self.metadata, self._raw_pixels, self._invert_pixels
         )
         # if we will have bit overflows, stretch instead
         max_is_too_high = (

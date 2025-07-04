@@ -13,19 +13,6 @@ Legend
 v 3.35.0
 --------
 
-Winston-Lutz
-^^^^^^^^^^^^
-
-* :bdg-warning:`Fixed` Scipy's ``minimize`` function is used for calculating the 3D isocenter size for the gantry. It's been found
-  to be somewhat unstable depending on the CPU architecture and possibly ``scipy`` version. A number of
-  tests were run across different architectures and versions but no definitive conclusion could be drawn about
-  what the ultimate cause was. These differences caused changes in the isocenter size by up to ~0.2mm.
-  Only one test case was found that changed this much however.
-  The overall best solution found was to set the ``eps`` parameter to ``1e-7``. This value minimized changes
-  to the gantry isocenter size across tested architectures (``x64`` with various SIMD instructions), Python versions (3.9-3.11) and ``scipy`` versions (1.11-1.15).
-  This also seems only to affect ``scipy`` version 1.13.0 and lower. Unfortunately, I don't have any better
-  guidance at this time. If you are seeing significant changes in the isocenter size, feel free to open an issue.
-
 Core
 ^^^^
 
@@ -42,7 +29,22 @@ Core
   in the ROI. This can be used to calculate statistics even when rotation is nonzero.
 * :bdg-danger:`Change` The ``rotate_points`` function (used internally by the ``Rectangle`` class) now assumes a DICOM/image
   coordinate system. Previously, it assumed a Cartesian coordinate system. The ``direction`` parameter has also been removed.
+* :bdg-warning:`Fixed` :class:`~pylinac.core.image.DicomImage` now inverts the pixels when DICOM attribute ``PixelIntensityRelationshipSign = -1`` (see details in :ref:`pixel_inversion`).
+  The image analysis and metrics work the same but the pixel data is no longer negative (unless the modality LUT makes it so)
 
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` Scipy's ``minimize`` function is used for calculating the 3D isocenter size for the gantry. It's been found
+  to be somewhat unstable depending on the CPU architecture and possibly ``scipy`` version. A number of
+  tests were run across different architectures and versions but no definitive conclusion could be drawn about
+  what the ultimate cause was. These differences caused changes in the isocenter size by up to ~0.2mm.
+  Only one test case was found that changed this much however.
+  The overall best solution found was to set the ``eps`` parameter to ``1e-7``. This value minimized changes
+  to the gantry isocenter size across tested architectures (``x64`` with various SIMD instructions), Python versions (3.9-3.11) and ``scipy`` versions (1.11-1.15).
+  This also seems only to affect ``scipy`` version 1.13.0 and lower. Unfortunately, I don't have any better
+  guidance at this time. If you are seeing significant changes in the isocenter size, feel free to open an issue.
 
 v 3.34.0
 --------

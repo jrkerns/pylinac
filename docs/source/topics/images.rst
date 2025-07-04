@@ -190,56 +190,113 @@ We can compute the gamma between two arrays or images using :func:`~pylinac.core
     # gamma is a numpy array the same size as the reference/eval image
     plt.imshow(gamma)
 
-.. _pixel_inversion:
+Pixel Data
+^^^^^^^^^^
 
-Pixel Data & Inversion
-^^^^^^^^^^^^^^^^^^^^^^
+In DICOM the pixel data is stored as a data stream and needs to be converted into meaningful values — commonly referred to as modality-specific units (e.g., Hounsfield Units in CT).
+This is done by applying a lookup table or a linear transformation (e.g. :math:`P_{corrected} = Slope * P_{raw} + Intercept`). Both cases are handled by `pydicom.pixels.apply_rescale <https://pydicom.github.io/pydicom/dev/reference/generated/pydicom.pixels.apply_rescale.html>`_.
 
-This is the most common issue when dealing with image analysis. The inversion, meaning the pixel value to radiation fluence relationship,
-of pylinac images used to be a simple imcompliment, meaning inverting the data while respecting the bit ranges, since
-most images' raw pixel data was inverted. However, to handle newer EPID images that included more and better pixel relationships,
-this has changed in v3.0.
-
-.. note:: The axiom for pylinac (for v3.0+) is that higher pixel values == more radiation == lighter/whiter display
-
-Image pixel values will proceed through the following conditions. The
-first condition that matches will be executed:
-
-* If the ``raw_pixels`` parameter is set to ``True``, no tags will be searched and
-  the values from the DICOM file will be used directly. E.g.
+.. note:: This behavior can be overridden by setting the ``raw_pixels`` parameter to ``True``:
 
   .. code-block:: python
 
     from pylinac.core import image
 
-    dcm = image.load("my_dcm_file.dcm", raw_pixels=True)
-    # OR
-    dcm = image.DicomImage("my_dcm_file.dcm", raw_pixels=True)
+    dcm = image.load("my_dcm_file.dcm")  # Default, returns rescaled data
+    dcm = image.load("my_dcm_file.dcm", raw_pixels=False)  # Same as above
+    dcm = image.load("my_dcm_file.dcm", raw_pixels=True)  # Override, returns raw pixel data
 
   .. versionadded:: 3.13
 
-* If the image has the `Rescale Slope <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281053>`_,
-  `Rescale Intercept <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281052>`_ and the `Pixel Intensity Relationship Sign <https://dicom.innolitics.com/ciods/rt-image/rt-image/00281041>`_
-  attributes, all of them are applied with a simple linear correction: :math:`P_{corrected} = Sign * Slope * P_{raw} + Intercept`
-  Images from newer linac platforms appear more likely to have this attribute.
+.. _pixel_inversion:
 
-* If the image only has the `Rescale Slope <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281053>`_ and
-  `Rescale Intercept <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281052>`_ but not the relationship tag then it is applied as:
-  :math:`P_{corrected} = Slope * P_{raw} + Intercept`. This is the most common scenario encountered to date.
+Pixel Data Inversion
+^^^^^^^^^^^^^^^^^^^^
 
-  .. note:: It is possible that the slope has a negative value which is implicitly applying a relationship and would be equivalent to the first case, however, older images often have a simple positive slope relationship.
+DICOM provides different tags to handle how an image should be displayed with respect to light/dark values and low/high intensity values.
 
-* If the image does not have these two tags, then an imcompliment is applied: :math:`new array = -old array + max(old array) + min(old array)`.
-  Very old images will likely reach this condition.
+* `PixelIntensityRelationshipSign (0028,1041) <https://dicom.innolitics.com/ciods/rt-image/rt-image/00281041>`_
+    *The sign of the relationship between the Pixel sample values stored in Pixel Data and the X-Ray beam intensity*
+     | *+1: Lower pixel values correspond to less X-Ray beam intensity*
+     | *-1: Higher pixel values correspond to less X-Ray beam intensity*
+* `PhotometricInterpretation (0028,0004) <https://dicom.innolitics.com/ciods/computed-radiography-image/image-pixel/00280004>`_
+    *Specifies the intended interpretation of the pixel data*
+     | *MONOCHROME1: ...The minimum sample value is intended to be displayed as white...*
+     | *MONOCHROME2: ...The minimum sample value is intended to be displayed as black...*
 
-.. note::
+.. note:: The axiom for pylinac (for v3.0+) is that higher pixel values == more radiation == lighter/whiter display
 
-    If your image appears to be incorrectly inverted, missing tags are likely why.
-    Pylinac has parameters to force the inversion of the image if the end result is wrong.
-    Furthermore, some modules perform another inversion check at runtime.
-    This is mostly historical but was done because some images were always expected to have a certain relationship and
-    the tag logic above was not applied consistently (both new and old images were imcomplimented, causing differences).
-    For those modules, tags were not used but a simple histogram analysis which expects the irradiated part of the image to be either centrally located
-    or most of the image to NOT be irradiated. This is how pylinac historically worked around this issue and got reliable results across image eras.
-    However with this new logic, there may be analysis differences for those images. It is more correct to follow the tags but
-    for backwards compatibility the module-specific inversion checks remain.
+This is the most common issue when dealing with image analysis.
+E.g. when displaying a square field (x-rays in the middle, no irradiation on the sides) we can have these combinations:
+
+.. plot::
+   :include-source: False
+
+   import matplotlib.pyplot as plt
+   import numpy as np
+
+   x = np.zeros((3, 3), dtype=np.uint8)
+   x[1, 1] = 1
+
+   fig, axs = plt.subplots(2,2, constrained_layout=True)
+
+   ax = axs[0,0]
+   ax.imshow(x, cmap='gray')
+   ax.set_title('RelationshipSign = -1\nMonochrome1')
+   for row in range(3):
+       for col in range(3):
+           text = ax.text(row, col, 1-x[row, col], ha="center", va="center", color="r")
+
+   ax = axs[0,1]
+   ax.imshow(1 - x, cmap='gray')
+   ax.set_title('RelationshipSign = -1\nMonochrome2')
+   for row in range(3):
+       for col in range(3):
+           text = ax.text(row, col, 1-x[row, col], ha="center", va="center", color="r")
+
+   ax = axs[1,0]
+   ax.imshow(1 - x, cmap='gray')
+   ax.set_title('RelationshipSign = 1\nMonochrome1')
+   for row in range(3):
+       for col in range(3):
+           text = ax.text(row, col, x[row, col], ha="center", va="center", color="r")
+
+   ax = axs[1,1]
+   ax.imshow(x, cmap='gray')
+   ax.set_title('RelationshipSign = 1\nMonochrome2')
+   for row in range(3):
+       for col in range(3):
+           text = ax.text(row, col, x[row, col], ha="center", va="center", color="r")
+
+   for ax in axs.flat:
+       ax.set_xticks([])
+       ax.set_yticks([])
+
+   plt.show()
+
+
+As a convention pylinac uses ``MONOCHROME2`` to display the images (regardless of the ``PhotometricInterpretation`` value).
+Film images have negative ``PixelIntensityRelationshipSign``, whereas EPID images have positive ``PixelIntensityRelationshipSign``.
+Since most RT images these days are EPID images, pylinac process images as EPID therefore the pixels are inverted when ``PixelIntensityRelationshipSign = -1``:
+:math:`P_{inverted} = max(P_{original}) + min(P_{original}) - P_{original}`.
+
+
+.. note:: this behavior can be overridden by setting the ``invert_pixels`` parameter to ``False``, ``True``, ``None`` (auto):
+
+  .. code-block:: python
+
+    from pylinac.core import image
+
+    dcm = image.load(
+        "my_dcm_file.dcm"
+    )  # Default, returns inverted pixels if PixelIntensityRelationshipSign = -1
+    dcm = image.load("my_dcm_file.dcm", invert_pixels=None)  # Same as above
+    dcm = image.load(
+        "my_dcm_file.dcm", invert_pixels=True
+    )  # Force inversion, returns inverted pixels
+    dcm = image.load(
+        "my_dcm_file.dcm", invert_pixels=False
+    )  # Do not invert, returns original pixels
+
+
+  .. versionadded:: 3.35
