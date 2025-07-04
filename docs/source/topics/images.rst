@@ -213,6 +213,8 @@ This is done by applying a lookup table or a linear transformation (e.g. :math:`
 Pixel Data Inversion
 ^^^^^^^^^^^^^^^^^^^^
 
+.. note:: In this context inversion means flipping the min/max values.
+
 DICOM provides different tags to handle how an image should be displayed with respect to light/dark values and low/high intensity values.
 
 * `PixelIntensityRelationshipSign (0028,1041) <https://dicom.innolitics.com/ciods/rt-image/rt-image/00281041>`_
@@ -277,7 +279,7 @@ E.g. when displaying a square field (x-rays in the middle, no irradiation on the
 
 As a convention pylinac uses ``MONOCHROME2`` to display the images (regardless of the ``PhotometricInterpretation`` value).
 Film images have negative ``PixelIntensityRelationshipSign``, whereas EPID images have positive ``PixelIntensityRelationshipSign``.
-Since most RT images these days are EPID images, pylinac process images as EPID therefore the pixels are inverted when ``PixelIntensityRelationshipSign = -1``:
+Since most RT images these days are EPID images, pylinac processes images as EPID therefore the pixels are inverted when ``PixelIntensityRelationshipSign = -1``:
 :math:`P_{inverted} = max(P_{original}) + min(P_{original}) - P_{original}`.
 
 
