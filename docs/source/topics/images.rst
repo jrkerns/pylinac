@@ -190,8 +190,8 @@ We can compute the gamma between two arrays or images using :func:`~pylinac.core
     # gamma is a numpy array the same size as the reference/eval image
     plt.imshow(gamma)
 
-Pixel Data
-^^^^^^^^^^
+Pixel Data Rescaling
+^^^^^^^^^^^^^^^^^^^^
 
 In DICOM the pixel data is stored as a data stream and needs to be converted into meaningful values — commonly referred to as modality-specific units (e.g., Hounsfield Units in CT).
 This is done by applying a lookup table or a linear transformation (e.g. :math:`P_{corrected} = Slope * P_{raw} + Intercept`). Both cases are handled by `pydicom.pixels.apply_rescale <https://pydicom.github.io/pydicom/dev/reference/generated/pydicom.pixels.apply_rescale.html>`_.
