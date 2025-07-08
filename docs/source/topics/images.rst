@@ -198,13 +198,17 @@ This is done by applying a lookup table or a linear transformation (e.g. :math:`
 
 .. note:: This behavior can be overridden by setting the ``raw_pixels`` parameter to ``True``:
 
+  .. blacken-docs:off
+
   .. code-block:: python
 
     from pylinac.core import image
 
-    dcm = image.load("my_dcm_file.dcm")  # Default, returns rescaled data
-    dcm = image.load("my_dcm_file.dcm", raw_pixels=False)  # Same as above
-    dcm = image.load("my_dcm_file.dcm", raw_pixels=True)  # Override, returns raw pixel data
+    dcm = image.load("my_dcm_file.dcm")                    # Default, returns rescaled data
+    dcm = image.load("my_dcm_file.dcm", raw_pixels=False)  # Same as default
+    dcm = image.load("my_dcm_file.dcm", raw_pixels=True)   # Override, returns raw pixel data
+
+  .. blacken-docs:on
 
   .. versionadded:: 3.13
 
@@ -218,15 +222,15 @@ Pixel Data Inversion
 DICOM provides different tags to handle how an image should be displayed with respect to light/dark values and low/high intensity values.
 
 * `PixelIntensityRelationshipSign (0028,1041) <https://dicom.innolitics.com/ciods/rt-image/rt-image/00281041>`_
-    *The sign of the relationship between the Pixel sample values stored in Pixel Data and the X-Ray beam intensity*
-     | *+1: Lower pixel values correspond to less X-Ray beam intensity*
-     | *-1: Higher pixel values correspond to less X-Ray beam intensity*
+   | *The sign of the relationship between the Pixel sample values stored in Pixel Data and the X-Ray beam intensity:*
+   |    *+1: Lower pixel values correspond to less X-Ray beam intensity*
+   |    *-1: Higher pixel values correspond to less X-Ray beam intensity*
 * `PhotometricInterpretation (0028,0004) <https://dicom.innolitics.com/ciods/computed-radiography-image/image-pixel/00280004>`_
-    *Specifies the intended interpretation of the pixel data*
-     | *MONOCHROME1: ...The minimum sample value is intended to be displayed as white...*
-     | *MONOCHROME2: ...The minimum sample value is intended to be displayed as black...*
+   | *Specifies the intended interpretation of the pixel data:*
+   |    *MONOCHROME1: ...The minimum sample value is intended to be displayed as white...*
+   |    *MONOCHROME2: ...The minimum sample value is intended to be displayed as black...*
 
-.. note:: The axiom for pylinac (for v3.0+) is that higher pixel values == more radiation == lighter/whiter display
+.. note:: The axiom for pylinac (for v3.0+) is that higher pixel values == more radiation == lighter/whiter display, i.e. we follow ``MONOCHROME2`` and invert if ``PixelIntensityRelationshipSign=-1``
 
 This is the most common issue when dealing with image analysis.
 E.g. when displaying a square field (x-rays in the middle, no irradiation on the sides) we can have these combinations:
@@ -278,27 +282,28 @@ E.g. when displaying a square field (x-rays in the middle, no irradiation on the
 
 
 As a convention pylinac uses ``MONOCHROME2`` to display the images (regardless of the ``PhotometricInterpretation`` value).
-Film images have negative ``PixelIntensityRelationshipSign``, whereas EPID images have positive ``PixelIntensityRelationshipSign``.
-Since most RT images these days are EPID images, pylinac processes images as EPID therefore the pixels are inverted when ``PixelIntensityRelationshipSign = -1``:
-:math:`P_{inverted} = max(P_{original}) + min(P_{original}) - P_{original}`.
+Typically film images have negative ``PixelIntensityRelationshipSign``, whereas EPID images have positive ``PixelIntensityRelationshipSign``.
+Since most RT images these days are EPID images, pylinac processes images as EPID therefore the pixels are inverted when
+``PixelIntensityRelationshipSign = -1``:
+
+.. math::
+
+  P_{inverted} = max(P_{original}) + min(P_{original}) - P_{original}
 
 
-.. note:: this behavior can be overridden by setting the ``invert_pixels`` parameter to ``False``, ``True``, ``None`` (auto):
+.. note:: This behavior can be overridden by setting the ``invert_pixels`` parameter to ``False``, ``True``, ``None`` (auto):
+
+  .. blacken-docs:off
 
   .. code-block:: python
 
     from pylinac.core import image
 
-    dcm = image.load(
-        "my_dcm_file.dcm"
-    )  # Default, returns inverted pixels if PixelIntensityRelationshipSign = -1
-    dcm = image.load("my_dcm_file.dcm", invert_pixels=None)  # Same as above
-    dcm = image.load(
-        "my_dcm_file.dcm", invert_pixels=True
-    )  # Force inversion, returns inverted pixels
-    dcm = image.load(
-        "my_dcm_file.dcm", invert_pixels=False
-    )  # Do not invert, returns original pixels
+    dcm = image.load("my_dcm_file.dcm")                       # Default, returns inverted pixels if PixelIntensityRelationshipSign = -1
+    dcm = image.load("my_dcm_file.dcm", invert_pixels=None)   # Same as default
+    dcm = image.load("my_dcm_file.dcm", invert_pixels=True)   # Force inversion, returns inverted pixels
+    dcm = image.load("my_dcm_file.dcm", invert_pixels=False)  # Do not invert, returns original pixels
 
+  .. blacken-docs:off
 
   .. versionadded:: 3.35
