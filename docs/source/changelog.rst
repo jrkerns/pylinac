@@ -30,7 +30,24 @@ Core
 * :bdg-danger:`Change` The ``rotate_points`` function (used internally by the ``Rectangle`` class) now assumes a DICOM/image
   coordinate system. Previously, it assumed a Cartesian coordinate system. The ``direction`` parameter has also been removed.
 * :bdg-warning:`Fixed` :class:`~pylinac.core.image.DicomImage` now inverts the pixels when DICOM attribute ``PixelIntensityRelationshipSign = -1`` (see details in :ref:`pixel_inversion`).
-  The image analysis and metrics work the same but the pixel data is no longer negative (unless the modality LUT makes it so)
+  The image analysis and metrics work the same but the pixel data is no longer negative (unless the modality LUT makes it so).
+  Specifically, this can affect images **without** a Rescale Slope or Intercept tag. These normally occur in older images.
+  I.e. older imagers and images **may** result in inverted pixel data compared to previous pylinac versions with this new behavior.
+  See :ref:`pixel_inversion` if you need to revert such behavior.
+
+  .. warning::
+
+      It's possible that this will change the results of custom analyses with older EPID images. Results of pylinac's high-level analyses have not
+      changed the high-level modules will invert the pixel data themselves as needed.
+
+Image Generator
+^^^^^^^^^^^^^^^
+
+* :bdg-danger:`Change` Alongside the above change, when using the ``as_dicom`` method of the image simulators, the
+  default is now ``invert_array=False``. Previously, this was set to ``True`` because when loading the image within
+  pylinac, the pixel data was inverted because there was no Rescale Slope or Intercept tags. Images generated with
+  previous versions of pylinac loaded into this version of pylinac or greater may need to set ``invert_pixels=True``
+  when loading. See :ref:`pixel_inversion`.
 
 
 Winston-Lutz
