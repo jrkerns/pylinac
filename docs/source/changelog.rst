@@ -38,7 +38,7 @@ Core
   .. warning::
 
       It's possible that this will change the results of custom analyses with older EPID images. Results of pylinac's high-level analyses have not
-      changed the high-level modules will invert the pixel data themselves as needed.
+      changed as the high-level modules will invert the pixel data themselves as needed.
 
 Image Generator
 ^^^^^^^^^^^^^^^
