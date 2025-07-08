@@ -126,77 +126,113 @@ class TestFromMultiples(TestCase):
 
 
 class TestDICOMScaling(TestCase):
-    def test_raw_pixels_doesnt_change_array(self):
+    def test_scale_raw_pixels_doesnt_change_array(self):
         """Test that loading a dicom with raw_pixels=True doesn't change the array"""
         ds = pydicom.dcmread(dcm_path)
-        array = _rescale_dicom_values(ds.pixel_array, ds, raw_pixels=True)
-        assert np.array_equal(ds.pixel_array, array)
-
-    def test_mr_storage_doesnt_rescale(self):
-        """Test that loading a dicom with MR storage doesn't rescale"""
-        dcm_path = get_file_from_cloud_test_repo(["ACR", "MRI", "GE - 3T", "IM_0001"])
-        ds = pydicom.dcmread(dcm_path)
-        array = _rescale_dicom_values(ds.pixel_array, ds, raw_pixels=False)
-        assert np.array_equal(ds.pixel_array, array)
-
-    def test_ct_image(self):
-        """Test an older CT Image where we are guaranteed to have rescale slope and intercept tags"""
-        dcm_path = get_file_from_cloud_test_repo(
-            ["CBCT", "CatPhan_504", "Case3_Philips_1mm", "1mm", "EE035381"]
+        array = _rescale_dicom_values(
+            ds.pixel_array, ds, raw_pixels=True, invert_pixels=None
         )
-        ds = pydicom.dcmread(dcm_path)
-        array = _rescale_dicom_values(ds.pixel_array, ds, raw_pixels=False)
-        assert not np.array_equal(ds.pixel_array, array)
-        assert np.isclose(array.max(), 194)
+        assert np.array_equal(ds.pixel_array, array)
 
-    def test_no_tags_inverts(self):
+    def test_scale_no_tags_do_nothing(self):
         ds = pydicom.Dataset()
         ds.SOPClassUID = UID("1.2.840.122332")  # junk UID; not a real image type
         array = np.zeros((3, 3))
         array[0, 0] = 100
-        scaled_array = _rescale_dicom_values(array, ds, raw_pixels=False)
-        assert not np.array_equal(array, scaled_array)
-        assert np.isclose(
-            scaled_array[0, 0], 0
-        )  # test we inverted and the value is now opposite
-        assert np.isclose(scaled_array.max(), 100)
+        scaled_array = _rescale_dicom_values(
+            array, ds, raw_pixels=False, invert_pixels=None
+        )
+        assert np.array_equal(array, scaled_array)
 
-    def test_all_tags_negative_sign(self):
-        ds = pydicom.Dataset()
-        ds.RescaleSlope = 1
-        ds.RescaleIntercept = -1000
-        ds.PixelIntensityRelationshipSign = -1
-        ds.SOPClassUID = UID("1.2.840.122332")  # junk UID; not a real image type
-        array = np.ones((3, 3))
-        scaled_array = _rescale_dicom_values(array, ds, raw_pixels=False)
-        # with all tags, this will be negative and offset
-        assert not np.array_equal(array, scaled_array)
-        assert np.isclose(scaled_array.max(), 999)
+    def test_scale_mr_image(self):
+        """Test loading a dicom with MR storage without rescale slope or intercept tags"""
+        dcm_path = get_file_from_cloud_test_repo(["ACR", "MRI", "GE - 3T", "IM_0001"])
+        ds = pydicom.dcmread(dcm_path)
+        array = _rescale_dicom_values(
+            ds.pixel_array, ds, raw_pixels=False, invert_pixels=None
+        )
+        assert np.array_equal(ds.pixel_array, array)
 
-    def test_all_tags_positive_sign(self):
+    def test_scale_ct_image(self):
+        """Test loading a CT Image where we are guaranteed to have rescale slope and intercept tags"""
+        dcm_path = get_file_from_cloud_test_repo(
+            ["CBCT", "CatPhan_504", "Case3_Philips_1mm", "1mm", "EE035381"]
+        )
+        ds = pydicom.dcmread(dcm_path)
+        scaled_array = _rescale_dicom_values(
+            ds.pixel_array, ds, raw_pixels=False, invert_pixels=None
+        )
+        manually_scaled_array = ds.RescaleSlope * ds.pixel_array + ds.RescaleIntercept
+        assert np.array_equal(manually_scaled_array, scaled_array)
+
+    def test_scale_image_inversion_pixel_intensity_relationship_sign_equals_1(self):
         ds = pydicom.Dataset()
         ds.RescaleSlope = 1
         ds.RescaleIntercept = -1000
         ds.PixelIntensityRelationshipSign = 1
         ds.SOPClassUID = UID("1.2.840.122332")  # junk UID; not a real image type
         array = np.ones((3, 3))
-        scaled_array = _rescale_dicom_values(array, ds, raw_pixels=False)
-        # with all tags, this will be negative and offset
-        assert not np.array_equal(array, scaled_array)
-        assert np.isclose(scaled_array.max(), -999)
+        array[0, 0] = 100
+        forced_inversion_array = _rescale_dicom_values(
+            array, ds, raw_pixels=False, invert_pixels=True
+        )
+        forced_non_inversion_array = _rescale_dicom_values(
+            array, ds, raw_pixels=False, invert_pixels=False
+        )
+        auto_inversion_array = _rescale_dicom_values(
+            array, ds, raw_pixels=False, invert_pixels=None
+        )
+        assert not np.array_equal(forced_inversion_array, auto_inversion_array)
+        assert np.array_equal(forced_non_inversion_array, auto_inversion_array)
+
+    def test_scale_image_inversion_pixel_intensity_relationship_sign_equals_minus_1(
+        self,
+    ):
+        ds = pydicom.Dataset()
+        ds.RescaleSlope = 1
+        ds.RescaleIntercept = -1000
+        ds.PixelIntensityRelationshipSign = -1
+        ds.SOPClassUID = UID("1.2.840.122332")  # junk UID; not a real image type
+        array = np.ones((3, 3))
+        array[0, 0] = 100
+        forced_inversion_array = _rescale_dicom_values(
+            array, ds, raw_pixels=False, invert_pixels=True
+        )
+        forced_non_inversion_array = _rescale_dicom_values(
+            array, ds, raw_pixels=False, invert_pixels=False
+        )
+        auto_inversion_array = _rescale_dicom_values(
+            array, ds, raw_pixels=False, invert_pixels=None
+        )
+        assert np.array_equal(forced_inversion_array, auto_inversion_array)
+        assert not np.array_equal(forced_non_inversion_array, auto_inversion_array)
 
 
 class TestDICOMUnscaling(TestCase):
-    def test_unscale_raw_pixels(self):
+    def test_unscale_raw_pixels_doesnt_change_array(self):
         """Test when we unscale the image that the values are the same"""
         ds = pydicom.dcmread(dcm_path)
-        array = _unscale_dicom_values(ds.pixel_array, ds, raw_pixels=True)
+        array = _unscale_dicom_values(
+            ds.pixel_array, ds, raw_pixels=True, invert_pixels=None
+        )
         assert np.array_equal(ds.pixel_array, array)
 
-    def test_unscale_mr_storage(self):
+    def test_unscale_no_tags_do_nothing(self):
+        ds = pydicom.Dataset()
+        ds.SOPClassUID = UID("1.2.840.122332")  # junk UID; not a real image type
+        original_array = np.zeros((3, 3), dtype=np.uint16)
+        original_array[0, 0] = 100
+        scaled_array = _rescale_dicom_values(
+            original_array, ds, raw_pixels=False, invert_pixels=None
+        )
+        assert np.array_equal(original_array, scaled_array)
+
+    def test_unscale_mr_image(self):
         dcm_path = get_file_from_cloud_test_repo(["ACR", "MRI", "GE - 3T", "IM_0001"])
         ds = pydicom.dcmread(dcm_path)
-        array = _unscale_dicom_values(ds.pixel_array, ds, raw_pixels=False)
+        array = _unscale_dicom_values(
+            ds.pixel_array, ds, raw_pixels=False, invert_pixels=None
+        )
         assert np.array_equal(ds.pixel_array, array)
 
     def test_unscale_ct_image(self):
@@ -206,31 +242,47 @@ class TestDICOMUnscaling(TestCase):
         )
         ds = pydicom.dcmread(dcm_path)
         original_array = ds.pixel_array
-        scaled_array = _rescale_dicom_values(ds.pixel_array, ds, raw_pixels=False)
-        unscaled_array = _unscale_dicom_values(scaled_array, ds, raw_pixels=False)
+        scaled_array = _rescale_dicom_values(
+            ds.pixel_array, ds, raw_pixels=False, invert_pixels=None
+        )
+        unscaled_array = _unscale_dicom_values(
+            scaled_array, ds, raw_pixels=False, invert_pixels=None
+        )
         assert np.array_equal(original_array, unscaled_array)
 
-    def test_no_tags_inverts_back(self):
+    def test_unscale_image_inversion_pixel_intensity_relationship_sign_equals_1(self):
         ds = pydicom.Dataset()
+        ds.RescaleSlope = 1
+        ds.RescaleIntercept = -1000
+        ds.PixelIntensityRelationshipSign = 1
         ds.SOPClassUID = UID("1.2.840.122332")  # junk UID; not a real image type
-        original_array = np.zeros((3, 3), dtype=np.uint16)
-        original_array[0, 0] = 100
-        scaled_array = _rescale_dicom_values(original_array, ds, raw_pixels=False)
-        assert not np.array_equal(original_array, scaled_array)
-        unscaled_array = _unscale_dicom_values(scaled_array, ds, raw_pixels=False)
-        assert np.array_equal(original_array, unscaled_array)
+        array = np.ones((3, 3))
+        array[0, 0] = 100
+        scaled_array = _rescale_dicom_values(
+            array, ds, raw_pixels=False, invert_pixels=True
+        )
+        unscaled_array = _unscale_dicom_values(
+            scaled_array, ds, raw_pixels=False, invert_pixels=True
+        )
+        assert np.array_equal(array, unscaled_array)
 
-    def test_all_tags_negative_sign(self):
+    def test_unscale_image_inversion_pixel_intensity_relationship_sign_equals_minus_1(
+        self,
+    ):
         ds = pydicom.Dataset()
         ds.RescaleSlope = 1
         ds.RescaleIntercept = -1000
         ds.PixelIntensityRelationshipSign = -1
         ds.SOPClassUID = UID("1.2.840.122332")  # junk UID; not a real image type
-        original_array = np.ones((3, 3))
-        scaled_array = _rescale_dicom_values(original_array, ds, raw_pixels=False)
-        assert not np.array_equal(scaled_array, original_array)
-        unscaled_array = _unscale_dicom_values(scaled_array, ds, raw_pixels=False)
-        assert np.array_equal(unscaled_array, original_array)
+        array = np.ones((3, 3))
+        array[0, 0] = 100
+        scaled_array = _rescale_dicom_values(
+            array, ds, raw_pixels=False, invert_pixels=None
+        )
+        unscaled_array = _unscale_dicom_values(
+            scaled_array, ds, raw_pixels=False, invert_pixels=None
+        )
+        assert np.array_equal(array, unscaled_array)
 
 
 class TestEquateImages(TestCase):

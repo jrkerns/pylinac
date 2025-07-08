@@ -48,7 +48,7 @@ class Simulator(ABC):
         gantry_angle: float = 0.0,
         coll_angle: float = 0.0,
         table_angle: float = 0.0,
-        invert_array: bool = True,
+        invert_array: bool = False,
         tags: dict | None = None,
     ) -> Dataset:
         """Create and return a pydicom Dataset. I.e. create a pseudo-DICOM image."""

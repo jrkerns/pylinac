@@ -23,6 +23,7 @@ import argue
 import matplotlib.pyplot as plt
 import numpy as np
 import pydicom
+import pydicom.pixel_data_handlers as pixels
 import scipy.ndimage as spf
 from PIL import Image as pImage
 from PIL.PngImagePlugin import PngInfo
@@ -273,82 +274,62 @@ def load_multiples(
 
 
 def _rescale_dicom_values(
-    unscaled_array: np.ndarray, metadata: Dataset, raw_pixels: bool
+    unscaled_array: np.ndarray,
+    metadata: Dataset,
+    raw_pixels: bool,
+    invert_pixels: bool | None,
 ) -> np.ndarray:
-    """Rescale the DICOM pixel values depending on the tags available.
+    """Rescale and invert the DICOM pixel values depending on the tags available.
 
     See Also
     --------
     https://pylinac.readthedocs.io/en/latest/topics/images.html#pixel-data-inversion
     """
-    has_all_rescale_tags = (
-        hasattr(metadata, "RescaleSlope")
-        and hasattr(metadata, "RescaleIntercept")
-        and hasattr(metadata, "PixelIntensityRelationshipSign")
-    )
-    has_some_rescale_tags = hasattr(metadata, "RescaleSlope") and hasattr(
-        metadata, "RescaleIntercept"
-    )
-    is_ct_storage = metadata.SOPClassUID.name == "CT Image Storage"
-    is_mr_storage = metadata.SOPClassUID.name == "MR Image Storage"
     if raw_pixels:
         return unscaled_array
-    elif has_all_rescale_tags:
-        scaled_array = (
-            (metadata.RescaleSlope * unscaled_array) + metadata.RescaleIntercept
-        ) * metadata.PixelIntensityRelationshipSign
-    elif is_ct_storage or has_some_rescale_tags:
-        scaled_array = (
-            metadata.RescaleSlope * unscaled_array
-        ) + metadata.RescaleIntercept
-    elif is_mr_storage:
-        # signal is usually correct as-is, no inversion needed
-        scaled_array = unscaled_array
-    else:
-        # invert it
-        orig_array = unscaled_array
-        scaled_array = -orig_array + orig_array.max() + orig_array.min()
+
+    # this is the same as scaled_array = unscaled_array * rescale_intercept + rescale_slope, but pydicom tests for the tags
+    scaled_array = pixels.apply_rescale(unscaled_array, metadata)
+
+    pixel_intensity_relationship_sign = metadata.get("PixelIntensityRelationshipSign")
+    if invert_pixels or (
+        invert_pixels is None and pixel_intensity_relationship_sign == -1
+    ):
+        # invert if forced or based on pixel_intensity_relationship_sign
+        scaled_array = scaled_array.max() + scaled_array.min() - scaled_array
     return scaled_array
 
 
 def _unscale_dicom_values(
-    scaled_array: np.ndarray, metadata: Dataset, raw_pixels: bool
+    scaled_array: np.ndarray,
+    metadata: Dataset,
+    raw_pixels: bool,
+    invert_pixels: bool | None,
 ) -> np.ndarray:
-    """Unscale the DICOM pixel values depending on the tags available.
+    """Unscale and invert the DICOM pixel values depending on the tags available.
 
     This is the inverse of _rescale_dicom_values; specifically, when we
     want to save the DICOM image we want to save the raw values
     back to such that when re-importing and rescaling we will get the same array.
     """
-    has_all_rescale_tags = (
-        hasattr(metadata, "RescaleSlope")
-        and hasattr(metadata, "RescaleIntercept")
-        and hasattr(metadata, "PixelIntensityRelationshipSign")
-    )
-    has_some_rescale_tags = hasattr(metadata, "RescaleSlope") and hasattr(
-        metadata, "RescaleIntercept"
-    )
-    is_ct_storage = metadata.SOPClassUID.name == "CT Image Storage"
-    is_mr_storage = metadata.SOPClassUID.name == "MR Image Storage"
     if raw_pixels:
         return scaled_array
-    elif has_all_rescale_tags:
-        unscaled_array = scaled_array * metadata.PixelIntensityRelationshipSign
-        unscaled_array = (
-            unscaled_array - metadata.RescaleIntercept
-        ) / metadata.RescaleSlope
-    elif is_ct_storage or has_some_rescale_tags:
-        unscaled_array = (
-            scaled_array - metadata.RescaleIntercept
-        ) / metadata.RescaleSlope
-    elif is_mr_storage:
-        # signal is usually correct as-is, no inversion needed
-        unscaled_array = scaled_array
+
+    pixel_intensity_relationship_sign = metadata.get("PixelIntensityRelationshipSign")
+    if invert_pixels or (
+        invert_pixels is None and pixel_intensity_relationship_sign == -1
+    ):
+        # invert if forced or based on pixel_intensity_relationship_sign
+        un_scaled_array = scaled_array.max() + scaled_array.min() - scaled_array
     else:
-        # invert it
-        orig_array = scaled_array
-        unscaled_array = -orig_array + orig_array.max() + orig_array.min()
-    return unscaled_array
+        un_scaled_array = scaled_array
+
+    rescale_slope = metadata.get("RescaleSlope")
+    rescale_intercept = metadata.get("RescaleIntercept")
+    if rescale_slope is not None and rescale_intercept is not None:
+        un_scaled_array = (un_scaled_array - rescale_intercept) / rescale_slope
+
+    return un_scaled_array
 
 
 def _is_dicom(path: str | Path | io.BytesIO | ImageLike | np.ndarray) -> bool:
@@ -1312,6 +1293,7 @@ class DicomImage(BaseImage):
         sid: float = None,
         sad: float = 1000,
         raw_pixels: bool = False,
+        invert_pixels: bool | None = None,
     ):
         """
         Parameters
@@ -1338,6 +1320,11 @@ class DicomImage(BaseImage):
             If True, no correction will be applied. This is typically used
             for scenarios when you want to match behavior to older or different
             software.
+        invert_pixels : bool | None
+            Whether to invert the pixel values (inverted = max + min - original).
+            If True, the pixel value will be inverted.
+            If False, the pixel value will be not inverted.
+            If None, the pixel value will be inverted if PixelIntensityRelationshipSign=-1
         """
         super().__init__(path)
         self._sid = sid
@@ -1347,13 +1334,17 @@ class DicomImage(BaseImage):
         self.metadata = retrieve_dicom_file(path)
         self._original_dtype = self.metadata.pixel_array.dtype
         self._raw_pixels = raw_pixels
+        self._invert_pixels = invert_pixels
         if dtype is not None:
             self.array = self.metadata.pixel_array.astype(dtype)
         else:
             self.array = self.metadata.pixel_array.copy()
         # convert values to HU or CU
         self.array = _rescale_dicom_values(
-            self.array, self.metadata, raw_pixels=raw_pixels
+            self.array,
+            self.metadata,
+            raw_pixels=raw_pixels,
+            invert_pixels=invert_pixels,
         )
 
     @classmethod
@@ -1376,7 +1367,7 @@ class DicomImage(BaseImage):
         A string pointing to the new filename.
         """
         unscaled_array = _unscale_dicom_values(
-            self.array, self.metadata, self._raw_pixels
+            self.array, self.metadata, self._raw_pixels, self._invert_pixels
         )
         # if we will have bit overflows, stretch instead
         max_is_too_high = (
