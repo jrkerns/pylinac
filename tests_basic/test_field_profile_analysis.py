@@ -30,7 +30,7 @@ from tests_basic.utils import (
     save_file,
 )
 
-TEST_DIR = "flatness_symmetry"
+TEST_DIR = "flatness_symmetry"  # trigger
 
 
 def create_instance(model=FieldProfileAnalysis):

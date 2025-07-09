@@ -28,7 +28,7 @@ from pylinac.nuclear import (
 from tests_basic.core.test_utilities import QuaacTestBase
 from tests_basic.utils import get_file_from_cloud_test_repo
 
-TEST_DIR = Path("nuclear")
+TEST_DIR = Path("nuclear")  # trigger
 
 
 class TestMaxCountRate(QuaacTestBase, TestCase):

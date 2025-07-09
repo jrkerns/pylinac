@@ -21,6 +21,7 @@ definitions:
     acr: tests_basic/test_files/ACR
     cheese: tests_basic/test_files/Tomo
     vmat: tests_basic/test_files/VMAT
+    nuclear: tests_basic/test_files/nuclear
 
   steps:
     - step: &bb-runner
@@ -200,6 +201,7 @@ definitions:
             includePaths:
               - "pylinac/core/**"
               - "tests_basic/test_field_analysis.py"
+              - "tests_basic/test_field_profile_analysis.py"
               - "pylinac/field_analysis.py"
     - step: &machine-log-tests
         name: Run Machine Logs Tests
@@ -318,6 +320,19 @@ definitions:
               - "pylinac/winston_lutz.py"
         artifacts:
           - memory_usage.log
+    - step: &nuclear-tests
+        name: Run Nuclear Tests
+        <<: *bb-runner
+        script:
+          - uv run pytest tests_basic/test_nuclear.py --junitxml=./test-reports/pytest_results.xml
+        caches:
+          - nuclear
+        condition:
+          changesets:
+            includePaths:
+              - "pylinac/core/**"
+              - "tests_basic/test_nuclear.py"
+              - "pylinac/nuclear.py"
     - step: &plan-generator-tests
         name: Plan generator tests
         <<: *bb-runner
@@ -331,6 +346,7 @@ definitions:
                 - "pylinac/core/**"
                 - "pylinac/plan_generator/**"
                 - "tests_basic/test_plan_generator.py"
+                - "tests_basic/test_generated_plans.py"
                 - "scripts/prefab_plan_generator.py"
     - step: &core-module-tests
         name: Run core module tests
@@ -455,6 +471,7 @@ pipelines:
           - step: *vmat-tests
           - step: *winston-lutz-tests
           - step: *winston-lutz-mtmf-tests
+          - step: *nuclear-tests
           - step: *plan-generator-tests
           - step: *core-module-tests
 
