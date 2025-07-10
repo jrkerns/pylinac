@@ -202,6 +202,7 @@ definitions:
               - "pylinac/core/**"
               - "tests_basic/test_field_analysis.py"
               - "tests_basic/test_field_profile_analysis.py"
+              - "pylinac/field_profile_analysis.py"
               - "pylinac/field_analysis.py"
     - step: &machine-log-tests
         name: Run Machine Logs Tests

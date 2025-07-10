@@ -63,6 +63,12 @@ Winston-Lutz
   This also seems only to affect ``scipy`` version 1.13.0 and lower. Unfortunately, I don't have any better
   guidance at this time. If you are seeing significant changes in the isocenter size, feel free to open an issue.
 
+Field Analysis
+^^^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` Publishing a PDF of the :class:`~pylinac.field_profile_analysis.FieldProfileAnalysis` class would fail
+  due to a typo. Thanks to `@crcrewso <https://github.com/crcrewso>`__ for the fix!.
+
 v 3.34.0
 --------
 
