@@ -124,18 +124,26 @@ class Segment(Rectangle):
         self._dmlc_image = dmlc_image
         width = self._nominal_width_mm * dmlc_image.dpmm
         height = self._nominal_height_mm * dmlc_image.dpmm
-        super().__init__(width, height, center=center_point, as_int=True)
+        super().__init__(width, height, center=center_point)
 
     @property
     def r_corr(self) -> float:
         """Return the ratio of the mean pixel values of DMLC/OPEN images."""
         dmlc_value = self._dmlc_image.array[
-            self.tl_corner.y : self.tl_corner.y + self.height,
-            self.bl_corner.x : self.bl_corner.x + self.width,
+            int(np.round(self.tl_corner.y)) : int(
+                np.round(self.tl_corner.y + self.height)
+            ),
+            int(np.round(self.bl_corner.x)) : int(
+                np.round(self.bl_corner.x + self.width)
+            ),
         ].mean()
         open_value = self._open_image.array[
-            self.tl_corner.y : self.tl_corner.y + self.height,
-            self.bl_corner.x : self.bl_corner.x + self.width,
+            int(np.round(self.tl_corner.y)) : int(
+                np.round(self.tl_corner.y + self.height)
+            ),
+            int(np.round(self.bl_corner.x)) : int(
+                np.round(self.bl_corner.x + self.width)
+            ),
         ].mean()
         ratio = (dmlc_value / open_value) * 100
         return ratio
@@ -144,12 +152,20 @@ class Segment(Rectangle):
     def stdev(self) -> float:
         """Return the standard deviation of the segment."""
         dmlc_value = self._dmlc_image.array[
-            self.tl_corner.y : self.tl_corner.y + self.height,
-            self.bl_corner.x : self.bl_corner.x + self.width,
+            int(np.round(self.tl_corner.y)) : int(
+                np.round(self.tl_corner.y + self.height)
+            ),
+            int(np.round(self.bl_corner.x)) : int(
+                np.round(self.bl_corner.x + self.width)
+            ),
         ]
         open_value = self._open_image.array[
-            self.tl_corner.y : self.tl_corner.y + self.height,
-            self.bl_corner.x : self.bl_corner.x + self.width,
+            int(np.round(self.tl_corner.y)) : int(
+                np.round(self.tl_corner.y + self.height)
+            ),
+            int(np.round(self.bl_corner.x)) : int(
+                np.round(self.bl_corner.x + self.width)
+            ),
         ]
         # we multiply by 100 to be consistent w/ r_corr. I.e. this is a % value.
         return float(np.std(dmlc_value / open_value))
