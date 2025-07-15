@@ -323,12 +323,11 @@ class FieldProfileAnalysis(ResultsDataMixin[FieldProfileResult]):
         # we multiply by 2 because the center can be offset and falling off the edge;
         # for this purpose is okay. 2x will cover the image no matter where the
         # center is.
-        # We do as_int because these rectangles are for plotting and we want to snap to pixels.
         self.x_rect = Rectangle(
-            width=x_box.shape[1] * 2, height=x_box.shape[0], center=(x, y), as_int=True
+            width=x_box.shape[1] * 2, height=x_box.shape[0], center=(x, y)
         )
         self.y_rect = Rectangle(
-            width=y_box.shape[1], height=y_box.shape[0] * 2, center=(x, y), as_int=True
+            width=y_box.shape[1], height=y_box.shape[0] * 2, center=(x, y)
         )
         self.center_rect = RectangleROI(
             array=self.image.array,

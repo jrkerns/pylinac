@@ -570,13 +570,7 @@ class RectangleROI(Rectangle):
             raise ValueError(f"The width must be >= 2. Given {width}")
         if height < 2:
             raise ValueError(f"The height must be >= 2. Given {height}")
-        super().__init__(
-            width,
-            height,
-            center,
-            as_int=True,
-            rotation=rotation,
-        )
+        super().__init__(width, height, center, rotation=rotation)
         self._array = array
 
     def __repr__(self):
@@ -690,7 +684,8 @@ class RectangleROI(Rectangle):
         # note that numpy indexing is exclusive of the end index! This might be considered a bug,
         # but for historical compatibility, we keep it this way.
         return self._array[
-            self.tl_corner.y : self.bl_corner.y, self.bl_corner.x : self.br_corner.x
+            int(np.round(self.tl_corner.y)) : int(np.round(self.bl_corner.y)),
+            int(np.round(self.bl_corner.x)) : int(np.round(self.br_corner.x)),
         ]
 
     @cached_property

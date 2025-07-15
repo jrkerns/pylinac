@@ -575,16 +575,10 @@ class Rectangle:
 
     width: int | float
     height: int | float
-    _as_int: bool
     center: Point
 
     def __init__(
-        self,
-        width: float,
-        height: float,
-        center: Point | tuple,
-        as_int: bool = False,
-        rotation: float = 0.0,
+        self, width: float, height: float, center: Point | tuple, rotation: float = 0.0
     ):
         """
         Parameters
@@ -595,22 +589,15 @@ class Rectangle:
             Height of the rectangle. Must be positive.
         center : Point, iterable, optional
             Center point of rectangle.
-        as_int : bool
-            If False (default), inputs are left as-is. If True, all inputs are converted to integers.
         rotation : float
             The rotation of the rectangle in degrees, using the "x goes to y" rule and assuming image coordinate system, a positive rotation is clockwise.
             Default is 0 (no rotation).
         """
         argue.verify_bounds(width, argue.POSITIVE)
         argue.verify_bounds(height, argue.POSITIVE)
-        if as_int:
-            self.width = int(np.round(width))
-            self.height = int(np.round(height))
-        else:
-            self.width = width
-            self.height = height
-        self._as_int = as_int
-        self.center = Point(center, as_int=as_int)
+        self.width = width
+        self.height = height
+        self.center = Point(center)
         self.rotation = rotation
 
     @property
@@ -630,7 +617,7 @@ class Rectangle:
         # This is the same as EuclideanTransform(rotation) + EuclideanTransform(translation)
         tform = transform.EuclideanTransform(translation=translation, rotation=rotation)
         p_rotated = transform.matrix_transform(scaled_rectangle, tform)
-        p_rotated_as_point = [Point(p, as_int=self._as_int) for p in p_rotated]
+        p_rotated_as_point = [Point(p) for p in p_rotated]
         return p_rotated_as_point
 
     @property
