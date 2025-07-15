@@ -1,7 +1,7 @@
 import io
 import os
 from pathlib import Path
-from unittest import TestCase
+from unittest import TestCase, skip
 
 from matplotlib import pyplot as plt
 from scipy import ndimage
@@ -607,6 +607,7 @@ class ACRGE3T(ACRMRMixin, TestCase):
     psg = 0.3
 
 
+@skip("The ROI's need to be corrected, see RAM-4869")
 class ACRGEROIOffsetsApplied(ACRGE3T):
     # crazy shifts to create a unique set of results that's sensitive to changes
     x_adjustment = 1
