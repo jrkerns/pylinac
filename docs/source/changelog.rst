@@ -10,6 +10,16 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.36.0
+--------
+
+Core
+^^^^
+
+* :bdg-danger:`Change` The :class:`~pylinac.core.geometry.Rectangle` class no longer accepts the ``as_int`` parameter.
+  This clarifies its definition — previously, snapping corners to integer values could break the rectangle’s structure.
+  Higher‑level classes must now handle any rounding as needed.
+
 v 3.35.0
 --------
 
