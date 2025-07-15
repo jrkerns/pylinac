@@ -527,8 +527,7 @@ class ACRMRMixin(CloudFileMixin):
 
     def test_results(self):
         results = self.mri.results()
-        for result in self.results:
-            self.assertIn(result, results)
+        self.assertIn("ACR MRI Large Results", results)
 
 
 class ACRT1Single(ACRMRMixin, PlotlyTestMixin, TestCase):
@@ -606,7 +605,6 @@ class ACRGE3T(ACRMRMixin, TestCase):
     slice1_shift = 0
     slice11_shift = 1.5
     psg = 0.3
-    results = ["5.50mm"]
 
 
 class ACRGEROIOffsetsApplied(ACRGE3T):
@@ -620,7 +618,6 @@ class ACRGEROIOffsetsApplied(ACRGE3T):
     slice11_shift = 5.86
     col_mtf_50 = 1.06
     phantom_roll = 2.83
-    results = ["5.04mm"]
 
 
 class ACRGE3TOffset(ACRGE3T):
@@ -646,7 +643,7 @@ class ACRGE3TRotated(ACRGE3T):
     """
 
     phantom_roll = -0.4
-    results = ["4.80mm"]  # induced rotation does change this a bit. See above.
+    slice_thickness = 4.8  # induced rotation does change this a bit. See above.
 
     @classmethod
     def setUpClass(cls):
