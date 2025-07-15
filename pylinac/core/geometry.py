@@ -575,7 +575,6 @@ class Rectangle:
 
     width: int | float
     height: int | float
-    _as_int: bool
     center: Point
 
     def __init__(
