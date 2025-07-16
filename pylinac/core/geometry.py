@@ -649,8 +649,8 @@ class Rectangle:
         """Draw the rectangle on a plotly figure."""
         # we use scatter so we can have hovertext/info, etc. Easier
         # with add_shape but we don't have the same options. Makes interface more consistent.
-        xs = [v.x for v in self.vertices]
-        ys = [v.y for v in self.vertices]
+        xs = [v.x for v in self.vertices] + [self.vertices[0].x]  # close the rectangle
+        ys = [v.y for v in self.vertices] + [self.vertices[0].y]  # close the rectangle
         fig.add_scatter(
             x=xs,
             y=ys,
