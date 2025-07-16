@@ -26,11 +26,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from . import Normalization
 from .core import image
-from .core.geometry import Point, PointSerialized, Rectangle
+from .core.geometry import Point, PointSerialized
 from .core.image import DicomImage, ImageLike
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.pdf import PylinacCanvas
 from .core.profile import FWXMProfile
+from .core.roi import RectangleROI
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
 from .core.warnings import capture_warnings
 
@@ -94,7 +95,7 @@ class VMATResult(ResultBase):
     )
 
 
-class Segment(Rectangle):
+class Segment(RectangleROI):
     """A class for holding and analyzing segment data of VMAT tests.
 
     For VMAT tests, there are either 4 or 7 'segments', which represents a section of the image that received
@@ -114,61 +115,26 @@ class Segment(Rectangle):
     def __init__(
         self,
         center_point: Point,
-        open_image: image.DicomImage,
-        dmlc_image: image.DicomImage,
+        ratio_image: np.ndarray,
+        dpmm,
         tolerance: float | int,
     ):
         self.r_dev: float = 0.0  # is assigned after all segments constructed
         self._tolerance = tolerance
-        self._open_image = open_image
-        self._dmlc_image = dmlc_image
-        width = self._nominal_width_mm * dmlc_image.dpmm
-        height = self._nominal_height_mm * dmlc_image.dpmm
-        super().__init__(width, height, center=center_point)
+        self._ratio_image = ratio_image
+        width = self._nominal_width_mm * dpmm
+        height = self._nominal_height_mm * dpmm
+        super().__init__(ratio_image, width, height, center=center_point)
 
     @property
     def r_corr(self) -> float:
         """Return the ratio of the mean pixel values of DMLC/OPEN images."""
-        dmlc_value = self._dmlc_image.array[
-            int(np.round(self.tl_corner.y)) : int(
-                np.round(self.tl_corner.y + self.height)
-            ),
-            int(np.round(self.bl_corner.x)) : int(
-                np.round(self.bl_corner.x + self.width)
-            ),
-        ].mean()
-        open_value = self._open_image.array[
-            int(np.round(self.tl_corner.y)) : int(
-                np.round(self.tl_corner.y + self.height)
-            ),
-            int(np.round(self.bl_corner.x)) : int(
-                np.round(self.bl_corner.x + self.width)
-            ),
-        ].mean()
-        ratio = (dmlc_value / open_value) * 100
-        return ratio
+        return self.pixel_array.mean() * 100
 
     @property
     def stdev(self) -> float:
         """Return the standard deviation of the segment."""
-        dmlc_value = self._dmlc_image.array[
-            int(np.round(self.tl_corner.y)) : int(
-                np.round(self.tl_corner.y + self.height)
-            ),
-            int(np.round(self.bl_corner.x)) : int(
-                np.round(self.bl_corner.x + self.width)
-            ),
-        ]
-        open_value = self._open_image.array[
-            int(np.round(self.tl_corner.y)) : int(
-                np.round(self.tl_corner.y + self.height)
-            ),
-            int(np.round(self.bl_corner.x)) : int(
-                np.round(self.bl_corner.x + self.width)
-            ),
-        ]
-        # we multiply by 100 to be consistent w/ r_corr. I.e. this is a % value.
-        return float(np.std(dmlc_value / open_value))
+        return self.pixel_array.std()
 
     @property
     def passed(self) -> bool:
@@ -216,6 +182,7 @@ class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
         self._identify_images(image1, image2)
         self.segments = []
         self._tolerance = 0
+        self.ratio_image = self.dmlc_image.array / self.open_image.array
 
     @classmethod
     def from_url(cls, url: str):
@@ -398,7 +365,9 @@ class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
 
     def _construct_segments(self, points: list[Point]):
         for point in points:
-            segment = Segment(point, self.open_image, self.dmlc_image, self._tolerance)
+            segment = Segment(
+                point, self.ratio_image, self.dmlc_image.dpmm, self._tolerance
+            )
             self.segments.append(segment)
         # post-analysis to update R_corr values
         self._update_r_corrs()
