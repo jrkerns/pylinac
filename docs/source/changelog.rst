@@ -20,6 +20,12 @@ Core
   This clarifies its definition — previously, snapping corners to integer values could break the rectangle’s structure.
   Higher‑level classes must now handle any rounding as needed.
 
+VMAT
+^^^^
+
+* :bdg-primary:`Refactor` The VMAT analysis is now performed directly on the ratio image
+  :math:`I_{ratio} = \frac{I_{DRGS}}{I_{open}} * 100` (see details in :ref:`vmat-algorithm`).
+
 v 3.35.0
 --------
 
