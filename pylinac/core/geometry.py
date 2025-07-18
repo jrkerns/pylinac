@@ -16,6 +16,7 @@ from matplotlib.patches import Polygon as mpl_Polygon
 from mpl_toolkits.mplot3d.art3d import Line3D
 from pydantic import PlainSerializer
 from skimage import transform
+from skimage.transform import EuclideanTransform
 
 from .utilities import is_iterable
 
@@ -719,3 +720,70 @@ class Rectangle:
                 horizontalalignment=ha,
                 verticalalignment=va,
             )
+
+
+class Transform2D:
+    """Represents a 2D Euclidean Transform (aka Pose).
+
+    This is a wrapper around skimage's EuclideanTransform class, which allows for translation and rotation in 2D space.
+    We wrap for explicit constructors, better naming, extensibility, and to provide global coordinates
+    of a transform.
+
+    A central use case is combining transforms. E.g. transform of the CatPhan ROI, then transform of the
+    HU ROI. The philosophy for this use case is that each transform is intrinsic. Meaning
+    that when adding a transform to another, the translation and rotation is
+    **relative to the previous transform**. E.g. a transform of 45 degrees and then an added
+    transform of a further 45 degrees results in a total of 90 degrees rotation.
+    """
+
+    def __init__(self, transform: EuclideanTransform):
+        self.transform = transform
+
+    @classmethod
+    def from_intrinsic(cls, x: float, y: float, rotation: float = 0.0) -> Transform2D:
+        """Build a Transform2D from intrinsic shift + rotation.
+
+        .. note::
+
+            The coordinate system (cartesian vs screen) is NOT relevant here.
+
+        .. warning::
+
+            This applies translation then rotation! When dealing with things like 90 degree rotations,
+            this can lead to confusion. Always visualize the translation first, then rotate when planning.
+
+        Parameters
+        ----------
+        x: float
+            The shift in the x-direction.
+        y: float
+            The shift in the y-direction.
+        rotation: float
+            The rotation in *degrees* clockwise. 0 is pointing to the right.
+
+        Notes
+        -----
+
+        AFAICT, we can't use EuclideanTransform(translation=..., rotation=...)
+        because it performs rotate-then-translate, which is extrinsic.
+        When this really comes into play is when combining transforms.
+        """
+        theta = np.radians(rotation)
+        translation = EuclideanTransform(translation=(x, y))
+        spin = EuclideanTransform(rotation=theta)
+
+        # translate, then rotate; intrinsic
+        matrix = spin.params @ translation.params
+        return cls(EuclideanTransform(matrix=matrix))
+
+    def __add__(self, other: Transform2D) -> Transform2D:
+        """Combine two transforms; the frame of reference is relative to the previous transform."""
+        return Transform2D(
+            EuclideanTransform(self.transform.params @ other.transform.params)
+        )
+
+    @property
+    def coords(self) -> Point:
+        """Get the global coordinates of the transform. After applying multiple transforms,
+        we ultimately need to do things like plot, which we need global coordinates for."""
+        return Point(self.transform(np.array([[0, 0]]))[0])

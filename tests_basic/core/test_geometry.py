@@ -3,11 +3,14 @@
 import math
 import unittest
 
+from parameterized import parameterized
+
 from pylinac.core.geometry import (
     Circle,
     Line,
     Point,
     Rectangle,
+    Transform2D,
     direction_to_coords,
 )
 from tests_basic.utils import point_equality_validation
@@ -238,3 +241,97 @@ class TestDestinationCoordinates(unittest.TestCase):
     def test_starting_position(self):
         self.assertAlmostEqual(direction_to_coords(5, 5, 10, 0)[0], 15, places=3)
         self.assertAlmostEqual(direction_to_coords(5, 5, 10, 0)[1], 5, places=3)
+
+
+class TestScreenTransform2D(unittest.TestCase):
+    @parameterized.expand(
+        [
+            ("noop", (0, 0, 0), (0, 0, 0), (0, 0, 0)),
+            ("translate", (1, 2, 0), (3, 4, 0), (4, 6)),
+            ("rotate", (0, 0, math.pi / 2), (0, 0, math.pi / 2), (0, 0)),
+            (
+                "offset, rotate",
+                (10, 0, 0),
+                (0, 0, 90),
+                (10, 0),
+            ),  # the second operation is basically a noop since no magnitude
+            ("rotate, offset", (0, 0, 90), (10, 0, 0), (0, 10)),
+            ("offset, rotate+offset", (10, 0, 0), (10, 0, 90), (10, 10)),
+            (
+                "translate and rotate",
+                (1, 1, 45),
+                (1, 1, 45),
+                (-1, 2.414),
+            ),  # same as separate, explicit test below
+            (
+                "translate and rotate (2 small CW turns)",
+                (1, 0, 45),
+                (1, 0, 45),
+                (0.707, 1.707),
+            ),
+            (
+                "translate and rotate (2 small CCW turns)",
+                (1, 0, -45),
+                (1, 0, -45),
+                (0.707, -1.707),
+            ),
+            ("translate and rotate (2 CW turns)", (1, 0, 90), (1, 0, 90), (-1, 1)),
+            ("translate and rotate (2 CCW turns)", (1, 0, -90), (1, 0, -90), (-1, -1)),
+            ("translate and rotate (CW, CCW)", (1, 0, 90), (1, 0, -90), (1, 1)),
+            ("translate and rotate (CCW, CW)", (1, 0, -90), (1, 0, 90), (1, -1)),
+            (
+                "translate and rotate (2 right turns)",
+                (1, 0, 45),
+                (1, 0, 45),
+                (0.707, 1.707, 90),
+            ),
+            ("rotations cancel", (0, 0, 90), (0, 0, -90), (0, 0)),
+        ]
+    )
+    def test_chained_transforms_coordinates(
+        self, name, pose1_vals, pose2_vals, expected
+    ):
+        pose1 = Transform2D.from_intrinsic(*pose1_vals)
+        pose2 = Transform2D.from_intrinsic(*pose2_vals)
+        result = pose1 + pose2
+        self.assertAlmostEqual(result.coords.x, expected[0], delta=0.01)
+        self.assertAlmostEqual(result.coords.y, expected[1], delta=0.01)
+
+    @parameterized.expand(
+        [
+            ("noop", (0, 0, 0), (0, 0)),
+            ("right CW rotates down", (1, 0, 90), (0, 1)),
+            ("left CW rotates up", (-1, 0, 90), (0, -1)),
+            ("right CCW rotates up", (1, 0, -90), (0, -1)),
+            ("left CCW rotates down", (-1, 0, -90), (0, 1)),
+            ("down CW rotates left", (0, 1, 90), (-1, 0)),
+            ("up CW rotates right", (0, -1, 90), (1, 0)),
+            ("down CCW rotates right", (0, 1, -90), (1, 0)),
+            ("up CCW rotates left", (0, -1, -90), (-1, 0)),
+        ]
+    )
+    def test_single_tform_to_coordinates(self, name, pose_vals, expected):
+        """Test that the pose can be converted to global coordinates."""
+        pose = Transform2D.from_intrinsic(*pose_vals)
+        coords = pose.coords
+        self.assertAlmostEqual(coords.x, expected[0], delta=0.01)
+        self.assertAlmostEqual(coords.y, expected[1], delta=0.01)
+
+    def test_stacked_translate_and_rotate_coordinates(self):
+        """Test a stack of transforms; although already checked above, this provides a step-by-step check."""
+        first_pose = Transform2D.from_intrinsic(x=1, y=1, rotation=45)
+        # check first pose
+        first_coords = first_pose.coords
+        self.assertAlmostEqual(first_coords.x, 0, delta=0.01)
+        self.assertAlmostEqual(first_coords.y, 1.414, delta=0.01)
+
+        second_pose = Transform2D.from_intrinsic(x=1, y=1, rotation=45)
+        # check second pose
+        second_coords = second_pose.coords
+        self.assertAlmostEqual(second_coords.x, 0, delta=0.01)
+        self.assertAlmostEqual(second_coords.y, 1.414, delta=0.01)
+
+        final_pose = first_pose + second_pose
+        coords = final_pose.coords
+        self.assertAlmostEqual(coords.x, -1, delta=0.01)
+        self.assertAlmostEqual(coords.y, 1 + 1.414, delta=0.01)
