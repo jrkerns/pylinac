@@ -109,7 +109,7 @@ Coordinate system and order of operations
 
 Since matrix multiplications are not commutative, the order by which each individual transformation is applied matters.
 Furthermore the concept of transformation also depends on the frame of reference of the user.
-We can define two frames of reference:
+Two frames of reference can be defined:
 
 **Extrinsic (space‑fixed) coordinates**: the axes stay put in the “world” frame, and each transformation is performed about one of those fixed axes.
 
