@@ -52,7 +52,7 @@ shape or space around a fixed point through a specified angle and in a specified
 
 .. math::
 
-    p^{*} = R * p = \begin{bmatrix}cos(\alpha)&&-sin(\alpha)\\sin(\alpha)&&cos(\alpha)\end{bmatrix} * \begin{bmatrix}p_x\\p_y\end{bmatrix}
+    p^* = R * p = \begin{bmatrix}cos(\alpha)&&-sin(\alpha)\\sin(\alpha)&&cos(\alpha)\end{bmatrix} * \begin{bmatrix}p_x\\p_y\end{bmatrix}
 
 .. plot::
     :include-source: False
@@ -87,13 +87,21 @@ shape or space around a fixed point through a specified angle and in a specified
 Pose
 ~~~~
 
-In 2D geometry, translations and rotations are better described by 3x3 matrices:
+In 2D geometry, a pose (or transform) is a combination of a translation and a rotation:
 
 .. math::
-    Translation = \begin{bmatrix}1&&0&&T_x\\0&&1&&T_y\\0&&0&&1\end{bmatrix} , Rotation = \begin{bmatrix}cos(\alpha)&&-sin(\alpha)&&0\\sin(\alpha)&&cos(\alpha)&&0\\0&&0&&1\end{bmatrix}
+    p^* = R * p + T
+
+The way to define this transformation is by using 3x3 matrices:
 
 .. math::
-    Transformation = Translation * Rotation = \begin{bmatrix}cos(\alpha)&&-sin(\alpha)&&T_x\\sin(\alpha)&&cos(\alpha)&&T_y\\0&&0&&1\end{bmatrix}
+    Translation = \left[\begin{array}{cc:c}1&0&T_x\\0&1&T_y\\\hdashline0&0&1\end{array}\right], Rotation = \left[\begin{array}{cc:c}cos(\alpha)&-sin(\alpha)&0\\sin(\alpha)&cos(\alpha)&0\\\hdashline0&0&1\end{array}\right]
+
+.. math::
+    Transformation = Translation * Rotation
+
+.. math::
+    p^* = Transformation * p => \begin{bmatrix}p^*_x\\p^*_y\\1\end{bmatrix} = \left[\begin{array}{cc:c}cos(\alpha)&-sin(\alpha)&T_x\\sin(\alpha)&cos(\alpha)&T_y\\\hdashline0&0&1\end{array}\right] * \begin{bmatrix}p_x\\p_y\\1\end{bmatrix}
 
 
 Coordinate system and order of operations
