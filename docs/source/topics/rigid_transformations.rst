@@ -217,7 +217,7 @@ Let's look at some examples:
 .. math::
     Transformation = Rotation' * Translation
 
-where ``Rotation'`` represents the intrinsic frame of reference
+where ``Rotation'`` represents the rotation in the intrinsic frame of reference
 
 .. note::
    .. math::
@@ -263,7 +263,7 @@ where ``Rotation'`` represents the intrinsic frame of reference
 .. math::
     Transformation = Translation' * Rotation = Rotation * Translation
 
-where ``Translation'`` represents the intrinsic frame of reference
+where ``Translation'`` represents the translation in the intrinsic frame of reference
 
 .. note::
    .. math::
