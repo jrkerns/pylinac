@@ -12,7 +12,7 @@ from scipy.interpolate import interp1d
 
 from .contrast import michelson
 from .plotly_utils import add_title
-from .roi import HighContrastDiskROI
+from .roi import HighContrastDiskROI, RectangleROI
 
 
 def _plot_invert(x: np.ndarray) -> np.ndarray:
@@ -98,7 +98,9 @@ class MTF:
 
     @classmethod
     def from_high_contrast_diskset(
-        cls, spacings: Sequence[float], diskset: Sequence[HighContrastDiskROI]
+        cls,
+        spacings: Sequence[float],
+        diskset: Sequence[HighContrastDiskROI | RectangleROI],
     ) -> MTF:
         """Construct the MTF using high contrast disks from the ROI module."""
         maximums = [roi.max for roi in diskset]

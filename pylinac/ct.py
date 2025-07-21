@@ -16,6 +16,7 @@ Features:
 
 from __future__ import annotations
 
+import abc
 import io
 import itertools
 import os
@@ -235,6 +236,14 @@ class CatphanResult(ResultBase):
         default=None,
         title="CTP515 (Low Contrast)",
     )
+
+
+class SpatialResolutionROI(RectangleROI):
+    """Rectangle ROI specially for CatPhan."""
+
+    @property
+    def plot_color(self):
+        return "blue"
 
 
 class HUDiskROI(DiskROI):
@@ -1365,7 +1374,13 @@ class CTP486(CatPhanModule):
         return max_frequency(self.power_spectrum_1d)
 
 
-class CTP528CP504(CatPhanModule):
+class CTP528(abc.ABC, CatPhanModule):
+    """ABC for module detection purposes."""
+
+    mtf: MTF
+
+
+class CTP528CP504(CTP528):
     """Class for analysis of the Spatial Resolution slice of the CBCT dicom data set.
 
     A collapsed circle profile is taken of the line-pair region. This profile is search for
@@ -1640,6 +1655,110 @@ class CTP528CP503(CTP528CP504):
     start_angle = 0
     ccw = False
     boundaries = (0, 0.111, 0.176, 0.240, 0.289, 0.339, 0.390, 0.436, 0.481)
+
+
+class CTP528CP700(CTP528):
+    """Class for analysis of the Spatial Resolution slice of the CatPhan 700 phantom
+
+    Whereas the other modules use a collapsed circle profile, the CatPhan 700 uses a
+    set of Rectangle ROIs. This is partly out of necessity as the ROIs are not
+    radially-aligned. Because of this, we also don't inherit from other CTP528 module classes.
+    """
+
+    rois: dict[str, RectangleROI]
+    attr_name: str = "ctp528"
+    common_name: str = "Spatial Resolution"
+    combine_method: str = "max"
+    num_slices: int = 3
+    roi_settings = {
+        "region 1": {
+            "gap size": 0.5,  # gap sizes come from the CatPhan 700 manual
+            "distance": 50.6,
+            "angle": -98,
+            "rotation": 0,
+            "width": 11,
+            "height": 3,
+        },
+        "region 2": {
+            "gap size": 0.25,
+            "distance": 51.3,
+            "angle": -77.5,
+            "rotation": 0,
+            "width": 10,
+            "height": 3,
+        },
+        "region 3": {
+            "gap size": 0.167,
+            "distance": 50.2,
+            "angle": -50.9,
+            "rotation": 45,
+            "width": 8,
+            "height": 3,
+        },
+        "region 4": {
+            "gap size": 0.125,
+            "distance": 50.9,
+            "angle": -34,
+            "rotation": 45,
+            "width": 8,
+            "height": 3,
+        },
+        "region 5": {
+            "gap size": 0.100,
+            "distance": 51.2,
+            "angle": -10.2,
+            "rotation": 0,
+            "width": 3,
+            "height": 4,
+        },
+        "region 6": {
+            "gap size": 0.083,
+            "distance": 50.4,
+            "angle": 2.3,
+            "rotation": 0,
+            "width": 3,
+            "height": 4,
+        },
+        "region 7": {
+            "gap size": 0.071,
+            "distance": 51.9,
+            "angle": 14,
+            "rotation": 0,
+            "width": 3,
+            "height": 4,
+        },
+        "region 8": {
+            "gap size": 0.063,
+            "distance": 51.3,
+            "angle": 33.6,
+            "rotation": 45,
+            "width": 3,
+            "height": 3,
+        },
+    }
+
+    def _setup_rois(self) -> None:
+        for name, setting in self.roi_settings.items():
+            self.rois[name] = SpatialResolutionROI.from_phantom_center(
+                array=self.image.array,
+                angle=setting["angle_corrected"],
+                dist_from_center=setting["distance_pixels"],
+                phantom_center=self.phan_center,
+                width=setting["width_pixels"],
+                height=setting["height_pixels"],
+                rotation=setting["rotation"] + self.catphan_roll,
+            )
+
+    @cached_property
+    def mtf(self) -> MTF:
+        """The Relative MTF of the line pairs, normalized to the first region."""
+        return MTF.from_high_contrast_diskset(
+            # Spacing is line pairs/mm. The gap size of the manual is 1) in cm,
+            # and 2) gap size is only half the spacing since a line PAIR is gap + line.
+            # Thus 2/(gap size * 10).
+            spacings=[2 / (r["gap size"] * 10) for r in self.roi_settings.values()],
+            diskset=self.rois.values(),
+        )
 
 
 class GeometricLine(Line):
@@ -2034,7 +2153,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             figs["CTP486"] = self.ctp486.plotly(
                 show_legend=show_legend, show_colorbar=show_colorbar
             )
-        if self._has_module(CTP528CP504):
+        if self._has_module(CTP528):
             figs["CTP528"] = self.ctp528.plotly(
                 show_legend=show_legend, show_colorbar=show_colorbar
             )
@@ -2076,7 +2195,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             self.ctp486.plot(unif_ax)
             unif_prof_ax = plt.subplot2grid(grid_size, (1, 3))
             self.ctp486.plot_profiles(unif_prof_ax)
-        if self._has_module(CTP528CP504):
+        if self._has_module(CTP528):
             sr_ax = plt.subplot2grid(grid_size, (1, 0))
             self.ctp528.plot(sr_ax)
             mtf_ax = plt.subplot2grid(grid_size, (0, 3))
@@ -2461,7 +2580,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         """
         analysis_title = f"CatPhan {self._model} Analysis"
         module_images = [("hu", "lin")]
-        if self._has_module(CTP528CP504):
+        if self._has_module(CTP528):
             module_images.append(("sp", "mtf"))
         if self._has_module(CTP486):
             module_images.append(("un", "prof"))
@@ -2553,7 +2672,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             modules.append(self.ctp515)
         if self._has_module(CTP486):
             modules.append(self.ctp486)
-        if self._has_module(CTP528CP504):
+        if self._has_module(CTP528):
             modules.append(self.ctp528)
         return modules
 
@@ -2665,8 +2784,8 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
                 tolerance=hu_tolerance,
                 clear_borders=self.clear_borders,
             )
-        if self._has_module(CTP528CP504):
-            ctp528, offset = self._get_module(CTP528CP504)
+        if self._has_module(CTP528):
+            ctp528, offset = self._get_module(CTP528)
             self.ctp528 = ctp528(
                 self, offset=offset, tolerance=None, clear_borders=self.clear_borders
             )
@@ -2725,7 +2844,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             f"Slice Thickness Passed? {self.ctp404.passed_thickness}",
         ]
         results.append(result)
-        if self._has_module(CTP528CP504):
+        if self._has_module(CTP528):
             ctp528_result = [
                 " - CTP528 Results - ",
                 f"MTF 80% (lp/mm): {self.ctp528.mtf.relative_resolution(80):2.2f}",
@@ -2858,7 +2977,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             )
 
         # CTP 528 stuff
-        if self._has_module(CTP528CP504):
+        if self._has_module(CTP528):
             data.ctp528 = CTP528Result(
                 roi_settings=self.ctp528.roi_settings,
                 start_angle_radians=self.ctp528.start_angle,
@@ -3128,6 +3247,7 @@ class CatPhan700(CatPhanBase):
         CTP404CP700: {"offset": 0},
         CTP515CP700: {"offset": -80},
         CTP486: {"offset": -160},
+        CTP528CP700: {"offset": -40},
     }
 
 
