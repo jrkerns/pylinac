@@ -107,7 +107,7 @@ The way to define this transformation is by using 3x3 matrices:
 Coordinate system and order of operations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Since matrix multiplications are not commutative, the order by which each transformation is applied matters.
+Since matrix multiplications are not commutative, the order by which each individual transformation is applied matters.
 Furthermore the concept of transformation also depends on the frame of reference of the user.
 We can define two frames of reference:
 
