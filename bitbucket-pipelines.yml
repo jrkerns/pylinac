@@ -429,29 +429,14 @@ pipelines:
     update-kraken:
       - step: *pre-commit-checks-and-setup
       - step: *update-dev-kraken
-    pypi:
+    publish-package:
       - step:
-            name: Set up Env
-            <<: *bb-runner
-            caches:
-              - pip
-            script:
-              - apt-get update
-              - python -m venv venv
-              - source venv/bin/activate
-              - pip install .[dev]
-            artifacts:
-              - venv/**
-      - step:
-          name: Push to PYPI
+          name: Build & Push to PYPI
           <<: *bb-runner
+          image: ghcr.io/astral-sh/uv:bookworm
           script:
-            - source venv/bin/activate
-            - pipe: atlassian/pypi-publish:0.3.1
-              variables:
-                PYPI_USERNAME: $PYPI_USERNAME
-                PYPI_PASSWORD: $PYPI_PASSWORD
-                DISTRIBUTIONS: 'bdist_wheel'
+            - uv build
+            - uv publish  # token is an env var
 
   pull-requests:
     '**':

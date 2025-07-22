@@ -208,9 +208,7 @@ Algorithm
 
 The VMAT analysis algorithm is based on the Varian RapidArc QA Test Procedures for C-Series and Truebeam. Two tests
 (besides Picket Fence, which has its own module) are specified. Each test takes 10x0.5cm samples, each corresponding to
-a distinct section of radiation. A corrected reading of each segment is made, defined as:
-:math:`R_{corr}(x) = \frac{R_{DRGS}(x)}{R_{open}(x)} * 100`. The reading deviation of each segment is calculated as:
-:math:`R_{deviation}(x) = \frac{R_{corr}(x)}{\bar{R_{corr}}} * 100 - 100`, where :math:`\bar{R_{corr}}` is the average of all segments.
+a distinct section of radiation.
 
 The algorithm works like such:
 
@@ -232,6 +230,9 @@ The algorithm works like such:
   some physicists use 150 cm SID and others use 100 cm, and others can use a clinical setting that may be different
   than either of those. To account for this, the SID is determined and then scaling factors are determined to be
   able to perform properly-sized segment analysis.
+* **Determine ratio image** -- The ratio image is defined as :math:`I_{ratio} = \frac{I_{DRGS}}{I_{open}}`
+
+.. versionadded:: 3.36
 
 **Analysis**
 
@@ -242,12 +243,10 @@ The algorithm works like such:
 * **Calculate sample boundaries** -- The Segment x-positions are based on offsets from the center of the
   FWHM of the detected field. This allows for old and new style tests that have an x-offset from each other.
   These values are then scaled with the image scaling factor determined above.
-* **Calculate the corrected reading** -- For each segment, the mean pixel value is determined for both the open and DMLC image.
-  These values are used to determine the corrected reading: :math:`M_{corr}`.
-* **Calculate sample and segment ratios** -- The sample values of the DMLC
-  field are divided by their corresponding open field values.
-* **Calculate segment deviations** -- Segment deviation is then calculated once all the corrected readings are determined.
+* **Calculate segment readings** -- For each segment, the mean pixel value is determined for the ratio image: :math:`R_{corr}(x)`.
+* **Calculate segment deviations** -- Segment deviation is then calculated once all the segment readings are determined.
   The average absolute deviation is also calculated.
+  :math:`R_{deviation}(x) = \frac{R_{corr}(x)}{\bar{R_{corr}}} * 100 - 100`, where :math:`\bar{R_{corr}}` is the average of all segments.
 
 **Post-Analysis**
 
@@ -276,7 +275,7 @@ section.
   * ``x_position_mm`` -- The position of the segment ROI in mm from CAX.
   * ``r_corr`` -- :math:`R_{corr}` as defined :ref:`above <vmat-algorithm>`.
   * ``r_dev`` -- :math:`R_{deviation}` as defined :ref:`above <vmat-algorithm>`.
-  * ``stdev`` -- The standard deviation of the segment of the ratioed images (DMLC / Open); i.e. :math:`\sigma \left( \frac{R_{DRGS}(x)}{R_{open}(x)} \right)`
+  * ``stdev`` -- The standard deviation of the segment i.e. :math:`\sigma \left( R_{ratio} \right)`
   * ``center_x_y`` -- The center of the segment in pixel coordinates.
 
 Benchmarking the Algorithm
