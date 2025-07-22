@@ -321,3 +321,40 @@ class TestTransform2D(unittest.TestCase):
         result = pose1 + pose2
         self.assertAlmostEqual(result.coords.x, expected[0], delta=0.01)
         self.assertAlmostEqual(result.coords.y, expected[1], delta=0.01)
+
+    @parameterized.expand(
+        [
+            ("noop", (0, 0, 0), (0, 0, 0), (0, 0)),
+            ("translate", (1, 2, 0), (3, 4, 0), (4, 6)),
+            ("rotate, offset", (0, 0, 90), (10, 0, 0), (0, 10)),
+            ("translate, rotate", (1, 0, 0), (0, 0, 90), (1, 0)),
+            ("translate+rotate+offset", (1, 0, -90), (10, 0, -90), (-9, 0)),
+        ]
+    )
+    def test_chained_extrinsic_to_intrinsic_transform(
+        self, name, pose1_vals, pose2_vals, expected
+    ):
+        """Test that extrinsic transforms can be converted to intrinsic."""
+        pose1 = Transform2D.from_extrinsic(*pose1_vals)
+        pose2 = Transform2D.from_intrinsic(*pose2_vals)
+        result = pose1 + pose2
+        self.assertAlmostEqual(result.coords.x, expected[0], delta=0.01)
+        self.assertAlmostEqual(result.coords.y, expected[1], delta=0.01)
+
+    @parameterized.expand(
+        [
+            ("noop", (0, 0, 0), (0, 0, 0), (0, 0)),
+            ("translate", (1, 2, 0), (3, 4, 0), (4, 6)),
+            ("rotate, offset", (0, 0, 90), (10, 0, 0), (10, 0)),
+            ("translate+rotate+offset", (1, 0, -90), (10, 0, -90), (9, 0)),
+        ]
+    )
+    def test_chained_intrinsic_to_extrinsic_transform(
+        self, name, pose1_vals, pose2_vals, expected
+    ):
+        """Test that intrinsic transforms can be converted to extrinsic."""
+        pose1 = Transform2D.from_intrinsic(*pose1_vals)
+        pose2 = Transform2D.from_extrinsic(*pose2_vals)
+        result = pose1 + pose2
+        self.assertAlmostEqual(result.coords.x, expected[0], delta=0.01)
+        self.assertAlmostEqual(result.coords.y, expected[1], delta=0.01)

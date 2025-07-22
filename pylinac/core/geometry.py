@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable
 from itertools import zip_longest
-from typing import Annotated
+from typing import Annotated, Literal
 
 import argue
 import matplotlib.pyplot as plt
@@ -740,9 +740,12 @@ class Transform2D:
         screen or cartesian coordinates without confusion.
     """
 
-    def __init__(self, transform: EuclideanTransform):
+    def __init__(
+        self, transform: EuclideanTransform, mode: Literal["extrinsic", "intrinsic"]
+    ):
         """Initialize the Transform2D with a skimage EuclideanTransform."""
         self.transform = transform
+        self.mode = mode
 
     @classmethod
     def from_extrinsic(cls, x: float, y: float, rotation: float = 0.0) -> Transform2D:
@@ -758,7 +761,9 @@ class Transform2D:
             The rotation in *degrees*. Follows the "x goes to y" rule.
         """
         theta = np.radians(rotation)
-        return cls(EuclideanTransform(translation=(x, y), rotation=theta))
+        return cls(
+            EuclideanTransform(translation=(x, y), rotation=theta), mode="extrinsic"
+        )
 
     @classmethod
     def from_intrinsic(cls, x: float, y: float, rotation: float = 0.0) -> Transform2D:
@@ -784,12 +789,28 @@ class Transform2D:
         tform = (
             translate + rot
         )  # the addition operator is overloaded; this is the same as rot.params @ translate.params.
-        return cls(transform=tform)
+        return cls(transform=tform, mode="intrinsic")
 
     def __add__(self, other: Transform2D) -> Transform2D:
-        """Combine two transforms; the frame of reference is relative to the previous transform."""
-        # this is the same as scikit-image's transform addition, we just need to wrap it.
-        return Transform2D(other.transform + self.transform)
+        """Combine two transforms; the frame of reference is relative to the previous transform.
+
+        Notes
+        -----
+
+        Scikit-image's EuclideanTransform is extrinsic. Since we might be dealing with intrinsic transforms,
+        we need to be careful about how we combine them. The order of operations is important.
+        """
+        M1 = self.transform.params
+        M2 = other.transform.params
+        world_move = other.mode == "extrinsic"
+
+        if world_move:
+            M = M2 @ M1  # default EuclideanTransform behavior
+        else:
+            # intrinsic move; we need to swap the order of multiplication
+            M = M1 @ M2
+
+        return Transform2D(EuclideanTransform(matrix=M), mode=other.mode)
 
     @property
     def coords(self) -> Point:
@@ -797,3 +818,8 @@ class Transform2D:
         we ultimately need to do things like plot, which we need global coordinates for."""
         # this applies the final transform to the origin (0, 0)
         return Point(self.transform(np.array([[0, 0]]))[0])
+
+    @property
+    def rotation(self) -> float:
+        """Rotation of the transform in degrees; x goes to y."""
+        return np.degrees(self.transform.rotation)
