@@ -60,6 +60,7 @@
    topics/profiles
    topics/image_metrics
    topics/fluence
+   topics/rigid_transformations
 
 .. toctree::
    :hidden:
