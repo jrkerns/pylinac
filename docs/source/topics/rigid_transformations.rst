@@ -64,7 +64,7 @@ shape or space around a fixed point through a specified angle and in a specified
     p0 = np.array([[3, 2],[3, 1],[4,1]])
     a = 30
     tf = transform.EuclideanTransform(rotation=np.deg2rad(a))
-    p1 = transform.matrix_transform(p0, tf.params)
+    p1 = tf(p0)
     t = np.linspace(np.arctan2(p0[1,1],p0[1,0]), np.arctan2(p1[1,1],p1[1,0]), 100)
     r = np.linalg.norm(p0[1,:])
 
@@ -141,7 +141,7 @@ Let's look at some examples:
     p0 = np.array([[0, 1],[0, 0],[1,0]])
     a = 30
     tf1 = transform.EuclideanTransform(rotation=np.deg2rad(a))
-    p1 = transform.matrix_transform(p0, tf1.params)
+    p1 = tf1(p0)
     t = np.linspace(np.arctan2(p0[2,1],p0[2,0]), np.arctan2(p1[2,1],p1[2,0]), 100)
     r = np.linalg.norm(p0[2,:])
     ax1 = plt.subplot(1, 1, 1)
@@ -154,7 +154,7 @@ Let's look at some examples:
     ax1.annotate('p', xy=(float(p0[1,0] - 0.0), float(p0[1,1] - 0.2)))
 
     tf2 = transform.EuclideanTransform(translation=(2,0))
-    p2 = transform.matrix_transform(p1, tf2.params)
+    p2 = tf2(p1)
     plt.plot(p2[:,0], p2[:,1], 'ro-')
     ax1.annotate('', xy=(float(p2[1, 0]), float(p2[1, 1]-0.2)), xytext=(float(p1[1, 0]), float(p1[1, 1]-0.2)),
                  arrowprops=dict(facecolor='black', shrink=0.1, width=0.1, headlength=5, headwidth=5), )
@@ -187,7 +187,7 @@ Let's look at some examples:
     p0 = np.array([[0, 1],[0, 0],[1,0]])
     a = 30
     tf1 = transform.EuclideanTransform(translation=(2,0))
-    p1 = transform.matrix_transform(p0, tf1.params)
+    p1 = tf1(p0)
     ax1 = plt.subplot(1, 1, 1)
     plt.plot(p0[:,0], p0[:,1], 'ko-')
     plt.plot(p1[:,0], p1[:,1], 'ro-.')
@@ -197,7 +197,7 @@ Let's look at some examples:
     ax1.annotate('p', xy=(float(p0[1, 0] - 0.15), float(p0[1, 1] - 0.15)))
 
     tf2 = transform.EuclideanTransform(rotation=np.deg2rad(a))
-    p2 = transform.matrix_transform(p1, tf2.params)
+    p2 = tf2(p1)
     t = np.linspace(np.arctan2(p1[1,1],p1[1,0]), np.arctan2(p2[1,1],p2[1,0]), 100)
     r = np.linalg.norm(p1[1,:])
     plt.plot(p2[:,0], p2[:,1], 'ro-')
@@ -232,7 +232,7 @@ where ``Rotation'`` represents the rotation in the intrinsic frame of reference
     p0 = np.array([[0, 1],[0, 0],[1,0]])
     a = 30
     tf1 = transform.EuclideanTransform(translation=(2,0))
-    p1 = transform.matrix_transform(p0, tf1.params)
+    p1 = tf1(p0)
     ax1 = plt.subplot(1, 1, 1)
     plt.plot(p0[:,0], p0[:,1], 'ko-')
     plt.plot(p1[:,0], p1[:,1], 'ro-.')
@@ -242,7 +242,7 @@ where ``Rotation'`` represents the rotation in the intrinsic frame of reference
     ax1.annotate('p', xy=(float(p0[1, 0] + 0.0), float(p0[1, 1] - 0.2)))
 
     tf = transform.EuclideanTransform(rotation=np.deg2rad(a)) + tf1
-    p2 = transform.matrix_transform(p0, tf.params)
+    p2 = tf(p0)
     t = np.linspace(np.arctan2(p0[2,1],p0[2,0]), np.arctan2(p2[0,1],p2[0,0]), 100)
     r = np.linalg.norm(p0[0,:])
     plt.plot(p2[:,0], p2[:,1], 'ro-')
@@ -278,7 +278,7 @@ where ``Translation'`` represents the translation in the intrinsic frame of refe
     p0 = np.array([[0, 1],[0, 0],[1,0]])
     a = 30
     tf1 = transform.EuclideanTransform(rotation=np.deg2rad(a))
-    p1 = transform.matrix_transform(p0, tf1.params)
+    p1 = tf1(p0)
     t = np.linspace(np.arctan2(p0[2,1],p0[2,0]), np.arctan2(p1[2,1],p1[2,0]), 100)
     r = np.linalg.norm(p0[2,:])
     ax1 = plt.subplot(1, 1, 1)
@@ -291,7 +291,7 @@ where ``Translation'`` represents the translation in the intrinsic frame of refe
     ax1.annotate('p', xy=(float(p0[1,0] - 0.0), float(p0[1,1] - 0.2)))
 
     tf = transform.EuclideanTransform(translation=(2,0)) + tf1
-    p2 = transform.matrix_transform(p0, tf.params)
+    p2 = tf(p0)
     plt.plot(p2[:,0], p2[:,1], 'ro-')
     ax1.annotate('', xy=(float(p2[1, 0]), float(p2[1, 1]+0.1)), xytext=(float(p1[1, 0]), float(p1[1, 1]+0.1)),
                  arrowprops=dict(facecolor='black', shrink=0.1, width=0.1, headlength=5, headwidth=5), )
@@ -356,12 +356,12 @@ Using the above definitions, here is an example for placing an ROI in the Catpha
     tf1 = transform.EuclideanTransform(rotation=np.deg2rad(angle))
     tf2 = transform.EuclideanTransform(translation=(radial_distance, lateral_distance))
     tf3 = transform.EuclideanTransform(rotation=np.deg2rad(rotation))
-    rect_rotated = transform.matrix_transform(rect, tf1)            # R
-    rect_centered = transform.matrix_transform(rect, tf2 + tf1)     # T'*R = R*T = T+R
-    rect_final = transform.matrix_transform(rect, tf3 + tf2 + tf1)  # R'(R*T) = R*T*R = R+T+R
+    rect_rotated = tf1(rect)            # R
+    rect_centered = (tf2 + tf1)(rect)     # T'*R = R*T = T+R
+    rect_final = (tf3 + tf2 + tf1)(rect)  # R'(R*T) = R*T*R = R+T+R
 
-    rect_rotated2 = transform.matrix_transform(rect, tf3)
-    rect_translated = transform.matrix_transform(rect, tf3 + tf2)
+    rect_rotated2 = tf3(rect)
+    rect_translated = (tf3 + tf2)(rect)
 
     _, axs = plt.subplots(2, 4)
     axs[0,0].annotate('', xy=(0, 125), xytext=(0, 0),
@@ -484,8 +484,8 @@ Using the above definitions, here is an example for placing an ROI in the Catpha
     tf1 = transform.EuclideanTransform(rotation=np.deg2rad(phantom_roll))
     tf2 = transform.EuclideanTransform(translation=phantom_center)
     phantom_placement = tf1 + tf2
-    phantom_rotated = transform.matrix_transform(p_phantom.T, tf1).T
-    phantom_final = transform.matrix_transform(p_phantom.T, phantom_placement).T
+    phantom_rotated = tf1(p_phantom.T).T
+    phantom_final = phantom_placement(p_phantom.T).T
 
     _, axs = plt.subplots(1, 3)
     axs[0].annotate('', xy=(0, 125), xytext=(0, 0),
@@ -551,15 +551,15 @@ Using the above definitions, here is an example for placing an ROI in the Catpha
     tf2 = transform.EuclideanTransform(translation=(radial_distance, lateral_distance))
     tf3 = transform.EuclideanTransform(rotation=np.deg2rad(rotation))
     roi_placement = tf3 + tf2 + tf1
-    rect_phantom = transform.matrix_transform(rect, roi_placement)
+    rect_phantom = roi_placement(rect)
 
     tf1 = transform.EuclideanTransform(rotation=np.deg2rad(phantom_roll))
     tf2 = transform.EuclideanTransform(translation=phantom_center)
     phantom_placement = tf1 + tf2
-    phantom_final = transform.matrix_transform(p_phantom.T, phantom_placement).T
+    phantom_final = phantom_placement(p_phantom.T).T
 
     roi_global = roi_placement + phantom_placement
-    rect_final = transform.matrix_transform(rect, roi_global)
+    rect_final = roi_global(rect)
 
     _, axs = plt.subplots(1, 2)
     axs[0].annotate('', xy=(0, 125), xytext=(0, 0),
