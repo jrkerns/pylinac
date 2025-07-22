@@ -749,7 +749,7 @@ class Transform2D:
 
     @classmethod
     def from_extrinsic(cls, x: float, y: float, rotation: float = 0.0) -> Transform2D:
-        """Build a Transform2D from an extrinsic point of view. Rotation is applied first, then translation.
+        """Build a Transform2D from an extrinsic/world point of view. Rotation is applied first, then translation.
 
         Parameters
         ----------
@@ -767,7 +767,7 @@ class Transform2D:
 
     @classmethod
     def from_intrinsic(cls, x: float, y: float, rotation: float = 0.0) -> Transform2D:
-        """Build a Transform2D from an intrinsic point of view. Rotation is applied first, then translation.
+        """Build a Transform2D from an intrinsic/local point of view. Rotation is applied first, then translation.
 
         Parameters
         ----------
