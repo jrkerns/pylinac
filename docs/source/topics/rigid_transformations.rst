@@ -325,9 +325,9 @@ Using the above definitions, here is an example for placing an ROI in the Catpha
     1.4. Then rotate in place by 90 to align the roi
 
     .. math::
-      Tf_3 = R'(90) * Tf_2 = Tf_2 * R(90) = R(90) + Tf_2
+      Tf_3 = R'(90°) * Tf_2 = Tf_2 * R(90°) = R(90°) + Tf_2
 
-    1.5. This is ROI placement with respect to nominal phantom
+    1.5. This is the ROI placement with respect to nominal phantom
 
     .. math::
       Tf_{roi}^{phantom} = Tf_3
@@ -451,9 +451,9 @@ Using the above definitions, here is an example for placing an ROI in the Catpha
 
 
 2. Phantom placement with respect to image (global) coordinates:
-    2.1. Let's start with a centered phantom
+    2.1. Let's start with a centered (nominal) phantom
 
-    2.2. Then roll the phantom by 30 deg (exaggerated)
+    2.2. Then roll the phantom by 30 deg (exaggerated for visual purposed only)
 
     .. math::
       Tf_1 = R(30°)
@@ -461,7 +461,7 @@ Using the above definitions, here is an example for placing an ROI in the Catpha
     2.3. Then translate the phantom to the image center (150, 150)
 
     .. math::
-      Tf_2 = T(c) * R(30°) = R(30) + T(c)
+      Tf_2 = T(c) * R(30°) = R(30°) + T(c)
 
     2.4. This is phantom placement with respect to image coordinates
 
@@ -475,7 +475,7 @@ Using the above definitions, here is an example for placing an ROI in the Catpha
     import numpy as np
     from skimage import transform
 
-    phantom_roll = 20
+    phantom_roll = 30
     phantom_center = (150,150)
     r_phantom = 100
     t = np.linspace(0, 2*np.pi, 100)
