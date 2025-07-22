@@ -726,31 +726,27 @@ class Transform2D:
     """Represents a 2D Euclidean Transform (aka Pose).
 
     This is a wrapper around skimage's EuclideanTransform class, which allows for translation and rotation in 2D space.
-    We wrap for explicit constructors, better naming, extensibility, and to provide global coordinates
-    of a transform.
+    We wrap for explicit constructors, better naming, extensibility, and to allow for both
+    intrinsic and extrinsic transforms.
 
     A central use case is combining transforms. E.g. transform of the CatPhan ROI, then transform of the
-    HU ROI. The philosophy for this use case is that each transform is intrinsic. Meaning
-    that when adding a transform to another, the translation and rotation is
-    **relative to the previous transform**. E.g. a transform of 45 degrees and then an added
-    transform of a further 45 degrees results in a total of 90 degrees rotation.
+    HU ROI to get the global position of the HU ROI while allowing us to define the ROI position relative
+    only to the CatPhan.
+
+    .. important::
+
+        In pylinac, we always perform rotation first, then translation in both extrinsic and intrinsic transforms.
+        Further, documentation assumes that positive angle values go "from x to y". This allows us to use
+        screen or cartesian coordinates without confusion.
     """
 
     def __init__(self, transform: EuclideanTransform):
+        """Initialize the Transform2D with a skimage EuclideanTransform."""
         self.transform = transform
 
     @classmethod
-    def from_intrinsic(cls, x: float, y: float, rotation: float = 0.0) -> Transform2D:
-        """Build a Transform2D from intrinsic shift + rotation.
-
-        .. note::
-
-            The coordinate system (cartesian vs screen) is NOT relevant here.
-
-        .. warning::
-
-            This applies translation then rotation! When dealing with things like 90 degree rotations,
-            this can lead to confusion. Always visualize the translation first, then rotate when planning.
+    def from_extrinsic(cls, x: float, y: float, rotation: float = 0.0) -> Transform2D:
+        """Build a Transform2D from an extrinsic point of view. Rotation is applied first, then translation.
 
         Parameters
         ----------
@@ -759,31 +755,45 @@ class Transform2D:
         y: float
             The shift in the y-direction.
         rotation: float
-            The rotation in *degrees* clockwise. 0 is pointing to the right.
+            The rotation in *degrees*. Follows the "x goes to y" rule.
+        """
+        theta = np.radians(rotation)
+        return cls(EuclideanTransform(translation=(x, y), rotation=theta))
+
+    @classmethod
+    def from_intrinsic(cls, x: float, y: float, rotation: float = 0.0) -> Transform2D:
+        """Build a Transform2D from an intrinsic point of view. Rotation is applied first, then translation.
+
+        Parameters
+        ----------
+        x: float
+            The shift in the x-direction.
+        y: float
+            The shift in the y-direction.
+        rotation: float
+            The rotation in *degrees*. Follows the "x goes to y" rule.
 
         Notes
         -----
 
-        AFAICT, we can't use EuclideanTransform(translation=..., rotation=...)
-        because it performs rotate-then-translate, which is extrinsic.
-        When this really comes into play is when combining transforms.
+        Scikit-image's EuclideanTransform is extrinsic. In order to create an intrinsic transform,
+        we swap the order of matrix multiplication.
         """
-        theta = np.radians(rotation)
-        translation = EuclideanTransform(translation=(x, y))
-        spin = EuclideanTransform(rotation=theta)
-
-        # translate, then rotate; intrinsic
-        matrix = spin.params @ translation.params
-        return cls(EuclideanTransform(matrix=matrix))
+        translate = EuclideanTransform(translation=(x, y))
+        rot = EuclideanTransform(rotation=np.radians(rotation))
+        tform = (
+            translate + rot
+        )  # the addition operator is overloaded; this is the same as rot.params @ translate.params.
+        return cls(transform=tform)
 
     def __add__(self, other: Transform2D) -> Transform2D:
         """Combine two transforms; the frame of reference is relative to the previous transform."""
-        return Transform2D(
-            EuclideanTransform(self.transform.params @ other.transform.params)
-        )
+        # this is the same as scikit-image's transform addition, we just need to wrap it.
+        return Transform2D(other.transform + self.transform)
 
     @property
     def coords(self) -> Point:
         """Get the global coordinates of the transform. After applying multiple transforms,
         we ultimately need to do things like plot, which we need global coordinates for."""
+        # this applies the final transform to the origin (0, 0)
         return Point(self.transform(np.array([[0, 0]]))[0])
