@@ -330,7 +330,7 @@ Using the above definitions, here is an example for placing an ROI in the Catpha
     1.5. This is the ROI placement with respect to nominal phantom
 
     .. math::
-      Tf_{roi}^{phantom} = Tf_3
+      Tf_{roi}^{phantom} = Tf_3 = R(90°) + T(60) + R(45°)
 
 .. plot::
     :include-source: False
@@ -461,12 +461,12 @@ Using the above definitions, here is an example for placing an ROI in the Catpha
     2.3. Then translate the phantom to the image center (150, 150)
 
     .. math::
-      Tf_2 = T(c) * R(30°) = R(30°) + T(c)
+      Tf_2 = T(c) * Tf_1 = Tf_1 + T(c)
 
     2.4. This is phantom placement with respect to image coordinates
 
     .. math::
-      Tf_{phantom}^{image} = Tf_2
+      Tf_{phantom}^{image} = Tf_2 = R(30°) + T(c)
 
 .. plot::
     :include-source: False
@@ -523,6 +523,9 @@ Using the above definitions, here is an example for placing an ROI in the Catpha
 
     .. math::
       Tf_{roi}^{image} = Tf_{phantom}^{image} * Tf_{roi}^{phantom} = Tf_{roi}^{phantom} + Tf_{phantom}^{image}
+
+    .. math::
+      Tf_{roi}^{image} = R(90°) + T(60) + R(45°) + R(30°) + T(c)
 
 .. plot::
     :include-source: False
