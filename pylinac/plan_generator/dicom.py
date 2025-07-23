@@ -43,6 +43,12 @@ class FluenceMode(Enum):
     SRS = "SRS"
 
 
+class Stack(Enum):
+    DISTAL = "distal"
+    PROXIMAL = "proximal"
+    BOTH = "both"
+
+
 class Beam:
     """Represents a DICOM beam dataset. Has methods for creating the dataset and adding control points.
     Generally not created on its own but rather under the hood as part of a PlanGenerator object.
@@ -1944,12 +1950,6 @@ class PlanGenerator:
         )
 
 
-class STACK:
-    DISTAL = "distal"
-    PROXIMAL = "proximal"
-    BOTH = "both"
-
-
 class HalcyonPlanGenerator(PlanGenerator):
     """A class to generate a plan with two beams stacked on top of each other such as the Halcyon. This
     also assumes no jaws."""
@@ -2016,7 +2016,7 @@ class HalcyonPlanGenerator(PlanGenerator):
 
     def add_picketfence_beam(
         self,
-        stack: STACK,
+        stack: Stack,
         strip_width_mm: float = 3,
         strip_positions_mm: tuple[float] = (-45, -30, -15, 0, 15, 30, 45),
         dose_rate: int = 600,
@@ -2033,7 +2033,7 @@ class HalcyonPlanGenerator(PlanGenerator):
 
         Parameters
         ----------
-        stack: STACK
+        stack: Stack
             Which MLC stack to use for the beam. The other stack will be parked.
         strip_width_mm : float
             The width of the strips in mm.
@@ -2068,21 +2068,21 @@ class HalcyonPlanGenerator(PlanGenerator):
         metersets = [0, *[1 / len(strip_positions_mm) for _ in strip_positions_mm]]
 
         for strip, meterset in zip(strip_positions, metersets):
-            if stack in (STACK.DISTAL, STACK.BOTH):
+            if stack in (Stack.DISTAL, Stack.BOTH):
                 dist_mlc.add_strip(
                     position_mm=strip,
                     strip_width_mm=strip_width_mm,
                     meterset_at_target=meterset,
                 )
-                if stack == STACK.DISTAL:
+                if stack == Stack.DISTAL:
                     prox_mlc.park(meterset=meterset)
-            if stack in (STACK.PROXIMAL, STACK.BOTH):
+            if stack in (Stack.PROXIMAL, Stack.BOTH):
                 prox_mlc.add_strip(
                     position_mm=strip,
                     strip_width_mm=strip_width_mm,
                     meterset_at_target=meterset,
                 )
-                if stack == STACK.PROXIMAL:
+                if stack == Stack.PROXIMAL:
                     dist_mlc.park(meterset=meterset)
 
         beam = HalcyonBeam(
