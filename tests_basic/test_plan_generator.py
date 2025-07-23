@@ -8,13 +8,13 @@ from parameterized import parameterized
 
 from pylinac.core.image_generator import AS1200Image
 from pylinac.plan_generator.dicom import (
+    STACK,
     Beam,
     BeamType,
     FluenceMode,
     GantryDirection,
     HalcyonPlanGenerator,
     OvertravelError,
-    Stack,
     TrueBeamPlanGenerator,
 )
 from pylinac.plan_generator.mlc import (
@@ -687,8 +687,8 @@ class TestPlanPrefabs(TestCase):
 
 
 HALCYON_MLC_INDEX = {
-    Stack.DISTAL: -2,
-    Stack.PROXIMAL: -1,
+    STACK.DISTAL: -2,
+    STACK.PROXIMAL: -1,
 }
 
 
@@ -702,7 +702,7 @@ class TestHalcyonPrefabs(TestCase):
 
     def test_create_picket_fence_proximal(self):
         self.pg.add_picketfence_beam(
-            stack=Stack.PROXIMAL,
+            stack=STACK.PROXIMAL,
             mu=123,
             beam_name="Picket Fence",
             strip_positions_mm=(-50, -30, -10, 10, 30, 50),
@@ -719,7 +719,7 @@ class TestHalcyonPrefabs(TestCase):
         self.assertEqual(
             dcm.BeamSequence[0]
             .ControlPointSequence[0]
-            .BeamLimitingDevicePositionSequence[HALCYON_MLC_INDEX[Stack.PROXIMAL]]
+            .BeamLimitingDevicePositionSequence[HALCYON_MLC_INDEX[STACK.PROXIMAL]]
             .LeafJawPositions[0],
             -53.5,
         )
@@ -727,14 +727,14 @@ class TestHalcyonPrefabs(TestCase):
         self.assertEqual(
             dcm.BeamSequence[0]
             .ControlPointSequence[0]
-            .BeamLimitingDevicePositionSequence[HALCYON_MLC_INDEX[Stack.DISTAL]]
+            .BeamLimitingDevicePositionSequence[HALCYON_MLC_INDEX[STACK.DISTAL]]
             .LeafJawPositions[0],
             -140,
         )
 
     def test_create_picket_fence_distal(self):
         self.pg.add_picketfence_beam(
-            stack=Stack.DISTAL,
+            stack=STACK.DISTAL,
             mu=123,
             beam_name="Picket Fence",
             strip_positions_mm=(-50, -30, -10, 10, 30, 50),
@@ -751,7 +751,7 @@ class TestHalcyonPrefabs(TestCase):
         self.assertEqual(
             dcm.BeamSequence[0]
             .ControlPointSequence[0]
-            .BeamLimitingDevicePositionSequence[HALCYON_MLC_INDEX[Stack.PROXIMAL]]
+            .BeamLimitingDevicePositionSequence[HALCYON_MLC_INDEX[STACK.PROXIMAL]]
             .LeafJawPositions[0],
             -140,
         )
@@ -759,14 +759,14 @@ class TestHalcyonPrefabs(TestCase):
         self.assertEqual(
             dcm.BeamSequence[0]
             .ControlPointSequence[0]
-            .BeamLimitingDevicePositionSequence[HALCYON_MLC_INDEX[Stack.DISTAL]]
+            .BeamLimitingDevicePositionSequence[HALCYON_MLC_INDEX[STACK.DISTAL]]
             .LeafJawPositions[0],
             -53.5,
         )
 
     def test_create_picket_fence_both(self):
         self.pg.add_picketfence_beam(
-            stack=Stack.BOTH,
+            stack=STACK.BOTH,
             mu=123,
             beam_name="Picket Fence",
             strip_positions_mm=(-50, -30, -10, 10, 30, 50),
@@ -783,7 +783,7 @@ class TestHalcyonPrefabs(TestCase):
         self.assertEqual(
             dcm.BeamSequence[0]
             .ControlPointSequence[0]
-            .BeamLimitingDevicePositionSequence[HALCYON_MLC_INDEX[Stack.PROXIMAL]]
+            .BeamLimitingDevicePositionSequence[HALCYON_MLC_INDEX[STACK.PROXIMAL]]
             .LeafJawPositions[0],
             -53.5,
         )
@@ -791,7 +791,7 @@ class TestHalcyonPrefabs(TestCase):
         self.assertEqual(
             dcm.BeamSequence[0]
             .ControlPointSequence[0]
-            .BeamLimitingDevicePositionSequence[HALCYON_MLC_INDEX[Stack.DISTAL]]
+            .BeamLimitingDevicePositionSequence[HALCYON_MLC_INDEX[STACK.DISTAL]]
             .LeafJawPositions[0],
             -53.5,
         )

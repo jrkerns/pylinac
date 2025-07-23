@@ -44,7 +44,7 @@ class FluenceMode(Enum):
     SRS = "SRS"
 
 
-class Stack(Enum):
+class STACK(Enum):
     DISTAL = "distal"
     PROXIMAL = "proximal"
     BOTH = "both"
@@ -2101,7 +2101,7 @@ class HalcyonPlanGenerator(PlanGenerator):
 
     def add_picketfence_beam(
         self,
-        stack: Stack,
+        stack: STACK,
         strip_width_mm: float = 3,
         strip_positions_mm: tuple[float] = (-45, -30, -15, 0, 15, 30, 45),
         dose_rate: int = 600,
@@ -2118,7 +2118,7 @@ class HalcyonPlanGenerator(PlanGenerator):
 
         Parameters
         ----------
-        stack: Stack
+        stack: STACK
             Which MLC stack to use for the beam. The other stack will be parked.
         strip_width_mm : float
             The width of the strips in mm.
@@ -2153,21 +2153,21 @@ class HalcyonPlanGenerator(PlanGenerator):
         metersets = [0, *[1 / len(strip_positions_mm) for _ in strip_positions_mm]]
 
         for strip, meterset in zip(strip_positions, metersets):
-            if stack in (Stack.DISTAL, Stack.BOTH):
+            if stack in (STACK.DISTAL, STACK.BOTH):
                 dist_mlc.add_strip(
                     position_mm=strip,
                     strip_width_mm=strip_width_mm,
                     meterset_at_target=meterset,
                 )
-                if stack == Stack.DISTAL:
+                if stack == STACK.DISTAL:
                     prox_mlc.park(meterset=meterset)
-            if stack in (Stack.PROXIMAL, Stack.BOTH):
+            if stack in (STACK.PROXIMAL, STACK.BOTH):
                 prox_mlc.add_strip(
                     position_mm=strip,
                     strip_width_mm=strip_width_mm,
                     meterset_at_target=meterset,
                 )
-                if stack == Stack.PROXIMAL:
+                if stack == STACK.PROXIMAL:
                     dist_mlc.park(meterset=meterset)
 
         beam = HalcyonBeam(
