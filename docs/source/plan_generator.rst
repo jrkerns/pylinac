@@ -560,12 +560,12 @@ Adding a picket fence field can be done like so:
 
 .. code-block:: python
 
-    from pylinac.plan_generator.dicom import HalcyonPlanGenerator, STACK
+    from pylinac.plan_generator.dicom import HalcyonPlanGenerator, Stack
 
     path = r"path/to/my/rtplan.dcm"
     pg = HalcyonPlanGenerator.from_rt_plan_file(path, plan_label="MyQA", plan_name="QA")
     pg.add_picketfence_beam(
-        stack=STACK.DISTAL,
+        stack=Stack.DISTAL,
         strip_width=3,
         strip_positions=(-50, -25, 25, 50),  # 4 pickets
         mu=100,
@@ -580,8 +580,6 @@ API Documentation
 .. autoclass:: pylinac.plan_generator.dicom.PlanGenerator
 
 .. autoclass:: pylinac.plan_generator.dicom.HalcyonPlanGenerator
-
-.. autoclass:: pylinac.plan_generator.dicom.STACK
 
 .. autoclass:: pylinac.plan_generator.dicom.Beam
 
