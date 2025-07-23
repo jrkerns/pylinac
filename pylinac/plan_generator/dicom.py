@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import math
+from abc import ABC
 from collections.abc import Iterable
 from enum import Enum
 from pathlib import Path
@@ -41,6 +42,12 @@ class FluenceMode(Enum):
     STANDARD = "STANDARD"
     FFF = "FFF"
     SRS = "SRS"
+
+
+class Stack(Enum):
+    DISTAL = "distal"
+    PROXIMAL = "proximal"
+    BOTH = "both"
 
 
 class Beam:
@@ -739,20 +746,20 @@ class HalcyonBeam(Beam):
         self.ds.ControlPointSequence.append(cp1)
 
 
-class PlanGenerator:
+class PlanGenerator(ABC):
     def __init__(
         self,
         ds: Dataset,
         plan_label: str,
         plan_name: str,
-        patient_name: str | None = None,
-        patient_id: str | None = None,
-        x_width_mm: float = 400,
-        max_mlc_speed: float = 25,
-        max_gantry_speed: float = 4.8,
-        sacrificial_gap_mm: float = 5,
-        max_sacrificial_move_mm: float = 50,
-        max_overtravel_mm: float = 140,
+        patient_name: str | None,
+        patient_id: str | None,
+        x_width_mm: float,
+        max_mlc_speed: float,
+        max_gantry_speed: float,
+        sacrificial_gap_mm: float,
+        max_sacrificial_move_mm: float,
+        max_overtravel_mm: float,
     ):
         """A tool for generating new QA RTPlan files based on an initial, somewhat empty RTPlan file.
 
@@ -883,14 +890,156 @@ class PlanGenerator:
         return self._old_beam.BeamLimitingDeviceSequence[-1].NumberOfLeafJawPairs * 2
 
     @property
-    def leaf_config(self) -> list[float]:
-        """The leaf boundaries of the MLC."""
-        return self._old_beam.BeamLimitingDeviceSequence[-1].LeafPositionBoundaries
-
-    @property
     def machine_name(self) -> str:
         """The name of the machine."""
         return self._old_beam.TreatmentMachineName
+
+    def add_beam(self, beam_dataset: Dataset, mu: int):
+        """Add a beam to the plan using the Beam object. Although public,
+        this is a low-level method that is used by the higher-level methods like add_open_field_beam.
+        This handles the associated metadata like the referenced beam sequence and fraction group sequence.
+        """
+        self.ds.BeamSequence.append(beam_dataset)
+        self._update_references(mu=mu)
+
+    def _update_references(self, mu: float) -> None:
+        """Update the other sequences that reference the beam sequence."""
+        referenced_beam = Dataset()
+        referenced_beam.BeamDose = "1.0"
+        referenced_beam.BeamMeterset = str(mu)
+        referenced_beam.ReferencedDoseReferenceUID = self.ds.DoseReferenceSequence[
+            0
+        ].DoseReferenceUID
+        self.ds.FractionGroupSequence[0].ReferencedBeamSequence.append(referenced_beam)
+        referenced_beam.ReferencedBeamNumber = (
+            len(self.ds.FractionGroupSequence[0].ReferencedBeamSequence) - 1
+        )
+        # increment number of beams
+        self.ds.FractionGroupSequence[0].NumberOfBeams = (
+            int(self.ds.FractionGroupSequence[0].NumberOfBeams) + 1
+        )
+
+    def to_file(self, filename: str | Path) -> None:
+        """Write the DICOM dataset to file"""
+        self.ds.save_as(filename, write_like_original=False)
+
+    def as_dicom(self) -> Dataset:
+        """Return the new DICOM dataset."""
+        return self.ds
+
+    def plot_fluences(
+        self,
+        width_mm: float = 400,
+        resolution_mm: float = 0.5,
+        dtype: np.dtype = np.uint16,
+    ) -> list[Figure]:
+        """Plot the fluences of the beams generated
+
+        See Also
+        --------
+        :func:`~pydicom_planar.PlanarImage.plot_fluences`
+        """
+        return plot_fluences(self.as_dicom(), width_mm, resolution_mm, dtype, show=True)
+
+    def to_dicom_images(
+        self, simulator: type[Simulator], invert: bool = True
+    ) -> list[Dataset]:
+        """Generate simulated DICOM images of the plan. This provides a way to
+        generate an end-to-end simulation of the plan. The images will always be
+        at 1000mm SID.
+
+        Parameters
+        ----------
+        simulator : Simulator
+            The simulator to use to generate the images. This provides the
+            size of the image and the pixel size
+        invert: bool
+            Invert the fluence. Setting to True simulates EPID-style images where
+            dose->lower pixel value.
+        """
+        image_ds = []
+        fluences = generate_fluences(
+            rt_plan=self.as_dicom(),
+            width_mm=simulator.shape[1] * simulator.pixel_size,
+            resolution_mm=simulator.pixel_size,
+        )
+        for beam, fluence in zip(self.ds.BeamSequence, fluences):
+            beam_info = beam.ControlPointSequence[0]
+            sim = simulator(sid=1000)
+            sim.add_layer(ArrayLayer(fluence))
+            ds = sim.as_dicom(
+                gantry_angle=beam_info.GantryAngle,
+                coll_angle=beam_info.BeamLimitingDeviceAngle,
+                table_angle=beam_info.PatientSupportAngle,
+                invert_array=invert,
+            )
+            image_ds.append(ds)
+        return image_ds
+
+
+class TrueBeamPlanGenerator(PlanGenerator):
+    def __init__(
+        self,
+        ds: Dataset,
+        plan_label: str,
+        plan_name: str,
+        patient_name: str | None = None,
+        patient_id: str | None = None,
+        x_width_mm: float = 400,
+        max_mlc_speed: float = 25,
+        max_gantry_speed: float = 4.8,
+        sacrificial_gap_mm: float = 5,
+        max_sacrificial_move_mm: float = 50,
+        max_overtravel_mm: float = 140,
+    ):
+        """A tool for generating new QA RTPlan files based on an initial, somewhat empty RTPlan file.
+
+        Parameters
+        ----------
+        ds : Dataset
+              The RTPLAN dataset to base the new plan off of. The plan must already have MLC positions.
+        plan_label : str
+            The label of the new plan.
+        plan_name : str
+            The name of the new plan.
+        patient_name : str, optional
+            The name of the patient. If not provided, it will be taken from the RTPLAN file.
+        patient_id : str, optional
+            The ID of the patient. If not provided, it will be taken from the RTPLAN file.
+        x_width_mm : float
+            The overall width of the MLC movement in the x-direction. Generally, this is the x field size.
+        max_mlc_speed : float
+            The maximum speed of the MLC leaves in mm/s
+        max_gantry_speed : float
+            The maximum speed of the gantry in degrees/s.
+        sacrificial_gap_mm : float
+            For certain dynamic beams, the top and bottom leaf pair are used to slow axes down. This is the gap
+            between those leaves at any given time.
+        max_sacrificial_move_mm : float
+            The maximum distance the sacrificial leaves can move in a given control point.
+            Smaller values generate more control points and more back-and-forth movement.
+            Too large of values may cause deliverability issues.
+        max_overtravel_mm : float
+            The maximum distance the MLC leaves can overtravel from each other as well as the jaw size (for tail exposure protection).
+        """
+        super().__init__(
+            ds,
+            plan_label,
+            plan_name,
+            patient_name,
+            patient_id,
+            x_width_mm,
+            max_mlc_speed,
+            max_gantry_speed,
+            sacrificial_gap_mm,
+            max_sacrificial_move_mm,
+            max_overtravel_mm,
+        )
+
+    @property
+    def leaf_config(self) -> list[float]:
+        """The leaf boundaries of the MLC."""
+        return self._old_beam.BeamLimitingDeviceSequence[-1].LeafPositionBoundaries
 
     def _create_mlc(self) -> MLCShaper:
         """Utility to create MLC shaper instances."""
@@ -901,14 +1050,6 @@ class PlanGenerator:
             sacrifice_max_move_mm=self.max_sacrificial_move,
             max_overtravel_mm=self.max_overtravel_mm,
         )
-
-    def add_beam(self, beam_dataset: Dataset, mu: int):
-        """Add a beam to the plan using the Beam object. Although public,
-        this is a low-level method that is used by the higher-level methods like add_open_field_beam.
-        This handles the associated metadata like the referenced beam sequence and fraction group sequence.
-        """
-        self.ds.BeamSequence.append(beam_dataset)
-        self._update_references(mu=mu)
 
     def add_picketfence_beam(
         self,
@@ -1869,86 +2010,6 @@ class PlanGenerator:
         )
         self.add_beam(beam.as_dicom(), mu=mu)
 
-    def to_file(self, filename: str | Path) -> None:
-        """Write the DICOM dataset to file"""
-        self.ds.save_as(filename, write_like_original=False)
-
-    def as_dicom(self) -> Dataset:
-        """Return the new DICOM dataset."""
-        return self.ds
-
-    def plot_fluences(
-        self,
-        width_mm: float = 400,
-        resolution_mm: float = 0.5,
-        dtype: np.dtype = np.uint16,
-    ) -> list[Figure]:
-        """Plot the fluences of the beams generated
-
-        See Also
-        --------
-        :func:`~pydicom_planar.PlanarImage.plot_fluences`
-        """
-        return plot_fluences(self.as_dicom(), width_mm, resolution_mm, dtype, show=True)
-
-    def to_dicom_images(
-        self, simulator: type[Simulator], invert: bool = True
-    ) -> list[Dataset]:
-        """Generate simulated DICOM images of the plan. This provides a way to
-        generate an end-to-end simulation of the plan. The images will always be
-        at 1000mm SID.
-
-        Parameters
-        ----------
-        simulator : Simulator
-            The simulator to use to generate the images. This provides the
-            size of the image and the pixel size
-        invert: bool
-            Invert the fluence. Setting to True simulates EPID-style images where
-            dose->lower pixel value.
-        """
-        image_ds = []
-        fluences = generate_fluences(
-            rt_plan=self.as_dicom(),
-            width_mm=simulator.shape[1] * simulator.pixel_size,
-            resolution_mm=simulator.pixel_size,
-        )
-        for beam, fluence in zip(self.ds.BeamSequence, fluences):
-            beam_info = beam.ControlPointSequence[0]
-            sim = simulator(sid=1000)
-            sim.add_layer(ArrayLayer(fluence))
-            ds = sim.as_dicom(
-                gantry_angle=beam_info.GantryAngle,
-                coll_angle=beam_info.BeamLimitingDeviceAngle,
-                table_angle=beam_info.PatientSupportAngle,
-                invert_array=invert,
-            )
-            image_ds.append(ds)
-        return image_ds
-
-    def _update_references(self, mu: float) -> None:
-        """Update the other sequences that reference the beam sequence."""
-        referenced_beam = Dataset()
-        referenced_beam.BeamDose = "1.0"
-        referenced_beam.BeamMeterset = str(mu)
-        referenced_beam.ReferencedDoseReferenceUID = self.ds.DoseReferenceSequence[
-            0
-        ].DoseReferenceUID
-        self.ds.FractionGroupSequence[0].ReferencedBeamSequence.append(referenced_beam)
-        referenced_beam.ReferencedBeamNumber = (
-            len(self.ds.FractionGroupSequence[0].ReferencedBeamSequence) - 1
-        )
-        # increment number of beams
-        self.ds.FractionGroupSequence[0].NumberOfBeams = (
-            int(self.ds.FractionGroupSequence[0].NumberOfBeams) + 1
-        )
-
-
-class STACK:
-    DISTAL = "distal"
-    PROXIMAL = "proximal"
-    BOTH = "both"
-
 
 class HalcyonPlanGenerator(PlanGenerator):
     """A class to generate a plan with two beams stacked on top of each other such as the Halcyon. This
@@ -1968,6 +2029,36 @@ class HalcyonPlanGenerator(PlanGenerator):
         max_sacrificial_move_mm: float = 50,
         max_overtravel_mm: float = 140,
     ):
+        """A tool for generating new QA RTPlan files based on an initial, somewhat empty RTPlan file.
+
+        Parameters
+        ----------
+        ds : Dataset
+              The RTPLAN dataset to base the new plan off of. The plan must already have MLC positions.
+        plan_label : str
+            The label of the new plan.
+        plan_name : str
+            The name of the new plan.
+        patient_name : str, optional
+            The name of the patient. If not provided, it will be taken from the RTPLAN file.
+        patient_id : str, optional
+            The ID of the patient. If not provided, it will be taken from the RTPLAN file.
+        x_width_mm : float
+            The overall width of the MLC movement in the x-direction. Generally, this is the x field size.
+        max_mlc_speed : float
+            The maximum speed of the MLC leaves in mm/s
+        max_gantry_speed : float
+            The maximum speed of the gantry in degrees/s.
+        sacrificial_gap_mm : float
+            For certain dynamic beams, the top and bottom leaf pair are used to slow axes down. This is the gap
+            between those leaves at any given time.
+        max_sacrificial_move_mm : float
+            The maximum distance the sacrificial leaves can move in a given control point.
+            Smaller values generate more control points and more back-and-forth movement.
+            Too large of values may cause deliverability issues.
+        max_overtravel_mm : float
+            The maximum distance the MLC leaves can overtravel from each other as well as the jaw size (for tail exposure protection).
+        """
         super().__init__(
             ds,
             plan_label,
@@ -1980,12 +2071,6 @@ class HalcyonPlanGenerator(PlanGenerator):
             sacrificial_gap_mm,
             max_sacrificial_move_mm,
             max_overtravel_mm,
-        )
-
-    @property
-    def leaf_config(self) -> list[float]:
-        raise ValueError(
-            "Dual Stacks have independent leaf configs. Use `distal_leaf_config` or `proximal_leaf_config`"
         )
 
     @property
@@ -2016,7 +2101,7 @@ class HalcyonPlanGenerator(PlanGenerator):
 
     def add_picketfence_beam(
         self,
-        stack: STACK,
+        stack: Stack,
         strip_width_mm: float = 3,
         strip_positions_mm: tuple[float] = (-45, -30, -15, 0, 15, 30, 45),
         dose_rate: int = 600,
@@ -2033,7 +2118,7 @@ class HalcyonPlanGenerator(PlanGenerator):
 
         Parameters
         ----------
-        stack: STACK
+        stack: Stack
             Which MLC stack to use for the beam. The other stack will be parked.
         strip_width_mm : float
             The width of the strips in mm.
@@ -2068,21 +2153,21 @@ class HalcyonPlanGenerator(PlanGenerator):
         metersets = [0, *[1 / len(strip_positions_mm) for _ in strip_positions_mm]]
 
         for strip, meterset in zip(strip_positions, metersets):
-            if stack in (STACK.DISTAL, STACK.BOTH):
+            if stack in (Stack.DISTAL, Stack.BOTH):
                 dist_mlc.add_strip(
                     position_mm=strip,
                     strip_width_mm=strip_width_mm,
                     meterset_at_target=meterset,
                 )
-                if stack == STACK.DISTAL:
+                if stack == Stack.DISTAL:
                     prox_mlc.park(meterset=meterset)
-            if stack in (STACK.PROXIMAL, STACK.BOTH):
+            if stack in (Stack.PROXIMAL, Stack.BOTH):
                 prox_mlc.add_strip(
                     position_mm=strip,
                     strip_width_mm=strip_width_mm,
                     meterset_at_target=meterset,
                 )
-                if stack == STACK.PROXIMAL:
+                if stack == Stack.PROXIMAL:
                     dist_mlc.park(meterset=meterset)
 
         beam = HalcyonBeam(
