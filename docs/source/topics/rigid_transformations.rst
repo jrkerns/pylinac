@@ -247,8 +247,6 @@ where ``Rotation'`` represents the rotation in the intrinsic frame of reference
     r = np.linalg.norm(p0[0,:])
     plt.plot(p2[:,0], p2[:,1], 'ro-')
     plt.plot(p1[1,0]+r*np.cos(t), p1[1,1]+r*np.sin(t), 'k--')
-    #plt.plot([0, p1[1,0]], [0, p1[1,1]], 'k:')
-    #plt.plot([0, p2[1,0]], [0, p2[1,1]], 'k:')
     ax1.annotate(r'$\alpha$', xy=(float(0.5 * p2[2,0] + 0.5 * p1[2,0]) - 0.15, float(0.5 * p2[2,1] + 0.5 * p1[2,1]) - 0.15))
     ax1.annotate('p*', xy=(float(p2[1, 0] + 0.0), float(p2[1, 1] - 0.2)))
 
@@ -453,7 +451,7 @@ Using the above definitions, here is an example for placing an ROI in the Catpha
 2. Phantom placement with respect to image (global) coordinates:
     2.1. Let's start with a centered (nominal) phantom
 
-    2.2. Then roll the phantom by 30 deg (exaggerated for visual purposed only)
+    2.2. Then roll the phantom by 30 deg (exaggerated for visual purposes only)
 
     .. math::
       Tf_1 = R(30°)
