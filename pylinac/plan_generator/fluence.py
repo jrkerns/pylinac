@@ -34,7 +34,7 @@ def generate_fluences(
     # number of beams
     num_beams = len(rt_plan.BeamSequence)
 
-    # number of rows (height)
+    # y-axis (height)
     leaf_boundaries_elem = [
         elem for elem in rt_plan.iterall() if elem.tag == "LeafPositionBoundaries"
     ]
@@ -43,7 +43,7 @@ def generate_fluences(
         np.min(leaf_boundaries), np.max(leaf_boundaries) + resolution_mm, resolution_mm
     )
 
-    # number of cols (width)
+    # x-axis (width)
     x = np.arange(-width_mm / 2, width_mm / 2 + resolution_mm, resolution_mm)
 
     fluences = np.zeros((num_beams, len(y), len(x)), dtype=dtype)
