@@ -104,14 +104,7 @@ def generate_fluences(
         if beam.TreatmentDeliveryType == "SETUP":
             continue
         # if no MLCs defined, skip beam (I.e. jaw-based open field)
-        if (
-            len(
-                beam.ControlPointSequence[0].get(
-                    "BeamLimitingDevicePositionSequence", []
-                )
-            )
-            < 3
-        ):
+        if len(beam.ControlPointSequence[0].BeamLimitingDevicePositionSequence) < 3:
             continue
         # For each MLC stack stated in the Beam limiting sequence, construct the fluence
         mlc_stacks = (
