@@ -33,6 +33,8 @@ def generate_fluences(
 
     # number of beams
     num_beams = len(rt_plan.BeamSequence)
+    if num_beams == 0:
+        return np.empty(0)
 
     # y-axis (height)
     leaf_boundaries_elem = [
@@ -135,6 +137,8 @@ def plot_fluences(
         A list of matplotlib figures, one for each beam in the plan.
     """
     fluences = generate_fluences(plan, width_mm, resolution_mm, dtype)
+    if len(fluences) == 0:
+        return []
     m = fluences.max()
     figs = []
     for i, fluence in enumerate(fluences):
