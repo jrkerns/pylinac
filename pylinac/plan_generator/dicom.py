@@ -17,7 +17,7 @@ from pydicom.uid import generate_uid
 from ..core.image_generator.layers import ArrayLayer
 from ..core.image_generator.simulators import Simulator
 from ..core.scale import wrap360
-from .fluence import generate_fluences, plot_fluences
+from .fluence import generate_fluences, plot_fluences, plot_fluences2
 from .mlc import MLCShaper
 
 
@@ -1896,6 +1896,24 @@ class PlanGenerator:
         :func:`~pydicom_planar.PlanarImage.plot_fluences`
         """
         return plot_fluences(self.as_dicom(), width_mm, resolution_mm, dtype, show=True)
+
+    # TODO Remove this method that is for testing performance only
+    def plot_fluences2(
+        self,
+        width_mm: float = 400,
+        resolution_mm: float = 0.5,
+        dtype: np.dtype = np.uint16,
+        new_method: bool = False,
+    ) -> list[Figure]:
+        """Plot the fluences of the beams generated
+
+        See Also
+        --------
+        :func:`~pydicom_planar.PlanarImage.plot_fluences`
+        """
+        return plot_fluences2(
+            self.as_dicom(), width_mm, resolution_mm, dtype, show=True
+        )
 
     def to_dicom_images(
         self, simulator: type[Simulator], invert: bool = True
