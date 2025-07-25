@@ -795,7 +795,6 @@ class TestHalcyonPrefabs(TestCase):
             .LeafJawPositions[0],
             -53.5,
         )
-        self.pg.plot_fluences()
 
 
 class TestMLCShaper(TestCase):

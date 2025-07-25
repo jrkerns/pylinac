@@ -5,63 +5,6 @@ from matplotlib.patches import Rectangle
 from pydicom import Dataset
 
 
-def get_scaled_leaf_boundaries(boundaries: list[float], scale: float) -> np.ndarray:
-    """Get the MLC boundaries scaled to the resolution.
-
-    Parameters
-    ----------
-    boundaries: list[float]
-        The MLC boundaries.
-    scale : float
-        The resolution scale.
-
-    Returns
-    -------
-    np.ndarray
-        The MLC boundaries scaled to the resolution.
-    """
-    return np.asarray(boundaries, dtype=float) * scale
-
-
-def get_mlc_y_extent(ds: Dataset, scale: float) -> int:
-    """Get the **fluence** extent of the MLC boundaries in the y direction. I.e. the height of the fluence map.
-    Can account for multiple MLC stacks. Assumes the first beam contains the MLCs.
-    E.g. if the MLCs have a range of -100 to 100 and scale of 2, the extent will be 200*2=400.
-    """
-    extent = 0
-    for device in ds.BeamSequence[0].BeamLimitingDeviceSequence:
-        if "MLC" in device.get("RTBeamLimitingDeviceType"):
-            mlc_bounds = device.get("LeafPositionBoundaries")
-            if mlc_bounds:
-                extent = max(
-                    extent, np.ptp(get_scaled_leaf_boundaries(mlc_bounds, scale))
-                )
-    return int(extent)
-
-
-def get_absolute_scaled_leaf_boundaries(
-    ds: Dataset, boundaries: list[float], scale: float
-) -> np.ndarray:
-    """Get the MLC boundaries scaled to the resolution and offset to start at 0. Used to
-    get the boundaries of the MLCs in the fluence map (vs physical which might be negative).
-    E.g. if the MLC boundaries go (-100, -90, ... 100), the result will be (0, 20, ... 400) if the scale is 2.
-
-    Parameters
-    ----------
-    ds : pydicom.Dataset
-        The RT Plan dataset.
-    scale : float
-        The resolution scale.
-
-    Returns
-    -------
-    np.ndarray
-        The MLC boundaries scaled to the resolution and offset by the given amount.
-    """
-    extent = get_mlc_y_extent(ds, scale)
-    return (get_scaled_leaf_boundaries(boundaries, scale) + extent / 2).astype(int)
-
-
 def generate_fluences(
     rt_plan: Dataset,
     width_mm: float,
