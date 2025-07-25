@@ -1,5 +1,4 @@
 import tempfile
-import time
 from unittest import TestCase
 
 import numpy as np
@@ -615,16 +614,6 @@ class TestPlanPrefabs(TestCase):
         self.assertEqual(
             dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].BeamMeterset, 123
         )
-        start = time.perf_counter()
-        self.pg.plot_fluences(resolution_mm=0.1)
-        end = time.perf_counter()
-        elapsed = end - start  # elapsed seconds (float)
-        print(f"Old method took {elapsed:.6f} s")
-        start = time.perf_counter()
-        self.pg.plot_fluences2(resolution_mm=0.1)
-        end = time.perf_counter()
-        elapsed = end - start  # elapsed seconds (float)
-        print(f"New method took {elapsed:.6f} s")
 
     def test_mlc_speed_too_fast(self):
         with self.assertRaises(ValueError):
