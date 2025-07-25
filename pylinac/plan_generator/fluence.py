@@ -94,11 +94,10 @@ def generate_fluences(
             ]
             row_to_leaf_map = np.argmax(np.array(boundaries).T - y > 0, axis=0) - 1
             for row in range(len(y)):
-                if row_to_leaf_map[row] < 0:
+                leaf = row_to_leaf_map[row]
+                if leaf < 0:
                     continue
-                stack_fluences[stack_idx, row, :] = stack_fluence_compact[
-                    row_to_leaf_map[row], :
-                ]
+                stack_fluences[stack_idx, row, :] = stack_fluence_compact[leaf, :]
 
         if len(stack_fluences) == 1:
             fluences[beam_idx] = stack_fluences
