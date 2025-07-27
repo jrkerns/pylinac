@@ -58,7 +58,7 @@ def generate_fluences(
         cumulative_meterset = 1000 * np.array(
             [float(cps.CumulativeMetersetWeight) for cps in beam.ControlPointSequence]
         )
-        cumulative_meterset_per_cp = np.diff(cumulative_meterset, prepend=0)
+        meterset_per_cp = np.diff(cumulative_meterset, prepend=0)
 
         mlc_stacks = [
             (blds.RTBeamLimitingDeviceType, blds.NumberOfLeafJawPairs)
@@ -85,7 +85,7 @@ def generate_fluences(
             for cp_idx, cp in enumerate(beam.ControlPointSequence):
                 leaves_b = leaf_positions_b[cp_idx, :]
                 leaves_a = leaf_positions_a[cp_idx, :]
-                mu = cumulative_meterset_per_cp[cp_idx]
+                mu = meterset_per_cp[cp_idx]
                 mask = (x > leaves_b[None].T) & (x <= leaves_a[None].T)
                 stack_fluence_compact[mask] += mu
 
