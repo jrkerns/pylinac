@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pylinac.plan_generator.dicom import FluenceMode, PlanGenerator
+from pylinac.plan_generator.dicom import FluenceMode, TrueBeamPlanGenerator
 
 rt_plan_dir = (
     Path(__file__).parent.parent.absolute()
@@ -28,7 +28,7 @@ for mlc, rt_plan_file in MLCS:
     for context in CONTEXTS:
         energy, fluence_mode, max_dose_rate = context
         plan_name = f"{energy}MV{'' + fluence_mode.value if fluence_mode != FluenceMode.STANDARD else ''}"
-        generator = PlanGenerator.from_rt_plan_file(
+        generator = TrueBeamPlanGenerator.from_rt_plan_file(
             rt_plan_file, plan_name=plan_name, plan_label=plan_name
         )
         # picket fence
