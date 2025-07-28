@@ -349,8 +349,8 @@ video: `Filling the ACR MRI Phantom <https://youtu.be/MH3sj2HC6Xo?si=l0I869rg07Q
 Analysis
 ^^^^^^^^
 
-Section 0.4 specifies the 7 tests to perform. Pylinac can perform 6 of these 8. It cannot yet perform the
-low-contrast object detectability test and the artifact assessment test
+Section 0.4 specifies the 8 tests to perform. Pylinac can perform 6 of these 8. It cannot yet perform the
+low-contrast object detectability test, while the the artifact assessment test is considered a visual inspection test.
 
 * **Geometric Accuracy** - The geometric accuracy is measured using profiles of slice 5. The only difference
   is that pylinac will use the 60th percentile pixel value of the image as a high-pass filter so that minor background fluctuations are removed and then take the FWHM
