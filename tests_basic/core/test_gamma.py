@@ -1,5 +1,5 @@
 import math
-from unittest import TestCase, skip
+from unittest import TestCase
 
 import numpy as np
 from parameterized import parameterized
@@ -58,7 +58,6 @@ class TestAgnewMcGarry(TestCase):
         meas_pass_rate = np.sum(g < 1) / g.size * 100
         self.assertAlmostEqual(meas_pass_rate, PASS_RATE, delta=0.05)
 
-    @skip("Very slow; performed locally")
     def test_dta_11_025mm(self):
         PASS_RATE = 92.3  # from Agnew's paper
         ref_file = get_file_from_cloud_test_repo(
@@ -79,7 +78,6 @@ class TestAgnewMcGarry(TestCase):
         meas_pass_rate = np.sum(g < 1) / g.size * 100  # 92.19%
         self.assertAlmostEqual(meas_pass_rate, PASS_RATE, delta=0.15)
 
-    @skip("Very slow; performed locally")
     def test_dd_11_025mm(self):
         PASS_RATE = 96  # from Agnew's paper
         ref_file = get_file_from_cloud_test_repo(
