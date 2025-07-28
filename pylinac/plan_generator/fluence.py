@@ -86,7 +86,7 @@ def generate_fluences(
                 leaves_b = leaf_positions_b[cp_idx, :]
                 leaves_a = leaf_positions_a[cp_idx, :]
                 mu = meterset_per_cp[cp_idx]
-                mask = (x > leaves_b[None].T) & (x <= leaves_a[None].T)
+                mask = (x > leaves_b[np.newaxis].T) & (x <= leaves_a[np.newaxis].T)
                 stack_fluence_compact[mask] += mu
 
             boundaries = [
