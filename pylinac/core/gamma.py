@@ -278,13 +278,13 @@ def gamma_2d(
     else:
         dose_ta = dose_to_agreement / 100 * reference
 
-    # pad eval array on both edges so our search does not go out of bounds
-    eval_padded = np.pad(evaluation, distance_to_agreement, mode="edge")
-
     # Work with normalized values to avoid normalization inside the loop
-    eval_normalized = eval_padded / dose_ta
+    eval_normalized = evaluation / dose_ta
     reference_normalized = reference / dose_ta
     threshold_normalized = dose_threshold / 100
+
+    # pad eval array on both edges so our search does not go out of bounds
+    eval_normalized = np.pad(eval_normalized, distance_to_agreement, mode="edge")
 
     # use scikit-image to compute the indices of a disk around the reference point
     # we can then compute gamma over the eval points at these indices
@@ -310,7 +310,7 @@ def gamma_2d(
             ref_point = reference_normalized[row_idx, col_idx]
 
             # skip if below dose threshold
-            if ref_point < threshold_normalized:
+            if math.isnan(ref_point) or ref_point < threshold_normalized:
                 continue
 
             # roi from evaluation
