@@ -20,6 +20,10 @@ Core
   This clarifies its definition — previously, snapping corners to integer values could break the rectangle’s structure.
   Higher‑level classes must now handle any rounding as needed.
 
+Gamma
+^^^^^
+* :bdg-primary:`Refactor` Performance improvements to gamma_2d. Speedup results will vary; local tests showed an improvement of ~20x
+
 Plotting Plan Fluence
 ^^^^^^^^^^^^^^^^^^^^^
 
