@@ -303,7 +303,8 @@ def gamma_2d(
     dist_col = disk_cc / distance_to_agreement
     dist_r_2 = dist_row**2 + dist_col**2
 
-    gamma = np.full(reference.shape, fill_value)
+    gamma_cap_value_2 = gamma_cap_value**2
+    gamma = np.full(reference.shape, gamma_cap_value)
     # iterate over each reference element, computing distance value and dose value
     for row_idx in range(reference.shape[0]):
         for col_idx in range(reference.shape[1]):
@@ -311,6 +312,7 @@ def gamma_2d(
 
             # skip if below dose threshold
             if math.isnan(ref_point) or ref_point < threshold_normalized:
+                gamma[row_idx, col_idx] = fill_value
                 continue
 
             # roi from evaluation
@@ -319,10 +321,11 @@ def gamma_2d(
             # Normalized dose difference between evaluated and reference dose points
             dist_dose = eval_roi - ref_point
 
-            # capital gamma square: is faster to do sqrt(min(array)) than min(sqrt(array)))
-            capital_gamma_2 = dist_r_2 + dist_dose * dist_dose
-            capital_gamma = np.sqrt(np.nanmin(capital_gamma_2))
-            gamma[row_idx, col_idx] = min(capital_gamma, gamma_cap_value)
+            # capital gamma square (avoid sqrt and memory access if above cap)
+            capital_gamma_2 = np.nanmin(dist_r_2 + dist_dose * dist_dose)
+            if capital_gamma_2 >= gamma_cap_value_2:
+                continue
+            gamma[row_idx, col_idx] = np.sqrt(capital_gamma_2)
 
     return np.asarray(gamma)
 
