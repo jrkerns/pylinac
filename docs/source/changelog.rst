@@ -23,8 +23,8 @@ Core
 Plotting Plan Fluence
 ^^^^^^^^^^^^^^^^^^^^^
 
-* :bdg-primary:`Refactor` Minor code improvement: the fluence is calculated on a compact matrix (n_leaves x width)
-and only at the end it gets expanded to a full size image (height x width) according to the leaf boundaries.
+* :bdg-primary:`Refactor` Minor code improvement: the fluence is calculated on a compact matrix ``(n_leaves x width)``
+  and only at the end it gets expanded to a full size image ``(height x width)`` according to the leaf boundaries.
 
 VMAT
 ^^^^
