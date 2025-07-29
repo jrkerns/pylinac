@@ -304,7 +304,7 @@ def gamma_2d(
     dist_r_2 = dist_row**2 + dist_col**2
 
     gamma_cap_value_2 = gamma_cap_value**2
-    gamma = np.full(reference.shape, gamma_cap_value)
+    gamma = np.full(reference.shape, float(gamma_cap_value))
     # iterate over each reference element, computing distance value and dose value
     for row_idx in range(reference.shape[0]):
         for col_idx in range(reference.shape[1]):
