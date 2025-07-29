@@ -20,6 +20,12 @@ Core
   This clarifies its definition — previously, snapping corners to integer values could break the rectangle’s structure.
   Higher‑level classes must now handle any rounding as needed.
 
+Plotting Plan Fluence
+^^^^^^^^^^^^^^^^^^^^^
+
+* :bdg-primary:`Refactor` Minor code improvement: the fluence is calculated on a compact matrix ``(n_leaves x width)``
+  and only at the end it gets expanded to a full size image ``(height x width)`` according to the leaf boundaries.
+
 VMAT
 ^^^^
 
