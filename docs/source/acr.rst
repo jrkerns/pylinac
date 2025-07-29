@@ -315,7 +315,7 @@ Interpreting CT Results
 MRI Algorithm
 -------------
 
-The ACR MR analysis is based on the `official guidance document <https://www.acraccreditation.org/-/media/ACRAccreditation/Documents/MRI/LargePhantomGuidance.pdf?la=en>`__.
+The ACR MR analysis is based on the `official guidance document <https://accreditationsupport.acr.org/helpdesk/attachments/11093487417>`__.
 Because the guidance document is extremely specific (nice job ACR!) only a few highlights are given here. The guidance is followed as reasonably close as possible.
 
 Allowances
@@ -349,8 +349,8 @@ video: `Filling the ACR MRI Phantom <https://youtu.be/MH3sj2HC6Xo?si=l0I869rg07Q
 Analysis
 ^^^^^^^^
 
-Section 0.4 specifies the 7 tests to perform. Pylinac can perform 6 of these 7. It cannot yet perform the
-low-contrast visibility test.
+Section 0.4 specifies the 8 tests to perform. Pylinac can perform 6 of these 8. It cannot yet perform the
+low-contrast object detectability test, while the the artifact assessment test is considered a visual inspection test.
 
 * **Geometric Accuracy** - The geometric accuracy is measured using profiles of slice 5. The only difference
   is that pylinac will use the 60th percentile pixel value of the image as a high-pass filter so that minor background fluctuations are removed and then take the FWHM
@@ -395,7 +395,7 @@ low-contrast visibility test.
   Instead of using the WL/WW to find the low and high 1cm\ :sup:`2` ROI, pylinac uses the 1st and 99th percentile of pixel values
   inside the central ROI.
 
-  The ghosting ratio is defined the same as the ACR guidance document:
+* **Ghosting ratio** The ghosting ratio is defined the same as the ACR guidance document:
 
   .. math:: ghosting_{ratio} = |\frac{(top + bottom) - (left + right)}{2*ROI_{large}}|
 
