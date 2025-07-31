@@ -2363,19 +2363,19 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             images = [
                 image
                 for image in self.images
-                if image.variable_axis in (Axis.GANTRY, Axis.REFERENCE)
+                if hasattr(image.variable_axis, 'GANTRY') and image.variable_axis.GANTRY in (Axis.GANTRY, Axis.REFERENCE)
             ]
         elif axis == Axis.COLLIMATOR:
             images = [
                 image
                 for image in self.images
-                if image.variable_axis in (Axis.COLLIMATOR, Axis.REFERENCE)
+                if hasattr(image.variable_axis, 'COLLIMATOR') and image.variable_axis.COLLIMATOR in (Axis.COLLIMATOR, Axis.REFERENCE)
             ]
         elif axis == Axis.COUCH:
             images = [
                 image
                 for image in self.images
-                if image.variable_axis in (Axis.COUCH, Axis.REFERENCE)
+                if hasattr(image.variable_axis, 'COUCH') and image.variable_axis.COUCH in (Axis.COUCH, Axis.REFERENCE)
             ]
         elif axis == Axis.GB_COMBO:
             images = [
