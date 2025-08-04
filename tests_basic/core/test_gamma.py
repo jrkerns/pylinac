@@ -13,7 +13,12 @@ from tests_basic.utils import get_file_from_cloud_test_repo
 
 
 class TestAgnewMcGarry(TestCase):
-    """Tests from the Agnew & McGarry paper. https://www.sciencedirect.com/science/article/abs/pii/S0167814015006660"""
+    """Tests from the Agnew & McGarry paper. https://www.sciencedirect.com/science/article/abs/pii/S0167814015006660
+
+    .. warning::
+        Agnew/McGarry used the opposite notation as Low's, hence this test class requires swapping the data (ref -> eval, eval -> ref).
+        Since Agnew/McGarry's code has been deprecated and replaced by pymedphys.gamma which uses the conventional notation.
+    """
 
     GEOM_1mm = ("Gamma", "Agnew", "Geometric", "1mm")
     GEOM_025mm = ("Gamma", "Agnew", "Geometric", "0.25mm")
@@ -29,8 +34,8 @@ class TestAgnewMcGarry(TestCase):
         ref_array = DicomImage(ref_file, raw_pixels=True).array
         eval_array = DicomImage(eval_file, raw_pixels=True).array
         g = gamma_2d(
-            reference=ref_array,
-            evaluation=eval_array,
+            reference=eval_array,
+            evaluation=ref_array,
             dose_to_agreement=1,
             distance_to_agreement=1,
             global_dose=True,
@@ -49,8 +54,8 @@ class TestAgnewMcGarry(TestCase):
         ref_array = DicomImage(ref_file, raw_pixels=True).array
         eval_array = DicomImage(eval_file, raw_pixels=True).array
         g = gamma_2d(
-            reference=ref_array,
-            evaluation=eval_array,
+            reference=eval_array,
+            evaluation=ref_array,
             dose_to_agreement=1,
             distance_to_agreement=1,
             global_dose=True,
@@ -69,8 +74,8 @@ class TestAgnewMcGarry(TestCase):
         ref_array = DicomImage(ref_file, raw_pixels=True).array
         eval_array = DicomImage(eval_file, raw_pixels=True).array
         g = gamma_2d(
-            reference=ref_array,
-            evaluation=eval_array,
+            reference=eval_array,
+            evaluation=ref_array,
             dose_to_agreement=1,
             distance_to_agreement=4,  # 0.25mm pixel pitch; 4*0.25 = 1mm
             global_dose=True,
@@ -89,8 +94,8 @@ class TestAgnewMcGarry(TestCase):
         ref_array = DicomImage(ref_file, raw_pixels=True).array
         eval_array = DicomImage(eval_file, raw_pixels=True).array
         g = gamma_2d(
-            reference=ref_array,
-            evaluation=eval_array,
+            reference=eval_array,
+            evaluation=ref_array,
             dose_to_agreement=1,
             distance_to_agreement=4,  # 0.25mm pixel pitch; 4*0.25 = 1mm
             global_dose=True,
@@ -253,6 +258,12 @@ class TestGamma2D(TestCase):
         with self.assertRaises(ValueError):
             gamma_2d(reference=ref, evaluation=eval)
 
+    def test_different_sizes(self):
+        ref = np.ones((5, 5))
+        eval = np.ones((6, 6))
+        gamma = gamma_2d(reference=ref, evaluation=eval)
+        self.assertEqual(gamma.shape, ref.shape)
+
 
 class TestGammaGeometric(TestCase):
     def test_point_projection_far_from_simplex(self):
@@ -329,7 +340,7 @@ class TestGammaGeometric(TestCase):
 
     def test_gamma_some_on_some_off(self):
         ref = np.ones(5)
-        eval = np.asarray((1.03, 1.03, 1, 1, 1))
+        eval = np.asarray((1.03, 1.03, 1.03, 1.03, 1))
         gamma = gamma_geometric(
             reference=ref,
             evaluation=eval,
@@ -343,7 +354,7 @@ class TestGammaGeometric(TestCase):
 
         # check inverted pattern is mirrored (checks off-by-one errors)
         ref = np.ones(5)
-        eval = np.asarray((1, 1, 1, 1.03, 1.03))
+        eval = np.asarray((1, 1.03, 1.03, 1.03, 1.03))
         gamma = gamma_geometric(
             reference=ref,
             evaluation=eval,
@@ -430,9 +441,9 @@ class TestGammaGeometric(TestCase):
     )
     def test_distance_scaling(self, dist: float, pass_rate: float):
         # see RAM-3754
-        ref = np.asarray([0, 0.5, 1, 1, 1, 1])
-        # eval is 3mm off. We want to test that gamma is <100 <3mm, then goes to 100 when we reach >=3mm
-        eval = np.asarray([0, 0, 0, 0, 0.5, 1])
+        eval = np.asarray([0, 0.5, 1, 1, 1, 1])
+        # ref is 3mm off. We want to test that gamma is <100 <3mm, then goes to 100 when we reach >=3mm
+        ref = np.asarray([0, 0, 0, 0, 0.5, 1])
         # for dist in range(1, 5):
         gamma = gamma_geometric(
             reference=ref,
@@ -485,10 +496,10 @@ class TestGammaGeometric(TestCase):
     def test_reference_x_domain_smaller_than_eval(self):
         """Even if the reference x-domain is too small we can still
         evaluate the gamma."""
-        vals = [0, 0, 0, 0, 1, 2, 5, 8, 10, 10, 10, 10, 10, 8, 5, 2, 1, 0, 0, 0, 0]
-        x_vals = np.arange(len(vals))
-        ref_vals = vals[3:-3]  # we short-change the reference in low-dose areas
-        x_ref_vals = x_vals[3:-3]
+        ref_vals = [0, 0, 0, 0, 1, 2, 5, 8, 10, 10, 10, 10, 10, 8, 5, 2, 1, 0, 0, 0, 0]
+        x_ref_vals = np.arange(len(ref_vals))
+        vals = ref_vals[3:-3]  # we short-change the reference in low-dose areas
+        x_vals = x_ref_vals[3:-3]
         gamma = gamma_geometric(
             reference=np.array(ref_vals),
             reference_coordinates=np.array(x_ref_vals),
@@ -521,8 +532,8 @@ class TestGammaGeometric(TestCase):
     @parameterized.expand([(np.arange(4, -5, -1),), (np.arange(-4, 5, 1),)])
     def test_reversed_x_values_have_same_result(self, x):
         # test when the x values are reversed
-        ref = np.asarray([0, 1, 3, 4, 5, 4, 4, 1, 0])
-        eval = np.asarray([0, 1, 3, 4, 5, 4, 3, 1, 0])
+        eval = np.asarray([0, 1, 3, 4, 5, 4, 4, 1, 0])
+        ref = np.asarray([0, 1, 3, 4, 5, 4, 3, 1, 0])
         g = gamma_geometric(
             reference=ref,
             reference_coordinates=x,
@@ -543,8 +554,8 @@ class TestGammaGeometric(TestCase):
     @parameterized.expand([(np.arange(4, -5, -1),), (np.arange(-4, 5, 1),)])
     def test_reversed_x_values_for_one_profile(self, x):
         # test that when one profile is reversed, the gamma is still the same as if they were both in the same order
-        ref = np.asarray([0, 1, 3, 4, 5, 4, 4, 1, 0])
-        eval = np.asarray([0, 1, 3, 4, 5, 4, 3, 1, 0])
+        eval = np.asarray([0, 1, 3, 4, 5, 4, 4, 1, 0])
+        ref = np.asarray([0, 1, 3, 4, 5, 4, 3, 1, 0])
         g = gamma_geometric(
             reference=ref,
             reference_coordinates=x,
@@ -663,7 +674,7 @@ class TestGamma1D(TestCase):
 
     def test_gamma_some_on_some_off(self):
         ref = np.ones(5)
-        eval = np.asarray((1.03, 1.03, 1, 1, 1))
+        eval = np.asarray((1.03, 1.03, 1.03, 1, 1))
         gamma, _, _ = gamma_1d(
             reference=ref,
             evaluation=eval,
@@ -677,7 +688,7 @@ class TestGamma1D(TestCase):
 
         # check inverted pattern is mirrored (checks off-by-one errors)
         ref = np.ones(5)
-        eval = np.asarray((1, 1, 1, 1.03, 1.03))
+        eval = np.asarray((1, 1, 1.03, 1.03, 1.03))
         gamma, _, _ = gamma_1d(
             reference=ref,
             evaluation=eval,
@@ -756,6 +767,14 @@ class TestGamma1D(TestCase):
         with self.assertRaises(ValueError):
             gamma_1d(reference=ref, evaluation=eval)
 
+    def test_different_sizes(self):
+        ref = np.ones(5)
+        eval = np.ones(6)
+        gamma, _, _ = gamma_1d(
+            reference=ref, evaluation=eval, dose_to_agreement=1, gamma_cap_value=2
+        )
+        self.assertEqual(len(gamma), len(ref))
+
 
 class TestGammaFromProfile(TestCase):
     """Test the gamma method from the physical profile class"""
@@ -764,31 +783,33 @@ class TestGammaFromProfile(TestCase):
         p = FWXMProfilePhysical(values=np.ones(5), dpmm=1)
         p2 = FWXMProfile(values=np.ones(5))
         with self.assertRaises(ValueError):
-            p.gamma(reference_profile=p2)
+            p.gamma(evaluation_profile=p2)
 
     def test_gamma_on_self_is_zero(self):
         p = FWXMProfilePhysical(values=np.ones(5), dpmm=1)
-        gamma = p.gamma(reference_profile=p)
+        gamma = p.gamma(evaluation_profile=p)
         self.assertTrue(np.allclose(gamma, 0))
 
     def test_dose_gamma(self):
-        vals = np.ones(5) * 1.03
-        ref_vals = np.ones(5)
+        ref_vals = np.ones(5) * 1.03
+        vals = np.ones(5)
         p = FWXMProfilePhysical(values=vals, dpmm=1)
         ref_p = FWXMProfilePhysical(values=ref_vals, dpmm=1)
-        gamma = p.gamma(reference_profile=ref_p, dose_to_agreement=3, gamma_cap_value=2)
+        gamma = p.gamma(
+            evaluation_profile=ref_p, dose_to_agreement=3, gamma_cap_value=2
+        )
         # all right at 1 because dose is 3% high
         self.assertTrue(np.allclose(gamma, 1))
 
     def test_low_density_eval(self):
         # the eval is 1/2 the spacing, but same values, as the reference
-        vals = np.arange(1, 11)[::2]
-        ref_vals = np.arange(11)
-        p = FWXMProfilePhysical(values=vals, x_values=np.arange(1, 11, 2))
-        ref_p = FWXMProfilePhysical(
-            values=ref_vals,
+        ref_vals = np.arange(1, 11)[::2]
+        vals = np.arange(11)
+        p = FWXMProfilePhysical(values=ref_vals, x_values=np.arange(1, 11, 2))
+        eval_p = FWXMProfilePhysical(values=vals)
+        gamma = p.gamma(
+            evaluation_profile=eval_p, dose_to_agreement=1, gamma_cap_value=2
         )
-        gamma = p.gamma(reference_profile=ref_p, dose_to_agreement=1, gamma_cap_value=2)
         # gamma is perfect
         self.assertTrue(np.allclose(gamma, 0))
 
@@ -801,7 +822,7 @@ class TestGammaFromProfile(TestCase):
         p1200_prof = FWXMProfilePhysical(values=p1200, dpmm=1 / img1200.pixel_size)
         p1000_prof = FWXMProfilePhysical(values=p1000, dpmm=1 / img1000.pixel_size)
         gamma = p1000_prof.gamma(
-            reference_profile=p1200_prof, dose_to_agreement=1, gamma_cap_value=2
+            evaluation_profile=p1200_prof, dose_to_agreement=1, gamma_cap_value=2
         )
         # gamma is very low; just pixel noise from the image generator
         self.assertLessEqual(np.nanmean(gamma), 0.005)
