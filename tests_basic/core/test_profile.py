@@ -2234,13 +2234,13 @@ class SingleProfileTests(TestCase):
     def test_gamma_unequal_samples(self):
         # centered field
         field = generate_open_field()
-        reference = SingleProfile(
+        evaluation = SingleProfile(
             field.image[:, int(field.shape[1] / 2)],
             interpolation=Interpolation.LINEAR,
             dpmm=1 / field.pixel_size,
             interpolation_resolution_mm=0.1,
         )
-        evaluation = SingleProfile(
+        reference = SingleProfile(
             field.image[:-50, int(field.shape[1] / 2)],
             interpolation=Interpolation.LINEAR,
             dpmm=1 / field.pixel_size,
@@ -2248,7 +2248,7 @@ class SingleProfileTests(TestCase):
         )
         gamma = reference.gamma(evaluation)
         self.assertIsInstance(gamma, np.ndarray)
-        self.assertEqual(len(gamma), len(evaluation.values))
+        self.assertEqual(len(gamma), len(reference.values))
         self.assertTrue(np.isnan(gamma[0]))  # first element is under threshold
         self.assertAlmostEqual(
             np.nanmean(gamma), 0, delta=0.001
