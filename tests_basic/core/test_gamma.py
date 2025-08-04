@@ -17,7 +17,7 @@ class TestAgnewMcGarry(TestCase):
 
     .. warning::
         Agnew/McGarry used the opposite notation as Low's, hence this test class requires swapping the data (ref -> eval, eval -> ref).
-        Since Agnew/McGarry's code has been deprecated and replaced by pymedphys.gamma which uses the conventional notation.
+        Since publication, Agnew/McGarry's code has been deprecated and replaced by pymedphys.gamma which uses the conventional notation.
     """
 
     GEOM_1mm = ("Gamma", "Agnew", "Geometric", "1mm")
