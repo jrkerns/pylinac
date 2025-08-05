@@ -19,12 +19,15 @@ Core
 * :bdg-danger:`Change` The :class:`~pylinac.core.geometry.Rectangle` class no longer accepts the ``as_int`` parameter.
   This clarifies its definition — previously, snapping corners to integer values could break the rectangle’s structure.
   Higher‑level classes must now handle any rounding as needed.
-* :bdg-danger:`Change` Due to the changes in Gamma (see below), the profile is now the reference (fixed distribution) and the search distribution is now called evaluation
-  (i.e. the first parameter changed name but the logic remains the same)
+* :bdg-danger:`Change` Due to the changes in Gamma (see below), the gamma function in
+  :class:`~pylinac.core.profile.PhysicalProfileMixin` and :class:`~pylinac.core.profile.SingleProfile`
+  use self as reference (fixed distribution) and the input parameter as evaluation (search distribution),
+  i.e. the first parameter changed name but the logic remains the same.
 
 Gamma
 ^^^^^
-* :bdg-danger:`Change` Realignment of notation: the gamma definitions are now the same as Low's paper, i.e. ``reference = measured = less dense``, ``evaluation = calculation = more dense``.
+* :bdg-danger:`Change` Realignment of notation: the gamma definitions are now the same as Low's paper,
+  i.e. ``reference = measured = fixed = less dense``, ``evaluation = calculation = search = more dense``.
 * :bdg-danger:`Change` For the same reason, dose normalization (global and local) is now with respect to the reference (fixed) distribution, whereas previously
   it would take the evaluation (search) distribution.
 
