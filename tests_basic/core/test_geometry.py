@@ -3,11 +3,14 @@
 import math
 import unittest
 
+from parameterized import parameterized
+
 from pylinac.core.geometry import (
     Circle,
     Line,
     Point,
     Rectangle,
+    Transform2D,
     direction_to_coords,
 )
 from tests_basic.utils import point_equality_validation
@@ -238,3 +241,133 @@ class TestDestinationCoordinates(unittest.TestCase):
     def test_starting_position(self):
         self.assertAlmostEqual(direction_to_coords(5, 5, 10, 0)[0], 15, places=3)
         self.assertAlmostEqual(direction_to_coords(5, 5, 10, 0)[1], 5, places=3)
+
+
+class TestTransform2D(unittest.TestCase):
+    @parameterized.expand(
+        [
+            ("noop", (0, 0, 0), (0, 0)),
+            ("translate", (1, 2, 0), (1, 2)),
+            ("+x => +y at +90", (1, 0, 90), (0, 1)),
+            ("-x => -y at +90", (-1, 0, 90), (0, -1)),
+            ("+x => -y at -90", (1, 0, -90), (0, -1)),
+            ("-x => +y at -90", (-1, 0, -90), (0, 1)),
+            ("+y => -x at +90", (0, 1, 90), (-1, 0)),
+            ("-y => +x at +90", (0, -1, 90), (1, 0)),
+            ("+y => +x at -90", (0, 1, -90), (1, 0)),
+            ("-y => -x at -90", (0, -1, -90), (-1, 0)),
+        ]
+    )
+    def test_single_intrinsic_transform_coordinates(self, name, pose_vals, expected):
+        """Test that the pose can be converted to global coordinates."""
+        pose = Transform2D.from_intrinsic(*pose_vals)
+        coords = pose.coords
+        self.assertAlmostEqual(coords.x, expected[0], delta=0.01)
+        self.assertAlmostEqual(coords.y, expected[1], delta=0.01)
+
+    @parameterized.expand(
+        [
+            ("noop", (0, 0, 0), (0, 0, 0), (0, 0, 0)),
+            ("translate", (1, 2, 0), (3, 4, 0), (4, 6)),
+            ("rotates cancel", (0, 0, math.pi / 2), (0, 0, math.pi / 2), (0, 0)),
+            ("rotate, offset", (0, 0, 90), (10, 0, 0), (0, 10)),
+            ("offset, rotate+offset", (10, 0, 0), (10, 0, 90), (10, 10)),
+            ("translate and rotate (2 +90 turns)", (1, 0, 90), (1, 0, 90), (-1, 1)),
+            ("translate and rotate (2 -90 turns)", (1, 0, -90), (1, 0, -90), (-1, -1)),
+            (
+                "translate+rotate, rotate",
+                (1, 0, 90),
+                (0, 0, 90),
+                (0, 1),
+            ),  # second rotation does nothing in global coordinates
+        ]
+    )
+    def test_chained_intrinsic_transforms_coordinates(
+        self, name, pose1_vals, pose2_vals, expected
+    ):
+        pose1 = Transform2D.from_intrinsic(*pose1_vals)
+        pose2 = Transform2D.from_intrinsic(*pose2_vals)
+        result = pose1.chain(pose2)
+        self.assertAlmostEqual(result.coords.x, expected[0], delta=0.01)
+        self.assertAlmostEqual(result.coords.y, expected[1], delta=0.01)
+
+    @parameterized.expand(
+        [
+            ("noop", (0, 0, 0), (0, 0)),
+            ("translate", (1, 2, 0), (1, 2)),
+            ("angles do nothing", (1, 0, 90), (1, 0)),
+            ("angles do nothing", (-1, 0, 90), (-1, 0)),
+        ]
+    )
+    def test_single_extrinsic_transform_coordinates(self, name, pose_vals, expected):
+        pose = Transform2D.from_extrinsic(*pose_vals)
+        self.assertAlmostEqual(pose.coords.x, expected[0], delta=0.01)
+        self.assertAlmostEqual(pose.coords.y, expected[1], delta=0.01)
+
+    @parameterized.expand(
+        [
+            ("translate", (1, 2, 0), (3, 4, 0), (4, 6)),
+            ("rotates cancel", (0, 0, math.pi / 2), (0, 0, math.pi / 2), (0, 0)),
+            ("translate and rotate 45 degrees", (1, 1, 45), (1, 1, 45), (1, 2.414)),
+            ("translate and rotate positive", (1, 0, 90), (1, 0, 90), (1, 1)),
+            ("translate and rotate negative", (1, 0, -90), (1, 0, -90), (1, -1)),
+        ]
+    )
+    def test_chained_extrinsic_transforms_coordinates(
+        self, name, pose1_vals, pose2_vals, expected
+    ):
+        pose1 = Transform2D.from_extrinsic(*pose1_vals)
+        pose2 = Transform2D.from_extrinsic(*pose2_vals)
+        result = pose1.chain(pose2)
+        self.assertAlmostEqual(result.coords.x, expected[0], delta=0.01)
+        self.assertAlmostEqual(result.coords.y, expected[1], delta=0.01)
+        # also test the matrix multiplication expression
+        result_matmul = pose2 @ pose1
+        self.assertAlmostEqual(result_matmul.coords.x, expected[0], delta=0.01)
+        self.assertAlmostEqual(result_matmul.coords.y, expected[1], delta=0.01)
+
+    @parameterized.expand(
+        [
+            ("noop", (0, 0, 0), (0, 0, 0), (0, 0)),
+            ("translate", (1, 2, 0), (3, 4, 0), (4, 6)),
+            ("rotate, offset", (0, 0, 90), (10, 0, 0), (0, 10)),
+            ("translate, rotate", (1, 0, 0), (0, 0, 90), (1, 0)),
+            ("translate+rotate+offset", (1, 0, -90), (10, 0, -90), (-9, 0)),
+        ]
+    )
+    def test_chained_extrinsic_to_intrinsic_transform(
+        self, name, pose1_vals, pose2_vals, expected
+    ):
+        """Test that extrinsic transforms can be converted to intrinsic."""
+        pose1 = Transform2D.from_extrinsic(*pose1_vals)
+        pose2 = Transform2D.from_intrinsic(*pose2_vals)
+        result = pose1.chain(pose2)
+        self.assertAlmostEqual(result.coords.x, expected[0], delta=0.01)
+        self.assertAlmostEqual(result.coords.y, expected[1], delta=0.01)
+        # test the matrix multiplication expression
+        # note that since the second pose is intrinsic, the order is reversed
+        result_matmul = pose1 @ pose2
+        self.assertAlmostEqual(result_matmul.coords.x, expected[0], delta=0.01)
+        self.assertAlmostEqual(result_matmul.coords.y, expected[1], delta=0.01)
+
+    @parameterized.expand(
+        [
+            ("noop", (0, 0, 0), (0, 0, 0), (0, 0)),
+            ("translate", (1, 2, 0), (3, 4, 0), (4, 6)),
+            ("rotate, offset", (0, 0, 90), (10, 0, 0), (10, 0)),
+            ("translate+rotate+offset", (1, 0, -90), (10, 0, -90), (9, 0)),
+        ]
+    )
+    def test_chained_intrinsic_to_extrinsic_transform(
+        self, name, pose1_vals, pose2_vals, expected
+    ):
+        """Test that intrinsic transforms can be converted to extrinsic."""
+        pose1 = Transform2D.from_intrinsic(*pose1_vals)
+        pose2 = Transform2D.from_extrinsic(*pose2_vals)
+        result = pose1.chain(pose2)
+        self.assertAlmostEqual(result.coords.x, expected[0], delta=0.01)
+        self.assertAlmostEqual(result.coords.y, expected[1], delta=0.01)
+        # test the matrix multiplication expression
+        result_matmul = pose2 @ pose1
+        self.assertAlmostEqual(result_matmul.coords.x, expected[0], delta=0.01)
+        self.assertAlmostEqual(result_matmul.coords.y, expected[1], delta=0.01)
