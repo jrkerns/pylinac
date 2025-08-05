@@ -287,7 +287,7 @@ class TestTransform2D(unittest.TestCase):
     ):
         pose1 = Transform2D.from_intrinsic(*pose1_vals)
         pose2 = Transform2D.from_intrinsic(*pose2_vals)
-        result = pose1 + pose2
+        result = pose1.chain(pose2)
         self.assertAlmostEqual(result.coords.x, expected[0], delta=0.01)
         self.assertAlmostEqual(result.coords.y, expected[1], delta=0.01)
 
@@ -318,7 +318,7 @@ class TestTransform2D(unittest.TestCase):
     ):
         pose1 = Transform2D.from_extrinsic(*pose1_vals)
         pose2 = Transform2D.from_extrinsic(*pose2_vals)
-        result = pose1 + pose2
+        result = pose1.chain(pose2)
         self.assertAlmostEqual(result.coords.x, expected[0], delta=0.01)
         self.assertAlmostEqual(result.coords.y, expected[1], delta=0.01)
 
@@ -337,7 +337,7 @@ class TestTransform2D(unittest.TestCase):
         """Test that extrinsic transforms can be converted to intrinsic."""
         pose1 = Transform2D.from_extrinsic(*pose1_vals)
         pose2 = Transform2D.from_intrinsic(*pose2_vals)
-        result = pose1 + pose2
+        result = pose1.chain(pose2)
         self.assertAlmostEqual(result.coords.x, expected[0], delta=0.01)
         self.assertAlmostEqual(result.coords.y, expected[1], delta=0.01)
 
@@ -355,6 +355,6 @@ class TestTransform2D(unittest.TestCase):
         """Test that intrinsic transforms can be converted to extrinsic."""
         pose1 = Transform2D.from_intrinsic(*pose1_vals)
         pose2 = Transform2D.from_extrinsic(*pose2_vals)
-        result = pose1 + pose2
+        result = pose1.chain(pose2)
         self.assertAlmostEqual(result.coords.x, expected[0], delta=0.01)
         self.assertAlmostEqual(result.coords.y, expected[1], delta=0.01)
