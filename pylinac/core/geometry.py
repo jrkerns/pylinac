@@ -725,9 +725,8 @@ class Rectangle:
 class Transform2D:
     """Represents a 2D Euclidean Transform (aka Pose).
 
-    This is a wrapper around skimage's EuclideanTransform class, which allows for translation and rotation in 2D space.
-    We wrap for explicit constructors, better naming, extensibility, and to allow for both
-    intrinsic and extrinsic transforms.
+    Compared to skimage's EuclideanTransform class this has explicit constructors (intrinsic vs extrinsic), extensibility,
+    and forward kinematics (chaining transforms).
 
     A central use case is combining transforms. E.g. transform of the CatPhan ROI, then transform of the
     HU ROI to get the global position of the HU ROI while allowing us to define the ROI position relative
@@ -740,12 +739,18 @@ class Transform2D:
         screen or cartesian coordinates without confusion.
     """
 
-    def __init__(
-        self, matrix: np.ndarray, mode: Literal["extrinsic", "intrinsic"] = "extrinsic"
-    ):
-        """Initialize the Transform2D with a skimage EuclideanTransform."""
+    def __init__(self, matrix: np.ndarray, mode: Literal["extrinsic", "intrinsic"]):
+        """Initialize the Transform2D.
+
+        Parameters
+        ----------
+        matrix : np.ndarray
+            A 3x3 transformation matrix.
+        mode : {'extrinsic', 'intrinsic'}
+            The mode of the transform; only used for chaining transforms
+        """
         self.matrix = matrix
-        self.mode = mode  # mode ONLY applies when chaining transforms
+        self.mode = mode
 
     @classmethod
     def from_extrinsic(cls, x: float, y: float, rotation: float = 0.0) -> Transform2D:
@@ -784,24 +789,16 @@ class Transform2D:
         return cls(matrix=matrix, mode="intrinsic")
 
     def __matmul__(self, other: Transform2D) -> Transform2D:
-        """Combine two transforms; the frame of reference is relative to the previous transform."""
+        """Combine two transforms. The frame of reference of the combined transform is that of the second transform."""
         return Transform2D(self.matrix @ other.matrix, mode=other.mode)
 
     def chain(self, other: Transform2D) -> Transform2D:
-        """Combine two transforms; the frame of reference is relative to the previous transform.
-
-        Notes
-        -----
-
-        Scikit-image's EuclideanTransform is extrinsic. Since we might be dealing with intrinsic transforms,
-        we need to be careful about how we combine them. The order of operations is important.
-        """
-        world_move = other.mode == "extrinsic"
-
-        if world_move:
+        """Combine two transforms; the frame of reference of the combined transform is that of the target transform."""
+        if other.mode == "extrinsic":
+            # extrinsic chain; same as how skimage EuclideanTransform works.
             tform = other @ self
         else:
-            # intrinsic move; we need to swap the order of multiplication
+            # intrinsic chain; we need to swap the order of multiplication
             tform = self @ other
 
         return tform

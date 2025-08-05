@@ -321,6 +321,10 @@ class TestTransform2D(unittest.TestCase):
         result = pose1.chain(pose2)
         self.assertAlmostEqual(result.coords.x, expected[0], delta=0.01)
         self.assertAlmostEqual(result.coords.y, expected[1], delta=0.01)
+        # also test the matrix multiplication expression
+        result_matmul = pose2 @ pose1
+        self.assertAlmostEqual(result_matmul.coords.x, expected[0], delta=0.01)
+        self.assertAlmostEqual(result_matmul.coords.y, expected[1], delta=0.01)
 
     @parameterized.expand(
         [
@@ -340,6 +344,11 @@ class TestTransform2D(unittest.TestCase):
         result = pose1.chain(pose2)
         self.assertAlmostEqual(result.coords.x, expected[0], delta=0.01)
         self.assertAlmostEqual(result.coords.y, expected[1], delta=0.01)
+        # test the matrix multiplication expression
+        # note that since the second pose is intrinsic, the order is reversed
+        result_matmul = pose1 @ pose2
+        self.assertAlmostEqual(result_matmul.coords.x, expected[0], delta=0.01)
+        self.assertAlmostEqual(result_matmul.coords.y, expected[1], delta=0.01)
 
     @parameterized.expand(
         [
@@ -358,3 +367,7 @@ class TestTransform2D(unittest.TestCase):
         result = pose1.chain(pose2)
         self.assertAlmostEqual(result.coords.x, expected[0], delta=0.01)
         self.assertAlmostEqual(result.coords.y, expected[1], delta=0.01)
+        # test the matrix multiplication expression
+        result_matmul = pose2 @ pose1
+        self.assertAlmostEqual(result_matmul.coords.x, expected[0], delta=0.01)
+        self.assertAlmostEqual(result_matmul.coords.y, expected[1], delta=0.01)
