@@ -251,9 +251,9 @@ def gamma_2d(
     evaluation
         The evaluation 2D array.
     dose_to_agreement
-        The dose to agreement in %. E.g. 1 is 1% of global reference max dose.
+        The dose to agreement criterion in %. E.g. 1 is 1% of global reference max dose.
     distance_to_agreement
-        The distance to agreement in **elements**. E.g. if the value is 4 this means 4 elements from the reference point under calculation.
+        The distance to agreement criterion in **elements**. E.g. if the value is 4 this means 4 elements from the reference point under calculation.
         Must be >0
     gamma_cap_value
         The value to cap the gamma at. E.g. a gamma of 5.3 will get capped to 2. Useful for displaying data with a consistent range.
@@ -271,47 +271,62 @@ def gamma_2d(
         raise ValueError(
             f"Reference and evaluation arrays must be 2D. Got reference: {reference.ndim} and evaluation: {evaluation.ndim}"
         )
-    threshold = reference.max() / 100 * dose_threshold
-    # convert dose to agreement to % of global max; ignored later if local dose
-    dose_ta = dose_to_agreement / 100 * reference.max()
+
+    # convert dose-to-agreement to % of global-max or % of local-value
+    if global_dose:
+        dose_ta = dose_to_agreement / 100 * reference.max()
+    else:
+        dose_ta = dose_to_agreement / 100 * reference
+
+    # Work with normalized values to avoid normalization inside the loop
+    eval_normalized = evaluation / dose_ta
+    reference_normalized = reference / dose_ta
+    threshold_normalized = dose_threshold / 100
+
     # pad eval array on both edges so our search does not go out of bounds
-    eval_padded = np.pad(evaluation, distance_to_agreement, mode="edge")
+    eval_normalized = np.pad(eval_normalized, distance_to_agreement, mode="edge")
+
+    # use scikit-image to compute the indices of a disk around the reference point
+    # we can then compute gamma over the eval points at these indices
+    # we use DTA+1 in disk because it looks like the results are exclusive of edges.
+    disk_rr, disk_cc = disk((0, 0), distance_to_agreement + 1)
+
+    # pre-calculate as much as possible not to repeat inside the loop
+    # For each row/col these are the indexes which are covered by the disk
+    row_r = np.array(range(reference.shape[0]))[np.newaxis].T + disk_rr
+    col_r = np.array(range(reference.shape[1]))[np.newaxis].T + disk_cc
+    # For the evaluation image the row/col indexes are offset by the padding distance
+    row_e = row_r + distance_to_agreement
+    col_e = col_r + distance_to_agreement
+    # The spatial distance depends only on the disk so it can be precalculated
+    dist_row = disk_rr / distance_to_agreement
+    dist_col = disk_cc / distance_to_agreement
+    dist_r_2 = dist_row**2 + dist_col**2
+
+    gamma_cap_value_2 = gamma_cap_value**2
+    gamma = np.full(reference.shape, float(gamma_cap_value))
     # iterate over each reference element, computing distance value and dose value
-    gamma = np.zeros(reference.shape)
-    for row_idx, row in enumerate(reference):
-        for col_idx, ref_point in enumerate(row):
+    for row_idx in range(reference.shape[0]):
+        for col_idx in range(reference.shape[1]):
+            ref_point = reference_normalized[row_idx, col_idx]
+
             # skip if below dose threshold
-            if ref_point < threshold:
+            if math.isnan(ref_point) or ref_point < threshold_normalized:
                 gamma[row_idx, col_idx] = fill_value
                 continue
-            # use scikit-image to compute the indices of a disk around the reference point
-            # we can then compute gamma over the eval points at these indices
-            # unlike the 1D computation, we have to search at an index offset by the distance to agreement
-            # we use DTA+1 in disk because it looks like the results are exclusive of edges.
-            # https://scikit-image.org/docs/stable/api/skimage.draw.html#disk
-            rs, cs = disk(
-                (row_idx + distance_to_agreement, col_idx + distance_to_agreement),
-                distance_to_agreement + 1,
-            )
 
-            capital_gammas = []
-            for r, c in zip(rs, cs):
-                eval_point = eval_padded[r, c]
-                # for the distance, we compare the ref row/col to the eval padded matrix
-                # but remember the padded array is padded by DTA, so to compare distances, we
-                # have to cancel the offset we used for dose purposes.
-                dist = math.dist(
-                    (row_idx, col_idx),
-                    (r - distance_to_agreement, c - distance_to_agreement),
-                )
-                dose = float(eval_point) - float(ref_point)
-                if not global_dose:
-                    dose_ta = dose_to_agreement / 100 * ref_point
-                capital_gamma = math.sqrt(
-                    dist**2 / distance_to_agreement**2 + dose**2 / dose_ta**2
-                )
-                capital_gammas.append(capital_gamma)
-            gamma[row_idx, col_idx] = min(np.nanmin(capital_gammas), gamma_cap_value)
+            # roi from evaluation
+            eval_roi = eval_normalized[row_e[row_idx, :], col_e[col_idx, :]]
+
+            # Normalized dose difference between evaluated and reference dose points
+            dist_dose = eval_roi - ref_point
+
+            # capital gamma square (avoid sqrt and memory access if above cap)
+            capital_gamma_2 = np.nanmin(dist_r_2 + dist_dose * dist_dose)
+            if capital_gamma_2 >= gamma_cap_value_2:
+                continue
+            gamma[row_idx, col_idx] = np.sqrt(capital_gamma_2)
+
     return np.asarray(gamma)
 
 
