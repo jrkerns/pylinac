@@ -42,7 +42,7 @@ from skimage.measure._regionprops import RegionProperties
 
 from .core import image, pdf
 from .core.contrast import Contrast
-from .core.geometry import Line, Point
+from .core.geometry import Line, Point, Transform2D
 from .core.image import ArrayImage, DicomImageStack, ImageLike, z_position
 from .core.io import get_url, retrieve_demo_file
 from .core.mtf import MTF
@@ -515,6 +515,14 @@ class CatPhanModule(Slice):
                             settings["height"]
                             * self.roi_size_factor
                             / self.mm_per_pixel
+                        )
+                    if settings.get("x") is not None:
+                        settings["x_pixels"] = (
+                            settings["x"] * self.scaling_factor / self.mm_per_pixel
+                        )
+                    if settings.get("y") is not None:
+                        settings["y_pixels"] = (
+                            settings["y"] * self.scaling_factor / self.mm_per_pixel
                         )
 
     def preprocess(self, catphan):
@@ -1671,66 +1679,68 @@ class CTP528CP700(CTP528):
     combine_method: str = "max"
     num_slices: int = 3
     roi_settings = {
+        # regions are from the top-left going clockwise on CT
+        # x,y,rotation is an intrinsic transform about the catphan center
         "region 1": {
             "gap size": 0.5,  # gap sizes come from the CatPhan 700 manual
-            "distance": 50.6,
-            "angle": -98,
+            "x": -7,
+            "y": -50,
             "rotation": 0,
             "width": 11,
             "height": 3,
         },
         "region 2": {
             "gap size": 0.25,
-            "distance": 51.3,
-            "angle": -77.5,
+            "x": 10,
+            "y": -50,
             "rotation": 0,
             "width": 10,
             "height": 3,
         },
         "region 3": {
             "gap size": 0.167,
-            "distance": 50.2,
-            "angle": -50.9,
-            "rotation": 45,
-            "width": 8,
-            "height": 3,
+            "x": 50,
+            "y": -5,
+            "rotation": -45,
+            "width": 3,
+            "height": 8,
         },
         "region 4": {
             "gap size": 0.125,
-            "distance": 50.9,
-            "angle": -34,
-            "rotation": 45,
-            "width": 8,
-            "height": 3,
+            "x": 50,
+            "y": 9,
+            "rotation": -45,
+            "width": 3,
+            "height": 7,
         },
         "region 5": {
             "gap size": 0.100,
-            "distance": 51.2,
-            "angle": -10.2,
+            "x": 50,
+            "y": -9,
             "rotation": 0,
             "width": 3,
-            "height": 4,
+            "height": 5,
         },
         "region 6": {
             "gap size": 0.083,
-            "distance": 50.4,
-            "angle": 2.3,
+            "x": 50,
+            "y": 2,
             "rotation": 0,
             "width": 3,
-            "height": 4,
+            "height": 5,
         },
         "region 7": {
             "gap size": 0.071,
-            "distance": 51.9,
-            "angle": 14,
             "rotation": 0,
+            "x": 50,
+            "y": 12,
             "width": 3,
             "height": 4,
         },
         "region 8": {
             "gap size": 0.063,
-            "distance": 51.3,
-            "angle": 33.6,
+            "x": 50,
+            "y": -10.5,
             "rotation": 45,
             "width": 3,
             "height": 3,
@@ -1738,15 +1748,22 @@ class CTP528CP700(CTP528):
     }
 
     def _setup_rois(self) -> None:
+        catphan_tform = Transform2D.from_extrinsic(
+            x=self.phan_center.x, y=self.phan_center.y, rotation=self.catphan_roll
+        )
         for name, setting in self.roi_settings.items():
-            self.rois[name] = SpatialResolutionROI.from_phantom_center(
+            roi_tform = Transform2D.from_intrinsic(
+                x=setting["x_pixels"],
+                y=setting["y_pixels"],
+                rotation=setting["rotation"],
+            )
+            combined_tform = catphan_tform.chain(roi_tform)
+            self.rois[name] = SpatialResolutionROI(
                 array=self.image.array,
-                angle=setting["angle_corrected"],
-                dist_from_center=setting["distance_pixels"],
-                phantom_center=self.phan_center,
                 width=setting["width_pixels"],
                 height=setting["height_pixels"],
-                rotation=setting["rotation"] + self.catphan_roll,
+                center=combined_tform.coords,
+                rotation=combined_tform.rotation,
             )
 
     @cached_property
