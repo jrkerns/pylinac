@@ -122,15 +122,6 @@ Let's look at some examples:
 .. math::
     Transformation = Translation * Rotation
 
-.. note::
-   Using ``scikit-image`` library, the equivalent is:
-
-   .. math::
-      Transformation = EuclideanTransform(rotation=R) + EuclideanTransform(translation=T)
-
-   .. math::
-      Transformation = EuclideanTransform(rotation=R, translation=T)
-
 .. plot::
     :include-source: False
 
@@ -171,12 +162,6 @@ Let's look at some examples:
 
 .. math::
     Transformation = Rotation * Translation
-
-.. note::
-   Using ``scikit-image`` library, the equivalent is:
-
-   .. math::
-       Transformation = EuclideanTransform(translation=T) + EuclideanTransform(rotation=R)
 
 .. plot::
     :include-source: False
@@ -259,7 +244,7 @@ where ``Rotation'`` represents the rotation in the intrinsic frame of reference
 * **First rotation then translation (intrinsic coordinates)**:
 
 .. math::
-    Transformation = Translation' * Rotation = Rotation * Translation
+    Transformation = Translation' * Rotation
 
 where ``Translation'`` represents the translation in the intrinsic frame of reference
 
@@ -302,10 +287,30 @@ where ``Translation'`` represents the translation in the intrinsic frame of refe
     plt.show()
 
 
-ROI placement
-~~~~~~~~~~~~~
+In code
+~~~~~~~
 
-Using the above definitions, here is an example for placing an ROI in the Catphan phantom:
+``scikit-image.transform`` can be used to implement these transformations using the following conventions:
+
+* EuclideanTransform(r,t): performs first rotation then translation in extrinsic coordinates
+
+.. code-block::
+
+    tform = EuclideanTransform(rotation=r, translation=t)
+    tform = EuclideanTransform(translation=t, rotation=r)  #order of parameters is irrelevant
+
+* tform1 + tform2: the '+' operator is a magic method that performs
+  EuclideanTransform1 then EuclideanTransform2 in extrinsic coordinates
+
+.. code-block::
+
+    tform = tform1 + tform2
+    tform.matrix = tform2.matrix @ tform1.matrix
+
+Example of ROI placement using rigid transformations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Here is an example for placing an ROI in the Catphan phantom:
 
 1. ROI placement with respect to nominal phantom:
     1.1. Let's start using an ROI with width = 40 and height = 20
@@ -315,20 +320,38 @@ Using the above definitions, here is an example for placing an ROI in the Catpha
     .. math::
       Tf_1 = R(45°)
 
+    .. code-block::
+
+        tform_1 = tform_r_45 = EuclideanTransform(rotation=np.deg2rad(45))
+
     1.3. Then translate in the radial direction by 60
 
     .. math::
-      Tf_2 = T'(60) * Tf_1 = Tf_1 * T(60) = T(60) + Tf_1
+      Tf_2 = T'(60) * Tf_1 = Tf_1 * T(60)
+
+    .. code-block::
+
+        tform_t_60 = EuclideanTransform(translation=[60,0])
+        tform_2 = tform_t_60 + tform_1
 
     1.4. Then rotate in place by 90 to align the roi
 
     .. math::
-      Tf_3 = R'(90°) * Tf_2 = Tf_2 * R(90°) = R(90°) + Tf_2
+      Tf_3 = R'(90°) * Tf_2 = Tf_2 * R(90°)
+
+    .. code-block::
+
+        tf_r_90 = EuclideanTransform(rotation=np.deg2rad(90))
+        tform_3 = tf_r_90 + tform_2
 
     1.5. This is the ROI placement with respect to nominal phantom
 
     .. math::
-      Tf_{roi}^{phantom} = Tf_3 = R(90°) + T(60) + R(45°)
+      Tf_{roi}^{phantom} = Tf_3 = R(45°) * T(60) * R(90°)
+
+    .. code-block::
+
+        tform_roi_phantom = tform_3 = tf_r_90 + tform_t_60 + tform_r_45
 
 .. plot::
     :include-source: False
@@ -456,15 +479,29 @@ Using the above definitions, here is an example for placing an ROI in the Catpha
     .. math::
       Tf_1 = R(30°)
 
+    .. code-block::
+
+        tform_1 = tform_r_30 = EuclideanTransform(rotation=np.deg2rad(30))
+
     2.3. Then translate the phantom to the image center (150, 150)
 
     .. math::
-      Tf_2 = T(c) * Tf_1 = Tf_1 + T(c)
+      Tf_2 = T(c) * Tf_1
+
+    .. code-block::
+
+        tform_t_c = EuclideanTransform(translation=c)
+        tform_2 = tform_1 + tform_t_c
 
     2.4. This is phantom placement with respect to image coordinates
 
     .. math::
-      Tf_{phantom}^{image} = Tf_2 = R(30°) + T(c)
+      Tf_{phantom}^{image} = Tf_2 = T(c) * R(30°)
+
+    .. code-block::
+
+        tform_phantom_image = tform_2 = tform_r_30 + tform_t_c
+        # same as tform_phantom_image = EuclideanTransform(rotation=np.deg2rad(30), translation=c)
 
 .. plot::
     :include-source: False
@@ -520,10 +557,11 @@ Using the above definitions, here is an example for placing an ROI in the Catpha
     3.1. The ROI transformation to global are the cascading transformations
 
     .. math::
-      Tf_{roi}^{image} = Tf_{phantom}^{image} * Tf_{roi}^{phantom} = Tf_{roi}^{phantom} + Tf_{phantom}^{image}
+      Tf_{roi}^{image} = Tf_{phantom}^{image} * Tf_{roi}^{phantom}
 
-    .. math::
-      Tf_{roi}^{image} = R(90°) + T(60) + R(45°) + R(30°) + T(c)
+    .. code-block::
+
+        tform_roi_image = tform_roi_phantom + tform_phantom_image
 
 .. plot::
     :include-source: False
