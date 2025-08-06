@@ -432,12 +432,15 @@ Symmetry
 
 Symmetry is defined as the Point Difference:
 
-:math:`symmetry = 100 * max(|L_{pt} - R_{pt}|)/ D_{CAX}`
+.. math::
 
-where :math:`L_{pt}` and :math:`R_{pt}` are equidistant from the beam center.
+    symmetry = 100 * \frac{max_{i}^{n}(L_{i} - R_{i})}{D_{CAX}} \in field
 
-Symmetry is calculated over the specified field width (e.g. 80%) as set in by ``analyze()``.
-Symmetry can be positive or negative. A negative value means the right side is higher.
+where :math:`L_{i}` and :math:`R_{i}` are equidistant from the beam center.
+Symmetry is calculated over the specified field width (e.g. 80%) as set by the ``in_field_ratio`` parameter.
+Symmetry can be positive or negative. The :math:`max` refers to the
+point with the maximum difference between the left and right points. If the
+largest absolute value is negative, that is the value used. A negative value means the right side is higher.
 A positive value means the left side is higher.
 
 .. _elekta_protocol:
