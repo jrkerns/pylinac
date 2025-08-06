@@ -1685,7 +1685,6 @@ class CTP528CP700(CTP528):
     num_slices: int = 3
     roi_settings = {
         # regions are from the top-left going clockwise on CT
-        # x,y,rotation is an intrinsic transform about the catphan center
         "region 1": {
             "gap size": 0.5,  # gap sizes come from the CatPhan 700 manual
             "radial_distance": 50,
@@ -1753,24 +1752,24 @@ class CTP528CP700(CTP528):
     }
 
     def _setup_rois(self) -> None:
-        catphan_tform = EuclideanTransform(
+        tform_catphan_global = EuclideanTransform(
             rotation=np.deg2rad(self.catphan_roll),
             translation=[self.phan_center.x, self.phan_center.y],
         )
         for name, setting in self.roi_settings.items():
-            roi_tform = EuclideanTransform(
+            tform_roi_catphan = EuclideanTransform(
                 translation=[
                     setting["radial_distance_pixels"],
                     setting["transversal_distance_pixels"],
                 ]
             ) + EuclideanTransform(rotation=np.deg2rad(setting["rotation"]))
-            combined_tform = roi_tform + catphan_tform
+            tform_roi_global = tform_roi_catphan + tform_catphan_global
             self.rois[name] = SpatialResolutionROI(
                 array=self.image.array,
                 width=setting["width_pixels"],
                 height=setting["height_pixels"],
-                center=combined_tform.translation,
-                rotation=np.rad2deg(combined_tform.rotation),
+                center=tform_roi_global.translation,
+                rotation=np.rad2deg(tform_roi_global.rotation),
             )
 
     @cached_property
