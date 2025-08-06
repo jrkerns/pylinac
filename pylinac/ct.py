@@ -39,10 +39,11 @@ from pydantic import BaseModel, Field
 from scipy import ndimage
 from skimage import draw, filters, measure, segmentation
 from skimage.measure._regionprops import RegionProperties
+from skimage.transform import EuclideanTransform
 
 from .core import image, pdf
 from .core.contrast import Contrast
-from .core.geometry import Line, Point, Transform2D
+from .core.geometry import Line, Point
 from .core.image import ArrayImage, DicomImageStack, ImageLike, z_position
 from .core.io import get_url, retrieve_demo_file
 from .core.mtf import MTF
@@ -496,6 +497,18 @@ class CatPhanModule(Slice):
                             * self.scaling_factor
                             / self.mm_per_pixel
                         )
+                    if settings.get("radial_distance") is not None:
+                        settings["radial_distance_pixels"] = (
+                            settings["radial_distance"]
+                            * self.scaling_factor
+                            / self.mm_per_pixel
+                        )
+                    if settings.get("transversal_distance") is not None:
+                        settings["transversal_distance_pixels"] = (
+                            settings["transversal_distance"]
+                            * self.scaling_factor
+                            / self.mm_per_pixel
+                        )
                     if settings.get("angle") is not None:
                         settings["angle_corrected"] = (
                             settings["angle"] + self.catphan_roll
@@ -515,14 +528,6 @@ class CatPhanModule(Slice):
                             settings["height"]
                             * self.roi_size_factor
                             / self.mm_per_pixel
-                        )
-                    if settings.get("x") is not None:
-                        settings["x_pixels"] = (
-                            settings["x"] * self.scaling_factor / self.mm_per_pixel
-                        )
-                    if settings.get("y") is not None:
-                        settings["y_pixels"] = (
-                            settings["y"] * self.scaling_factor / self.mm_per_pixel
                         )
 
     def preprocess(self, catphan):
@@ -1683,87 +1688,89 @@ class CTP528CP700(CTP528):
         # x,y,rotation is an intrinsic transform about the catphan center
         "region 1": {
             "gap size": 0.5,  # gap sizes come from the CatPhan 700 manual
-            "x": -7,
-            "y": -50,
-            "rotation": 0,
-            "width": 11,
-            "height": 3,
+            "radial_distance": 50,
+            "transversal_distance": -7,
+            "rotation": -90,
+            "width": 3,
+            "height": 11,
         },
         "region 2": {
             "gap size": 0.25,
-            "x": 10,
-            "y": -50,
-            "rotation": 0,
-            "width": 10,
-            "height": 3,
+            "radial_distance": 50,
+            "transversal_distance": 11,
+            "rotation": -90,
+            "width": 3,
+            "height": 11,
         },
         "region 3": {
             "gap size": 0.167,
-            "x": 50,
-            "y": -5,
+            "radial_distance": 50,
+            "transversal_distance": -5.5,
             "rotation": -45,
             "width": 3,
-            "height": 8,
+            "height": 10,
         },
         "region 4": {
             "gap size": 0.125,
-            "x": 50,
-            "y": 9,
+            "radial_distance": 50,
+            "transversal_distance": 9.5,
             "rotation": -45,
             "width": 3,
-            "height": 7,
+            "height": 8.5,
         },
         "region 5": {
             "gap size": 0.100,
-            "x": 50,
-            "y": -9,
+            "radial_distance": 50,
+            "transversal_distance": -9,
             "rotation": 0,
             "width": 3,
-            "height": 5,
+            "height": 8,
         },
         "region 6": {
             "gap size": 0.083,
-            "x": 50,
-            "y": 2,
+            "radial_distance": 50,
+            "transversal_distance": 2,
             "rotation": 0,
             "width": 3,
-            "height": 5,
+            "height": 7,
         },
         "region 7": {
             "gap size": 0.071,
+            "radial_distance": 50,
+            "transversal_distance": 12,
             "rotation": 0,
-            "x": 50,
-            "y": 12,
             "width": 3,
-            "height": 4,
+            "height": 6,
         },
         "region 8": {
             "gap size": 0.063,
-            "x": 50,
-            "y": -10.5,
+            "radial_distance": 50,
+            "transversal_distance": -10.5,
             "rotation": 45,
             "width": 3,
-            "height": 3,
+            "height": 4,
         },
     }
 
     def _setup_rois(self) -> None:
-        catphan_tform = Transform2D.from_extrinsic(
-            x=self.phan_center.x, y=self.phan_center.y, rotation=self.catphan_roll
+        catphan_tform = EuclideanTransform(
+            rotation=np.deg2rad(self.catphan_roll),
+            translation=[self.phan_center.x, self.phan_center.y],
         )
         for name, setting in self.roi_settings.items():
-            roi_tform = Transform2D.from_intrinsic(
-                x=setting["x_pixels"],
-                y=setting["y_pixels"],
-                rotation=setting["rotation"],
-            )
-            combined_tform = catphan_tform.chain(roi_tform)
+            roi_tform = EuclideanTransform(
+                translation=[
+                    setting["radial_distance_pixels"],
+                    setting["transversal_distance_pixels"],
+                ]
+            ) + EuclideanTransform(rotation=np.deg2rad(setting["rotation"]))
+            combined_tform = roi_tform + catphan_tform
             self.rois[name] = SpatialResolutionROI(
                 array=self.image.array,
                 width=setting["width_pixels"],
                 height=setting["height_pixels"],
-                center=combined_tform.coords,
-                rotation=combined_tform.rotation,
+                center=combined_tform.translation,
+                rotation=np.rad2deg(combined_tform.rotation),
             )
 
     @cached_property
