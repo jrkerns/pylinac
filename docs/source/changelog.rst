@@ -41,6 +41,12 @@ VMAT
 
 * :bdg-primary:`Refactor` The VMAT analysis is now performed directly on the ratio image
   :math:`I_{ratio} = \frac{I_{DRGS}}{I_{open}} * 100` (see details in :ref:`vmat-algorithm`).
+* :bdg-primary:`Refactor` Due to the above change with Rectangles, the center and vertex positions
+  are calculated slightly differently. This can result in VMAT Segment ROIs being 1 pixel larger or
+  smaller than before. This difference can be explained by two slightly different ways
+  to round: ``round(A + B)`` vs ``round(A) + round(B)``. The change to results of the maximum :math:`R_{deviation}`
+  in our tests had differences of <=0.2%. This is most likely to affect segments on the
+  left and right edges as field falloff is more pronounced there.
 
 v 3.35.0
 --------
