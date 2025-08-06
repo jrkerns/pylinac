@@ -19,6 +19,9 @@ Core
 * :bdg-danger:`Change` The :class:`~pylinac.core.geometry.Rectangle` class no longer accepts the ``as_int`` parameter.
   This clarifies its definition — previously, snapping corners to integer values could break the rectangle’s structure.
   Higher‑level classes must now handle any rounding as needed.
+* :bdg-warning:`Fixed` The pylinac version ``pylinac.__version__`` was using an absolute import. For customers
+  of RadMachine using custom forks for pylinac, the version would reflect the system pylinac version rather than the
+  custom package. This is now fixed.
 
 Gamma
 ^^^^^
