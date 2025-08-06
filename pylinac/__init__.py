@@ -1,11 +1,11 @@
 import sys
 
-from pylinac.version import __version__
+from .version import __version__
 
 # check python version
-if sys.version_info[0] < 3 or sys.version_info[1] < 7:
+if sys.version_info[0] < 3 or sys.version_info[1] < 9:
     raise ValueError(
-        "Pylinac is only supported on Python 3.7+. Please update your environment."
+        "Pylinac is only supported on Python 3.9+. Please update your environment."
     )
 
 # alphabetized modules
