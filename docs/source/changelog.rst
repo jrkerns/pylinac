@@ -33,7 +33,7 @@ Gamma
 
 .. warning::
 
-    This is the opposite of the previous implementation.
+    This is the opposite of the previous implementation. For backwards compatibility users can swap the parameter order to retain original values.
 
 * :bdg-primary:`Refactor` Performance improvements to gamma_2d. Speedup results will vary; local tests showed an improvement of ~20x
 
