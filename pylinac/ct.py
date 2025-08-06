@@ -1757,12 +1757,16 @@ class CTP528CP700(CTP528):
             translation=[self.phan_center.x, self.phan_center.y],
         )
         for name, setting in self.roi_settings.items():
+            # The roi's are placed in polar coordinates, i.e. intrinsic rotation then translation.
+            # That's the same as extrinsic translation and then rotation which is implemented by the + operator
             tform_roi_catphan = EuclideanTransform(
                 translation=[
                     setting["radial_distance_pixels"],
                     setting["transversal_distance_pixels"],
                 ]
             ) + EuclideanTransform(rotation=np.deg2rad(setting["rotation"]))
+            # The roi in global coordinates, is the extrinsic placement of the roi wrt phantom and then the phantom wrt global.
+            # This is implemented by the + operator
             tform_roi_global = tform_roi_catphan + tform_catphan_global
             self.rois[name] = SpatialResolutionROI(
                 array=self.image.array,
