@@ -16,9 +16,15 @@ v 3.36.0
 Core
 ^^^^
 
+* :bdg-warning:`Fixed` The "Varian Protocol" :ref:`symmetry definition <varian_protocol>` had an absolute value expression in the
+  documentation; this was different from the actual code which did not use absolute values. The definition
+  has been updated to match the code.
 * :bdg-danger:`Change` The :class:`~pylinac.core.geometry.Rectangle` class no longer accepts the ``as_int`` parameter.
   This clarifies its definition — previously, snapping corners to integer values could break the rectangle’s structure.
   Higher‑level classes must now handle any rounding as needed.
+* :bdg-warning:`Fixed` The pylinac version ``pylinac.__version__`` was using an absolute import. For customers
+  of RadMachine using custom forks for pylinac, the version would reflect the system pylinac version rather than the
+  custom package. This is now fixed.
 
 Gamma
 ^^^^^
@@ -35,6 +41,12 @@ VMAT
 
 * :bdg-primary:`Refactor` The VMAT analysis is now performed directly on the ratio image
   :math:`I_{ratio} = \frac{I_{DRGS}}{I_{open}} * 100` (see details in :ref:`vmat-algorithm`).
+* :bdg-primary:`Refactor` Due to the above change with Rectangles, the center and vertex positions
+  are calculated slightly differently. This can result in VMAT Segment ROIs being 1 pixel larger or
+  smaller than before. This difference can be explained by two slightly different ways
+  to round: ``round(A + B)`` vs ``round(A) + round(B)``. The change to results of the maximum :math:`R_{deviation}`
+  in our tests had differences of <=0.2%. This is most likely to affect segments on the
+  left and right edges as field falloff is more pronounced there.
 
 v 3.35.0
 --------

@@ -2,7 +2,6 @@ import io
 import json
 import tempfile
 from collections.abc import Iterable
-from functools import partial
 from pathlib import Path
 from typing import Union
 from unittest import TestCase
@@ -29,9 +28,6 @@ from tests_basic.utils import (
 )
 
 TEST_DIR = "VMAT"
-
-within_5 = partial(TestCase().assertAlmostEqual, delta=5)
-within_1 = partial(TestCase().assertAlmostEqual, delta=1)
 
 
 class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
@@ -219,13 +215,17 @@ class VMATMixin:
 
     def test_segment_positions(self):
         for key, value in self.segment_positions.items():
-            within_5(self.vmat.segments[key].center.x, value.x)
-            within_5(self.vmat.segments[key].center.y, value.y)
+            self.assertAlmostEqual(self.vmat.segments[key].center.x, value.x, delta=5)
+            self.assertAlmostEqual(self.vmat.segments[key].center.y, value.y, delta=5)
 
     def test_segment_values(self):
         for key, value in self.segment_values.items():
-            within_1(self.vmat.segments[key].r_dev, value["r_dev"])
-            within_1(self.vmat.segments[key].r_corr, value["r_corr"])
+            self.assertAlmostEqual(
+                self.vmat.segments[key].r_dev, value["r_dev"], delta=1
+            )
+            self.assertAlmostEqual(
+                self.vmat.segments[key].r_corr, value["r_corr"], delta=1
+            )
             if "stdev" in value:
                 self.assertAlmostEqual(
                     self.vmat.segments[key].stdev, value["stdev"], places=2
@@ -340,7 +340,7 @@ class TestDRGS105(VMATMixin, PlotlyTestMixin, TestCase):
         4: {"r_dev": -0.8, "r_corr": 14.8},
     }
     avg_abs_r_deviation = 0.68
-    max_r_deviation = 1.38
+    max_r_deviation = 1.27
     num_figs = 3
     fig_data = {
         0: {
@@ -427,6 +427,23 @@ class TestDRMLCOverlapGaps(VMATMixin, TestCase):
 
     def test_fail_with_tight_tolerance(self):
         pass
+
+
+class TestDoselabDRMLC(VMATMixin, TestCase):
+    """Matches a test in Kraken for continuity."""
+
+    filepaths = ("DRMLC_DL.zip",)
+    is_zip = True
+    klass = DRMLC
+    segment_positions = {0: Point(195.6, 190), 2: Point(272, 190)}
+    segment_values = {
+        0: {"r_dev": -1.52, "r_corr": 247},
+        2: {"r_dev": 1.29, "r_corr": 254},
+    }
+    init_kwargs = {"raw_pixels": True, "ground": False, "check_inversion": False}
+    avg_abs_r_deviation = 1.04
+    max_r_deviation = 1.53
+    passes = False  # >1.5% max deviation
 
 
 class TestHalcyonDRGS(VMATMixin, TestCase):
