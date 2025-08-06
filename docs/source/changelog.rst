@@ -16,6 +16,9 @@ v 3.36.0
 Core
 ^^^^
 
+* :bdg-warning:`Fixed` The "Varian Protocol" :ref:`symmetry definition <varian_protocol>` had an absolute value expression in the
+  documentation; this was different from the actual code which did not use absolute values. The definition
+  has been updated to match the code.
 * :bdg-danger:`Change` The :class:`~pylinac.core.geometry.Rectangle` class no longer accepts the ``as_int`` parameter.
   This clarifies its definition — previously, snapping corners to integer values could break the rectangle’s structure.
   Higher‑level classes must now handle any rounding as needed.
