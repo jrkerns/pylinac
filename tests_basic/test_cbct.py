@@ -542,6 +542,11 @@ class CatPhanMixin(CloudFileMixin):
     def test_pdf(self):
         save_file(self.cbct.publish_pdf, "temp")
 
+    def test_results_data(self):
+        """Test that results data can be obtained."""
+        data = self.cbct.results_data()
+        self.assertIsInstance(data, CatphanResult)
+
 
 class CatPhanDemo(CatPhanMixin, TestCase):
     """Test the CBCT demo (Varian high quality head protocol)."""
