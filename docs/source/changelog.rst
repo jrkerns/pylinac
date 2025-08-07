@@ -25,9 +25,22 @@ Core
 * :bdg-warning:`Fixed` The pylinac version ``pylinac.__version__`` was using an absolute import. For customers
   of RadMachine using custom forks for pylinac, the version would reflect the system pylinac version rather than the
   custom package. This is now fixed.
+* :bdg-danger:`Change` Due to the changes in Gamma (see below), the gamma function in
+  :class:`~pylinac.core.profile.PhysicalProfileMixin` and :class:`~pylinac.core.profile.SingleProfile`
+  use self as reference (fixed distribution) and the input parameter as evaluation (search distribution),
+  i.e. the first parameter changed name but the logic remains the same.
 
 Gamma
 ^^^^^
+* :bdg-danger:`Change` Realignment of notation: the gamma definitions are now the same as Low's paper,
+  i.e. ``reference = measured = fixed = less dense``, ``evaluation = calculation = search = more dense``.
+* :bdg-danger:`Change` For the same reason, dose normalization (global and local) is now with respect to the reference (fixed) distribution, whereas previously
+  it would take the evaluation (search) distribution.
+
+.. warning::
+
+    This is the opposite of the previous implementation. For backwards compatibility users can swap the parameter order to retain original values.
+
 * :bdg-primary:`Refactor` Performance improvements to gamma_2d. Speedup results will vary; local tests showed an improvement of ~20x
 
 Plotting Plan Fluence
