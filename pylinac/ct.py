@@ -39,6 +39,7 @@ from pydantic import BaseModel, Field
 from scipy import ndimage
 from skimage import draw, filters, measure, segmentation
 from skimage.measure._regionprops import RegionProperties
+from skimage.transform import EuclideanTransform
 
 from .core import image, pdf
 from .core.contrast import Contrast
@@ -493,6 +494,18 @@ class CatPhanModule(Slice):
                     if settings.get("distance") is not None:
                         settings["distance_pixels"] = (
                             settings["distance"]
+                            * self.scaling_factor
+                            / self.mm_per_pixel
+                        )
+                    if settings.get("radial_distance") is not None:
+                        settings["radial_distance_pixels"] = (
+                            settings["radial_distance"]
+                            * self.scaling_factor
+                            / self.mm_per_pixel
+                        )
+                    if settings.get("transversal_distance") is not None:
+                        settings["transversal_distance_pixels"] = (
+                            settings["transversal_distance"]
                             * self.scaling_factor
                             / self.mm_per_pixel
                         )
@@ -1671,82 +1684,96 @@ class CTP528CP700(CTP528):
     combine_method: str = "max"
     num_slices: int = 3
     roi_settings = {
+        # regions are from the top-left going clockwise on CT
         "region 1": {
             "gap size": 0.5,  # gap sizes come from the CatPhan 700 manual
-            "distance": 50.6,
-            "angle": -98,
-            "rotation": 0,
-            "width": 11,
-            "height": 3,
+            "radial_distance": 50,
+            "transversal_distance": -7,
+            "rotation": -90,
+            "width": 3,
+            "height": 11,
         },
         "region 2": {
             "gap size": 0.25,
-            "distance": 51.3,
-            "angle": -77.5,
-            "rotation": 0,
-            "width": 10,
-            "height": 3,
+            "radial_distance": 50,
+            "transversal_distance": 11,
+            "rotation": -90,
+            "width": 3,
+            "height": 11,
         },
         "region 3": {
             "gap size": 0.167,
-            "distance": 50.2,
-            "angle": -50.9,
-            "rotation": 45,
-            "width": 8,
-            "height": 3,
+            "radial_distance": 50,
+            "transversal_distance": -5.5,
+            "rotation": -45,
+            "width": 3,
+            "height": 10,
         },
         "region 4": {
             "gap size": 0.125,
-            "distance": 50.9,
-            "angle": -34,
-            "rotation": 45,
-            "width": 8,
-            "height": 3,
+            "radial_distance": 50,
+            "transversal_distance": 9.5,
+            "rotation": -45,
+            "width": 3,
+            "height": 8.5,
         },
         "region 5": {
             "gap size": 0.100,
-            "distance": 51.2,
-            "angle": -10.2,
+            "radial_distance": 50,
+            "transversal_distance": -9,
             "rotation": 0,
             "width": 3,
-            "height": 4,
+            "height": 8,
         },
         "region 6": {
             "gap size": 0.083,
-            "distance": 50.4,
-            "angle": 2.3,
+            "radial_distance": 50,
+            "transversal_distance": 2,
             "rotation": 0,
             "width": 3,
-            "height": 4,
+            "height": 7,
         },
         "region 7": {
             "gap size": 0.071,
-            "distance": 51.9,
-            "angle": 14,
+            "radial_distance": 50,
+            "transversal_distance": 12,
             "rotation": 0,
             "width": 3,
-            "height": 4,
+            "height": 6,
         },
         "region 8": {
             "gap size": 0.063,
-            "distance": 51.3,
-            "angle": 33.6,
+            "radial_distance": 50,
+            "transversal_distance": -10.5,
             "rotation": 45,
             "width": 3,
-            "height": 3,
+            "height": 4,
         },
     }
 
     def _setup_rois(self) -> None:
+        tform_catphan_global = EuclideanTransform(
+            rotation=np.deg2rad(self.catphan_roll),
+            translation=[self.phan_center.x, self.phan_center.y],
+        )
         for name, setting in self.roi_settings.items():
-            self.rois[name] = SpatialResolutionROI.from_phantom_center(
+            # The roi's are placed in polar coordinates, i.e. rotation then intrinsic translation.
+            # That's the same as extrinsic translation and then rotation which is implemented by the + operator
+            tform_roi_catphan = EuclideanTransform(
+                translation=[
+                    setting["radial_distance_pixels"],
+                    setting["transversal_distance_pixels"],
+                ]
+            ) + EuclideanTransform(rotation=np.deg2rad(setting["rotation"]))
+            # The roi in global coordinates, is the placement of the roi wrt phantom and then the phantom wrt global.
+            # This is implemented by the + operator
+            tform_roi_global = tform_roi_catphan + tform_catphan_global
+            self.rois[name] = SpatialResolutionROI(
                 array=self.image.array,
-                angle=setting["angle_corrected"],
-                dist_from_center=setting["distance_pixels"],
-                phantom_center=self.phan_center,
                 width=setting["width_pixels"],
                 height=setting["height_pixels"],
-                rotation=setting["rotation"] + self.catphan_roll,
+                center=tform_roi_global.translation,
+                rotation=np.rad2deg(tform_roi_global.rotation),
             )
 
     @cached_property

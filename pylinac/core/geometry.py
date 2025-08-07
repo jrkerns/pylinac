@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable
 from itertools import zip_longest
-from typing import Annotated, Literal
+from typing import Annotated
 
 import argue
 import matplotlib.pyplot as plt
@@ -16,7 +16,6 @@ from matplotlib.patches import Polygon as mpl_Polygon
 from mpl_toolkits.mplot3d.art3d import Line3D
 from pydantic import PlainSerializer
 from skimage import transform
-from skimage.transform import EuclideanTransform
 
 from .utilities import is_iterable
 
@@ -720,99 +719,3 @@ class Rectangle:
                 horizontalalignment=ha,
                 verticalalignment=va,
             )
-
-
-class Transform2D:
-    """Represents a 2D Euclidean Transform (aka Pose).
-
-    Compared to skimage's EuclideanTransform class this has explicit constructors (intrinsic vs extrinsic), extensibility,
-    and forward kinematics (chaining transforms).
-
-    A central use case is combining transforms. E.g. transform of the CatPhan ROI, then transform of the
-    HU ROI to get the global position of the HU ROI while allowing us to define the ROI position relative
-    only to the CatPhan.
-
-    .. important::
-
-        In pylinac, we always perform rotation first, then translation in both extrinsic and intrinsic transforms.
-        Further, documentation assumes that positive angle values go "from x to y". This allows us to use
-        screen or cartesian coordinates without confusion.
-    """
-
-    def __init__(self, matrix: np.ndarray, mode: Literal["extrinsic", "intrinsic"]):
-        """Initialize the Transform2D.
-
-        Parameters
-        ----------
-        matrix : np.ndarray
-            A 3x3 transformation matrix.
-        mode : {'extrinsic', 'intrinsic'}
-            The mode of the transform; only used for chaining transforms
-        """
-        self.matrix = matrix
-        self.mode = mode
-
-    @classmethod
-    def from_extrinsic(cls, x: float, y: float, rotation: float = 0.0) -> Transform2D:
-        """Build a Transform2D from an extrinsic/world point of view. Rotation is applied first, then translation.
-
-        Parameters
-        ----------
-        x: float
-            The shift in the x-direction.
-        y: float
-            The shift in the y-direction.
-        rotation: float
-            The rotation in *degrees*. Follows the "x goes to y" rule.
-        """
-        theta = np.radians(rotation)
-        tform = EuclideanTransform(translation=(x, y), rotation=theta)
-        matrix = tform.params
-        return cls(matrix=matrix, mode="extrinsic")
-
-    @classmethod
-    def from_intrinsic(cls, x: float, y: float, rotation: float = 0.0) -> Transform2D:
-        """Build a Transform2D from an intrinsic/local point of view. Rotation is applied first, then translation.
-
-        Parameters
-        ----------
-        x: float
-            The shift in the x-direction.
-        y: float
-            The shift in the y-direction.
-        rotation: float
-            The rotation in *degrees*. Follows the "x goes to y" rule.
-        """
-        translate_matrix = EuclideanTransform(translation=(x, y)).params
-        rot_matrix = EuclideanTransform(rotation=np.radians(rotation)).params
-        matrix = rot_matrix @ translate_matrix  # intrinsic transform
-        return cls(matrix=matrix, mode="intrinsic")
-
-    def __matmul__(self, other: Transform2D) -> Transform2D:
-        """Combine two transforms. The frame of reference of the combined transform is that of the second transform."""
-        return Transform2D(self.matrix @ other.matrix, mode=other.mode)
-
-    def chain(self, other: Transform2D) -> Transform2D:
-        """Combine two transforms; the frame of reference of the combined transform is that of the target transform."""
-        if other.mode == "extrinsic":
-            # extrinsic chain; same as how skimage EuclideanTransform works.
-            tform = other @ self
-        else:
-            # intrinsic chain; we need to swap the order of multiplication
-            tform = self @ other
-
-        return tform
-
-    @property
-    def coords(self) -> Point:
-        """Get the global coordinates of the transform. After applying multiple transforms,
-        we ultimately need to do things like plot, which we need global coordinates for."""
-        # this applies the final transform to the origin (0, 0)
-        tform = EuclideanTransform(matrix=self.matrix)
-        return Point(tform(np.array([[0, 0]]))[0])
-
-    @property
-    def rotation(self) -> float:
-        """Rotation of the transform in degrees; x goes to y."""
-        tform = EuclideanTransform(matrix=self.matrix)
-        return np.degrees(tform.rotation)
