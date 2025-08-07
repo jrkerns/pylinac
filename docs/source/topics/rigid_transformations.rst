@@ -292,7 +292,7 @@ In code
 
 ``scikit-image.transform`` can be used to implement these transformations using the following conventions:
 
-* EuclideanTransform(r,t): performs first rotation then translation in extrinsic coordinates
+* EuclideanTransform(r,t): performs the rotation first, then the translation, in extrinsic coordinates
 
 .. code-block::
 
@@ -300,7 +300,7 @@ In code
     tform = EuclideanTransform(translation=t, rotation=r)  #order of parameters is irrelevant
 
 * tform1 + tform2: the '+' operator is a magic method that performs
-  EuclideanTransform1 then EuclideanTransform2 in extrinsic coordinates
+  EuclideanTransform1 first, then EuclideanTransform2, in extrinsic coordinates
 
 .. code-block::
 
