@@ -286,6 +286,14 @@ where ``Translation'`` represents the translation in the intrinsic frame of refe
 
     plt.show()
 
+* **Corollary**:
+
+.. math::
+    Transformation = Tf4''' * Tf3'' * Tf2' * Tf1 = Tf1 * Tf2 * Tf3 * Tf4
+
+where ``'`` represents the transformation in the intrinsic frame of reference.
+Multiple ``'`` are used to represent that the intrinsic frame of reference changes with each previous transformation.
+
 
 In code
 ~~~~~~~
@@ -305,12 +313,14 @@ In code
 .. code-block::
 
     tform = tform1 + tform2
-    tform.matrix = tform2.matrix @ tform1.matrix
+    tform = EuclideanTransform(matrix = tform2.matrix @ tform1.matrix)  # same as above
 
 Example of ROI placement using rigid transformations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Here is an example for placing an ROI in the Catphan phantom:
+Here is an example for ROI placement in a scanned slice image of the Catphan phantom.
+First we do the ROI to phantom transform, then we do the phantom to image transform. We then combine these two
+transforms to produce the final transform ROI to image.
 
 1. ROI placement with respect to nominal phantom:
     1.1. Let's start using an ROI with width = 40 and height = 20
@@ -324,34 +334,24 @@ Here is an example for placing an ROI in the Catphan phantom:
 
         tform_1 = tform_r_45 = EuclideanTransform(rotation=np.deg2rad(45))
 
-    1.3. Then translate in the radial direction by 60
+    1.3. Then translate in the radial direction by 60 (intrinsic translation)
 
     .. math::
-      Tf_2 = T'(60) * Tf_1 = Tf_1 * T(60)
+      Tf_2 = T'(60) * Tf_1 = Tf_1 * T(60) = R(45°) * T(60)
 
     .. code-block::
 
         tform_t_60 = EuclideanTransform(translation=[60,0])
-        tform_2 = tform_t_60 + tform_1
+        tform_2 = tform_t_60 + tform_1 = tform_t_60 + tform_r_45
 
-    1.4. Then rotate in place by 90 to align the roi
+    1.4. This is the ROI placement with respect to nominal phantom
 
     .. math::
-      Tf_3 = R'(90°) * Tf_2 = Tf_2 * R(90°)
+      Tf_{roi}^{phantom} = Tf_2 = R(45°) * T(60)
 
     .. code-block::
 
-        tf_r_90 = EuclideanTransform(rotation=np.deg2rad(90))
-        tform_3 = tf_r_90 + tform_2
-
-    1.5. This is the ROI placement with respect to nominal phantom
-
-    .. math::
-      Tf_{roi}^{phantom} = Tf_3 = R(45°) * T(60) * R(90°)
-
-    .. code-block::
-
-        tform_roi_phantom = tform_3 = tf_r_90 + tform_t_60 + tform_r_45
+        tform_roi_phantom = tform_2 = tform_t_60 + tform_r_45
 
 .. plot::
     :include-source: False
@@ -365,10 +365,9 @@ Here is an example for placing an ROI in the Catphan phantom:
     t = np.linspace(0, 2*np.pi, 100)
     p_phantom = r_phantom * np.vstack((np.sin(t), np.cos(t)))
 
-    width = 50
-    height = 20
+    width = 20
+    height = 50
     angle = 45
-    rotation = 90
     radial_distance = 60
     lateral_distance = 0
     rect = Rectangle(width = width, height = height, center=(0,0))
@@ -376,15 +375,11 @@ Here is an example for placing an ROI in the Catphan phantom:
     rect = np.vstack((rect, rect[0,:]))
     tf1 = transform.EuclideanTransform(rotation=np.deg2rad(angle))
     tf2 = transform.EuclideanTransform(translation=(radial_distance, lateral_distance))
-    tf3 = transform.EuclideanTransform(rotation=np.deg2rad(rotation))
     rect_rotated = tf1(rect)            # R
-    rect_centered = (tf2 + tf1)(rect)     # T'*R = R*T = T+R
-    rect_final = (tf3 + tf2 + tf1)(rect)  # R'(R*T) = R*T*R = R+T+R
+    rect_final = (tf2 + tf1)(rect)      # T'*R = R*T = T+R
+    rect_translated = tf2(rect)
 
-    rect_rotated2 = tf3(rect)
-    rect_translated = (tf3 + tf2)(rect)
-
-    _, axs = plt.subplots(2, 4)
+    _, axs = plt.subplots(2, 3)
     axs[0,0].annotate('', xy=(0, 125), xytext=(0, 0),
                  arrowprops=dict(facecolor='black', shrink=0.0, width=0.1, headlength=5, headwidth=5), )
     axs[0,0].annotate('', xy=(125, 0), xytext=(0, 0),
@@ -411,19 +406,9 @@ Here is an example for placing an ROI in the Catphan phantom:
                  arrowprops=dict(facecolor='black', shrink=0.0, width=0.1, headlength=5, headwidth=5), )
     axs[0,2].plot(p_phantom[0,:], p_phantom[1,:], 'k', linewidth=2)
     axs[0,2].plot(p_phantom[0,0], p_phantom[1,0], 'ro')
-    axs[0,2].plot(rect_centered[:,0], rect_centered[:,1], 'b')
+    axs[0,2].plot(rect_final[:,0], rect_final[:,1], 'b')
     axs[0,2].axis((-150, 150, -150, 150))
     axs[0,2].set_aspect('equal')
-
-    axs[0,3].annotate('', xy=(0, 125), xytext=(0, 0),
-                 arrowprops=dict(facecolor='black', shrink=0.0, width=0.1, headlength=5, headwidth=5), )
-    axs[0,3].annotate('', xy=(125, 0), xytext=(0, 0),
-                 arrowprops=dict(facecolor='black', shrink=0.0, width=0.1, headlength=5, headwidth=5), )
-    axs[0,3].plot(p_phantom[0,:], p_phantom[1,:], 'k', linewidth=2)
-    axs[0,3].plot(p_phantom[0,0], p_phantom[1,0], 'ro')
-    axs[0,3].plot(rect_final[:,0], rect_final[:,1], 'b')
-    axs[0,3].axis((-150, 150, -150, 150))
-    axs[0,3].set_aspect('equal')
 
     axs[1,0].annotate('', xy=(0, 125), xytext=(0, 0),
                  arrowprops=dict(facecolor='black', shrink=0.0, width=0.1, headlength=5, headwidth=5), )
@@ -441,7 +426,7 @@ Here is an example for placing an ROI in the Catphan phantom:
                  arrowprops=dict(facecolor='black', shrink=0.0, width=0.1, headlength=5, headwidth=5), )
     axs[1,1].plot(p_phantom[0,:], p_phantom[1,:], 'k', linewidth=2)
     axs[1,1].plot(p_phantom[0,0], p_phantom[1,0], 'ro')
-    axs[1,1].plot(rect_rotated2[:,0], rect_rotated2[:,1], 'b')
+    axs[1,1].plot(rect_translated[:,0], rect_translated[:,1], 'b')
     axs[1,1].axis((-150, 150, -150, 150))
     axs[1,1].set_aspect('equal')
 
@@ -451,19 +436,9 @@ Here is an example for placing an ROI in the Catphan phantom:
                  arrowprops=dict(facecolor='black', shrink=0.0, width=0.1, headlength=5, headwidth=5), )
     axs[1,2].plot(p_phantom[0,:], p_phantom[1,:], 'k', linewidth=2)
     axs[1,2].plot(p_phantom[0,0], p_phantom[1,0], 'ro')
-    axs[1,2].plot(rect_translated[:,0], rect_translated[:,1], 'b')
+    axs[1,2].plot(rect_final[:,0], rect_final[:,1], 'b')
     axs[1,2].axis((-150, 150, -150, 150))
     axs[1,2].set_aspect('equal')
-
-    axs[1,3].annotate('', xy=(0, 125), xytext=(0, 0),
-                 arrowprops=dict(facecolor='black', shrink=0.0, width=0.1, headlength=5, headwidth=5), )
-    axs[1,3].annotate('', xy=(125, 0), xytext=(0, 0),
-                 arrowprops=dict(facecolor='black', shrink=0.0, width=0.1, headlength=5, headwidth=5), )
-    axs[1,3].plot(p_phantom[0,:], p_phantom[1,:], 'k', linewidth=2)
-    axs[1,3].plot(p_phantom[0,0], p_phantom[1,0], 'ro')
-    axs[1,3].plot(rect_final[:,0], rect_final[:,1], 'b')
-    axs[1,3].axis((-150, 150, -150, 150))
-    axs[1,3].set_aspect('equal')
 
     axs[0,1].set_title('                          Intrinsic')
     axs[1,1].set_title('                          Extrinsic')
@@ -471,7 +446,7 @@ Here is an example for placing an ROI in the Catphan phantom:
     plt.show()
 
 
-2. Phantom placement with respect to image (global) coordinates:
+2. Phantom placement with respect to image:
     2.1. Let's start with a centered (nominal) phantom
 
     2.2. Then roll the phantom by 30 deg (exaggerated for visual purposes only)
@@ -483,15 +458,16 @@ Here is an example for placing an ROI in the Catphan phantom:
 
         tform_1 = tform_r_30 = EuclideanTransform(rotation=np.deg2rad(30))
 
-    2.3. Then translate the phantom to the image center (150, 150)
+    2.3. Then translate the phantom to the image center (extrinsic translation)
 
     .. math::
       Tf_2 = T(c) * Tf_1
 
     .. code-block::
 
+        c = [150, 150]
         tform_t_c = EuclideanTransform(translation=c)
-        tform_2 = tform_1 + tform_t_c
+        tform_2 = tform_1 + tform_t_c = tform_r_30 + tform_t_c
 
     2.4. This is phantom placement with respect to image coordinates
 
@@ -553,8 +529,8 @@ Here is an example for placing an ROI in the Catphan phantom:
     plt.show()
 
 
-3. ROI placement with respect to image (global) coordinates:
-    3.1. The ROI transformation to global are the cascading transformations
+3. ROI placement with respect to image:
+    3.1. The ROI transformation to global are the cascading transformations (extrinsic operation)
 
     .. math::
       Tf_{roi}^{image} = Tf_{phantom}^{image} * Tf_{roi}^{phantom}
