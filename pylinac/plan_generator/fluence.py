@@ -71,20 +71,21 @@ def generate_fluences(
             number_of_leaf_pairs = stack[1]
             stack_fluence_compact = np.zeros((number_of_leaf_pairs, len(x)))
 
-            leaf_positions = np.array(
-                [
-                    bld.LeafJawPositions
-                    for cps in beam.ControlPointSequence
-                    for bld in cps.BeamLimitingDevicePositionSequence
-                    if bld.RTBeamLimitingDeviceType == mlc_id
-                ]
-            )
-            leaf_positions_b = leaf_positions[:, 0:number_of_leaf_pairs]
-            leaf_positions_a = leaf_positions[:, number_of_leaf_pairs:]
-
+            # this pre-allocation is unnecessary since DICOM standard mandates the leaves to be defined on the first control point, but pycharm will issue a warning otherwise.
+            leaves_b = leaves_a = np.zeros(number_of_leaf_pairs)
             for cp_idx, cp in enumerate(beam.ControlPointSequence):
-                leaves_b = leaf_positions_b[cp_idx, :]
-                leaves_a = leaf_positions_a[cp_idx, :]
+                beam_limiting_device_position_sequence = cp.get(
+                    "BeamLimitingDevicePositionSequence"
+                )
+                if cp_idx == 0 or beam_limiting_device_position_sequence is not None:
+                    # update mlc positions, otherwise the previous positions will be used
+                    leaf_positions = [
+                        bld.LeafJawPositions
+                        for bld in beam_limiting_device_position_sequence
+                        if bld.RTBeamLimitingDeviceType == mlc_id
+                    ]
+                    leaves_b = np.array(leaf_positions)[0, 0:number_of_leaf_pairs]
+                    leaves_a = np.array(leaf_positions)[0, number_of_leaf_pairs:]
                 mu = meterset_per_cp[cp_idx]
                 mask = (x > leaves_b[np.newaxis].T) & (x <= leaves_a[np.newaxis].T)
                 stack_fluence_compact[mask] += mu

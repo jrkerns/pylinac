@@ -714,6 +714,7 @@ class TestHalcyonPrefabs(TestCase):
             .LeafJawPositions[0],
             -140,
         )
+        self.assertEqual(dcm.BeamSequence[0].BeamType, "DYNAMIC")
 
     def test_create_picket_fence_distal(self):
         self.pg.add_picketfence_beam(
@@ -746,6 +747,7 @@ class TestHalcyonPrefabs(TestCase):
             .LeafJawPositions[0],
             -53.5,
         )
+        self.assertEqual(dcm.BeamSequence[0].BeamType, "DYNAMIC")
 
     def test_create_picket_fence_both(self):
         self.pg.add_picketfence_beam(
@@ -778,6 +780,7 @@ class TestHalcyonPrefabs(TestCase):
             .LeafJawPositions[0],
             -53.5,
         )
+        self.assertEqual(dcm.BeamSequence[0].BeamType, "DYNAMIC")
 
 
 class TestMLCShaper(TestCase):

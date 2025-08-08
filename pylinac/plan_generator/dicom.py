@@ -143,15 +143,11 @@ class Beam:
                 "Cannot specify multiple gantry angles without a gantry direction"
             )
 
-        self.plan_ds = plan_dataset
-
         gantry_is_static = len(np.unique(gantry_angles)) == 1
         mlc_is_static = np.unique(np.array(mlc_positions), axis=0).shape[0] == 1
-        beam_type = (
-            BeamType.STATIC
-            if (gantry_is_static and mlc_is_static)
-            else BeamType.DYNAMIC
-        )
+        beam_is_static = gantry_is_static and mlc_is_static
+        beam_type = BeamType.STATIC if beam_is_static else BeamType.DYNAMIC
+        self.plan_ds = plan_dataset
         self.ds = self._create_basic_beam_info(
             beam_name,
             beam_type,
@@ -415,7 +411,6 @@ class HalcyonBeam(Beam):
         self,
         plan_dataset: Dataset,
         beam_name: str,
-        beam_type: BeamType,
         energy: float,
         dose_rate: int,
         machine_name: str,
@@ -436,8 +431,6 @@ class HalcyonBeam(Beam):
             The plan dataset. Used for dynamic links to other Sequences of the plan, such as Dose Reference and Tolerance Table.
         beam_name : str
             The name of the beam. Must be less than 16 characters.
-        beam_type : BeamType
-            The type of beam: dynamic or static.
         energy : float
             The energy of the beam.
         dose_rate : int
@@ -464,11 +457,6 @@ class HalcyonBeam(Beam):
         if len(beam_name) > 16:
             raise ValueError("Beam name must be less than or equal to 16 characters")
 
-        if beam_type == BeamType.STATIC and (
-            len(proximal_mlc_positions) != 1 or len(distal_mlc_positions) != 1
-        ):
-            raise ValueError("Static beam can only have one MLC position change.")
-
         if len(metersets) != len(proximal_mlc_positions) != len(distal_mlc_positions):
             raise ValueError(
                 f"The number of meter sets ({len(metersets)}) "
@@ -483,8 +471,17 @@ class HalcyonBeam(Beam):
                 "Cannot specify multiple gantry angles without a gantry direction"
             )
 
-        if isinstance(gantry_angles, Iterable) and beam_type == BeamType.STATIC:
-            raise ValueError("Cannot specify multiple gantry angles as a static beam")
+        gantry_is_static = len(np.unique(gantry_angles)) == 1
+        distal_mlc_is_static = (
+            np.unique(np.array(distal_mlc_positions), axis=0).shape[0] == 1
+        )
+        proximal_mlc_is_static = (
+            np.unique(np.array(proximal_mlc_positions), axis=0).shape[0] == 1
+        )
+        beam_is_static = (
+            gantry_is_static and distal_mlc_is_static and proximal_mlc_is_static
+        )
+        beam_type = BeamType.STATIC if beam_is_static else BeamType.DYNAMIC
         self.plan_ds = plan_dataset
         self.ds = self._create_basic_beam_info(
             beam_name,
@@ -2161,7 +2158,6 @@ class HalcyonPlanGenerator(PlanGenerator):
         beam = HalcyonBeam(
             plan_dataset=self.ds,
             beam_name=beam_name,
-            beam_type=BeamType.DYNAMIC,
             energy=energy,
             dose_rate=dose_rate,
             gantry_angles=gantry_angle,
