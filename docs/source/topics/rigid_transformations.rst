@@ -305,7 +305,8 @@ In code
 .. code-block::
 
     tform = EuclideanTransform(rotation=r, translation=t)
-    tform = EuclideanTransform(translation=t, rotation=r)  #order of parameters is irrelevant
+    # or
+    tform = EuclideanTransform(translation=t, rotation=r)  # order of parameters is irrelevant
 
 * tform1 + tform2: the '+' operator is a magic method that performs
   EuclideanTransform1 first, then EuclideanTransform2, in extrinsic coordinates
@@ -313,6 +314,7 @@ In code
 .. code-block::
 
     tform = tform1 + tform2
+    # or
     tform = EuclideanTransform(matrix = tform2.matrix @ tform1.matrix)  # same as above
 
 Example of ROI placement using rigid transformations
