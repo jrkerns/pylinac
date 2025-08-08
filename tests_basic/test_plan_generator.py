@@ -187,7 +187,7 @@ class TestBeam(TestCase):
         )
         beam_dcm = beam.as_dicom()
         self.assertEqual(beam_dcm.BeamName, "name")
-        self.assertEqual(beam_dcm.BeamType, "DYNAMIC")
+        self.assertEqual(beam_dcm.BeamType, "STATIC")
         self.assertEqual(beam_dcm.ControlPointSequence[0].GantryAngle, 0)
 
     def test_too_long_beam_name(self):
