@@ -63,7 +63,6 @@ class Beam:
         self,
         plan_dataset: Dataset,
         beam_name: str,
-        beam_type: BeamType,
         energy: float,
         dose_rate: int,
         x1: float,
@@ -90,8 +89,6 @@ class Beam:
             The plan dataset. Used for dynamic links to other Sequences of the plan, such as Dose Reference and Tolerance Table.
         beam_name : str
             The name of the beam. Must be less than 16 characters.
-        beam_type : BeamType
-            The type of beam: dynamic or static.
         energy : float
             The energy of the beam.
         dose_rate : int
@@ -132,11 +129,6 @@ class Beam:
         if len(beam_name) > 16:
             raise ValueError("Beam name must be less than or equal to 16 characters")
 
-        if beam_type == BeamType.STATIC and len(mlc_positions) != 1:
-            raise ValueError(
-                f"Static beam can only have one MLC position change ({len(mlc_positions)})"
-            )
-
         if len(metersets) != len(mlc_positions):
             raise ValueError(
                 f"The number of meter sets ({len(metersets)}) "
@@ -151,9 +143,15 @@ class Beam:
                 "Cannot specify multiple gantry angles without a gantry direction"
             )
 
-        if isinstance(gantry_angles, Iterable) and beam_type == BeamType.STATIC:
-            raise ValueError("Cannot specify multiple gantry angles as a static beam")
         self.plan_ds = plan_dataset
+
+        gantry_is_static = len(np.unique(gantry_angles)) == 1
+        mlc_is_static = np.unique(np.array(mlc_positions), axis=0).shape[0] == 1
+        beam_type = (
+            BeamType.STATIC
+            if (gantry_is_static and mlc_is_static)
+            else BeamType.DYNAMIC
+        )
         self.ds = self._create_basic_beam_info(
             beam_name,
             beam_type,
@@ -1135,7 +1133,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
         beam = Beam(
             plan_dataset=self.ds,
             beam_name=beam_name,
-            beam_type=BeamType.DYNAMIC,
             energy=energy,
             dose_rate=dose_rate,
             x1=x1,
@@ -1237,7 +1234,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
         beam = Beam(
             plan_dataset=self.ds,
             beam_name=f"{beam_name} {bank}",
-            beam_type=BeamType.DYNAMIC,
             energy=energy,
             dose_rate=dose_rate,
             x1=x1,
@@ -1391,7 +1387,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
         ref_beam = Beam(
             plan_dataset=self.ds,
             beam_name="DR Ref",
-            beam_type=BeamType.DYNAMIC,
             energy=energy,
             dose_rate=default_dose_rate,
             x1=roi_centers[0] - roi_size_mm / 2 - jaw_padding_mm,
@@ -1415,7 +1410,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
         beam = Beam(
             plan_dataset=self.ds,
             beam_name=f"DR{min(dose_rates)}-{max(dose_rates)}",
-            beam_type=BeamType.DYNAMIC,
             energy=energy,
             dose_rate=default_dose_rate,
             x1=roi_centers[0] - roi_size_mm / 2 - jaw_padding_mm,
@@ -1584,7 +1578,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
         ref_beam = Beam(
             plan_dataset=self.ds,
             beam_name=f"{beam_name} Ref",
-            beam_type=BeamType.DYNAMIC,
             energy=energy,
             dose_rate=default_dose_rate,
             x1=roi_centers[0] - roi_size_mm / 2 - jaw_padding_mm,
@@ -1608,7 +1601,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
         beam = Beam(
             plan_dataset=self.ds,
             beam_name=beam_name,
-            beam_type=BeamType.DYNAMIC,
             energy=energy,
             dose_rate=default_dose_rate,
             x1=roi_centers[0] - roi_size_mm / 2 - jaw_padding_mm,
@@ -1706,7 +1698,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
             beam = Beam(
                 plan_dataset=self.ds,
                 beam_name=beam_name,
-                beam_type=BeamType.DYNAMIC,
                 energy=energy,
                 dose_rate=dose_rate,
                 x1=x1 - jaw_padding,
@@ -1860,7 +1851,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
         beam = Beam(
             plan_dataset=self.ds,
             beam_name=beam_name,
-            beam_type=BeamType.DYNAMIC,
             energy=energy,
             dose_rate=max_dose_rate,
             x1=min(roi_centers) - roi_size_mm - jaw_padding_mm,
@@ -1884,7 +1874,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
         ref_beam = Beam(
             plan_dataset=self.ds,
             beam_name=f"{beam_name} Ref",
-            beam_type=BeamType.DYNAMIC,
             energy=energy,
             dose_rate=max_dose_rate,
             x1=min(roi_centers) - roi_size_mm - jaw_padding_mm,
@@ -1988,7 +1977,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
         beam = Beam(
             plan_dataset=self.ds,
             beam_name=beam_name,
-            beam_type=BeamType.DYNAMIC,
             energy=energy,
             dose_rate=dose_rate,
             x1=x1 - jaw_padding,

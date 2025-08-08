@@ -9,7 +9,6 @@ from parameterized import parameterized
 from pylinac.core.image_generator import AS1200Image
 from pylinac.plan_generator.dicom import (
     Beam,
-    BeamType,
     FluenceMode,
     GantryDirection,
     HalcyonPlanGenerator,
@@ -159,7 +158,6 @@ def create_beam(**kwargs) -> Beam:
     return Beam(
         plan_dataset=kwargs.get("plan_dataset", RT_PLAN_DS),
         beam_name=kwargs.get("beam_name", "name"),
-        beam_type=kwargs.get("beam_type", BeamType.DYNAMIC),
         energy=kwargs.get("energy", 6),
         dose_rate=kwargs.get("dose_rate", 600),
         x1=kwargs.get("x1", -5),
@@ -197,17 +195,7 @@ class TestBeam(TestCase):
             create_beam(beam_name="superlongbeamname")
 
     def test_1_mlc_position_for_static(self):
-        with self.assertRaises(ValueError):
-            create_beam(
-                mlc_positions=[[0], [0], [0], [0], [0]],
-                beam_type=BeamType.STATIC,
-                metersets=[0, 0, 0, 0, 0],
-            )
-
-        # valid
-        beam = create_beam(
-            mlc_positions=[[0]], metersets=[0], beam_type=BeamType.STATIC
-        )
+        beam = create_beam(mlc_positions=[[0]], metersets=[0])
         self.assertEqual(beam.as_dicom().BeamType, "STATIC")
 
     def test_mlc_positions_match_metersets(self):
@@ -216,20 +204,12 @@ class TestBeam(TestCase):
 
     def test_gantry_must_be_dynamic_for_multiple_angles(self):
         with self.assertRaises(ValueError) as context:
-            create_beam(
-                gantry_angles=[0, 90],
-                mlc_positions=[
-                    [0],
-                ],
-                metersets=[0],
-                beam_type=BeamType.STATIC,
-            )
+            create_beam(gantry_angles=[0, 90], mlc_positions=[[0]], metersets=[0])
         self.assertIn("Cannot specify multiple gantry angles", str(context.exception))
 
         # valid
         beam = create_beam(
             gantry_angles=[0, 90],
-            beam_type=BeamType.DYNAMIC,
             gantry_direction=GantryDirection.CLOCKWISE,
         )
         beam_dcm = beam.as_dicom()
@@ -242,14 +222,12 @@ class TestBeam(TestCase):
         with self.assertRaises(ValueError):
             create_beam(
                 gantry_angles=[0, 90],
-                beam_type=BeamType.DYNAMIC,
                 gantry_direction=GantryDirection.NONE,
             )
 
         # valid
         create_beam(
             gantry_angles=[0, 90],
-            beam_type=BeamType.DYNAMIC,
             gantry_direction=GantryDirection.CLOCKWISE,
         )
 
@@ -274,7 +252,7 @@ class TestBeam(TestCase):
 
     def test_multiple_gantry_angles_static_not_allowed(self):
         with self.assertRaises(ValueError):
-            create_beam(gantry_angles=[0, 90], beam_type=BeamType.STATIC)
+            create_beam(gantry_angles=[0, 90])
 
 
 class TestPlanGeneratorBeams(TestCase):
@@ -368,6 +346,7 @@ class TestPlanPrefabs(TestCase):
             .LeafJawPositions,
             [-110, 110],
         )
+        self.assertEqual(dcm.BeamSequence[0].BeamType, "STATIC")
 
     def test_open_field_jaws(self):
         self.pg.add_open_field_beam(
@@ -396,6 +375,7 @@ class TestPlanPrefabs(TestCase):
             .LeafJawPositions,
             [-110, 110],
         )
+        self.assertEqual(dcm.BeamSequence[0].BeamType, "STATIC")
 
     @parameterized.expand(
         [
@@ -460,6 +440,7 @@ class TestPlanPrefabs(TestCase):
                 .LeafJawPositions[0],
                 leaf_pos,
             )
+            self.assertEqual(dcm.BeamSequence[0].BeamType, "STATIC")
 
     def test_create_picket_fence(self):
         self.pg.add_picketfence_beam(
@@ -614,6 +595,8 @@ class TestPlanPrefabs(TestCase):
         self.assertEqual(
             dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].BeamMeterset, 123
         )
+        self.assertEqual(dcm.BeamSequence[0].BeamType, "DYNAMIC")
+        self.assertEqual(dcm.BeamSequence[1].BeamType, "DYNAMIC")
 
     def test_mlc_speed_too_fast(self):
         with self.assertRaises(ValueError):
