@@ -23,8 +23,8 @@ from .mlc import MLCShaper
 
 
 class GantryDirection(Enum):
-    CLOCKWISE = "CC"
-    COUNTER_CLOCKWISE = "CCW"
+    CLOCKWISE = "CW"
+    COUNTER_CLOCKWISE = "CC"
     NONE = "NONE"
 
 
@@ -71,7 +71,6 @@ class Beam:
         y2: float,
         machine_name: str,
         gantry_angles: float | list[float],
-        gantry_direction: GantryDirection,
         coll_angle: float,
         couch_vrt: float,
         couch_lat: float,
@@ -105,8 +104,6 @@ class Beam:
             The name of the machine.
         gantry_angles : Union[float, list[float]]
             The gantry angle(s) of the beam. If a single number, it's assumed to be a static beam. If multiple numbers, it's assumed to be a dynamic beam.
-        gantry_direction : GantryDirection
-            The direction of the gantry rotation. Only relevant if multiple gantry angles are specified.
         coll_angle : float
             The collimator angle.
         couch_vrt : float
@@ -135,15 +132,21 @@ class Beam:
                 f"must match the number of MLC position changes ({len(mlc_positions)})"
             )
 
-        if (
-            isinstance(gantry_angles, Iterable)
-            and gantry_direction == GantryDirection.NONE
-        ):
-            raise ValueError(
-                "Cannot specify multiple gantry angles without a gantry direction"
-            )
+        if not isinstance(gantry_angles, Iterable):
+            # if it's just a single number (like for a static beam) set it to an array of that value
+            gantry_angles = [gantry_angles] * len(metersets)
 
-        gantry_is_static = len(np.unique(gantry_angles)) == 1
+        continuous_angles = np.unwrap(gantry_angles, period=360)
+        delta = continuous_angles[-1] - continuous_angles[0]
+        gantry_direction = (
+            GantryDirection.NONE
+            if delta == 0
+            else GantryDirection.CLOCKWISE
+            if delta > 0
+            else GantryDirection.COUNTER_CLOCKWISE
+        )
+        gantry_is_static = delta == 0
+
         mlc_is_static = np.unique(np.array(mlc_positions), axis=0).shape[0] == 1
         beam_is_static = gantry_is_static and mlc_is_static
         beam_type = BeamType.STATIC if beam_is_static else BeamType.DYNAMIC
@@ -156,10 +159,6 @@ class Beam:
             num_leaves=len(mlc_positions[0]),
             mlc_boundaries=mlc_boundaries,
         )
-        if not isinstance(
-            gantry_angles, Iterable
-        ):  # if it's just a single number (like for a static beam) set it to an array of that value
-            gantry_angles = [gantry_angles] * len(metersets)
         self._append_initial_control_point(
             energy,
             dose_rate,
@@ -188,6 +187,10 @@ class Beam:
                 )
             else:
                 self._append_secondary_static_control_point(meterset=meterset)
+
+        # The last GantryRotationDirection should always be 'NONE'
+        last_control_point = self.ds.ControlPointSequence[-1]
+        last_control_point.GantryRotationDirection = GantryDirection.NONE.value
 
     def _create_basic_beam_info(
         self,
@@ -415,7 +418,6 @@ class HalcyonBeam(Beam):
         dose_rate: int,
         machine_name: str,
         gantry_angles: float | list[float],
-        gantry_direction: GantryDirection,
         coll_angle: float,
         couch_vrt: float,
         couch_lat: float,
@@ -439,8 +441,6 @@ class HalcyonBeam(Beam):
             The name of the machine.
         gantry_angles : Union[float, list[float]]
             The gantry angle(s) of the beam. If a single number, it's assumed to be a static beam. If multiple numbers, it's assumed to be a dynamic beam.
-        gantry_direction : GantryDirection
-            The direction of the gantry rotation. Only relevant if multiple gantry angles are specified.
         couch_vrt : float
             The couch vertical position.
         couch_lat : float
@@ -463,15 +463,21 @@ class HalcyonBeam(Beam):
                 f"must match the number of MLC position changes. Proximal: {len(proximal_mlc_positions)}; Distal: {len(distal_mlc_positions)}"
             )
 
-        if (
-            isinstance(gantry_angles, Iterable)
-            and gantry_direction == GantryDirection.NONE
-        ):
-            raise ValueError(
-                "Cannot specify multiple gantry angles without a gantry direction"
-            )
+        if not isinstance(gantry_angles, Iterable):
+            # if it's just a single number (like for a static beam) set it to an array of that value
+            gantry_angles = [gantry_angles] * len(metersets)
 
-        gantry_is_static = len(np.unique(gantry_angles)) == 1
+        continuous_angles = np.unwrap(gantry_angles, period=360)
+        delta = continuous_angles[-1] - continuous_angles[0]
+        gantry_direction = (
+            GantryDirection.NONE
+            if delta == 0
+            else GantryDirection.CLOCKWISE
+            if delta > 0
+            else GantryDirection.COUNTER_CLOCKWISE
+        )
+        gantry_is_static = delta == 0
+
         distal_mlc_is_static = (
             np.unique(np.array(distal_mlc_positions), axis=0).shape[0] == 1
         )
@@ -1137,7 +1143,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
             y1=y1,
             y2=y2,
             gantry_angles=gantry_angle,
-            gantry_direction=GantryDirection.NONE,
             coll_angle=coll_angle,
             couch_vrt=couch_vrt,
             couch_lat=couch_lat,
@@ -1238,7 +1243,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
             y1=y1,
             y2=y2,
             gantry_angles=gantry_angle,
-            gantry_direction=GantryDirection.NONE,
             coll_angle=coll_angle,
             couch_vrt=couch_vrt,
             couch_lat=couch_lat,
@@ -1391,7 +1395,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
             y1=y1,
             y2=y2,
             gantry_angles=gantry_angle,
-            gantry_direction=GantryDirection.NONE,
             coll_angle=coll_angle,
             couch_vrt=couch_vrt,
             couch_lat=couch_lat,
@@ -1414,7 +1417,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
             y1=y1,
             y2=y2,
             gantry_angles=gantry_angle,
-            gantry_direction=GantryDirection.NONE,
             coll_angle=coll_angle,
             couch_vrt=couch_vrt,
             couch_lat=couch_lat,
@@ -1582,7 +1584,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
             y1=y1,
             y2=y2,
             gantry_angles=gantry_angle,
-            gantry_direction=GantryDirection.NONE,
             coll_angle=coll_angle,
             couch_vrt=couch_vrt,
             couch_lat=couch_lat,
@@ -1605,7 +1606,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
             y1=y1,
             y2=y2,
             gantry_angles=gantry_angle,
-            gantry_direction=GantryDirection.NONE,
             coll_angle=coll_angle,
             couch_vrt=couch_vrt,
             couch_lat=couch_lat,
@@ -1702,7 +1702,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
                 y1=y1 - jaw_padding,
                 y2=y2 + jaw_padding,
                 gantry_angles=axes["gantry"],
-                gantry_direction=GantryDirection.NONE,
                 coll_angle=axes["collimator"],
                 couch_vrt=couch_vrt,
                 couch_lat=couch_lat,
@@ -1855,7 +1854,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
             y1=y1,
             y2=y2,
             gantry_angles=gantry_angles,
-            gantry_direction=gantry_rot_dir,
             coll_angle=coll_angle,
             couch_vrt=couch_vrt,
             couch_lat=couch_lat,
@@ -1878,7 +1876,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
             y1=y1,
             y2=y2,
             gantry_angles=gantry_angles[-1],
-            gantry_direction=GantryDirection.NONE,
             coll_angle=coll_angle,
             couch_vrt=couch_vrt,
             couch_lat=couch_lat,
@@ -1981,7 +1978,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
             y1=y1 - jaw_padding,
             y2=y2 + jaw_padding,
             gantry_angles=gantry_angle,
-            gantry_direction=GantryDirection.NONE,
             coll_angle=coll_angle,
             couch_vrt=couch_vrt,
             couch_lat=couch_lat,
@@ -2161,7 +2157,6 @@ class HalcyonPlanGenerator(PlanGenerator):
             energy=energy,
             dose_rate=dose_rate,
             gantry_angles=gantry_angle,
-            gantry_direction=GantryDirection.NONE,
             coll_angle=coll_angle,
             couch_vrt=couch_vrt,
             couch_lat=couch_lat,
