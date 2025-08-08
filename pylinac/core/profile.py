@@ -818,7 +818,7 @@ class PhysicalProfileMixin:
 
     def gamma(
         self,
-        reference_profile: ProfileBase | PhysicalProfileMixin,
+        evaluation_profile: ProfileBase | PhysicalProfileMixin,
         dose_to_agreement: float = 3,
         distance_to_agreement: float = 3,
         gamma_cap_value: float = 2,
@@ -826,16 +826,16 @@ class PhysicalProfileMixin:
         fill_value: float = np.nan,
         return_profiles: bool = False,
     ) -> np.ndarray | (np.ndarray, PhysicalProfileMixin, PhysicalProfileMixin):
-        """Compute the gamma index between the profile and a reference profile.
+        """Compute the gamma index between the profile and a evaluation profile.
 
         Parameters
         ----------
-        reference_profile : ProfileBase
-            The reference profile to compare against.
+        evaluation_profile : ProfileBase
+            The evaluation profile to compare against.
         return_profiles : bool
             Whether to return the gamma index values or the gamma index values and the two profiles.
             The profiles are adjusted to be geometrically centered and thus are not the original profiles.
-            This can be useful for plotting. Will return (gamma, evaluation, reference).
+            This can be useful for plotting. Will return (gamma, reference, evaluation).
 
         For the rest of the parameters, see :func:`~pylinac.core.gamma.gamma_geometric`.
 
@@ -844,10 +844,10 @@ class PhysicalProfileMixin:
         numpy.ndarray
             The gamma index values.
         """
-        if not isinstance(reference_profile, PhysicalProfileMixin):
-            raise ValueError("The reference profile must also be a physical profile.")
-        evaluation = copy.deepcopy(self)
-        reference = copy.deepcopy(reference_profile)
+        if not isinstance(evaluation_profile, PhysicalProfileMixin):
+            raise ValueError("The evaluation profile must also be a physical profile.")
+        reference = copy.deepcopy(self)
+        evaluation = copy.deepcopy(evaluation_profile)
         # center the profiles geometrically by shifting x-values to the mean
         ref_x = reference.x_values - reference.geometric_center_idx
         eval_x = evaluation.x_values - evaluation.geometric_center_idx
@@ -866,13 +866,13 @@ class PhysicalProfileMixin:
             fill_value=fill_value,
         )
         if return_profiles:
-            return gamma, evaluation, reference
+            return gamma, reference, evaluation
         else:
             return gamma
 
     def plot_gamma(
         self,
-        reference_profile: ProfileBase | PhysicalProfileMixin,
+        evaluation_profile: ProfileBase | PhysicalProfileMixin,
         dose_to_agreement: float = 3,
         distance_to_agreement: float = 3,
         gamma_cap_value: float = 2,
@@ -881,7 +881,7 @@ class PhysicalProfileMixin:
         axis: plt.Axes | None = None,
         show: bool = True,
     ) -> plt.Axes:
-        """Compute the gamma index between the profile and a reference profile.
+        """Compute the gamma index between the profile and a evaluation profile.
 
         See .gamma() and .plot() for parameter info.
 
@@ -890,8 +890,8 @@ class PhysicalProfileMixin:
         plt.Axes
             The axis on which the plot was drawn.
         """
-        gamma, evaluation, reference = self.gamma(
-            reference_profile=reference_profile,
+        gamma, reference, evaluation = self.gamma(
+            evaluation_profile=evaluation_profile,
             dose_to_agreement=dose_to_agreement,
             distance_to_agreement=distance_to_agreement,
             gamma_cap_value=gamma_cap_value,
@@ -901,14 +901,6 @@ class PhysicalProfileMixin:
         )
         if axis is None:
             _, axis = plt.subplots()
-        evaluation.plot(
-            data_label="Evaluation",
-            show=False,
-            axis=axis,
-            show_center=False,
-            show_field_edges=False,
-            show_grid=False,
-        )
         reference.plot(
             data_label="Reference",
             show=False,
@@ -917,8 +909,16 @@ class PhysicalProfileMixin:
             show_field_edges=False,
             show_grid=False,
         )
+        evaluation.plot(
+            data_label="Evaluation",
+            show=False,
+            axis=axis,
+            show_center=False,
+            show_field_edges=False,
+            show_grid=False,
+        )
         gamma_ax = axis.twinx()
-        gamma_ax.plot(evaluation.physical_x_values, gamma, color="green", label="Gamma")
+        gamma_ax.plot(reference.physical_x_values, gamma, color="green", label="Gamma")
         gamma_ax.legend(loc="upper left")
         gamma_ax.set_ylabel("Gamma Index")
         axis.set_xlabel("Physical (mm)")

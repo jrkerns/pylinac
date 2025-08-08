@@ -26,31 +26,36 @@ As it relates to pylinac, the gamma is focused on comparing QA data measurements
 Other libraries out there also calculate gamma; e.g.
 ``pymedphys.gamma`` `here <https://docs.pymedphys.com/en/latest/users/howto/gamma/index.html>`__.
 
+Notation
+--------
+Pylinac follows the notation in Low's paper:
+
+* The reference distribution is also called the measurement distribution or the fixed distribution.
+* The evaluation distribution is also called the calculated distribution or the search distribution.
+* We want to compute the gamma for each reference point, i.e. ``gamma.shape = reference.shape``
+
+.. warning::
+
+    The notations were the opposite in previous versions,
+    however the logic is still the same, i.e. loop over the less dense distribution and search in the more dense distribution
+
+    .. versionchanged:: 3.36
+
 Assumptions
 -----------
 
-There is discussion in the literature about the assumptions of gamma and also assumptions
-about the types of data to be evaluated. The following are a list of assumptions in pylinac:
+The following are a list of assumptions in pylinac:
 
-#. The reference distribution is the ground truth distribution.
-#. The reference distribution has more or equal resolution to the evaluated distribution.
-#. We want to compute the gamma over each evaluation point within the context of a more
-   dense reference distribution.
+#. The evaluation distribution has more or equal resolution to the reference distribution.
    E.g. comparing an IC Profiler to a finely-sampled water tank scan where the tank data is the commissioning data.
-#. The evaluation distribution is within the physical bounds of the reference distribution.
-   E.g. comparing a 10x10 field to a 20x20 reference field.
-
-.. note::
-
-    At least according to earlier references and the original Low paper, this is opposite to the
-    explanation where the evaluation is the ground truth and the reference is the evaluated data.
-    We make a distinction here primarily because of point 2 above.
+#. The reference distribution is within the physical bounds of the evaluation distribution.
+   E.g. comparing a 10x10 field to a 20x20 evaluation field.
 
 Explanation
 ------------
 
-Original Implementation
-^^^^^^^^^^^^^^^^^^^^^^^
+Nearest-Neighbor Gamma
+^^^^^^^^^^^^^^^^^^^^^^
 
 Below is the original implementation of gamma, which is considerably slower than follow-up implementations in the
 literature. However, it's a good reference for understanding the gamma calculation.
@@ -71,17 +76,12 @@ for all reference points within the search radius:
 
 .. math::
 
-    \gamma(\vec{r}_{e}) = \min \{ \Gamma(\vec{r}_{e},\vec{r}_{r}) \} \forall \{ \vec{r}_{r} \}
-
-.. important::
-
-    Per assumption #3, we will perform the gamma on each **evaluation** point, not the reference point
-    based on the other assumptions which is the inverse of Low.
+    \gamma(\vec{r}_{r}) = \min \{ \Gamma(\vec{r}_{e},\vec{r}_{r}) \} \forall \{ \vec{r}_{e} \}
 
 For any residual definitions, see Table I of Low et al [2]_.
 
 Logic
-^^^^^
+~~~~~
 
 .. note::
 
@@ -93,16 +93,16 @@ Logic
 #. If using global dose: The dose-to-agreement :math:`\Delta D` is computed as: :math:`\max \{ \text{reference} \} \cdot \text{DTA parameter} \cdot 100`. E.g. 3% is a common value.
 #. If using local dose: The dose-to-agreement :math:`\Delta D` is computed as: :math:`\vec{r}_{r} \cdot \text{DTA parameter} \cdot 100`.
 #. The reference distribution is mapped to an linear interpolator. This is so that the reference data can be evaluated at any desired point, not just the discrete points passed.
-#. For each evaluation point :math:`D_{e}(\vec{r}_{e})`:
+#. For each evaluation point :math:`D_{r}(\vec{r}_{r})`:
 
-   #. The reference points to evaluate over are extracted. This will be from :math:`-\Delta d` to :math:`+\Delta d` from the evaluation point.
-      The number of reference points depend on the ``resolution_factor`` parameter.
-      E.g. a factor of 3 will result in 7 reference points sitting about the evaluation point. E.g. (-3, -2, -1, 0, 1, 2, 3).
-   #. For each reference point in the array above above :math:`D_{r}(\vec{r}_{r})`, the gamma function is computed :math:`\Gamma(\vec{r}_{e},\vec{r}_{r})`.
-   #. The minimum gamma is taken as the gamma value :math:`\gamma(\vec{r}_{e})` for that evaluation point. If the minimum gamma
+   #. The evaluation (search) points to evaluate over are extracted. This will be from :math:`-\Delta d` to :math:`+\Delta d` from the reference point.
+      The number of evaluated points depend on the ``resolution_factor`` parameter.
+      E.g. a factor of 3 will result in 7 evaluation points sitting about the reference point. E.g. (-3, -2, -1, 0, 1, 2, 3).
+   #. For each evaluation point in the array above above :math:`D_{e}(\vec{r}_{e})`, the gamma function is computed :math:`\Gamma(\vec{r}_{e},\vec{r}_{r})`.
+   #. The minimum gamma is taken as the gamma value :math:`\gamma(\vec{r}_{r})` for that reference point. If the minimum gamma
       is larger than ``gamma_cap_value``, the ``gamma_cap_value`` is used instead.
 
-The resulting gamma array will be the same size as the evaluation distribution. I.e. gamma is calculated at each evaluation point.
+The resulting gamma array will be the same size as the reference distribution. I.e. gamma is calculated at each reference point.
 
 
 Geometric Gamma
@@ -128,7 +128,7 @@ The gamma function is defined as Equation 4 of the paper:
 
 .. math::
 
-    \gamma(r_{e}) = \min_{S \in G_{r}} D(\widetilde{r}_{e}, S)
+    \gamma(r_{r}) = \min_{S \in G_{e}} D(\widetilde{r}_{r}, S)
 
 along with equation 6:
 
@@ -161,15 +161,15 @@ of the simplex support. In the 1D case, we can simply take the minimum distance 
 Logic
 ~~~~~
 
-#. The reference and evaluation distributions are both normalized in the y-axis by the maximum reference value * the dose to agreement parameter.
+#. The reference and evaluation distributions are both normalized in the y-axis by the maximum reference value - the dose to agreement parameter.
    Note the axes in Fig 1 of the paper above.
 #. The reference and evaluation distributions are both normalized in the x-axis by the distance to agreement parameter.
-#. For each evaluation point :math:`p`:
+#. For each reference point :math:`p`:
 
    #. The vertices of each simplex are found. In the 1D scenario these will always be line segments defined by 2 points. All the points that are within and just beyond
-      the geometric range of the DTA parameter. E.g. if the DTA is 3mm and the evaluation point is at 10mm,
-      the vertices of the reference distribution are found that are within and just beyond 7-13mm. The next-furthest-away
-      reference point away on either side is the first vertex. If the reference distribution was every 0.3mm
+      the geometric range of the DTA parameter. E.g. if the DTA is 3mm and the reference point is at 10mm,
+      the vertices of the evaluation distribution are found that are within and just beyond 7-13mm. The next-furthest-away
+      evaluation point away on either side is the first vertex. If the evaluation distribution was every 0.3mm
       then the first and last vertices sets would be 6.9-7.2mm, ..., 129.9-130.2mm.
    #. The distance from :math:`p` to each contained simplex is calculated.
    #. The minimum distance across simplex evaluations is the gamma value for that point.
@@ -181,12 +181,16 @@ Usage
 Arrays
 ^^^^^^
 
-Original Gamma
-~~~~~~~~~~~~~~
+Nearest-neighbor Gamma
+~~~~~~~~~~~~~~~~~~~~~~
 
 We will use the H&N 1mm, DD example from `Agnew & McGarry <https://www.sciencedirect.com/science/article/abs/pii/S0167814015006660>`__.
 Although their data is 2D, we can extract a 1D profile from their data.
-Below we use the original Low gamma function to calculate gamma for a 1D profile.
+Below we use the nearest-neighbor Low gamma function to calculate gamma for a 1D profile.
+
+.. warning::
+    If using these plans for testing, note that Agnew/McGarry used the opposite notation as Low's  (ref -> eval, eval -> ref).
+
 
 .. plot::
 
@@ -210,13 +214,12 @@ Below we use the original Low gamma function to calculate gamma for a 1D profile
   eval_prof = eval_img[:, 90]
 
   # compute the gamma
-  gamma_map, ref_vals, ref_x_vals = gamma_1d(ref_prof, eval_prof, resolution_factor=7, dose_threshold=0)
+  gamma_map, _, _ = gamma_1d(ref_prof, eval_prof, resolution_factor=7, dose_threshold=0)
 
   # plot the results
   fig, ax = plt.subplots(figsize=(10, 7))
-  ax.plot(ref_prof, 'k+', label='Original Reference', )
-  ax.plot(ref_x_vals, ref_vals, 'cx', label='Reference Interpolated',)
-  ax.plot(eval_prof, 'bo', label='Evaluation')
+  ax.plot(eval_prof, 'c-', label='Evaluation')
+  ax.plot(ref_prof, 'b--', label='Reference')
   ax.set_ylabel('Pixel Value')
   ax.set_xlabel('Pixel Position')
   ax.legend(loc='upper left')
@@ -258,8 +261,8 @@ Next, let's also calculate the geometric gamma for the same data:
 
   # plot the results
   fig, ax = plt.subplots(figsize=(10, 7))
-  ax.plot(ref_prof, 'k+', label='Original Reference')
-  ax.plot(eval_prof, 'bo', label='Evaluation')
+  ax.plot(eval_prof, 'c-', label='Evaluation')
+  ax.plot(ref_prof, 'b--', label='Reference')
   ax.set_ylabel('Pixel Value')
   ax.set_xlabel('Pixel Position')
   ax.legend(loc='upper left')
@@ -269,6 +272,9 @@ Next, let's also calculate the geometric gamma for the same data:
   g_ax.set_ylabel('Gamma')
   fig.suptitle(f'1D Gamma Analysis; max \N{Greek Small Letter Gamma}:{gamma_map.max():.2f}; avg \N{Greek Small Letter Gamma}: {gamma_map.mean():.2f}; pass rate: {100*gamma_map[gamma_map <= 1].size/gamma_map.size:.2f}%')
   plt.show()
+
+Comparison
+~~~~~~~~~~
 
 Finally, let's plot both against each other:
 
@@ -299,20 +305,20 @@ Finally, let's plot both against each other:
 
   # plot the results
   fig, ax = plt.subplots(figsize=(10, 7))
-  ax.plot(ref_prof, 'k+', label='Original Reference')
-  ax.plot(eval_prof, 'bo', label='Evaluation')
+  ax.plot(eval_prof, 'c-', label='Evaluation')
+  ax.plot(ref_prof, 'b--', label='Reference')
   ax.set_ylabel('Pixel Value')
   ax.set_xlabel('Pixel Position')
   ax.legend(loc='upper left')
   g_ax = ax.twinx()
   g_ax.plot(geometric_gamma_map, 'r+', label='Geometric Gamma')
-  g_ax.plot(gamma_map, 'cx', label='Original Gamma')
+  g_ax.plot(gamma_map, 'cx', label='Nearest-neighbor Gamma')
   g_ax.legend(loc='upper right')
   g_ax.set_ylabel('Gamma')
   fig.suptitle('1D Gamma algorithm comparison')
   plt.show()
 
-Note that the original gamma is slightly higher than the geometric gamma. This is due to the interpolation.
+Note that the nearest-neighbor gamma is slightly higher than the geometric gamma. This is due to the interpolation.
 Higher interpolation factors will get closer to the geometric gamma value, but at the cost of calculation time.
 
 Profiles
@@ -360,12 +366,12 @@ physical locations) and calculate the gamma between them:
   p1200_prof = FWXMProfilePhysical(values=p1200, dpmm=1/as1200.pixel_size)
   p1000_prof = FWXMProfilePhysical(values=p1000, dpmm=1/as1000.pixel_size)
 
-  # compute gamma as a numpy array the same size as the evaluation profile
-  gamma = p1000_prof.gamma(reference_profile=p1200_prof, dose_to_agreement=1, gamma_cap_value=2)
+  # compute gamma as a numpy array the same size as the reference profile
+  gamma = p1000_prof.gamma(evaluation_profile=p1200_prof, dose_to_agreement=1, gamma_cap_value=2)
 
   # we could calculate pass rate, etc from this.
   # However, we want to plot it. The helper method does this for us, plotting the profiles and gamma.
-  p1000_prof.plot_gamma(reference_profile=p1200_prof, dose_to_agreement=1, dose_threshold=0)
+  p1000_prof.plot_gamma(evaluation_profile=p1200_prof, dose_to_agreement=1, dose_threshold=0)
 
 
 
