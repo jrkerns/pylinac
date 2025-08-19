@@ -17,7 +17,7 @@ Plan Generator
 ^^^^^^^^^^^^^^
 
 * :bdg-primary:`Refactor` The :class:`~pylinac.plan_generator.dicom.Beam` class no longer accepts
-  the ``beam_type`` and ``gantry_direction`` parameter. These are now infered from the control points.
+  the ``beam_type`` and ``gantry_direction`` parameter. These are now inferred from the control points.
 
 
 v 3.36.0
