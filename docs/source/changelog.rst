@@ -16,8 +16,8 @@ v 3.37.0
 Plan Generator
 ^^^^^^^^^^^^^^
 
-* :bdg-primary:`Refactor` The :class:`~pylinac.plan_generator.dicom.Beam` class no longer accepts the ``beam_type`` parameter.
-  A beam is considered dynamic if the gantry or mlc positions differ from the first control point for all control points .
+* :bdg-primary:`Refactor` The :class:`~pylinac.plan_generator.dicom.Beam` class no longer accepts
+  the ``beam_type`` and ``gantry_direction`` parameter. These are now infered from the control points.
 
 
 v 3.36.0
