@@ -5,9 +5,7 @@ description = "A toolkit for performing TG-142 QA-related tasks on a linear acce
 authors = [
     {name = "James Kerns", email = "jkerns100@gmail.com"}
 ]
-dynamic = [
-   "version"  # this will be set by hatch
-]
+version = "3.36.0"
 license = "MIT"
 readme = "README.rst"
 documentation = "https://pylinac.readthedocs.io/en/latest/"
