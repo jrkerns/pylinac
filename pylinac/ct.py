@@ -601,7 +601,7 @@ class CatPhanModule(Slice):
         self.image.plot(ax=axis, show=False, vmin=self.window_min, vmax=self.window_max)
         self.plot_rois(axis)
         axis.autoscale(tight=True)
-        axis.set_title(f"{self.common_name}\n (slice #{self.slice_num})")
+        axis.set_title(f"{self.common_name} ({self.slice_num})")
         axis.axis("off")
 
     def plotly(self, **kwargs) -> go.Figure:
@@ -611,7 +611,7 @@ class CatPhanModule(Slice):
             fig, show=False, zmin=self.window_min, zmax=self.window_max, **kwargs
         )
         self.plotly_rois(fig)
-        add_title(fig, f"{self.common_name}\n (slice #{self.slice_num})")
+        add_title(fig, f"{self.common_name} ({self.slice_num})")
         return fig
 
     @property
