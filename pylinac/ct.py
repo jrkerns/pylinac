@@ -192,7 +192,7 @@ class CTP528Result(BaseModel):
 
     Use the following attributes as normal class attributes."""
 
-    start_angle_radians: float = Field(
+    start_angle_radians: float | None = Field(
         description="The angle where the circular profile started."
     )
     mtf_lp_mm: dict = Field(
@@ -1683,6 +1683,8 @@ class CTP528CP700(CTP528):
     common_name: str = "Spatial Resolution"
     combine_method: str = "max"
     num_slices: int = 3
+    start_angle = None  # this is for compatibility with other CTP528 classes where we use a circle profile.
+    # We don't use a circle profile here but when serializing results, it's expected. We use None since it doesn't apply here.
     roi_settings = {
         # regions are from the top-left going clockwise on CT
         "region 1": {
