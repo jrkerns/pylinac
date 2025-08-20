@@ -18,6 +18,12 @@ CatPhan
 
 * :bdg-success:`Feature` The CatPhan plots now include the slice number in the title (e.g. Low Contrast (20))
 
+Plan Generator
+^^^^^^^^^^^^^^
+
+* :bdg-primary:`Refactor` The :class:`~pylinac.plan_generator.dicom.Beam` class no longer accepts the ``beam_type`` parameter.
+  A beam is considered dynamic if the gantry or mlc positions differ from the first control point for all control points.
+
 
 v 3.36.0
 --------
