@@ -2087,7 +2087,8 @@ class CatPhan700Series1(CatPhan700Mixin, TestCase):
         "Bottom": -19,
     }  # measured using imageJ
     lowcon_visible = 3
-    mtf_values = {50: 1.6, 30: 2.1, 80: 1.2}
+    # imageJ using plugin SE_MTF_2xNyquist: {50: 0.33, 30: 0.44, 80: 0.16}
+    mtf_values = {50: 0.41, 30: 0.54, 80: 0.3}
 
     def test_water_vial_not_present(self):
         self.assertNotIn("Vial", self.cbct.ctp404.rois)
@@ -2121,11 +2122,12 @@ class CatPhan700Series2(CatPhan700Mixin, TestCase):
         "Bottom": 2.2,
     }  # measured using imageJ
     lowcon_visible = 6
+    # imageJ using plugin SE_MTF_2xNyquist: {80: 0.16, 50: 0.33, 30: 0.44}
     mtf_values = {
-        80: 1.25,
-        50: 1.75,
-        30: 2.3,
-    }  # sanity checked with imageJ using ROIs and min/max ratios
+        80: 0.32,
+        50: 0.44,
+        30: 0.58,
+    }
 
     def test_water_vial_not_present(self):
         self.assertNotIn("Vial", self.cbct.ctp404.rois)
