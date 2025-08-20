@@ -10,6 +10,15 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.37.0
+--------
+
+CatPhan
+^^^^^^^
+
+* :bdg-success:`Feature` The CatPhan plots now include the slice number in the title (e.g. Low Contrast (20))
+
+
 v 3.36.0
 --------
 
