@@ -16,7 +16,7 @@ v 3.37.0
 CatPhan
 ^^^^^^^
 
-* :bdg-success:`Feature` The CatPhan plots now include the slice number in the title (e.g. Low Contrast (20))
+* :bdg-success:`Feature` The CatPhan plots now include the slice number in the title (e.g. ``Low Contrast (20)``)
 
 Plan Generator
 ^^^^^^^^^^^^^^
