@@ -1688,7 +1688,7 @@ class CTP528CP700(CTP528):
     roi_settings = {
         # regions are from the top-left going clockwise on CT
         "region 1": {
-            "gap size": 0.5,  # gap sizes come from the CatPhan 700 manual
+            "lp/mm": 0.1,  # from the CatPhan 700 manual
             "radial_distance": 50,
             "transversal_distance": -7,
             "rotation": -90,
@@ -1696,7 +1696,7 @@ class CTP528CP700(CTP528):
             "height": 11,
         },
         "region 2": {
-            "gap size": 0.25,
+            "lp/mm": 0.2,
             "radial_distance": 50,
             "transversal_distance": 11,
             "rotation": -90,
@@ -1704,7 +1704,7 @@ class CTP528CP700(CTP528):
             "height": 11,
         },
         "region 3": {
-            "gap size": 0.167,
+            "lp/mm": 0.3,
             "radial_distance": 50,
             "transversal_distance": -5.5,
             "rotation": -45,
@@ -1712,7 +1712,7 @@ class CTP528CP700(CTP528):
             "height": 10,
         },
         "region 4": {
-            "gap size": 0.125,
+            "lp/mm": 0.4,
             "radial_distance": 50,
             "transversal_distance": 9.5,
             "rotation": -45,
@@ -1720,7 +1720,7 @@ class CTP528CP700(CTP528):
             "height": 8.5,
         },
         "region 5": {
-            "gap size": 0.100,
+            "lp/mm": 0.5,
             "radial_distance": 50,
             "transversal_distance": -9,
             "rotation": 0,
@@ -1728,7 +1728,7 @@ class CTP528CP700(CTP528):
             "height": 8,
         },
         "region 6": {
-            "gap size": 0.083,
+            "lp/mm": 0.6,
             "radial_distance": 50,
             "transversal_distance": 2,
             "rotation": 0,
@@ -1736,7 +1736,7 @@ class CTP528CP700(CTP528):
             "height": 7,
         },
         "region 7": {
-            "gap size": 0.071,
+            "lp/mm": 0.7,
             "radial_distance": 50,
             "transversal_distance": 12,
             "rotation": 0,
@@ -1744,7 +1744,7 @@ class CTP528CP700(CTP528):
             "height": 6,
         },
         "region 8": {
-            "gap size": 0.063,
+            "lp/mm": 0.8,
             "radial_distance": 50,
             "transversal_distance": -10.5,
             "rotation": 45,
@@ -1782,10 +1782,7 @@ class CTP528CP700(CTP528):
     def mtf(self) -> MTF:
         """The Relative MTF of the line pairs, normalized to the first region."""
         return MTF.from_high_contrast_diskset(
-            # Spacing is line pairs/mm. The gap size of the manual is 1) in cm,
-            # and 2) gap size is only half the spacing since a line PAIR is gap + line.
-            # Thus 2/(gap size * 10).
-            spacings=[2 / (r["gap size"] * 10) for r in self.roi_settings.values()],
+            spacings=[(r["lp/mm"]) for r in self.roi_settings.values()],
             diskset=self.rois.values(),
         )
 
