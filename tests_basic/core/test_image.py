@@ -16,6 +16,7 @@ import PIL.Image
 import pydicom
 from numpy.testing import assert_array_almost_equal
 from parameterized import parameterized
+from pydicom import Dataset
 from pydicom.uid import UID
 
 from pylinac import settings
@@ -206,6 +207,28 @@ class TestDICOMScaling(TestCase):
         )
         assert np.array_equal(forced_inversion_array, auto_inversion_array)
         assert not np.array_equal(forced_non_inversion_array, auto_inversion_array)
+
+    @parameterized.expand(
+        [
+            # arrays where the min + max go over the dtype max
+            (np.array([200, 250], dtype=np.uint8),),
+            (np.array([60_000, 60_000], dtype=np.uint16),),
+            (np.array([2**31 - 100, 2**31 - 1], dtype=np.int32),),
+            (np.array([120, 127], dtype=np.int8),),
+        ]
+    )
+    def test_no_overflow_when_inverting(self, array: np.ndarray):
+        """Ensure that when scaling we do not cause an overflow error."""
+        ds = Dataset()  # dummy w/o tags so no rescaling done
+        old_settings = np.seterr(all="raise")
+        # shouldn't raise OverflowError
+        inverted_array = _rescale_dicom_values(
+            array, ds, invert_pixels=True, raw_pixels=False
+        )
+        # restore old behavior
+        np.seterr(**old_settings)
+        self.assertEqual(inverted_array[0], array[1])
+        self.assertEqual(inverted_array[1], array[0])
 
 
 class TestDICOMUnscaling(TestCase):

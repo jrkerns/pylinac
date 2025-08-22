@@ -13,6 +13,13 @@ Legend
 v 3.37.0
 --------
 
+Core
+^^^^
+
+* :bdg-warning:`Fixed` :class:`~pylinac.core.image.DicomImage` could raise an overflow warning when performing pixel inversion
+  (change introduced in v 3.35.0). This has been fixed.
+
+
 CatPhan
 ^^^^^^^
 
