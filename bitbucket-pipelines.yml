@@ -56,6 +56,11 @@ definitions:
     - step: &build-docs
         name: Build Docs
         <<: *bb-runner
+        condition:
+          changesets:
+            includePaths:
+              - "**.py"
+              - "docs/**"
         script:
           - uv run nox -s build_docs
         caches:
