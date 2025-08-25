@@ -14,7 +14,7 @@ from .array_utils import (
 
 
 def _construct_matrices(
-    p: np.ndarray, vertices: list[np.ndarray]
+    p: np.ndarray, vertices: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
     """Construct the matrices V and vector P for use in the calculation of the
     projection weights. Ju et al, Equation 8.
@@ -36,16 +36,13 @@ def _construct_matrices(
         P : ndarray
             Vector P constructed from point p and the last vertex.
     """
-    validators.single_dimension(p)
-    # check all vertices are the same length
-    for vertex in vertices:
-        validators.single_dimension(vertex)
-        if len(vertex) != len(p):
-            raise ValueError("All vertices must be the same length as the point")
-    vertices = np.array(vertices)
-    V = vertices[:-1] - vertices[-1]
-    P = p - vertices[-1]
-    return V.T, P
+    if vertices.shape[-2] != p.shape[-1]:
+        raise ValueError("vertices.shape[-2] must be equal to p.shape[-1]")
+    #vertices = np.moveaxis(vertices, source=-1, destination=-2)
+    V = vertices[..., :-1, :] - vertices[..., -1, None, :, ]
+    P = p - vertices[..., -1, :]
+    V = np.moveaxis(V, source=-1, destination=-2)
+    return V, P
 
 
 def _calculate_weights(v: np.ndarray, p: np.ndarray) -> np.ndarray:
@@ -63,14 +60,17 @@ def _calculate_weights(v: np.ndarray, p: np.ndarray) -> np.ndarray:
     ndarray
         The weights vector w.
     """
-    VTV = np.dot(v.T, v)
+    shape = np.broadcast_shapes(v[..., 0].shape[:-1], p.shape[:-1])
+    w_shape = (*shape, v.shape[-1]+1)
+    w = np.empty(w_shape)
+    VTV = np.einsum("...ij,...ik->...jk", v, v)
     VTV_inv = np.linalg.pinv(VTV)
-    w = np.dot(VTV_inv, np.dot(v.T, p))
-    wk1 = 1 - np.sum(w)
-    return np.append(w, wk1)
+    w[..., :-1] = np.einsum("...ij,...kj,...k", VTV_inv, v, p)
+    w[..., -1] = 1 - np.sum(w[..., :-1], axis=-1)
+    return w
 
 
-def _compute_distance(p: np.ndarray, vertices: list[np.ndarray]) -> float:
+def _compute_distance(p: np.ndarray, vertices: np.ndarray) -> np.ndarray:
     """Compute the distance from the point p to the projected point on the simplex's
     support using the weights. This will result in the distance to the support.
     Ju et al, Equation 6.
@@ -96,10 +96,21 @@ def _compute_distance(p: np.ndarray, vertices: list[np.ndarray]) -> float:
     # if any weight is negative it means projection is outside the simplex
     # in the 1D case, this can be shortcut to be the minimum distance to the vertices
     # TBD: handle 2D+ cases; Low Equation 9 is the solution but unsure implementation
-    if np.any(weights < 0):
-        return min(math.dist(p, vertex) for vertex in vertices)
-    proj = np.sum(weights[:, np.newaxis] * vertices, axis=0)
-    return np.linalg.norm(p - proj)
+    neg_mask = np.any(weights < 0, axis=-1)
+
+    vertices = np.moveaxis(vertices, source=-1, destination=-2)
+    def pos_weighs_dist(vertices, p, weights):
+        proj = np.sum(weights[..., None, :] * vertices, axis=-1)
+        return np.linalg.norm(p - proj, axis=-1)
+
+    def neg_weighs_dist(vertices, p):
+        dists = np.sum((vertices - p[..., :, None]) ** 2, axis=-2)
+        return np.sqrt(np.min(dists, axis=-1))
+
+    dist = np.where(
+        neg_mask, neg_weighs_dist(vertices, p), pos_weighs_dist(vertices, p, weights)
+    )
+    return dist
 
 
 def gamma_geometric(
@@ -192,7 +203,6 @@ def gamma_geometric(
         # skip if below dose threshold
         if ref_point < threshold:
             continue
-        simplex_distances = []
         # We don't want to calculate gamma for all simplexs of the entire profile,
         # so we slice the vertices just beyond the edges of the DTA from the ref point.
         # For cases where the measurement spacing is 2x or larger than the DTA this
@@ -213,15 +223,16 @@ def gamma_geometric(
         left_idx = max(np.argmin(left_diffs) - 1, 0)
         right_idx = min(np.argmin(right_diffs) + 1, len(normalized_evaluation) - 1)
         # the vertices are the (x, y) pairs of the reference profile
-        vertices_x = normalized_evaluation_x[left_idx : right_idx + 1].tolist()
-        vertices_y = normalized_evaluation[left_idx : right_idx + 1].tolist()
-        vertices = list(np.array((x, y)) for x, y in zip(vertices_x, vertices_y))
+        vertices_x = normalized_evaluation_x[left_idx : right_idx + 1]
+        vertices_y = normalized_evaluation[left_idx : right_idx + 1]
+        vertices = np.stack([vertices_x, vertices_y], axis=1)
         # iterate in pairs of x, y
-        for v1, v2 in zip(vertices[:-1], vertices[1:]):
-            distance = _compute_distance(
-                p=np.array([ref_x, ref_point]), vertices=[v1, v2]
-            )
-            simplex_distances.append(distance)
+        vertices_window = np.lib.stride_tricks.sliding_window_view(vertices, 2, axis=0)
+        vertices_window = np.moveaxis(vertices_window, source=-1, destination=-2)
+
+        simplex_distances = _compute_distance(
+            p=np.array([ref_x, ref_point]), vertices=vertices_window
+        )
         gamma[idx] = min(min(simplex_distances), gamma_cap_value)
     return gamma
 
