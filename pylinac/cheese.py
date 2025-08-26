@@ -14,7 +14,7 @@ from .core import pdf
 from .core.plotly_utils import add_title
 from .core.profile import CollapsedCircleProfile
 from .core.roi import DiskROI
-from .core.scale import abs360
+from .core.scale import wrap360
 from .core.utilities import QuaacDatum, ResultBase, ResultsDataMixin
 from .core.warnings import capture_warnings
 from .ct import CatPhanBase, CatPhanModule, Slice
@@ -298,7 +298,7 @@ class CheesePhantomBase(CatPhanBase, ResultsDataMixin[CheeseResult]):
         self.roi_config = roi_config
 
     def _roi_angles(self) -> list[float]:
-        return [abs360(s["angle"]) for s in self.module_class.roi_settings.values()]
+        return [wrap360(s["angle"]) for s in self.module_class.roi_settings.values()]
 
     def _ensure_physical_scan_extent(self) -> bool:
         """The cheese phantom only has one module."""

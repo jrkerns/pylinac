@@ -11,7 +11,7 @@ from parameterized import parameterized
 from quaac import Attachment, Equipment, User
 
 from pylinac import Interpolation
-from pylinac.core.scale import abs360, wrap360
+from pylinac.core.scale import wrap360
 from pylinac.core.utilities import (
     OptionListMixin,
     convert_to_enum,
@@ -126,13 +126,11 @@ class TestUtilities(unittest.TestCase):
         with self.assertRaises(ValueError):
             convert_to_enum("baffled", Interpolation)
 
-    def test_absolute_360(self):
-        self.assertEqual(abs360(-90), 270)
-        self.assertEqual(abs360(-5), 355)
-        self.assertEqual(abs360(12), 12)
-        self.assertEqual(abs360(359), 359)
-
     def test_wrap_360_over(self):
+        self.assertEqual(wrap360(-90), 270)
+        self.assertEqual(wrap360(-5), 355)
+        self.assertEqual(wrap360(12), 12)
+        self.assertEqual(wrap360(359), 359)
         self.assertEqual(wrap360(361), 1)
         self.assertEqual(wrap360(360), 0)
         self.assertEqual(wrap360(359.6), 359.6)
