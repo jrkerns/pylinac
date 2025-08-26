@@ -204,6 +204,10 @@ class TestBeam(TestCase):
         [
             ([0, 90], "CW", "DYNAMIC"),
             ([90, 0], "CC", "DYNAMIC"),
+            ([270, 90], "CW", "DYNAMIC"),
+            ([90, 270], "CC", "DYNAMIC"),
+            ([170, -170], "CC", "DYNAMIC"),
+            ([-170, 170], "CW", "DYNAMIC"),
             ([0, 0], "NONE", "STATIC"),
         ]
     )

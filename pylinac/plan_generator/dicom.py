@@ -15,6 +15,7 @@ from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
 from pydicom.uid import generate_uid
 
+from ..core import scale
 from ..core.image_generator.layers import ArrayLayer
 from ..core.image_generator.simulators import Simulator
 from ..core.scale import wrap360
@@ -136,8 +137,8 @@ class Beam:
             # if it's just a single number (like for a static beam) set it to an array of that value
             gantry_angles = [gantry_angles] * len(metersets)
 
-        continuous_angles = np.unwrap(gantry_angles, period=360)
-        delta = continuous_angles[-1] - continuous_angles[0]
+        gantry_angles_wrap180 = scale.wrap180(np.array(gantry_angles))
+        delta = gantry_angles_wrap180[-1] - gantry_angles_wrap180[0]
         gantry_direction = (
             GantryDirection.NONE
             if delta == 0

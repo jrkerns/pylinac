@@ -21,8 +21,13 @@ def _shift_and_mirror_360(value: float | ndarray) -> float | ndarray:
 
 
 def wrap360(value: float | ndarray) -> float | ndarray:
-    """Wrap the input value around 360. E.g. 361 -> 1"""
+    """Wrap the input values to the interval [0, 360)"""
     return value % 360
+
+
+def wrap180(value: float | ndarray) -> float | ndarray:
+    """Wrap the input values to the interval [-180, 180)"""
+    return wrap360(value + 180) - 180
 
 
 class MachineScale(Enum):
