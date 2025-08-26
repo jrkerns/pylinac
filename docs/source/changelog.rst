@@ -18,6 +18,7 @@ Core
 
 * :bdg-warning:`Fixed` :class:`~pylinac.core.image.DicomImage` could raise an overflow warning when performing pixel inversion
   (change introduced in v 3.35.0). This has been fixed.
+* :bdg-warning:`Fixed` :class:`~pylinac.core.scale.MachineScale` now correctly applies the conversion from IEC to VARIAN_STANDARD
 * :bdg-success:`Feature` Added Edge Spread Function MTF tooling. See :ref:`ESF_MTF`
 
 CatPhan
