@@ -13,6 +13,19 @@ Legend
 v 3.37.0
 --------
 
+Core
+^^^^
+
+* :bdg-warning:`Fixed` :class:`~pylinac.core.image.DicomImage` could raise an overflow warning when performing pixel inversion
+  (change introduced in v 3.35.0). This has been fixed.
+* :bdg-primary:`Refactor` :class:`~pylinac.core.scale.MachineScale` now wraps the output angles from 0 to 360 and accepts ndarrays.
+* :bdg-success:`Feature` Added Edge Spread Function MTF tooling. See :ref:`ESF_MTF`
+
+CatPhan
+^^^^^^^
+
+* :bdg-success:`Feature` The CatPhan plots now include the slice number in the title (e.g. ``Low Contrast (20)``)
+
 Plan Generator
 ^^^^^^^^^^^^^^
 

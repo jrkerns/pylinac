@@ -296,7 +296,9 @@ def _rescale_dicom_values(
         invert_pixels is None and pixel_intensity_relationship_sign == -1
     ):
         # invert if forced or based on pixel_intensity_relationship_sign
-        scaled_array = scaled_array.max() + scaled_array.min() - scaled_array
+        # Note: the order of operations matter! Doing "scaled_array.max() + scaled_array.min() - scaled_array"
+        # will raise a RuntimeWarning for the sum: "overflow encountered in scalar add"
+        scaled_array = scaled_array.max() - scaled_array + scaled_array.min()
     return scaled_array
 
 
