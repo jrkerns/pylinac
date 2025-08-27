@@ -159,6 +159,7 @@ class Beam:
             machine_name,
             num_leaves=len(mlc_positions[0]),
             mlc_boundaries=mlc_boundaries,
+            number_of_control_points=len(metersets),
         )
         self._append_initial_control_point(
             energy,
@@ -201,13 +202,14 @@ class Beam:
         machine_name: str,
         num_leaves: int,
         mlc_boundaries: list[float],
+        number_of_control_points: int,
     ) -> Dataset:
         beam = Dataset()
         beam.Manufacturer = "Radformation"
         beam.ManufacturerModelName = "RadMachine"
         beam.TreatmentMachineName = machine_name
         beam.PrimaryDosimeterUnit = "MU"
-        beam.SourceAxisDistance = "1000.0"
+        beam.SourceAxisDistance = 1000.0
 
         # Primary Fluence Mode Sequence
         primary_fluence_mode_sequence = Sequence()
@@ -232,14 +234,14 @@ class Beam:
         # Beam Limiting Device Sequence: Beam Limiting Device 1
         beam_limiting_device1 = Dataset()
         beam_limiting_device1.RTBeamLimitingDeviceType = "ASYMX"
-        beam_limiting_device1.NumberOfLeafJawPairs = "1"
+        beam_limiting_device1.NumberOfLeafJawPairs = 1
         beam_limiting_device_sequence.append(beam_limiting_device1)
 
         # Beam Limiting Device Sequence: Beam Limiting Device 2
         beam_limiting_device2 = Dataset()
         # TODO: likely that Elekta will need tweaking for this
         beam_limiting_device2.RTBeamLimitingDeviceType = "ASYMY"
-        beam_limiting_device2.NumberOfLeafJawPairs = "1"
+        beam_limiting_device2.NumberOfLeafJawPairs = 1
         beam_limiting_device_sequence.append(beam_limiting_device2)
 
         # Beam Limiting Device Sequence: Beam Limiting Device 3
@@ -257,12 +259,21 @@ class Beam:
         beam.BeamType = beam_type.value
         beam.RadiationType = "PHOTON"
         beam.TreatmentDeliveryType = "TREATMENT"
-        beam.NumberOfWedges = "0"
-        beam.NumberOfCompensators = "0"
-        beam.NumberOfBoli = "0"
-        beam.NumberOfBlocks = "0"
-        beam.FinalCumulativeMetersetWeight = "1.0"
-        beam.NumberOfControlPoints = "0"
+        beam.NumberOfWedges = 0
+        beam.NumberOfCompensators = 0
+        beam.NumberOfBoli = 0
+        beam.NumberOfBlocks = 0
+        beam.FinalCumulativeMetersetWeight = 1.0
+        beam.NumberOfControlPoints = number_of_control_points
+
+        # linked setup number and tolerance table
+        # we *could* hardcode it but this makes it more flexible to changes upstream
+        patient_setup_sequence = self.plan_ds.PatientSetupSequence[0].PatientSetupNumber
+        beam.ReferencedPatientSetupNumber = patient_setup_sequence
+        tolerance_table_number = self.plan_ds.ToleranceTableSequence[
+            0
+        ].ToleranceTableNumber
+        beam.ReferencedToleranceTableNumber = tolerance_table_number
 
         # Control Point Sequence
         cp_sequence = Sequence()
@@ -288,7 +299,7 @@ class Beam:
     ):
         # Control Point Sequence: Control Point 0
         cp0 = Dataset()
-        cp0.ControlPointIndex = "0"
+        cp0.ControlPointIndex = 0
         cp0.NominalBeamEnergy = str(energy)
         cp0.DoseRateSet = str(dose_rate)
 
@@ -322,28 +333,18 @@ class Beam:
         cp0.BeamLimitingDeviceRotationDirection = "NONE"
         cp0.PatientSupportAngle = str(couch_rot)
         cp0.PatientSupportRotationDirection = "NONE"
-        cp0.TableTopEccentricAngle = "0.0"
+        cp0.TableTopEccentricAngle = 0.0
         cp0.TableTopEccentricRotationDirection = "NONE"
         cp0.TableTopVerticalPosition = str(couch_vrt)
         cp0.TableTopLongitudinalPosition = str(couch_lng)
         cp0.TableTopLateralPosition = str(couch_lat)
         cp0.IsocenterPosition = None
-        cp0.CumulativeMetersetWeight = "0.0"
+        cp0.CumulativeMetersetWeight = 0.0
 
         # Referenced Dose Reference Sequence
         refd_dose_ref_sequence = Sequence()
         cp0.ReferencedDoseReferenceSequence = refd_dose_ref_sequence
 
-        # linked setup number and tolerance table
-        # we *could* hardcode it but this makes it more flexible to changes upstream
-        self.ds.ReferencedPatientSetupNumber = self.plan_ds.PatientSetupSequence[
-            0
-        ].PatientSetupNumber
-        self.ds.ReferencedToleranceTableNumber = self.plan_ds.ToleranceTableSequence[
-            0
-        ].ToleranceTableNumber
-
-        self.ds.NumberOfControlPoints = 1  # increment this
         self.ds.ControlPointSequence.append(cp0)
 
     def _append_secondary_static_control_point(self, meterset: float) -> None:
@@ -355,7 +356,6 @@ class Beam:
             f"{meterset:.5f}"  # convert to truncated string to fit VR limitations
         )
 
-        self.ds.NumberOfControlPoints = int(self.ds.NumberOfControlPoints) + 1
         self.ds.ControlPointSequence.append(cp1)
 
     def _append_secondary_dynamic_control_point(
@@ -392,7 +392,6 @@ class Beam:
         refd_dose_ref_sequence = Sequence()
         cp1.ReferencedDoseReferenceSequence = refd_dose_ref_sequence
 
-        self.ds.NumberOfControlPoints = int(self.ds.NumberOfControlPoints) + 1
         self.ds.ControlPointSequence.append(cp1)
 
     def as_dicom(self) -> Dataset:
@@ -491,9 +490,7 @@ class HalcyonBeam(Beam):
         beam_type = BeamType.STATIC if beam_is_static else BeamType.DYNAMIC
         self.plan_ds = plan_dataset
         self.ds = self._create_basic_beam_info(
-            beam_name,
-            beam_type,
-            machine_name,
+            beam_name, beam_type, machine_name, number_of_control_points=len(metersets)
         )
         if not isinstance(
             gantry_angles, Iterable
@@ -533,6 +530,7 @@ class HalcyonBeam(Beam):
         beam_name: str,
         beam_type: BeamType,
         machine_name: str,
+        number_of_control_points: int,
     ) -> Dataset:
         """Halcyon-specific beam creation. We know the MLC boundaries, number of leaves, and that it's always FFF."""
         beam = Dataset()
@@ -540,7 +538,7 @@ class HalcyonBeam(Beam):
         beam.ManufacturerModelName = "RadMachine"
         beam.TreatmentMachineName = machine_name
         beam.PrimaryDosimeterUnit = "MU"
-        beam.SourceAxisDistance = "1000.0"
+        beam.SourceAxisDistance = 1000.0
 
         # Primary Fluence Mode Sequence
         primary_fluence_mode_sequence = Sequence()
@@ -559,13 +557,13 @@ class HalcyonBeam(Beam):
         # Beam Limiting Device Sequence: Beam Limiting Device 1
         beam_limiting_device1 = Dataset()
         beam_limiting_device1.RTBeamLimitingDeviceType = "X"
-        beam_limiting_device1.NumberOfLeafJawPairs = "1"
+        beam_limiting_device1.NumberOfLeafJawPairs = 1
         beam_limiting_device_sequence.append(beam_limiting_device1)
 
         # Beam Limiting Device Sequence: Beam Limiting Device 2
         beam_limiting_device2 = Dataset()
         beam_limiting_device2.RTBeamLimitingDeviceType = "Y"
-        beam_limiting_device2.NumberOfLeafJawPairs = "1"
+        beam_limiting_device2.NumberOfLeafJawPairs = 1
         beam_limiting_device_sequence.append(beam_limiting_device2)
 
         # Distal MLC
@@ -592,12 +590,21 @@ class HalcyonBeam(Beam):
         beam.BeamType = beam_type.value
         beam.RadiationType = "PHOTON"
         beam.TreatmentDeliveryType = "TREATMENT"
-        beam.NumberOfWedges = "0"
-        beam.NumberOfCompensators = "0"
-        beam.NumberOfBoli = "0"
-        beam.NumberOfBlocks = "0"
-        beam.FinalCumulativeMetersetWeight = "1.0"
-        beam.NumberOfControlPoints = "0"
+        beam.NumberOfWedges = 0
+        beam.NumberOfCompensators = 0
+        beam.NumberOfBoli = 0
+        beam.NumberOfBlocks = 0
+        beam.FinalCumulativeMetersetWeight = 1.0
+        beam.NumberOfControlPoints = number_of_control_points
+
+        # linked setup number and tolerance table
+        # we *could* hardcode it but this makes it more flexible to changes upstream
+        patient_setup_sequence = self.plan_ds.PatientSetupSequence[0].PatientSetupNumber
+        beam.ReferencedPatientSetupNumber = patient_setup_sequence
+        tolerance_table_number = self.plan_ds.ToleranceTableSequence[
+            0
+        ].ToleranceTableNumber
+        beam.ReferencedToleranceTableNumber = tolerance_table_number
 
         # Control Point Sequence
         cp_sequence = Sequence()
@@ -619,7 +626,7 @@ class HalcyonBeam(Beam):
     ):
         # Control Point Sequence: Control Point 0
         cp0 = Dataset()
-        cp0.ControlPointIndex = "0"
+        cp0.ControlPointIndex = 0
         cp0.NominalBeamEnergy = str(energy)
         cp0.DoseRateSet = str(dose_rate)
 
@@ -661,30 +668,20 @@ class HalcyonBeam(Beam):
         cp0.GantryRotationDirection = gantry_rot.value
         cp0.BeamLimitingDeviceAngle = str(coll_angle)
         cp0.BeamLimitingDeviceRotationDirection = "NONE"
-        cp0.PatientSupportAngle = "0"
+        cp0.PatientSupportAngle = 0
         cp0.PatientSupportRotationDirection = "NONE"
-        cp0.TableTopEccentricAngle = "0.0"
+        cp0.TableTopEccentricAngle = 0.0
         cp0.TableTopEccentricRotationDirection = "NONE"
         cp0.TableTopVerticalPosition = str(couch_vrt)
         cp0.TableTopLongitudinalPosition = str(couch_lng)
         cp0.TableTopLateralPosition = str(couch_lat)
         cp0.IsocenterPosition = None
-        cp0.CumulativeMetersetWeight = "0.0"
+        cp0.CumulativeMetersetWeight = 0.0
 
         # Referenced Dose Reference Sequence
         refd_dose_ref_sequence = Sequence()
         cp0.ReferencedDoseReferenceSequence = refd_dose_ref_sequence
 
-        # linked setup number and tolerance table
-        # we *could* hardcode it but this makes it more flexible to changes upstream
-        self.ds.ReferencedPatientSetupNumber = self.plan_ds.PatientSetupSequence[
-            0
-        ].PatientSetupNumber
-        self.ds.ReferencedToleranceTableNumber = self.plan_ds.ToleranceTableSequence[
-            0
-        ].ToleranceTableNumber
-
-        self.ds.NumberOfControlPoints = 1  # increment this
         self.ds.ControlPointSequence.append(cp0)
 
     def _append_secondary_static_control_point(self, meterset: float) -> None:
@@ -696,7 +693,6 @@ class HalcyonBeam(Beam):
             f"{meterset:.5f}"  # convert to truncated string to fit VR limitations
         )
 
-        self.ds.NumberOfControlPoints = int(self.ds.NumberOfControlPoints) + 1
         self.ds.ControlPointSequence.append(cp1)
 
     def _append_secondary_dynamic_control_point(
@@ -744,7 +740,6 @@ class HalcyonBeam(Beam):
         refd_dose_ref_sequence = Sequence()
         cp1.ReferencedDoseReferenceSequence = refd_dose_ref_sequence
 
-        self.ds.NumberOfControlPoints = int(self.ds.NumberOfControlPoints) + 1
         self.ds.ControlPointSequence.append(cp1)
 
 
