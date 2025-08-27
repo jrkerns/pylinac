@@ -300,8 +300,8 @@ class Beam:
         # Control Point Sequence: Control Point 0
         cp0 = Dataset()
         cp0.ControlPointIndex = 0
-        cp0.NominalBeamEnergy = str(energy)
-        cp0.DoseRateSet = str(dose_rate)
+        cp0.NominalBeamEnergy = energy
+        cp0.DoseRateSet = dose_rate
 
         # Beam Limiting Device Position Sequence
         beam_limiting_device_position_sequence = Sequence()
@@ -327,17 +327,17 @@ class Beam:
         ]  # convert to truncated string to fit VR limitations
         beam_limiting_device_position_sequence.append(beam_limiting_device_position3)
 
-        cp0.GantryAngle = str(gantry_angle)
+        cp0.GantryAngle = gantry_angle
         cp0.GantryRotationDirection = gantry_rot.value
-        cp0.BeamLimitingDeviceAngle = str(coll_angle)
+        cp0.BeamLimitingDeviceAngle = coll_angle
         cp0.BeamLimitingDeviceRotationDirection = "NONE"
-        cp0.PatientSupportAngle = str(couch_rot)
+        cp0.PatientSupportAngle = couch_rot
         cp0.PatientSupportRotationDirection = "NONE"
         cp0.TableTopEccentricAngle = 0.0
         cp0.TableTopEccentricRotationDirection = "NONE"
-        cp0.TableTopVerticalPosition = str(couch_vrt)
-        cp0.TableTopLongitudinalPosition = str(couch_lng)
-        cp0.TableTopLateralPosition = str(couch_lat)
+        cp0.TableTopVerticalPosition = couch_vrt
+        cp0.TableTopLongitudinalPosition = couch_lng
+        cp0.TableTopLateralPosition = couch_lat
         cp0.IsocenterPosition = None
         cp0.CumulativeMetersetWeight = 0.0
 
@@ -627,8 +627,8 @@ class HalcyonBeam(Beam):
         # Control Point Sequence: Control Point 0
         cp0 = Dataset()
         cp0.ControlPointIndex = 0
-        cp0.NominalBeamEnergy = str(energy)
-        cp0.DoseRateSet = str(dose_rate)
+        cp0.NominalBeamEnergy = energy
+        cp0.DoseRateSet = dose_rate
 
         # Beam Limiting Device Position Sequence
         beam_limiting_device_position_sequence = Sequence()
@@ -664,17 +664,17 @@ class HalcyonBeam(Beam):
         ]  # convert to truncated string to fit VR limitations
         beam_limiting_device_position_sequence.append(beam_limiting_device_position4)
 
-        cp0.GantryAngle = str(gantry_angle)
+        cp0.GantryAngle = gantry_angle
         cp0.GantryRotationDirection = gantry_rot.value
-        cp0.BeamLimitingDeviceAngle = str(coll_angle)
+        cp0.BeamLimitingDeviceAngle = coll_angle
         cp0.BeamLimitingDeviceRotationDirection = "NONE"
         cp0.PatientSupportAngle = 0
         cp0.PatientSupportRotationDirection = "NONE"
         cp0.TableTopEccentricAngle = 0.0
         cp0.TableTopEccentricRotationDirection = "NONE"
-        cp0.TableTopVerticalPosition = str(couch_vrt)
-        cp0.TableTopLongitudinalPosition = str(couch_lng)
-        cp0.TableTopLateralPosition = str(couch_lat)
+        cp0.TableTopVerticalPosition = couch_vrt
+        cp0.TableTopLongitudinalPosition = couch_lng
+        cp0.TableTopLateralPosition = couch_lat
         cp0.IsocenterPosition = None
         cp0.CumulativeMetersetWeight = 0.0
 
