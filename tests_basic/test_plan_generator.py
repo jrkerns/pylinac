@@ -10,7 +10,6 @@ from pylinac.core.image_generator import AS1200Image
 from pylinac.plan_generator.dicom import (
     Beam,
     FluenceMode,
-    GantryDirection,
     HalcyonPlanGenerator,
     OvertravelError,
     Stack,
@@ -166,7 +165,6 @@ def create_beam(**kwargs) -> Beam:
         y2=kwargs.get("y2", 5),
         machine_name=kwargs.get("machine_name", "TrueBeam"),
         gantry_angles=kwargs.get("gantry_angles", 0),
-        gantry_direction=kwargs.get("gantry_direction", GantryDirection.NONE),
         coll_angle=kwargs.get("coll_angle", 0),
         couch_vrt=kwargs.get("couch_vrt", 0),
         couch_lng=kwargs.get("couch_lng", 0),
@@ -202,34 +200,32 @@ class TestBeam(TestCase):
         with self.assertRaises(ValueError):
             create_beam(mlc_positions=[[0] * 5], metersets=[1, 2, 3])
 
-    def test_gantry_must_be_dynamic_for_multiple_angles(self):
-        with self.assertRaises(ValueError) as context:
-            create_beam(gantry_angles=[0, 90], mlc_positions=[[0]], metersets=[0])
-        self.assertIn("Cannot specify multiple gantry angles", str(context.exception))
-
-        # valid
+    @parameterized.expand(
+        [
+            ([0, 90], "CW", "DYNAMIC"),
+            ([90, 0], "CC", "DYNAMIC"),
+            ([270, 90], "CW", "DYNAMIC"),
+            ([90, 270], "CC", "DYNAMIC"),
+            ([170, -170], "CC", "DYNAMIC"),
+            ([-170, 170], "CW", "DYNAMIC"),
+            ([0, 0], "NONE", "STATIC"),
+        ]
+    )
+    def test_beam_type_and_gantry_rotation_direction(
+        self, gantry_angles, gantry_rotation_direction, beam_type
+    ):
         beam = create_beam(
-            gantry_angles=[0, 90],
-            gantry_direction=GantryDirection.CLOCKWISE,
+            gantry_angles=gantry_angles,
         )
         beam_dcm = beam.as_dicom()
-        self.assertEqual(beam_dcm.BeamType, "DYNAMIC")
-        self.assertEqual(beam_dcm.ControlPointSequence[0].GantryAngle, 0)
-        self.assertEqual(beam_dcm.ControlPointSequence[0].GantryRotationDirection, "CC")
-        self.assertEqual(beam_dcm.ControlPointSequence[1].GantryAngle, 90)
-
-    def test_must_have_gantry_direction_if_dynamic(self):
-        with self.assertRaises(ValueError):
-            create_beam(
-                gantry_angles=[0, 90],
-                gantry_direction=GantryDirection.NONE,
-            )
-
-        # valid
-        create_beam(
-            gantry_angles=[0, 90],
-            gantry_direction=GantryDirection.CLOCKWISE,
+        self.assertEqual(
+            beam_dcm.ControlPointSequence[0].GantryRotationDirection,
+            gantry_rotation_direction,
         )
+        self.assertEqual(
+            beam_dcm.ControlPointSequence[1].GantryRotationDirection, "NONE"
+        )
+        self.assertEqual(beam_dcm.BeamType, beam_type)
 
     def test_jaw_positions(self):
         b = create_beam(x1=-5, x2=7, y1=-11, y2=13)
@@ -249,10 +245,6 @@ class TestBeam(TestCase):
             .LeafJawPositions,
             [-11, 13],
         )
-
-    def test_multiple_gantry_angles_static_not_allowed(self):
-        with self.assertRaises(ValueError):
-            create_beam(gantry_angles=[0, 90])
 
 
 class TestPlanGeneratorBeams(TestCase):

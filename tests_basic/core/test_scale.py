@@ -8,10 +8,26 @@ from pylinac.core.scale import (
     _noop,
     _shift_and_mirror_360,
     convert,
+    wrap180,
+    wrap360,
 )
 
 
 class TestHelperMethods(TestCase):
+    def test_wrap360(self):
+        arr = np.array([-365, -270, -180, -5, 0, 5, 180, 270, 365])
+        nominal = np.array([355, 90, 180, 355, 0, 5, 180, 270, 5])
+        actual = wrap360(arr)
+        assert np.all(actual == nominal)
+
+    def test_wrap180(self):
+        arr = np.array([-365, -270, -180, -5, 0, 5, 180, 270, 365])
+        nominal = np.array([-5, 90, -180, -5, 0, 5, -180, -90, 5])
+        actual = wrap180(arr)
+        assert np.all(actual == nominal)
+
+
+class TestPrivateMethods(TestCase):
     def test_noop(self):
         assert 5 == _noop(5)
         assert -5.3 == _noop(-5.3)
