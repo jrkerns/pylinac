@@ -2015,9 +2015,9 @@ class SingleProfileTests(TestCase):
             field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.NONE
         )
         field_data = p.field_data()
-        width = field_data["right index (rounded)"] - (
-            field_data["left index (rounded)"] - 1
-        )  # we subtract one because the values include the left index element
+        width = (
+            field_data["right index (rounded)"] - (field_data["left index (rounded)"])
+        )
         self.assertEqual(len(field_data["field values"]), width)
 
     def test_cax_odd_sized_array(self):
