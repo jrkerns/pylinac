@@ -1431,11 +1431,9 @@ class SingleProfile(ProfileMixin):
             full_width = data["width (exact)"]
 
         elif self._edge_method in (Edge.INFLECTION_DERIVATIVE, Edge.INFLECTION_HILL):
-            infl_data = self.inflection_data()
+            data = self.inflection_data()
             beam_center_idx = self.beam_center()["index (exact)"]
-            full_width = (
-                infl_data["right index (exact)"] - infl_data["left index (exact)"]
-            )
+            full_width = data["right index (exact)"] - data["left index (exact)"]
         beam_center_idx_r = int(round(beam_center_idx))
 
         cax_idx = self.geometric_center()["index (exact)"]
@@ -1488,6 +1486,26 @@ class SingleProfile(ProfileMixin):
         top_idx = min_f.x[0]
         top_val = -min_f.fun
 
+        # see RAM-4559: https://radformation.atlassian.net/browse/RAM-4559?focusedCommentId=119935
+        # When the beam center is in between points, as we expand or contract the in-field ratio,
+        # we will sometimes include a point on one side of the beam but not the other.
+        # See figure in comment.
+        # To avoid this, we shift the x_indices by the pixel offset
+        # This doesn't change the results; it just ensures that when we ask for
+        # indices on either side (to calculate flat, sym, etc) that we always grab
+        # equal numbers of points on either side of the beam center.
+        # This still has the possibility of being incorrect if the sampling is not uniform
+        # within the in-field ratio area, but this is a rare case IMO. E.g. water tank
+        # scans will scan more densely in the penumbra region, but this is outside the in-field area.
+        pixel_offset = beam_center_idx - beam_center_idx_r
+        x_indices_shifted = self.x_indices + pixel_offset
+        # field data index range;
+        # We use indices because we want to retain the original indices
+        # E.g. for IC Profiler, the x indices retain the "skipped" detector positions in the X direction.
+        # We want to keep that information.
+        x_index_min = int(np.abs(x_indices_shifted - field_left_idx).argmin())
+        x_index_max = int(np.abs(x_indices_shifted - field_right_idx).argmin())
+
         data = {
             "width (exact)": field_width,
             "beam center index (exact)": beam_center_idx,
@@ -1519,7 +1537,7 @@ class SingleProfile(ProfileMixin):
                 round(field_right_idx)
             ),
             "field values": self._y_original_to_interp(
-                np.arange(int(round(field_left_idx)), int(round(field_right_idx)) + 1)
+                location=x_indices_shifted[x_index_min : x_index_max + 1]
             ),
         }
         if self.dpmm:
@@ -2522,7 +2540,11 @@ def find_peaks(
     peak_separation, shift_amount, threshold, trimmed_values = _parse_peak_args(
         peak_separation, search_region, threshold, values
     )
-
+    # It's worth noting that scipy uses prominence for the relative height
+    # compared to, say, absolute height.
+    # This can cause issues when expecting the true FWXM and the lowest value is not near zero.
+    # See RAM-4559. It's also worth noting that scipy has an inverted definition
+    # of the `rel_height` parameter. See here for the formula: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.peak_widths.html#scipy.signal.peak_widths
     peak_idxs, peak_props = signal.find_peaks(
         trimmed_values,
         rel_height=(1 - fwxm_height),

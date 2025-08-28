@@ -32,6 +32,75 @@ Plan Generator
 * :bdg-primary:`Refactor` The :class:`~pylinac.plan_generator.dicom.Beam` class no longer accepts
   the ``beam_type`` and ``gantry_direction`` parameter. These are now inferred from the control points.
 
+Field Analysis / Profile Analysis
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* :bdg-danger:`Change`
+
+  .. danger:: This change will not break code, but may result in different values for field/profile analysis.
+
+  Customers of RadMachine noticed discrepancies between IC Profiler software results for flatness & symmetry.
+  The result of the investigation is that pylinac had 2 bugs in how flatness/symmetry was calculated. Ultimately,
+  we believe these changes makes the results more accurate, but will cause historical continuity differences from
+  previous pylinac versions. Historical continuity is our goal, but in this case we believe accuracy is more important.
+
+  **TL;DR: Flatness values will roughly give the same values but symmetry values will be different under the right conditions. Specifically, the sign may be different although the absolute value is usually small. E.g. -6.1% -> +5.9%**
+
+  #. Sampling is now equidistant around the beam CAX. Previously, samples would be extracted within the field region,
+     but if the beam center was between two points, this could create a “dead zone” where a point was included on one side of the beam center but not the other.
+     See the below example:
+
+     .. plot::
+        :include-source: False
+
+        import numpy as np
+        import matplotlib.pyplot as plt
+        from scipy.interpolate import interp1d
+
+        array = np.asarray([
+            0, 1, 4, 8, 10, 10.5, 10.2, 10, 10, 10, 10, 10, 10.2, 10.5, 10, 7, 3, 1, 0
+        ])
+        xs = np.linspace(0, len(array)-1, num=len(array), endpoint=True)
+        linear_factor = 1
+        xs_linear = np.linspace(0, len(array)-1, num=len(array)*linear_factor, endpoint=True)
+        y_interp = interp1d(x=xs, y=array, kind="linear", fill_value='extrapolate')
+        array_linear = y_interp(xs_linear)
+        center = 8.86
+        shift = center - round(center)
+        width = 13.26 * 0.74  # FW * ratio
+        xs_shifted = xs_linear + shift
+        plt.plot(xs, array, marker='^', label="Original Profile")
+        # plt.plot(xs_linear, array_linear, marker='o', label="Interpolated Profile", linestyle="None")
+        array_shifted = y_interp(xs_shifted)
+        plt.plot(xs_shifted, array_shifted, marker='x', label="Shifted Profile", linestyle='None')
+        plt.axvline(x=center, color='r', linestyle='--', label="Beam center")
+        plt.axvline(x=center-width/2, color='g', linestyle='--', label="Left In-Field Edge")
+        plt.axvline(x=center+width/2, color='g', linestyle='--', label="Right In-Field Edge")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
+     Note in this plot that the center of the beam is just to the left of the middle measurement point (the edges are slightly different slopes to produce the offset).
+     The green lines depict the field edges and thus the in-field region. Depending on the measurement points and the in-field ratio, we can get into a position where we include (in this example)
+     a point on the left but not the corresponding point on the right. Note the blue point to the right of the right-hand green line is outside but the left-side point is right at the field edge.
+     This isn’t always the case though. If we expanded the in-field ratio, or if we had much tighter sampling (such as an EPID image) this issue would be present, but far less likely to make a meaningful impact.
+     Thus, **this issue is most pronounced on coarse datasets such as the IC Profiler**.
+
+     To correct for this, we resample the values at x-positions that are shifted by the difference between the center measurement and the beam center.
+     In the below example we sample the y-profile just to the left along the curve (orange x’s). In this way, no matter the field width, we will always extract the same number of points on each side of the beam.
+     This uses linear interpolation under the hood, separate from any interpolation setting passed by the user.
+
+     Unfortunately, the effect depends on the field width (in RadMachine this is always 80%) and the difference between beam center and the central measurement point.
+     If those two points are very close to each other, that “dead zone” is small. If they are relatively far apart such as central between two measurements, the dead zone becomes much bigger.
+
+  #. Separately, profiles were sampled at a fixed increment of 1 (i.e. by index instead of x-position).
+     This means that profiles 1) with x-spacing that was <1 would experience under-sampling of the field and 2) would sample at a fixed rate, not respecting the x-spacing.
+
+     * Here is an IC profiler plot where the x-spacing is divided by 3 (instead of default of 1):
+
+       .. image:: images/1-3_sampling_rate.png
+
+* A new documentation section comparing IC Profiler to pylinac is available: :ref:`comparison-to-ic-profiler`.
 
 v 3.36.0
 --------

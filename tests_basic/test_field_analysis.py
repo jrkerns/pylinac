@@ -528,7 +528,7 @@ class FlatSymWideDemo(FlatSymDemo, TestCase):
     vert_width = 0.025
     horiz_width = 0.025
     vert_flatness = 1.6
-    vert_symmetry = -2.7
+    vert_symmetry = -2.6
 
 
 class FlatSym6X(FieldAnalysisBase, TestCase):
@@ -575,23 +575,25 @@ class FlatSym18X(FieldAnalysisBase, TestCase):
 
 class FlatSym18xSiemens(FlatSym18X):
     protocol = Protocol.SIEMENS
-    horiz_symmetry = -0.33
-    vert_symmetry = -0.27
+    horiz_symmetry = -0.06
+    vert_symmetry = 0.01
 
 
-class FlatSym18xSiemens2(FlatSym18xSiemens):
-    interpolation_resolution = (
-        0.137  # use an arbitrary interpolation so that we get an odd number of points
-    )
-    horiz_symmetry = -0.6
-    penum_left = 2.9
-
-
-class FlatSym18xSiementsNoInterp(FlatSym18xSiemens):
+class FlatSym18xVarianNoInterp(FlatSym18X):
+    # same thing as above but no interpolation; generally gives a slightly different result
     interpolation_method = Interpolation.NONE
-    horiz_symmetry = -0.62
+    vert_flatness = 1.33  # interpolation will resample and generally give a slightly different result
+    # due to no interpolation, penumbra calculation is coarser
     penum_bottom = 3.8
     penum_left = 3.0
+
+
+class FlatSym18xSiemensNoInterp(FlatSym18xSiemens):
+    # No interpolation will generally give a slightly different result
+    interpolation_method = Interpolation.NONE
+    penum_bottom = 3.8  # same difference as w/ varian protocol; caused by no interpolation of measurements
+    penum_left = 3.0
+    vert_flatness = 1.33  # compared to 1.4 with interpolation; same as varian protocol
 
 
 class BBLike(FieldAnalysisBase, TestCase):
@@ -601,9 +603,9 @@ class BBLike(FieldAnalysisBase, TestCase):
     slope_exclusion_ratio = 0.6
     horiz_width = 0.01
     vert_width = 0.01
-    vert_flatness = 23.1
-    vert_symmetry = 11.2
-    horiz_flatness = 18.4
+    vert_flatness = 20.8
+    vert_symmetry = 2.43
+    horiz_flatness = 19.5
     horiz_symmetry = -1.36
     vert_field_size = 4.4
     horiz_field_size = 4.5

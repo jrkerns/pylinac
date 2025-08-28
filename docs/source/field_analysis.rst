@@ -866,6 +866,134 @@ if ``vert_width`` and ``horiz_width`` are 0.1, there is a central 10% of the fie
 * ``central_roi_max``: The maximum pixel value of the central region of interest.
 * ``central_roi_min``: The minimum pixel value of the central region of interest.
 
+.. _comparison-to-ic-profiler:
+
+Comparison to IC Profiler
+-------------------------
+
+.. danger::
+
+    The pylinac algorithm changed in v3.37 to fix several bugs and improve the accuracy of the results.
+
+When comparing to IC Profiler, the following settings are recommended in the IC Profiler software:
+
+.. image:: images/ic_profiler_settings.png
+   :width: 400px
+   :align: center
+
+In ``pylinac``, the following settings are recommended:
+
+.. code-block:: python
+
+    prof = FieldAnalysis(...)
+    prof.analyze(
+        protocol=Protocol.VARIAN,
+        in_field_ratio=0.8,
+        interpolation=Interpolation.LINEAR,
+        ground=False,
+        edge_detection_method=Edge.FWHM,
+    )
+
+We ran analysis in IC Profiler and pylinac v3.36 and v3.37 (when relevant bugs were fixed) to compare the results. The following table shows the results for various energies across approximately 80 fields.
+
++---------+---------+-------------------------+-------------------------+----------------------------------------------+--------------------+----------------------------------------------+--------------------+
+|         |         | X Flatness              | Y Flatness              | X Symmetry                                   |                    | Y Symmetry                                   |                    |
++=========+=========+============+============+============+============+============+====================+============+====================+============+====================+============+====================+
+|         |         | SNC - 3.36 | SNC - 3.37 | SNC - 3.36 | SNC - 3.37 | SNC - 3.36 | | SNC | - | 3.36 | | SNC - 3.37 | | SNC | - | 3.37 | | SNC - 3.36 | | SNC | - | 3.36 | | SNC - 3.37 | | SNC | - | 3.37 | |
++---------+---------+------------+------------+------------+------------+------------+--------------------+------------+--------------------+------------+--------------------+------------+--------------------+
+| Overall | Average | 0.01       | 0.13       | 0.06       | 0.14       | -0.01      | -0.06              | 0.04       | -0.02              | 0.34       | -0.07              | -0.01      | 0.00               |
+|         +---------+------------+------------+------------+------------+------------+--------------------+------------+--------------------+------------+--------------------+------------+--------------------+
+|         | stdev   | 0.35       | 0.41       | 0.46       | 0.61       | 0.79       | 0.56               | 0.32       | 0.09               | 2.08       | 0.39               | 0.14       | 0.04               |
+|         +---------+------------+------------+------------+------------+------------+--------------------+------------+--------------------+------------+--------------------+------------+--------------------+
+|         | Max     | 1.47       | 3.23       | 3.16       | 5.17       | 4.95       | 0.34               | 1.59       | 0.38               | 7.89       | 0.43               | 0.21       | 0.08               |
++---------+---------+------------+------------+------------+------------+------------+--------------------+------------+--------------------+------------+--------------------+------------+--------------------+
+| 6X      | Average | 0.05       | 0.01       | 0.09       | 0.00       | -0.19      | 0.04               | -0.01      | 0.00               | 0.26       | -0.06              | 0.00       | 0.00               |
++---------+         +------------+------------+------------+------------+------------+--------------------+------------+--------------------+------------+--------------------+------------+--------------------+
+| 6FFF    |         | -0.02      | 0.12       | -0.03      | 0.03       | -0.55      | -0.13              | 0.09       | -0.15              | 0.58       | -0.10              | -0.09      | -0.01              |
++---------+         +------------+------------+------------+------------+------------+--------------------+------------+--------------------+------------+--------------------+------------+--------------------+
+| 10x     |         | 0.02       | 0.01       | 0.06       | 0.00       | -0.02      | 0.09               | -0.01      | 0.00               | 0.78       | -0.10              | 0.01       | 0.01               |
++---------+         +------------+------------+------------+------------+------------+--------------------+------------+--------------------+------------+--------------------+------------+--------------------+
+| 10FFF   |         | -0.44      | 0.55       | -0.01      | 0.54       | 0.73       | -0.53              | 0.24       | 0.08               | 0.54       | 0.15               | 0.07       | 0.01               |
++---------+         +------------+------------+------------+------------+------------+--------------------+------------+--------------------+------------+--------------------+------------+--------------------+
+| 15x     |         | 0.04       | 0.01       | -0.02      | 0.00       | 0.10       | -0.06              | 0.00       | 0.00               | 0.76       | -0.07              | 0.00       | 0.01               |
++---------+         +------------+------------+------------+------------+------------+--------------------+------------+--------------------+------------+--------------------+------------+--------------------+
+| 18x     |         | 0.06       | 0.05       | 0.01       | 0.04       | 0.20       | -0.01              | 0.01       | 0.00               | -1.51      | -0.07              | -0.01      | 0.01               |
++---------+         +------------+------------+------------+------------+------------+--------------------+------------+--------------------+------------+--------------------+------------+--------------------+
+| 6e      |         | 0.26       | 0.15       | 0.19       | 0.25       | 0.05       | 0.02               | 0.00       | -0.01              | 0.71       | -0.21              | 0.00       | 0.00               |
++---------+         +------------+------------+------------+------------+------------+--------------------+------------+--------------------+------------+--------------------+------------+--------------------+
+| 9e      |         | 0.19       | 0.47       | 0.46       | 0.74       | -0.01      | 0.02               | 0.02       | -0.01              | 0.34       | -0.24              | 0.03       | -0.03              |
++---------+         +------------+------------+------------+------------+------------+--------------------+------------+--------------------+------------+--------------------+------------+--------------------+
+| 12e     |         | 0.02       | 0.00       | 0.01       | 0.00       | 0.10       | 0.04               | 0.00       | 0.00               | 0.52       | 0.03               | 0.00       | 0.00               |
++---------+         +------------+------------+------------+------------+------------+--------------------+------------+--------------------+------------+--------------------+------------+--------------------+
+| 16e     |         | 0.02       | 0.01       | 0.00       | 0.00       | 0.00       | 0.01               | 0.01       | 0.00               | 0.05       | -0.01              | 0.00       | 0.00               |
++---------+         +------------+------------+------------+------------+------------+--------------------+------------+--------------------+------------+--------------------+------------+--------------------+
+| 20e     |         | 0.03       | 0.03       | 0.00       | 0.00       | 0.00       | 0.01               | 0.00       | 0.00               | 0.62       | 0.00               | 0.00       | 0.00               |
++---------+---------+------------+------------+------------+------------+------------+--------------------+------------+--------------------+------------+--------------------+------------+--------------------+
+
+Disagreements
+^^^^^^^^^^^^^
+
+Flatness & Symmetry
+###################
+
+Using the above table as a guide and with the fixes of v3.37, there are now only a few cases where the
+pylinac algorithm has a meaningful difference from SNC IC Profiler. The two main situations are:
+
+* FFF beams where the field width evaluation is near the shoulder
+* Large-field electron beams where the minimum value is not near zero
+
+In both cases, the issue seems to be how the FWXM is calculated. In pylinac,
+the FWXM is calculated using the *prominence* of a peak. I.e. how tall it is relative to
+its own low point. In IC Profiler, it seems the FWXM is calculated using the absolute value.
+While the absolute value does make sense in typical conditions, in other conditions it may not.
+E.g. a picket fence where the pickets themselves only have a small range of values. Accounting
+for the MLC leakage and scatter in that scenario is important where you want the FWXM accounting
+for that leakage/scatter. Pylinac uses that same algorithm for all profiles.
+Examples of prominence can be seen in the example section here, specifically the last one: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.find_peaks.html
+
+Here is an example of a 10FFF field examined. Note the slight difference
+between the heights, which change the resulting field region.
+
+.. image:: images/10FFF-ic-profiler.png
+   :width: 600px
+   :align: center
+
+Now that issue is full-blown in this 9e field with a 25x25 cone. Note the distinct difference
+between the heights, which change the resulting field region.
+
+.. image:: images/9e_ic_profiler.png
+   :width: 600px
+   :align: center
+
+Note that the lowest value of the field is actually quite high at ~35% max dose.
+
+.. important::
+
+  The flatness in both of the above fields is greater in the SNC software compared to pylinac because the determined field region is
+  slightly larger.
+
+.. important::
+
+  It also appears that SNC defines the CAX Point Difference symmetry with a left/right convention opposite of
+  pylinac. I.e. a negative value in pylinac corresponds to a positive value in SNC and vice versa.
+
+.. note::
+
+    In our experience, changing the "Intensity Cutoff" in IC Profiler has a significant impact on the flatness/symmetry results.
+
+Field Size
+##########
+
+Field size calculations appear to agree well with IC Profiler after accounting for the SSD
+correction factor that SNC applies. The IC Profiler correction is:
+
+.. math:: FS_{corrected} = \frac{SSD}{SSD + 0.9} * (r_{h} - l_{h}) * 0.5cm
+
+where :math:`SSD` is in cm and :math:`r_{h}` and :math:`l_{h}` are the right and left field edges in detector space.
+This value will have the same issues as above since the field edges are determined from the FWXM.
+As above, for flattened beams the differences are rounding errors while for FFF and large-field electrons
+the differences can be larger due to the FWXM determination.
+
 API Documentation
 -----------------
 
