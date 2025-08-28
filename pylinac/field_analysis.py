@@ -221,9 +221,10 @@ def symmetry_area(profile: SingleProfile, in_field_ratio: float, **kwargs) -> fl
         in_field_ratio=in_field_ratio,
         slope_exclusion_ratio=kwargs.get("slope_exclusion_ratio", 0.2),
     )
-    cax_idx = data["beam center index (exact)"] - data["left index (exact)"]
-    area_left = np.sum(data["field values"][: floor(cax_idx)])
-    area_right = np.sum(data["field values"][ceil(cax_idx) :])
+    n = len(data["field values"])
+    # field values are always centered about the beam center; that's how we know to extract the field values
+    area_left = np.sum(data["field values"][: floor(n / 2)])
+    area_right = np.sum(data["field values"][ceil(n / 2) :])
     symmetry = 100 * (area_left - area_right) / (area_left + area_right)
     return symmetry
 
