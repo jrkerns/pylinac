@@ -201,6 +201,10 @@ class Beam:
         last_control_point = self.ds.ControlPointSequence[-1]
         last_control_point.GantryRotationDirection = GantryDirection.NONE.value
 
+        # The last GantryRotationDirection should always be 'NONE'
+        last_control_point = self.ds.ControlPointSequence[-1]
+        last_control_point.GantryRotationDirection = GantryDirection.NONE.value
+
     def _create_basic_beam_info(
         self,
         beam_name: str,
