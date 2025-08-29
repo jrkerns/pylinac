@@ -177,18 +177,25 @@ class Beam:
             couch_rot,
             mlc_positions=mlc_positions[0],
         )
-        for mlc_pos, meterset, gantry_angle in zip(
-            mlc_positions[1:], metersets[1:], gantry_angles[1:]
-        ):
-            if beam_type == BeamType.DYNAMIC:
-                self._append_secondary_dynamic_control_point(
-                    mlc_positions=mlc_pos,
-                    meterset=meterset,
-                    gantry_angle=gantry_angle,
-                    gantry_dir=gantry_direction,
-                )
-            else:
-                self._append_secondary_static_control_point(meterset=meterset)
+        number_of_control_points = len(metersets)
+        for cp_idx in range(1, number_of_control_points):
+            cp = Dataset()
+            cp.ControlPointIndex = cp_idx
+            cp.CumulativeMetersetWeight = np.round(metersets[cp_idx], 6)
+
+            if not gantry_is_static:
+                cp.GantryAngle = gantry_angles[cp_idx]
+                cp.GantryRotationDirection = gantry_direction.value
+
+            if not mlc_is_static:
+                bld_position = Dataset()
+                bld_position.RTBeamLimitingDeviceType = "MLCX"
+                bld_position.LeafJawPositions = list(np.round(mlc_positions[cp_idx], 6))
+                bld_position_sequence = Sequence()
+                bld_position_sequence.append(bld_position)
+                cp.BeamLimitingDevicePositionSequence = bld_position_sequence
+
+            self.ds.ControlPointSequence.append(cp)
 
         # The last GantryRotationDirection should always be 'NONE'
         last_control_point = self.ds.ControlPointSequence[-1]
@@ -347,53 +354,6 @@ class Beam:
 
         self.ds.ControlPointSequence.append(cp0)
 
-    def _append_secondary_static_control_point(self, meterset: float) -> None:
-        # Control Point Sequence: Control Point 1
-        cp1 = Dataset()
-        cp1.ControlPointIndex = len(self.ds.ControlPointSequence)
-
-        cp1.CumulativeMetersetWeight = (
-            f"{meterset:.5f}"  # convert to truncated string to fit VR limitations
-        )
-
-        self.ds.ControlPointSequence.append(cp1)
-
-    def _append_secondary_dynamic_control_point(
-        self,
-        mlc_positions: list[float],
-        meterset: float,
-        gantry_angle: float,
-        gantry_dir: GantryDirection,
-    ) -> None:
-        # Control Point Sequence: Control Point 1
-        cp1 = Dataset()
-        cp1.ControlPointIndex = len(self.ds.ControlPointSequence)
-
-        if gantry_dir != GantryDirection.NONE:
-            cp1.GantryAngle = gantry_angle
-            cp1.GantryRotationDirection = gantry_dir.value
-        cp1.CumulativeMetersetWeight = (
-            f"{meterset:.5f}"  # convert to truncated string to fit VR limitations
-        )
-
-        # Beam Limiting Device Position Sequence
-        beam_limiting_device_position_sequence = Sequence()
-        cp1.BeamLimitingDevicePositionSequence = beam_limiting_device_position_sequence
-
-        # Beam Limiting Device Position Sequence: Beam Limiting Device Position 1
-        beam_limiting_device_position1 = Dataset()
-        beam_limiting_device_position1.RTBeamLimitingDeviceType = "MLCX"
-        beam_limiting_device_position1.LeafJawPositions = [
-            f"{m:6f}" for m in mlc_positions
-        ]  # convert to truncated string to fit VR limitations
-        beam_limiting_device_position_sequence.append(beam_limiting_device_position1)
-
-        # Referenced Dose Reference Sequence
-        refd_dose_ref_sequence = Sequence()
-        cp1.ReferencedDoseReferenceSequence = refd_dose_ref_sequence
-
-        self.ds.ControlPointSequence.append(cp1)
-
     def as_dicom(self) -> Dataset:
         """Return the beam as a DICOM dataset that represents a BeamSequence item."""
         return self.ds
@@ -508,22 +468,37 @@ class HalcyonBeam(Beam):
             proximal_mlc_positions=proximal_mlc_positions[0],
             distal_mlc_positions=distal_mlc_positions[0],
         )
-        for prox_mlc_pos, distal_mlc_pos, meterset, gantry_angle in zip(
-            proximal_mlc_positions[1:],
-            distal_mlc_positions[1:],
-            metersets[1:],
-            gantry_angles[1:],
-        ):
-            if beam_type == BeamType.DYNAMIC:
-                self._append_secondary_dynamic_control_point(
-                    proximal_mlc_positions=prox_mlc_pos,
-                    distal_mlc_positions=distal_mlc_pos,
-                    meterset=meterset,
-                    gantry_angle=gantry_angle,
-                    gantry_dir=gantry_direction,
+
+        number_of_control_points = len(metersets)
+        for cp_idx in range(1, number_of_control_points):
+            cp = Dataset()
+            cp.ControlPointIndex = cp_idx
+            cp.CumulativeMetersetWeight = np.round(metersets[cp_idx], 6)
+
+            if not gantry_is_static:
+                cp.GantryAngle = gantry_angles[cp_idx]
+                cp.GantryRotationDirection = gantry_direction.value
+
+            bld_position_sequence = Sequence()
+            if not distal_mlc_is_static:
+                bld_position = Dataset()
+                bld_position.RTBeamLimitingDeviceType = "MLCX1"
+                bld_position.LeafJawPositions = list(
+                    np.round(distal_mlc_positions[cp_idx], 6)
                 )
-            else:
-                self._append_secondary_static_control_point(meterset=meterset)
+                bld_position_sequence.append(bld_position)
+            if not proximal_mlc_is_static:
+                bld_position = Dataset()
+                bld_position.RTBeamLimitingDeviceType = "MLCX2"
+                bld_position.LeafJawPositions = list(
+                    np.round(proximal_mlc_positions[cp_idx], 6)
+                )
+                bld_position_sequence.append(bld_position)
+
+            if len(bld_position_sequence) > 0:
+                cp.BeamLimitingDevicePositionSequence = bld_position_sequence
+
+            self.ds.ControlPointSequence.append(cp)
 
     def _create_basic_beam_info(
         self,
@@ -683,64 +658,6 @@ class HalcyonBeam(Beam):
         cp0.ReferencedDoseReferenceSequence = refd_dose_ref_sequence
 
         self.ds.ControlPointSequence.append(cp0)
-
-    def _append_secondary_static_control_point(self, meterset: float) -> None:
-        # Control Point Sequence: Control Point 1
-        cp1 = Dataset()
-        cp1.ControlPointIndex = len(self.ds.ControlPointSequence)
-
-        cp1.CumulativeMetersetWeight = (
-            f"{meterset:.5f}"  # convert to truncated string to fit VR limitations
-        )
-
-        self.ds.ControlPointSequence.append(cp1)
-
-    def _append_secondary_dynamic_control_point(
-        self,
-        proximal_mlc_positions: list[float],
-        distal_mlc_positions: list[float],
-        meterset: float,
-        gantry_angle: float,
-        gantry_dir: GantryDirection,
-    ) -> None:
-        # Control Point Sequence: Control Point 1
-        cp1 = Dataset()
-        cp1.ControlPointIndex = len(self.ds.ControlPointSequence)
-
-        if gantry_dir != GantryDirection.NONE:
-            cp1.GantryAngle = gantry_angle
-            cp1.GantryRotationDirection = gantry_dir.value
-        cp1.CumulativeMetersetWeight = (
-            f"{meterset:.5f}"  # convert to truncated string to fit VR limitations
-        )
-
-        # Beam Limiting Device Position Sequence
-        beam_limiting_device_position_sequence = Sequence()
-        cp1.BeamLimitingDevicePositionSequence = beam_limiting_device_position_sequence
-
-        # Distal MLC
-        # Beam Limiting Device Position Sequence: Beam Limiting Device Position 1
-        beam_limiting_device_position1 = Dataset()
-        beam_limiting_device_position1.RTBeamLimitingDeviceType = "MLCX1"
-        beam_limiting_device_position1.LeafJawPositions = [
-            f"{m:6f}" for m in distal_mlc_positions
-        ]  # convert to truncated string to fit VR limitations
-        beam_limiting_device_position_sequence.append(beam_limiting_device_position1)
-
-        # Proximal MLC
-        # Beam Limiting Device Position Sequence: Beam Limiting Device Position 2
-        beam_limiting_device_position2 = Dataset()
-        beam_limiting_device_position2.RTBeamLimitingDeviceType = "MLCX2"
-        beam_limiting_device_position2.LeafJawPositions = [
-            f"{m:6f}" for m in proximal_mlc_positions
-        ]  # convert to truncated string to fit VR limitations
-        beam_limiting_device_position_sequence.append(beam_limiting_device_position2)
-
-        # Referenced Dose Reference Sequence
-        refd_dose_ref_sequence = Sequence()
-        cp1.ReferencedDoseReferenceSequence = refd_dose_ref_sequence
-
-        self.ds.ControlPointSequence.append(cp1)
 
 
 class PlanGenerator(ABC):
