@@ -8,11 +8,11 @@ from parameterized import parameterized
 
 from pylinac.core.image_generator import AS1200Image
 from pylinac.plan_generator.dicom import (
-    Beam,
     FluenceMode,
     HalcyonPlanGenerator,
     OvertravelError,
     Stack,
+    TrueBeamBeam,
     TrueBeamPlanGenerator,
 )
 from pylinac.plan_generator.mlc import (
@@ -108,17 +108,20 @@ class TestPlanGenerator(TestCase):
         with self.assertRaises(ValueError):
             TrueBeamPlanGenerator(ds, plan_label="label", plan_name="my name")
 
-    def test_num_leaves(self):
-        pg = TrueBeamPlanGenerator.from_rt_plan_file(
-            RT_PLAN_FILE, plan_label="label", plan_name="my name"
-        )
-        self.assertEqual(pg.num_leaves, 120)
-
     def test_machine_name(self):
         pg = TrueBeamPlanGenerator.from_rt_plan_file(
             RT_PLAN_FILE, plan_label="label", plan_name="my name"
         )
         self.assertEqual(pg.machine_name, "TrueBeamSN5837")
+
+    def test_machine_name_set_on_beam(self):
+        """Beam machine name is set when added to the plan"""
+        pg = TrueBeamPlanGenerator.from_rt_plan_file(
+            RT_PLAN_FILE, plan_label="label", plan_name="my name"
+        )
+        pg.add_beam(create_beam().as_dicom(), mu=100)
+        dcm = pg.as_dicom()
+        self.assertEqual(dcm.BeamSequence[0].TreatmentMachineName, "TrueBeamSN5837")
 
     def test_leaf_config(self):
         pg = TrueBeamPlanGenerator.from_rt_plan_file(
@@ -145,17 +148,16 @@ class TestPlanGenerator(TestCase):
         pg_dcm = pg.to_dicom_images(simulator=AS1200Image, invert=False)
         non_inverted_array = pg_dcm[0].pixel_array
         # when inverted, the corner should NOT be 0
-        self.assertAlmostEqual(non_inverted_array[0, 0], 0)
+        self.assertAlmostEqual(float(non_inverted_array[0, 0]), 0)
 
         pg_dcm = pg.to_dicom_images(simulator=AS1200Image, invert=True)
         inverted_array = pg_dcm[0].pixel_array
         # when inverted, the corner should NOT be 0
-        self.assertAlmostEqual(inverted_array[0, 0], 1000)
+        self.assertAlmostEqual(float(inverted_array[0, 0]), 1000)
 
 
-def create_beam(**kwargs) -> Beam:
-    return Beam(
-        plan_dataset=kwargs.get("plan_dataset", RT_PLAN_DS),
+def create_beam(**kwargs) -> TrueBeamBeam:
+    return TrueBeamBeam(
         beam_name=kwargs.get("beam_name", "name"),
         energy=kwargs.get("energy", 6),
         dose_rate=kwargs.get("dose_rate", 600),
@@ -163,14 +165,13 @@ def create_beam(**kwargs) -> Beam:
         x2=kwargs.get("x2", 5),
         y1=kwargs.get("y1", -5),
         y2=kwargs.get("y2", 5),
-        machine_name=kwargs.get("machine_name", "TrueBeam"),
         gantry_angles=kwargs.get("gantry_angles", 0),
         coll_angle=kwargs.get("coll_angle", 0),
         couch_vrt=kwargs.get("couch_vrt", 0),
         couch_lng=kwargs.get("couch_lng", 0),
         couch_lat=kwargs.get("couch_lat", 0),
         couch_rot=kwargs.get("couch_rot", 0),
-        mlc_boundaries=kwargs.get("mlc_boundaries", [-200, -100, 0, 100, 200]),
+        is_mlc_hd=kwargs.get("is_mlc_hd", False),
         mlc_positions=kwargs.get("mlc_positions", [[0], [0]]),
         metersets=kwargs.get("metersets", [0, 1]),
         fluence_mode=kwargs.get("fluence_mode", FluenceMode.STANDARD),
@@ -196,10 +197,6 @@ class TestBeam(TestCase):
         beam = create_beam(mlc_positions=[[0]], metersets=[0])
         self.assertEqual(beam.as_dicom().BeamType, "STATIC")
 
-    def test_mlc_positions_match_metersets(self):
-        with self.assertRaises(ValueError):
-            create_beam(mlc_positions=[[0] * 5], metersets=[1, 2, 3])
-
     @parameterized.expand(
         [
             ([0, 90], "CW", "DYNAMIC"),
@@ -212,20 +209,19 @@ class TestBeam(TestCase):
         ]
     )
     def test_beam_type_and_gantry_rotation_direction(
-        self, gantry_angles, gantry_rotation_direction, beam_type
+        self, gantry_angles, rotation_direction, beam_type
     ):
         beam = create_beam(
             gantry_angles=gantry_angles,
         )
         beam_dcm = beam.as_dicom()
-        self.assertEqual(
-            beam_dcm.ControlPointSequence[0].GantryRotationDirection,
-            gantry_rotation_direction,
-        )
-        self.assertEqual(
-            beam_dcm.ControlPointSequence[1].GantryRotationDirection, "NONE"
-        )
         self.assertEqual(beam_dcm.BeamType, beam_type)
+        cp_sequence = beam_dcm.ControlPointSequence
+        self.assertEqual(cp_sequence[0].GantryRotationDirection, rotation_direction)
+        if beam_type == "DYNAMIC":
+            self.assertEqual(cp_sequence[1].GantryRotationDirection, "NONE")
+        else:
+            self.assertNotIn("GantryRotationDirection", cp_sequence[1])
 
     def test_jaw_positions(self):
         b = create_beam(x1=-5, x2=7, y1=-11, y2=13)
@@ -264,15 +260,24 @@ class TestPlanGeneratorBeams(TestCase):
         dcm = self.pg.as_dicom()
         self.assertEqual(len(dcm.BeamSequence), 1)
         self.assertEqual(dcm.BeamSequence[0].BeamName, "name")
-        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 0)
+        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 1)
         self.assertEqual(dcm.FractionGroupSequence[0].NumberOfBeams, 1)
         self.assertEqual(
             dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].BeamMeterset, 100
         )
         self.assertEqual(
             dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].ReferencedBeamNumber,
-            0,
+            1,
         )
+        nominal_boundaries = (
+            RT_PLAN_DS.BeamSequence[0]
+            .BeamLimitingDeviceSequence[-1]
+            .LeafPositionBoundaries
+        )
+        actual_boundaries = (
+            dcm.BeamSequence[0].BeamLimitingDeviceSequence[-1].LeafPositionBoundaries
+        )
+        self.assertEqual(nominal_boundaries, actual_boundaries)
 
     def test_add_2_beams(self):
         self.pg.add_beam(create_beam().as_dicom(), mu=100)
@@ -287,7 +292,7 @@ class TestPlanGeneratorBeams(TestCase):
             dcm.FractionGroupSequence[0].ReferencedBeamSequence[1].BeamMeterset, 200
         )
         self.assertEqual(dcm.BeamSequence[1].BeamName, "beam2")
-        self.assertEqual(dcm.BeamSequence[1].BeamNumber, 1)
+        self.assertEqual(dcm.BeamSequence[1].BeamNumber, 2)
 
     def test_plot_fluence(self):
         # just tests it works
@@ -319,7 +324,7 @@ class TestPlanPrefabs(TestCase):
         dcm = self.pg.as_dicom()
         self.assertEqual(len(dcm.BeamSequence), 1)
         self.assertEqual(dcm.BeamSequence[0].BeamName, "Open Field")
-        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 0)
+        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 1)
         self.assertEqual(dcm.FractionGroupSequence[0].NumberOfBeams, 1)
         self.assertEqual(
             dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].BeamMeterset, 123
@@ -377,7 +382,7 @@ class TestPlanPrefabs(TestCase):
             ("Overtravel", "A", None, -150, OvertravelError),
         ]
     )
-    def test_transmission_beam(self, name, bank, leaf_pos, x1_pos, expected_error):
+    def test_transmission_beam(self, _, bank, leaf_pos, x1_pos, expected_error):
         if expected_error:
             with self.assertRaises(expected_error):
                 self.pg.add_mlc_transmission(
@@ -389,7 +394,6 @@ class TestPlanPrefabs(TestCase):
                     mu=44,
                     beam_name="MLC Txx",
                 )
-                dcm = self.pg.as_dicom()
         else:
             self.pg.add_mlc_transmission(
                 bank=bank,
@@ -403,7 +407,7 @@ class TestPlanPrefabs(TestCase):
             dcm = self.pg.as_dicom()
             self.assertEqual(len(dcm.BeamSequence), 1)
             self.assertEqual(dcm.BeamSequence[0].BeamName, f"MLC Txx {bank}")
-            self.assertEqual(dcm.BeamSequence[0].BeamNumber, 0)
+            self.assertEqual(dcm.BeamSequence[0].BeamNumber, 1)
             self.assertEqual(dcm.FractionGroupSequence[0].NumberOfBeams, 1)
             self.assertEqual(
                 dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].BeamMeterset, 44
@@ -445,7 +449,7 @@ class TestPlanPrefabs(TestCase):
         dcm = self.pg.as_dicom()
         self.assertEqual(len(dcm.BeamSequence), 1)
         self.assertEqual(dcm.BeamSequence[0].BeamName, "Picket Fence")
-        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 0)
+        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 1)
         self.assertEqual(dcm.FractionGroupSequence[0].NumberOfBeams, 1)
         self.assertEqual(
             dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].BeamMeterset, 123
@@ -502,7 +506,9 @@ class TestPlanPrefabs(TestCase):
         self.assertEqual(len(dcm.BeamSequence), 3)
         self.assertEqual(dcm.BeamSequence[0].BeamName, "G0C0P0")
         self.assertEqual(dcm.BeamSequence[2].BeamName, "G180C0P45")
-        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 0)
+        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 1)
+        self.assertEqual(dcm.BeamSequence[1].BeamNumber, 2)
+        self.assertEqual(dcm.BeamSequence[2].BeamNumber, 3)
         self.assertEqual(dcm.FractionGroupSequence[0].NumberOfBeams, 3)
         self.assertEqual(
             dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].BeamMeterset, 123
@@ -554,7 +560,7 @@ class TestPlanPrefabs(TestCase):
         self.assertEqual(len(dcm.BeamSequence), 2)
         self.assertEqual(dcm.BeamSequence[0].BeamName, "DR Ref")
         self.assertEqual(dcm.BeamSequence[1].BeamName, "DR100-600")
-        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 0)
+        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 1)
         self.assertEqual(dcm.FractionGroupSequence[0].NumberOfBeams, 2)
         self.assertEqual(
             dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].BeamMeterset, 123
@@ -582,7 +588,7 @@ class TestPlanPrefabs(TestCase):
         self.assertEqual(len(dcm.BeamSequence), 2)
         self.assertEqual(dcm.BeamSequence[0].BeamName, "MLC Speed Ref")
         self.assertEqual(dcm.BeamSequence[1].BeamName, "MLC Speed")
-        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 0)
+        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 1)
         self.assertEqual(dcm.FractionGroupSequence[0].NumberOfBeams, 2)
         self.assertEqual(
             dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].BeamMeterset, 123
@@ -627,7 +633,7 @@ class TestPlanPrefabs(TestCase):
         self.assertEqual(len(dcm.BeamSequence), 2)
         self.assertEqual(dcm.BeamSequence[0].BeamName, "GS")
         self.assertEqual(dcm.BeamSequence[1].BeamName, "GS Ref")
-        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 0)
+        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 1)
         self.assertEqual(dcm.FractionGroupSequence[0].NumberOfBeams, 2)
         self.assertEqual(
             dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].BeamMeterset, 123
@@ -685,7 +691,7 @@ class TestHalcyonPrefabs(TestCase):
         dcm = self.pg.as_dicom()
         self.assertEqual(len(dcm.BeamSequence), 1)
         self.assertEqual(dcm.BeamSequence[0].BeamName, "Picket Fence")
-        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 0)
+        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 1)
         self.assertEqual(dcm.FractionGroupSequence[0].NumberOfBeams, 1)
         self.assertEqual(
             dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].BeamMeterset, 123
@@ -718,7 +724,7 @@ class TestHalcyonPrefabs(TestCase):
         dcm = self.pg.as_dicom()
         self.assertEqual(len(dcm.BeamSequence), 1)
         self.assertEqual(dcm.BeamSequence[0].BeamName, "Picket Fence")
-        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 0)
+        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 1)
         self.assertEqual(dcm.FractionGroupSequence[0].NumberOfBeams, 1)
         self.assertEqual(
             dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].BeamMeterset, 123
@@ -751,7 +757,7 @@ class TestHalcyonPrefabs(TestCase):
         dcm = self.pg.as_dicom()
         self.assertEqual(len(dcm.BeamSequence), 1)
         self.assertEqual(dcm.BeamSequence[0].BeamName, "Picket Fence")
-        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 0)
+        self.assertEqual(dcm.BeamSequence[0].BeamNumber, 1)
         self.assertEqual(dcm.FractionGroupSequence[0].NumberOfBeams, 1)
         self.assertEqual(
             dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].BeamMeterset, 123
@@ -785,25 +791,33 @@ class TestMLCShaper(TestCase):
 
     def test_init(self):
         MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
+            leaf_y_positions=self.leaf_boundaries,
+            max_mlc_position=200,
+            max_overtravel_mm=140,
         )
 
     def test_num_leaves(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
+            leaf_y_positions=self.leaf_boundaries,
+            max_mlc_position=200,
+            max_overtravel_mm=140,
         )
         self.assertEqual(shaper.num_leaves, 160)
 
     def test_meterset_over_1(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
+            leaf_y_positions=self.leaf_boundaries,
+            max_mlc_position=200,
+            max_overtravel_mm=140,
         )
         with self.assertRaises(ValueError):
             shaper.add_strip(position_mm=-5, strip_width_mm=0, meterset_at_target=2)
 
     def test_sacrifice_without_transition_dose(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
+            leaf_y_positions=self.leaf_boundaries,
+            max_mlc_position=400,
+            max_overtravel_mm=140,
         )
         with self.assertRaises(ValueError):
             shaper.add_strip(
@@ -816,7 +830,9 @@ class TestMLCShaper(TestCase):
 
     def test_initial_sacrificial_gap(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
+            leaf_y_positions=self.leaf_boundaries,
+            max_mlc_position=200,
+            max_overtravel_mm=140,
         )
         shaper.add_strip(
             position_mm=-5,
@@ -828,7 +844,9 @@ class TestMLCShaper(TestCase):
 
     def test_cant_add_sacrificial_gap_after_first_point(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
+            leaf_y_positions=self.leaf_boundaries,
+            max_mlc_position=200,
+            max_overtravel_mm=140,
         )
         shaper.add_strip(
             position_mm=-5,
@@ -847,7 +865,9 @@ class TestMLCShaper(TestCase):
 
     def test_cant_have_initial_sacrifice_and_transition_dose(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
+            leaf_y_positions=self.leaf_boundaries,
+            max_mlc_position=200,
+            max_overtravel_mm=140,
         )
         with self.assertRaises(ValueError):
             shaper.add_strip(
@@ -860,7 +880,9 @@ class TestMLCShaper(TestCase):
 
     def test_cant_have_meterset_transition_for_first_control_point(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
+            leaf_y_positions=self.leaf_boundaries,
+            max_mlc_position=200,
+            max_overtravel_mm=140,
         )
         with self.assertRaises(ValueError) as context:
             shaper.add_strip(
@@ -873,7 +895,9 @@ class TestMLCShaper(TestCase):
 
     def test_cant_have_initial_sacrificial_gap_and_sacrificial_distance(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
+            leaf_y_positions=self.leaf_boundaries,
+            max_mlc_position=200,
+            max_overtravel_mm=140,
         )
         with self.assertRaises(ValueError) as context:
             shaper.add_strip(
@@ -888,7 +912,9 @@ class TestMLCShaper(TestCase):
 
     def test_cannot_have_sacrifical_gap_on_secondary_control_point(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
+            leaf_y_positions=self.leaf_boundaries,
+            max_mlc_position=200,
+            max_overtravel_mm=140,
         )
         shaper.add_strip(position_mm=-5, strip_width_mm=0, meterset_at_target=0.5)
         with self.assertRaises(ValueError) as context:
@@ -910,7 +936,9 @@ class TestMLCShaper(TestCase):
 
     def test_as_control_points(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
+            leaf_y_positions=self.leaf_boundaries,
+            max_mlc_position=200,
+            max_overtravel_mm=140,
         )
         shaper.add_strip(position_mm=-5, strip_width_mm=0, meterset_at_target=1)
         cp = shaper.as_control_points()
@@ -921,7 +949,9 @@ class TestMLCShaper(TestCase):
 
     def test_as_metersets(self):
         shaper = MLCShaper(
-            leaf_y_positions=self.leaf_boundaries, max_x_mm=400, sacrifice_gap_mm=5
+            leaf_y_positions=self.leaf_boundaries,
+            max_mlc_position=200,
+            max_overtravel_mm=140,
         )
         shaper.add_strip(position_mm=-5, strip_width_mm=0, meterset_at_target=1)
         metersets = shaper.as_metersets()

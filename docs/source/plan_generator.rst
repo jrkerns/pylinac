@@ -577,11 +577,11 @@ Adding a picket fence field can be done like so:
 API Documentation
 ------------------
 
-.. autoclass:: pylinac.plan_generator.dicom.PlanGenerator
+.. autoclass:: pylinac.plan_generator.dicom.TrueBeamPlanGenerator
 
 .. autoclass:: pylinac.plan_generator.dicom.HalcyonPlanGenerator
 
-.. autoclass:: pylinac.plan_generator.dicom.Beam
+.. autoclass:: pylinac.plan_generator.dicom.TrueBeamBeam
 
 .. autoclass:: pylinac.plan_generator.dicom.HalcyonBeam
 

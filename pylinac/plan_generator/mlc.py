@@ -17,18 +17,18 @@ class MLCShaper:
     def __init__(
         self,
         leaf_y_positions: list[float],
-        max_x_mm: float,
-        sacrifice_gap_mm: float = 5,
-        sacrifice_max_move_mm: float = 50,
-        max_overtravel_mm: float = 140,
+        max_mlc_position: float,
+        max_overtravel_mm: float,
+        sacrifice_gap_mm: float | None = None,
+        sacrifice_max_move_mm: float | None = None,
     ):
         """
         Parameters
         ----------
         leaf_y_positions
             The y-positions of the MLC leaves. This is the same as the LeafJawPositions in the DICOM RT Plan.
-        max_x_mm
-            The maximum x-position of the MLC leaves. E.g. 200mm away from the isocenter is 200.
+        max_mlc_position
+            The maximum mlc position. E.g. 200mm away from the isocenter is 200.
         sacrifice_gap_mm
             The gap between the sacrificial leaves. This is used to separate the leaves that are being moved out of the way.
         sacrifice_max_move_mm
@@ -37,7 +37,7 @@ class MLCShaper:
             The maximum distance a leaf can move beyond another MLC leaf and also the limit of exposure of the MLC tail.
         """
         self.leaf_y_positions = leaf_y_positions
-        self.max_x = max_x_mm  # mm
+        self.max_mlc_position = max_mlc_position  # mm
         self.sacrifice_gap = sacrifice_gap_mm  # mm gap
         self.sacrifice_max_move_mm = sacrifice_max_move_mm  # mm
         self.max_overtravel_mm = max_overtravel_mm  # mm
@@ -173,8 +173,8 @@ class MLCShaper:
                     sacrificial_distance, self.sacrifice_max_move_mm
                 )
                 # calculate the number of interpolation points
-                interpolation_ratios = np.cumsum(
-                    [m / sum(sacrifice_chunks) for m in sacrifice_chunks]
+                interpolation_ratios = list(
+                    np.cumsum([m / sum(sacrifice_chunks) for m in sacrifice_chunks])
                 )
                 interpolated_control_points = interpolate_control_points(
                     control_point_start=self.control_points[-1],
@@ -208,8 +208,8 @@ class MLCShaper:
     def park(self, meterset: float = 0) -> None:
         """Park the MLC leaves"""
         self.add_rectangle(
-            left_position=-self.max_x,
-            right_position=self.max_x,
+            left_position=-self.max_mlc_position,
+            right_position=self.max_mlc_position,
             x_outfield_position=-200,  # irrelevant
             top_position=max(self.leaf_y_positions),
             bottom_position=min(self.leaf_y_positions),
@@ -281,6 +281,8 @@ def next_sacrifice_shift(
     ----------
     current_position_mm
         The current position of the leaf.
+    travel_mm
+        The travel distance of the sacrificial leaves.
     x_width_mm
         The width of the MLCs in the x-direction.
     other_mlc_position
