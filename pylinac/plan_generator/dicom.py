@@ -46,6 +46,20 @@ class Stack(Enum):
     BOTH = "both"
 
 
+MLC_MILLENNIUM_BOUNDARIES = (
+    list(np.arange(-200, -100 + 1, 10))
+    + list(np.arange(-95, 95 + 1, 5))
+    + list(np.arange(100, 200 + 1, 10))
+)
+MLC_120HDMIL_BOUNDARIES = (
+    list(np.arange(-110, -40 + 1, 5))
+    + list(np.arange(-37.5, 37.5 + 1, 2.5))
+    + list(np.arange(40, 110 + 1, 10))
+)
+MLC_DISTAL_BOUNDARIES = list(np.arange(-140, 140 + 1, 10))
+MLC_PROXIMAL_BOUNDARIES = list(np.arange(-145, 145 + 1, 10))
+
+
 def _create_basic_beam_info(
     beam_name: str,
     beam_type: str,
@@ -103,6 +117,8 @@ class _Beam(ABC):
     It contains enough independent logic steps that it's worth separating out from the PlanGenerator class.
     """
 
+    meterset: float
+
     def __init__(
         self,
         beam_limiting_device_sequence: Sequence,
@@ -138,6 +154,9 @@ class _Beam(ABC):
             The gantry angle(s) of the beam. If a single number, it's assumed to be a static beam. If multiple numbers, it's assumed to be a dynamic beam.
         coll_angle : float
             The collimator angle.
+        beam_limiting_device_positions : dict[str, list]
+            The positions of the beam_limiting_device_positions for each control point,
+            where key is the type of beam limiting device (e.g. "MLCX") and the value contains the positions.
         couch_vrt : float
             The couch vertical position.
         couch_lat : float
@@ -151,6 +170,14 @@ class _Beam(ABC):
 
         number_of_control_points = len(metersets)
 
+        # The Meterset at a given Control Point is equal to Beam Meterset (300A,0086)
+        # specified in the Referenced Beam Sequence (300C,0004) of the RT Fraction Scheme Module,
+        # multiplied by the Cumulative Meterset Weight (300A,0134) for the Control Point,
+        # divided by the Final Cumulative Meterset Weight (300A,010E)
+        # https://dicom.innolitics.com/ciods/rt-plan/rt-beams/300a00b0/300a0111/300a0134
+        metersets_weights = np.array(metersets) / metersets[-1]
+        self.meterset = np.round(metersets[-1], ROUNDING_DECIMALS)
+
         if len(beam_name) > 16:
             raise ValueError("Beam name must be less than or equal to 16 characters")
 
@@ -163,7 +190,7 @@ class _Beam(ABC):
         # Note: using np.isclose does not solve the problem since the tolerance should be the same
         # as Eclipse/Machine, and we don't know which tolerance they use.
         # Here we assume that their tolerance is tighter than ROUNDING_DECIMALS
-        metersets = np.round(metersets, ROUNDING_DECIMALS)
+        metersets_weights = np.round(metersets_weights, ROUNDING_DECIMALS)
         gantry_angles = np.round(gantry_angles, ROUNDING_DECIMALS)
         bld_positions = {
             k: np.round(v, ROUNDING_DECIMALS)
@@ -234,7 +261,7 @@ class _Beam(ABC):
         for cp_idx in range(1, number_of_control_points):
             cp = Dataset()
             cp.ControlPointIndex = cp_idx
-            cp.CumulativeMetersetWeight = metersets[cp_idx]
+            cp.CumulativeMetersetWeight = metersets_weights[cp_idx]
 
             if not gantry_is_static:
                 cp.GantryAngle = gantry_angles[cp_idx]
@@ -338,20 +365,10 @@ class TrueBeamBeam(_Beam):
         mlc.RTBeamLimitingDeviceType = "MLCX"
         mlc.NumberOfLeafJawPairs = 60
         if is_mlc_hd:
-            mlc.LeafPositionBoundaries = (
-                list(np.arange(-110, -40 + 1, 5))
-                + list(np.arange(-37.5, 37.5 + 1, 2.5))
-                + list(np.arange(40, 110 + 1, 10))
-            )
+            mlc.LeafPositionBoundaries = MLC_120HDMIL_BOUNDARIES
         else:
-            mlc.LeafPositionBoundaries = (
-                list(np.arange(-200, -100 + 1, 10))
-                + list(np.arange(-95, 95 + 1, 5))
-                + list(np.arange(100, 200 + 1, 10))
-            )
-        beam_limiting_device_sequence = Sequence(
-            (jaw_x, jaw_y, jaw_asymx, jaw_asymy, mlc)
-        )
+            mlc.LeafPositionBoundaries = MLC_MILLENNIUM_BOUNDARIES
+        bld_sequence = Sequence((jaw_x, jaw_y, jaw_asymx, jaw_asymy, mlc))
 
         beam_limiting_device_positions = {
             "ASYMX": [[x1, x2]],
@@ -360,7 +377,7 @@ class TrueBeamBeam(_Beam):
         }
 
         super().__init__(
-            beam_limiting_device_sequence=beam_limiting_device_sequence,
+            beam_limiting_device_sequence=bld_sequence,
             beam_name=beam_name,
             energy=energy,
             fluence_mode=fluence_mode,
@@ -422,12 +439,12 @@ class HalcyonBeam(_Beam):
         mlc_x1 = Dataset()
         mlc_x1.RTBeamLimitingDeviceType = "MLCX1"
         mlc_x1.NumberOfLeafJawPairs = 28
-        mlc_x1.LeafPositionBoundaries = list(np.arange(-140, 140 + 1, 10))
+        mlc_x1.LeafPositionBoundaries = MLC_DISTAL_BOUNDARIES
         mlc_x2 = Dataset()
         mlc_x2.RTBeamLimitingDeviceType = "MLCX2"
         mlc_x2.NumberOfLeafJawPairs = 29
-        mlc_x2.LeafPositionBoundaries = list(np.arange(-145, 145 + 1, 10))
-        beam_limiting_device_sequence = Sequence((jaw_x, jaw_y, mlc_x1, mlc_x2))
+        mlc_x2.LeafPositionBoundaries = MLC_PROXIMAL_BOUNDARIES
+        bld_sequence = Sequence((jaw_x, jaw_y, mlc_x1, mlc_x2))
 
         beam_limiting_device_positions = {
             "X": [[-140, 140]],
@@ -437,7 +454,7 @@ class HalcyonBeam(_Beam):
         }
 
         super().__init__(
-            beam_limiting_device_sequence=beam_limiting_device_sequence,
+            beam_limiting_device_sequence=bld_sequence,
             beam_name=beam_name,
             energy=6,
             fluence_mode=FluenceMode.FFF,
@@ -585,11 +602,13 @@ class PlanGenerator(ABC):
         """The name of the machine."""
         return self._old_beam.TreatmentMachineName
 
-    def add_beam(self, beam_dataset: Dataset, mu: int):
+    def add_beam(self, beam: _Beam):
         """Add a beam to the plan using the Beam object. Although public,
         this is a low-level method that is used by the higher-level methods like add_open_field_beam.
         This handles the associated metadata like the referenced beam sequence and fraction group sequence.
         """
+        beam_dataset = beam.as_dicom()
+
         # Update the beam
         beam_dataset.BeamNumber = len(self.ds.BeamSequence) + 1
         beam_dataset.TreatmentMachineName = self.machine_name
@@ -606,7 +625,7 @@ class PlanGenerator(ABC):
         # Update plan references
         referenced_beam = Dataset()
         referenced_beam.BeamDose = 1.0
-        referenced_beam.BeamMeterset = mu
+        referenced_beam.BeamMeterset = beam.meterset
         referenced_beam.ReferencedBeamNumber = beam_dataset.BeamNumber
         dose_reference_uid = self.ds.DoseReferenceSequence[0].DoseReferenceUID
         referenced_beam.ReferencedDoseReferenceUID = dose_reference_uid
@@ -846,11 +865,11 @@ class TrueBeamPlanGenerator(PlanGenerator):
             couch_lng=couch_lng,
             couch_rot=couch_rot,
             mlc_positions=mlc.as_control_points(),
-            metersets=mlc.as_metersets(),
+            metersets=[mu * m for m in mlc.as_metersets()],
             fluence_mode=fluence_mode,
             is_mlc_hd=self.is_mlc_hd,
         )
-        self.add_beam(beam.as_dicom(), mu=mu)
+        self.add_beam(beam)
 
     def add_mlc_transmission(
         self,
@@ -944,11 +963,11 @@ class TrueBeamPlanGenerator(PlanGenerator):
             couch_lng=couch_lng,
             couch_rot=couch_rot,
             mlc_positions=mlc.as_control_points(),
-            metersets=mlc.as_metersets(),
+            metersets=[mu * m for m in mlc.as_metersets()],
             fluence_mode=fluence_mode,
             is_mlc_hd=self.is_mlc_hd,
         )
-        self.add_beam(beam.as_dicom(), mu=mu)
+        self.add_beam(beam)
 
     def add_dose_rate_beams(
         self,
@@ -1100,10 +1119,10 @@ class TrueBeamPlanGenerator(PlanGenerator):
             couch_rot=couch_rot,
             fluence_mode=fluence_mode,
             mlc_positions=ref_mlc.as_control_points(),
-            metersets=ref_mlc.as_metersets(),
+            metersets=[mu * m for m in ref_mlc.as_metersets()],
             is_mlc_hd=self.is_mlc_hd,
         )
-        self.add_beam(ref_beam.as_dicom(), mu=mu)
+        self.add_beam(ref_beam)
         beam = TrueBeamBeam(
             beam_name=f"DR{min(dose_rates)}-{max(dose_rates)}",
             energy=energy,
@@ -1120,10 +1139,10 @@ class TrueBeamPlanGenerator(PlanGenerator):
             couch_rot=couch_rot,
             fluence_mode=fluence_mode,
             mlc_positions=mlc.as_control_points(),
-            metersets=mlc.as_metersets(),
+            metersets=[mu * m for m in mlc.as_metersets()],
             is_mlc_hd=self.is_mlc_hd,
         )
-        self.add_beam(beam.as_dicom(), mu=mu)
+        self.add_beam(beam)
 
     def add_mlc_speed_beams(
         self,
@@ -1290,10 +1309,10 @@ class TrueBeamPlanGenerator(PlanGenerator):
             couch_rot=couch_rot,
             fluence_mode=fluence_mode,
             mlc_positions=ref_mlc.as_control_points(),
-            metersets=ref_mlc.as_metersets(),
+            metersets=[mu * m for m in ref_mlc.as_metersets()],
             is_mlc_hd=self.is_mlc_hd,
         )
-        self.add_beam(ref_beam.as_dicom(), mu=mu)
+        self.add_beam(ref_beam)
         beam = TrueBeamBeam(
             beam_name=beam_name,
             energy=energy,
@@ -1310,10 +1329,10 @@ class TrueBeamPlanGenerator(PlanGenerator):
             couch_rot=couch_rot,
             fluence_mode=fluence_mode,
             mlc_positions=mlc.as_control_points(),
-            metersets=mlc.as_metersets(),
+            metersets=[mu * m for m in mlc.as_metersets()],
             is_mlc_hd=self.is_mlc_hd,
         )
-        self.add_beam(beam.as_dicom(), mu=mu)
+        self.add_beam(beam)
 
     def add_winston_lutz_beams(
         self,
@@ -1403,11 +1422,11 @@ class TrueBeamPlanGenerator(PlanGenerator):
                 couch_lng=couch_lng,
                 couch_rot=0,
                 mlc_positions=mlc.as_control_points(),
-                metersets=mlc.as_metersets(),
+                metersets=[mu * m for m in mlc.as_metersets()],
                 fluence_mode=fluence_mode,
                 is_mlc_hd=self.is_mlc_hd,
             )
-            self.add_beam(beam.as_dicom(), mu=mu)
+            self.add_beam(beam)
 
     def add_gantry_speed_beams(
         self,
@@ -1554,10 +1573,10 @@ class TrueBeamPlanGenerator(PlanGenerator):
             couch_rot=couch_rot,
             fluence_mode=fluence_mode,
             mlc_positions=mlc.as_control_points(),
-            metersets=mlc.as_metersets(),
+            metersets=[mu * m for m in mlc.as_metersets()],
             is_mlc_hd=self.is_mlc_hd,
         )
-        self.add_beam(beam.as_dicom(), mu=mu)
+        self.add_beam(beam)
         ref_beam = TrueBeamBeam(
             beam_name=f"{beam_name} Ref",
             energy=energy,
@@ -1574,10 +1593,10 @@ class TrueBeamPlanGenerator(PlanGenerator):
             couch_rot=couch_rot,
             fluence_mode=fluence_mode,
             mlc_positions=ref_mlc.as_control_points(),
-            metersets=ref_mlc.as_metersets(),
+            metersets=[mu * m for m in ref_mlc.as_metersets()],
             is_mlc_hd=self.is_mlc_hd,
         )
-        self.add_beam(ref_beam.as_dicom(), mu=mu)
+        self.add_beam(ref_beam)
 
     def add_open_field_beam(
         self,
@@ -1673,11 +1692,11 @@ class TrueBeamPlanGenerator(PlanGenerator):
             couch_lng=couch_lng,
             couch_rot=couch_rot,
             mlc_positions=mlc.as_control_points(),
-            metersets=mlc.as_metersets(),
+            metersets=[mu * m for m in mlc.as_metersets()],
             fluence_mode=fluence_mode,
             is_mlc_hd=self.is_mlc_hd,
         )
-        self.add_beam(beam.as_dicom(), mu=mu)
+        self.add_beam(beam)
 
 
 class HalcyonPlanGenerator(PlanGenerator):
@@ -1831,9 +1850,10 @@ class HalcyonPlanGenerator(PlanGenerator):
             couch_lng=couch_lng,
             proximal_mlc_positions=prox_mlc.as_control_points(),
             distal_mlc_positions=dist_mlc.as_control_points(),
-            metersets=prox_mlc.as_metersets(),  # can use either MLC for metersets
+            # can use either MLC for metersets
+            metersets=[mu * m for m in prox_mlc.as_metersets()],
         )
-        self.add_beam(beam.as_dicom(), mu=mu)
+        self.add_beam(beam)
 
     def add_open_field_beam(
         self,

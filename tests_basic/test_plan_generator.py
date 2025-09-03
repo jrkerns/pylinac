@@ -119,7 +119,7 @@ class TestPlanGenerator(TestCase):
         pg = TrueBeamPlanGenerator.from_rt_plan_file(
             RT_PLAN_FILE, plan_label="label", plan_name="my name"
         )
-        pg.add_beam(create_beam().as_dicom(), mu=100)
+        pg.add_beam(create_beam())
         dcm = pg.as_dicom()
         self.assertEqual(dcm.BeamSequence[0].TreatmentMachineName, "TrueBeamSN5837")
 
@@ -173,7 +173,7 @@ def create_beam(**kwargs) -> TrueBeamBeam:
         couch_rot=kwargs.get("couch_rot", 0),
         is_mlc_hd=kwargs.get("is_mlc_hd", False),
         mlc_positions=kwargs.get("mlc_positions", [[0], [0]]),
-        metersets=kwargs.get("metersets", [0, 1]),
+        metersets=kwargs.get("metersets", [0, 100]),
         fluence_mode=kwargs.get("fluence_mode", FluenceMode.STANDARD),
     )
 
@@ -254,9 +254,7 @@ class TestPlanGeneratorBeams(TestCase):
         )
 
     def test_add_beam_low_level(self):
-        self.pg.add_beam(
-            create_beam(plan_dataset=self.pg.as_dicom()).as_dicom(), mu=100
-        )
+        self.pg.add_beam(create_beam(plan_dataset=self.pg.as_dicom()))
         dcm = self.pg.as_dicom()
         self.assertEqual(len(dcm.BeamSequence), 1)
         self.assertEqual(dcm.BeamSequence[0].BeamName, "name")
@@ -280,8 +278,8 @@ class TestPlanGeneratorBeams(TestCase):
         self.assertEqual(nominal_boundaries, actual_boundaries)
 
     def test_add_2_beams(self):
-        self.pg.add_beam(create_beam().as_dicom(), mu=100)
-        self.pg.add_beam(create_beam(beam_name="beam2").as_dicom(), mu=200)
+        self.pg.add_beam(create_beam())
+        self.pg.add_beam(create_beam(beam_name="beam2"))
         dcm = self.pg.as_dicom()
         self.assertEqual(len(dcm.BeamSequence), 2)
         self.assertEqual(dcm.FractionGroupSequence[0].NumberOfBeams, 2)
@@ -289,7 +287,7 @@ class TestPlanGeneratorBeams(TestCase):
             dcm.FractionGroupSequence[0].ReferencedBeamSequence[0].BeamMeterset, 100
         )
         self.assertEqual(
-            dcm.FractionGroupSequence[0].ReferencedBeamSequence[1].BeamMeterset, 200
+            dcm.FractionGroupSequence[0].ReferencedBeamSequence[1].BeamMeterset, 100
         )
         self.assertEqual(dcm.BeamSequence[1].BeamName, "beam2")
         self.assertEqual(dcm.BeamSequence[1].BeamNumber, 2)
