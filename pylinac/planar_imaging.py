@@ -1715,8 +1715,9 @@ class LasVegas(ImagePhantomBase):
             label="Visibility",
         )
         axes3.axhline(self.visibility_threshold, color="blue")
-        axes3.spines.right.set_position(("axes", 1.2))
-
+        right = axes3.spines.get("right",None)
+        if right:
+            right.set_position(("axes", 1.2))
         axes.legend(handles=[line1, line2, line3])
 
     def results(self, as_list: bool = False) -> str | list[str]:
