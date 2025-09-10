@@ -29,10 +29,13 @@ from tests_basic.utils import (
     InitTesterMixin,
     PlotlyTestMixin,
     get_file_from_cloud_test_repo,
+    get_folder_from_cloud_repo,
     save_file,
 )
 
 TEST_DIR = "CBCT"
+
+get_folder_from_cloud_repo([TEST_DIR])
 
 
 class TestInstantiation(

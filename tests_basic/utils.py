@@ -20,6 +20,7 @@ from urllib.request import urlopen
 
 from google.cloud import storage
 from py_linq import Enumerable
+from requests import ReadTimeout
 
 from pylinac.core import image
 from tests_basic import DELETE_FILES
@@ -131,7 +132,17 @@ def get_file_from_cloud_test_repo(path: list[str], force: bool = False) -> str:
                 local_dir = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *path[:idx])
                 os.makedirs(local_dir, exist_ok=True)
 
-        blob.download_to_filename(local_filename)
+        try:
+            blob.download_to_filename(
+                local_filename, timeout=120
+            )  # longer timeout for large files; in the CI/CD pipeline sometimes we are bandwidth choked.
+        except ReadTimeout as e:
+            # GCP creates a zero-byte file to start; if we timeout or otherwise fail, the 0-size file still exists;
+            # delete it so other tests don't think the file is valid
+            Path(local_filename).unlink(missing_ok=True)
+            raise ConnectionError(
+                f"Could not download the file from GCP. Are you connected to the internet? You could also be bandwidth-limited. Try again later. {e}"
+            )
         time.sleep(2)
         print(
             f"Downloaded from GCP: {local_filename}@{hashlib.md5(open(local_filename, 'rb').read()).hexdigest()}"

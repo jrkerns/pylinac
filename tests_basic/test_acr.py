@@ -17,11 +17,15 @@ from tests_basic.utils import (
     InitTesterMixin,
     PlotlyTestMixin,
     get_file_from_cloud_test_repo,
+    get_folder_from_cloud_repo,
     save_file,
 )
 
 TEST_DIR_CT = ["ACR", "CT"]
 TEST_DIR_MR = ["ACR", "MRI"]
+
+get_folder_from_cloud_repo(TEST_DIR_CT)
+get_folder_from_cloud_repo(TEST_DIR_MR)
 
 
 class TestACRCT(TestCase, FromZipTesterMixin, InitTesterMixin):
