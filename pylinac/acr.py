@@ -13,6 +13,7 @@ from matplotlib import pyplot as plt
 from plotly import graph_objects as go
 from pydantic import BaseModel, ConfigDict, Field
 from scipy import ndimage
+from skimage.filters import threshold_otsu
 
 from .core import pdf
 from .core.array_utils import fill_middle_zeros, find_nearest_idx
@@ -1054,7 +1055,8 @@ class GeometricDistortionModule(CatPhanModule):
         We convert to physical just for the field width calculation."""
         px_to_cut_off = int(round(5 / self.mm_per_pixel))
         self.profiles = {}
-        bin_image = self.image.as_binary(threshold=np.percentile(self.image, 60))
+        threshold = threshold_otsu(image=self.image.array)
+        bin_image = self.image.as_binary(threshold=threshold)
         bin_image = ndimage.binary_fill_holes(bin_image).astype(float)
         # calculate horizontal
         data = bin_image[int(self.phan_center.y), :]

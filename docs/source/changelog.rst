@@ -26,6 +26,13 @@ CatPhan
 
 * :bdg-success:`Feature` The CatPhan plots now include the slice number in the title (e.g. ``Low Contrast (20)``)
 
+ACR Phantoms
+^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` Starting in June of 2019, the grid structure of the ACR Large Phantom (slice #5) has been
+  changed. The main difference is that the original grid structure of slice #5 has been replaced by a solid
+  piece of plexiglass. Pylinac is now able to correctly handle both structures.
+
 Plan Generator
 ^^^^^^^^^^^^^^
 

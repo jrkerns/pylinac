@@ -330,7 +330,7 @@ class TestACRMRI(TestCase, FromZipTesterMixin, InitTesterMixin):
         )
         self.assertAlmostEqual(
             data.geometric_distortion_module.profiles["horizontal"]["width (mm)"],
-            190.44,
+            189.46,
             delta=0.05,
         )
 
@@ -471,6 +471,7 @@ class ACRMRMixin(CloudFileMixin):
     slice1_shift: float
     slice11_shift: float
     psg: float
+    profile_lengths: None | dict = None
     results: list[str] = []
     x_adjustment: float = 0
     y_adjustment: float = 0
@@ -528,6 +529,16 @@ class ACRMRMixin(CloudFileMixin):
 
     def test_psg(self):
         self.assertAlmostEqual(self.mri.uniformity_module.psg, self.psg, delta=0.3)
+
+    def test_profile_lengths(self):
+        if self.profile_lengths:
+            results = self.mri.results_data()
+            for name, length in self.profile_lengths.items():
+                self.assertAlmostEqual(
+                    results.geometric_distortion_module.profiles[name]["width (mm)"],
+                    length,
+                    delta=0.05,
+                )
 
     def test_results(self):
         results = self.mri.results()
@@ -687,3 +698,35 @@ class ACRMRIUnfilled(ACRMRMixin, TestCase):
     slice11_shift = 1.5
     psg = 0.1
     y_adjustment = -2
+
+
+class ACRMRNewHollowPhantom1(ACRMRMixin, TestCase):
+    file_name = "Sola-PhantomJune2019_1.zip"
+    row_mtf_50 = 1.08
+    col_mtf_50 = 1.10
+    slice_thickness = 4.90
+    slice1_shift = 0.0
+    slice11_shift = 0.49
+    psg = 0.07
+    profile_lengths = {
+        "horizontal": 189.45,
+        "vertical": 190.43,
+        "negative diagonal": 189.70,
+        "positive diagonal": 192.38,
+    }
+
+
+class ACRMRNewHollowPhantom2(ACRMRMixin, TestCase):
+    file_name = "Sola-PhantomJune2019_2.zip"
+    row_mtf_50 = 1.06
+    col_mtf_50 = 1.06
+    slice_thickness = 5.33
+    slice1_shift = 0.0
+    slice11_shift = 0.49
+    psg = 0.12
+    profile_lengths = {
+        "horizontal": 190.43,
+        "vertical": 191.41,
+        "negative diagonal": 190.99,
+        "positive diagonal": 191.19,
+    }

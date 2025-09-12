@@ -353,7 +353,7 @@ Section 0.4 specifies the 8 tests to perform. Pylinac can perform 6 of these 8. 
 low-contrast object detectability test, while the the artifact assessment test is considered a visual inspection test.
 
 * **Geometric Accuracy** - The geometric accuracy is measured using profiles of slice 5. The only difference
-  is that pylinac will use the 60th percentile pixel value of the image as a high-pass filter so that minor background fluctuations are removed and then take the FWHM
+  is that pylinac uses an automatic image thresholding and then take the FWHM
   of several profiles of this new image. The width between the two pixels defining the FWHM is the diameter.
 * **High Contrast** - High contrast is hard to measure for the ACR MRI phantom simply because it does not use line pairs,
   but rather offset dots as well as the qualitative description in the guidance document about how to score these.
