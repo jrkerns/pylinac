@@ -602,7 +602,7 @@ class PlanGenerator(ABC):
         """The name of the machine."""
         return self._old_beam.TreatmentMachineName
 
-    def add_beam(self, beam: _Beam):
+    def add_beam(self, beam: HalcyonBeam | TrueBeamBeam):
         """Add a beam to the plan using the Beam object. Although public,
         this is a low-level method that is used by the higher-level methods like add_open_field_beam.
         This handles the associated metadata like the referenced beam sequence and fraction group sequence.
