@@ -33,6 +33,18 @@ ACR Phantoms
   changed. The main difference is that the original grid structure of slice #5 has been replaced by a solid
   piece of plexiglass. Pylinac is now able to correctly handle both structures.
 
+Quart
+^^^^^
+
+* :bdg-success:`Feature` The Quart Phantom version 2 includes a water vial. Pylinac can now automatically
+  detect whether the water vial is present and filled, and display the corresponding HU measurement.
+* :bdg-danger:`Change` For the same reason, the class :class:`~pylinac.quart.HypersightQuartDVT`,
+  which was originally intended as a representation of the Quart Phantom version 2, has been deprecated.
+  You should be able to use the ``QuartDVT`` class instead. However, the ``HypersightQuartDVT`` class
+  remains for the time being in the event the automatic water vial detection fails.
+  The ``HypersightQuartDVT`` hardcodes the vial and will always analyze it.
+
+
 Planar Imaging
 ^^^^^^^^^^^^^^
 * :bdg-success:`Feature` The windowing for the DoseLab kV phantom was adjusted to improve contrast,

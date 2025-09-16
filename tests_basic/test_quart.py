@@ -7,7 +7,7 @@ from unittest import TestCase
 from matplotlib import pyplot as plt
 from scipy import ndimage
 
-from pylinac import QuartDVT
+from pylinac import HypersightQuartDVT, QuartDVT
 from pylinac.core.geometry import Point
 from pylinac.core.io import TemporaryZipDirectory
 from pylinac.quart import ACRYLIC, POLY, QuartDVTResult
@@ -164,6 +164,7 @@ class QuartDVTMixin(CloudFileMixin):
     angle_adjustment: float = 0
     roi_size_factor: float = 1
     scaling_factor: float = 1
+    has_water_vial: bool = False
 
     @classmethod
     def setUpClass(cls):
@@ -221,6 +222,11 @@ class QuartDVTMixin(CloudFileMixin):
             exp_val = self.hu_values[key]
             meas_val = roi.pixel_value
             self.assertAlmostEqual(exp_val, meas_val, delta=5)
+
+    def test_vial(self):
+        exp_has_water_vial = self.has_water_vial
+        meas_has_water_vial = "Water" in self.quart.hu_module.rois.keys()
+        self.assertEqual(exp_has_water_vial, meas_has_water_vial)
 
     def test_uniformity_values(self):
         """Test Uniformity HU values."""
@@ -354,7 +360,9 @@ class TestQuartPelvis(QuartDVTMixin, TestCase):
     unif_values = {"Center": 120, "Left": 132, "Right": 142, "Top": 136, "Bottom": 137}
 
 
-class TestHypersightQuart(QuartDVTMixin, TestCase):
+class TestHypersight(QuartDVTMixin, TestCase):
+    """Tests the hypersight class. Note this is the same dataset as the Quart v2. This ensure constancy."""
+
     file_name = "Hypersight Quart (w water).zip"
     phantom_roll = 0.2
     slice_thickness = 1.9
@@ -364,8 +372,38 @@ class TestHypersightQuart(QuartDVTMixin, TestCase):
     horiz_dist = 159.7
     vert_dist = 159.6
     high_contrast_distance = 0.6
-    hu_values = {"Poly": -47, "Acrylic": 106, "Air": -1000, "Teflon": 963, "Water": 0}
+    hu_values = {"Poly": -47, "Acrylic": 106, "Air": -1000, "Teflon": 963, "Water": -8}
     unif_values = {"Center": 98, "Left": 96, "Right": 92, "Top": 92, "Bottom": 93}
+    has_water_vial = True
+
+    @classmethod
+    def setUpClass(cls):
+        filename = cls.get_filename()
+        cls.quart = HypersightQuartDVT.from_zip(filename, memory_efficient_mode=True)
+        cls.quart.analyze(
+            x_adjustment=cls.x_adjustment,
+            y_adjustment=cls.y_adjustment,
+            angle_adjustment=cls.angle_adjustment,
+            roi_size_factor=cls.roi_size_factor,
+            scaling_factor=cls.scaling_factor,
+        )
+
+
+class TestQuartv2(QuartDVTMixin, TestCase):
+    """Tests the new quart phantom analysis detects the water ROI."""
+
+    file_name = "Hypersight Quart (w water).zip"
+    phantom_roll = 0.2
+    slice_thickness = 1.9
+    origin_slice = 18
+    snr = 397
+    cnr = 56.2
+    horiz_dist = 159.7
+    vert_dist = 159.6
+    high_contrast_distance = 0.6
+    hu_values = {"Poly": -47, "Acrylic": 106, "Air": -1000, "Teflon": 963, "Water": -8}
+    unif_values = {"Center": 98, "Left": 96, "Right": 92, "Top": 92, "Bottom": 93}
+    has_water_vial = True
 
 
 class TestTableQuart(QuartDVTMixin, TestCase):
@@ -380,5 +418,13 @@ class TestTableQuart(QuartDVTMixin, TestCase):
     horiz_dist = 159.3
     vert_dist = 159.7
     high_contrast_distance = 0.6
-    hu_values = {"Poly": -63, "Acrylic": 111, "Air": -1000, "Teflon": 970, "Water": 0}
+    hu_values = {"Poly": -63, "Acrylic": 111, "Air": -1000, "Teflon": 970}
     unif_values = {"Center": 112, "Left": 104, "Right": 104, "Top": 97, "Bottom": 124}
+
+
+class TestHypersightPhantomDepracated(TestCase):
+    # This phantom is replaced by the auto-detect of the water vial on the regular Quart phantom.
+    def test_hypersight_depracated(self):
+        path = get_file_from_cloud_test_repo([*TEST_DIR, "Head_Quart.zip"])
+        with self.assertWarns(DeprecationWarning):
+            HypersightQuartDVT.from_zip(path)

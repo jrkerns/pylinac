@@ -84,10 +84,18 @@ Hypersight
 .. versionadded:: 3.17
 
 The Hypersight variant of the Quart phantom includes a water ROI in the HU module.
-A sister class can be used to also analyze this phantom: :class:`~pylinac.quart.HypersightQuartDVT`
-and will include an additional ROI analysis of the water bubble.
+The Quart analysis automatically detects whether the water vial is present and filled,
+and reports the additional ROI analysis results for the water bubble.
 
-The class can be used interchangeably with the normal class and throughout this documentation.
+.. warning::
+
+    .. versionchanged:: 3.37
+
+    In earlier versions, the Hypersight variant had its own class.
+    Starting with v3.37, there is now a unified Quart Phantom class
+    that automatically detects the water vial. This class is now deprecated but remains in the
+    event the automatic water vial detection of the ``QuartDVT`` class is incorrect.
+    It will be removed in a future release.
 
 Advanced Use
 ------------

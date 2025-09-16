@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import textwrap
+import warnings
 import webbrowser
 from io import BytesIO
 from pathlib import Path
@@ -125,6 +126,7 @@ class QuartDVTResult(ResultBase):
 class QuartHUModule(CTP404CP504):
     roi_dist_mm = 52.5
     roi_radius_mm = 6
+    vial_radius_mm = 12
     roi_settings = {
         "Air": {
             "value": AIR,
@@ -150,6 +152,12 @@ class QuartHUModule(CTP404CP504):
             "distance": roi_dist_mm,
             "radius": roi_radius_mm,
         },
+        "Water": {
+            "value": WATER,
+            "angle": -45,
+            "distance": roi_dist_mm,
+            "radius": vial_radius_mm,
+        },
     }
     background_roi_settings = {}
     thickness_roi_height = 25
@@ -169,6 +177,20 @@ class QuartHUModule(CTP404CP504):
             "distance": thickness_roi_distance_mm,
         },
     }
+
+    def _setup_rois(self) -> None:
+        """On the Quart v2 phantom, there is an optional water slot.
+        We need to distinguish between:
+        v1, housing material: acrylic ~ 100 HU
+        v2, with full vial: water ~ 0 HU
+        v2, with empty vial: air ~ -1000 HU
+        """
+        super()._setup_rois()
+        nominal_water_hu = 0  # HU
+        threshold = 50  # HU
+        measured_water_hu = self.rois["Water"].pixel_value
+        if np.abs(measured_water_hu - nominal_water_hu) > threshold:  # not water
+            self.rois.pop("Water")
 
     def _setup_geometry_rois(self) -> None:
         # no geometry ROIs
@@ -255,6 +277,9 @@ class HypersightQuartHUModule(QuartHUModule):
             "radius": 12,
         },
     }
+
+    def _setup_rois(self) -> None:
+        CTP404CP504._setup_rois(self)  # call grandparent method
 
 
 class QuartUniformityModule(CTP486):
@@ -761,6 +786,13 @@ class HypersightQuartDVT(QuartDVT):
     for the Hypersight version, which includes a water ROI.
     Analyzes: HU Uniformity, Image Scaling & HU Linearity.
     """
+
+    def __init__(self, **kwargs):
+        warnings.warn(
+            "This class is now deprecated. Please use the QuartDVT class instead as it now handles the water vial that differentiated this class",
+            DeprecationWarning,
+        )
+        super().__init__(**kwargs)
 
     _model = "Hypersight Quart DVT"
     hu_module = HypersightQuartHUModule
