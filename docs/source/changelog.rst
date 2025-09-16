@@ -33,6 +33,11 @@ ACR Phantoms
   changed. The main difference is that the original grid structure of slice #5 has been replaced by a solid
   piece of plexiglass. Pylinac is now able to correctly handle both structures.
 
+Planar Imaging
+^^^^^^^^^^^^^^
+* :bdg-success:`Feature` The windowing for the DoseLab kV phantom was adjusted to improve contrast,
+  making structures cleaer and ROI placement easier. There is no effect on the results of the analysis.
+
 Plan Generator
 ^^^^^^^^^^^^^^
 

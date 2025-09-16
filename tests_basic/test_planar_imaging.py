@@ -664,6 +664,12 @@ class DoselabkV70kVp(PlanarPhantomMixin, TestCase):
     mtf_50 = 1.14
     piu = 0
 
+    def test_window_ceiling(self):
+        self.assertAlmostEqual(self.instance.window_ceiling(), 0.208, delta=0.01)
+
+    def test_window_floor(self):
+        self.assertAlmostEqual(self.instance.window_floor(), -0.104, delta=0.01)
+
 
 class SNCkVDemo(PlanarPhantomMixin, TestCase):
     klass = SNCkV

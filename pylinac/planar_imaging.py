@@ -2969,6 +2969,21 @@ class DoselabMC2kV(ImagePhantomBase):
             )
         return angle
 
+    def _wl_spread(self):
+        """window/level spread based on low contrast ROI pixel values"""
+        pixel_values = [roi.pixel_value for roi in self.low_contrast_rois]
+        return abs(max(pixel_values) - min(pixel_values))
+
+    def window_floor(self) -> float | None:
+        return (
+            min(roi.pixel_value for roi in self.low_contrast_rois) - self._wl_spread()
+        )
+
+    def window_ceiling(self) -> float | None:
+        return (
+            max(roi.pixel_value for roi in self.low_contrast_rois) + self._wl_spread()
+        )
+
 
 @capture_warnings
 class DoselabMC2MV(DoselabMC2kV):
