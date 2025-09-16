@@ -3626,6 +3626,12 @@ def align_points(
     # Ensure the points are centered at their centroids
     measured_centroid = np.mean(measured_array, axis=0)
     ideal_centroid = np.mean(ideal_array, axis=0)
+
+    # Rotational components are under-determined for <3 points; fall back to translation only.
+    if measured_array.shape[0] < 3:
+        translation = ideal_centroid - measured_centroid
+        return Vector(*translation), 0.0, 0.0, 0.0
+    
     measured_centered = measured_array - measured_centroid
     ideal_centered = ideal_array - ideal_centroid
 
