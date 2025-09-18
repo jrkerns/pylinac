@@ -123,13 +123,13 @@ class TestPlanGenerator(TestCase):
         dcm = pg.as_dicom()
         self.assertEqual(dcm.BeamSequence[0].TreatmentMachineName, "TrueBeamSN5837")
 
-    def test_leaf_config(self):
+    def test_leaf_boundaries(self):
         pg = TrueBeamPlanGenerator.from_rt_plan_file(
             RT_PLAN_FILE, plan_label="label", plan_name="my name"
         )
-        self.assertEqual(len(pg.leaf_config), 61)
-        self.assertEqual(max(pg.leaf_config), 200)
-        self.assertEqual(min(pg.leaf_config), -200)
+        self.assertEqual(len(pg._leaf_boundaries), 61)
+        self.assertEqual(max(pg._leaf_boundaries), 200)
+        self.assertEqual(min(pg._leaf_boundaries), -200)
 
     def test_instance_uid_changes(self):
         dcm = pydicom.dcmread(RT_PLAN_FILE)
@@ -154,6 +154,19 @@ class TestPlanGenerator(TestCase):
         inverted_array = pg_dcm[0].pixel_array
         # when inverted, the corner should NOT be 0
         self.assertAlmostEqual(float(inverted_array[0, 0]), 1000)
+
+    def test_incorrect_machine_type(self):
+        plan_file = RT_PLAN_FILE
+        with self.assertRaises(ValueError):
+            HalcyonPlanGenerator.from_rt_plan_file(
+                plan_file, plan_label="label", plan_name="my name"
+            )
+
+        plan_file = HALCYON_PLAN_FILE
+        with self.assertRaises(ValueError):
+            TrueBeamPlanGenerator.from_rt_plan_file(
+                plan_file, plan_label="label", plan_name="my name"
+            )
 
 
 def create_beam(**kwargs) -> TrueBeamBeam:

@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import datetime
 import math
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections.abc import Iterable
+from copy import deepcopy
 from enum import Enum
 from pathlib import Path
 from typing import Literal
@@ -471,6 +472,16 @@ class HalcyonBeam(_Beam):
 
 
 class PlanGenerator(ABC):
+    """A tool for generating new QA RTPlan files based on an initial, somewhat empty RTPlan file.
+
+    Attributes
+    ----------
+    machine_name : str
+        The name of the machine
+    """
+
+    machine_name: str
+
     def __init__(
         self,
         ds: Dataset,
@@ -524,12 +535,22 @@ class PlanGenerator(ABC):
             )
         if not hasattr(ds, "ToleranceTableSequence"):
             raise ValueError("RTPLAN file must have ToleranceTableSequence")
-        if not hasattr(ds, "BeamSequence") or not hasattr(
-            ds.BeamSequence[0].BeamLimitingDeviceSequence[-1], "LeafPositionBoundaries"
-        ):
+        if not hasattr(ds, "BeamSequence"):
+            raise ValueError(
+                "RTPLAN file must have at least one beam in the beam sequence"
+            )
+        has_mlc_data: bool = any(
+            "MLC" in bld.RTBeamLimitingDeviceType
+            for bs in ds.BeamSequence
+            for bld in bs.BeamLimitingDeviceSequence
+        )
+        if not has_mlc_data:
             raise ValueError("RTPLAN file must have MLC data")
 
-        self.ds = ds
+        ######  Create a copy of the template plan
+        # A shallow copy won’t work because beam data is cleared.
+        # The inherited classes require access to the original beam state to determine leaf boundaries
+        self.ds = deepcopy(ds)
 
         ######  Clear/initialize the metadata for the new plan
         self.ds.PatientName = patient_name
@@ -578,10 +599,15 @@ class PlanGenerator(ABC):
         frxn_gp1.ReferencedBeamSequence = refd_beam_sequence
         self.ds.FractionGroupSequence.append(frxn_gp1)
 
-        # Beam Sequence
-        self._old_beam = self.ds.BeamSequence[0]
-        beam_sequence = Sequence()
-        self.ds.BeamSequence = beam_sequence
+        # Clear beam sequence
+        # This will be filled with the custom beams
+        self.ds.BeamSequence = Sequence()
+
+        # Machine name
+        self.machine_name = ds.BeamSequence[0].TreatmentMachineName
+
+        # Validate machine type
+        self._validate_machine_type(ds.BeamSequence)
 
     @classmethod
     def from_rt_plan_file(cls, rt_plan_file: str | Path, **kwargs) -> PlanGenerator:
@@ -597,10 +623,9 @@ class PlanGenerator(ABC):
         ds = pydicom.dcmread(rt_plan_file)
         return cls(ds, **kwargs)
 
-    @property
-    def machine_name(self) -> str:
-        """The name of the machine."""
-        return self._old_beam.TreatmentMachineName
+    @abstractmethod
+    def _validate_machine_type(self, beam_sequence: Sequence):
+        pass
 
     def add_beam(self, beam: HalcyonBeam | TrueBeamBeam):
         """Add a beam to the plan using the Beam object. Although public,
@@ -690,6 +715,10 @@ class PlanGenerator(ABC):
 
 
 class TrueBeamPlanGenerator(PlanGenerator):
+    # Private fields
+    _is_mlc_hd: bool  # Whether the MLC type id HD or Millennium.
+    _leaf_boundaries: list[float]  # The leaf boundaries of the MLC.
+
     def __init__(
         self,
         ds: Dataset,
@@ -737,27 +766,34 @@ class TrueBeamPlanGenerator(PlanGenerator):
             max_overtravel_mm,
         )
 
-    @property
-    def leaf_config(self) -> list[float]:
-        """The leaf boundaries of the MLC."""
-        mlc = next(
-            bld
-            for bld in self._old_beam.BeamLimitingDeviceSequence
+        # Fill Fields
+        self._is_mlc_hd = any(
+            bld.LeafPositionBoundaries[0] == -110
+            for bs in ds.BeamSequence
+            for bld in bs.BeamLimitingDeviceSequence
             if bld.RTBeamLimitingDeviceType == "MLCX"
         )
-        return mlc.LeafPositionBoundaries
+        self._leaf_boundaries = (
+            MLC_120HDMIL_BOUNDARIES if self._is_mlc_hd else MLC_MILLENNIUM_BOUNDARIES
+        )
 
-    @property
-    def is_mlc_hd(self) -> bool:
-        """Whether the MLC type id HD or Millennium."""
-        return self.leaf_config[0] == -110
+    def _validate_machine_type(self, beam_sequence: Sequence):
+        has_valid_mlc_data: bool = any(
+            bld.RTBeamLimitingDeviceType == "MLCX"
+            for bs in beam_sequence
+            for bld in bs.BeamLimitingDeviceSequence
+        )
+        if not has_valid_mlc_data:
+            raise ValueError(
+                "The machine on the template plan does not seem to be a TrueBeam machine."
+            )
 
     def _create_mlc(
         self, sacrifice_gap_mm: float = None, sacrifice_max_move_mm: float = None
     ) -> MLCShaper:
         """Utility to create MLC shaper instances."""
         return MLCShaper(
-            leaf_y_positions=self.leaf_config,
+            leaf_y_positions=self._leaf_boundaries,
             max_mlc_position=self.max_mlc_position,
             sacrifice_gap_mm=sacrifice_gap_mm,
             sacrifice_max_move_mm=sacrifice_max_move_mm,
@@ -867,7 +903,7 @@ class TrueBeamPlanGenerator(PlanGenerator):
             mlc_positions=mlc.as_control_points(),
             metersets=[mu * m for m in mlc.as_metersets()],
             fluence_mode=fluence_mode,
-            is_mlc_hd=self.is_mlc_hd,
+            is_mlc_hd=self._is_mlc_hd,
         )
         self.add_beam(beam)
 
@@ -965,7 +1001,7 @@ class TrueBeamPlanGenerator(PlanGenerator):
             mlc_positions=mlc.as_control_points(),
             metersets=[mu * m for m in mlc.as_metersets()],
             fluence_mode=fluence_mode,
-            is_mlc_hd=self.is_mlc_hd,
+            is_mlc_hd=self._is_mlc_hd,
         )
         self.add_beam(beam)
 
@@ -1071,8 +1107,8 @@ class TrueBeamPlanGenerator(PlanGenerator):
                 left_position=center - roi_size_mm / 2,
                 right_position=center + roi_size_mm / 2,
                 x_outfield_position=-200,
-                top_position=max(self.leaf_config),
-                bottom_position=min(self.leaf_config),
+                top_position=max(self._leaf_boundaries),
+                bottom_position=min(self._leaf_boundaries),
                 outer_strip_width=5,
                 meterset_at_target=0,
                 meterset_transition=0.5 / len(dose_rates),
@@ -1089,8 +1125,8 @@ class TrueBeamPlanGenerator(PlanGenerator):
                 left_position=center - roi_size_mm / 2,
                 right_position=center + roi_size_mm / 2,
                 x_outfield_position=-200,  # not used
-                top_position=max(self.leaf_config),
-                bottom_position=min(self.leaf_config),
+                top_position=max(self._leaf_boundaries),
+                bottom_position=min(self._leaf_boundaries),
                 outer_strip_width=5,  # not used
                 meterset_at_target=0,
                 meterset_transition=0.5 / len(dose_rates),
@@ -1120,7 +1156,7 @@ class TrueBeamPlanGenerator(PlanGenerator):
             fluence_mode=fluence_mode,
             mlc_positions=ref_mlc.as_control_points(),
             metersets=[mu * m for m in ref_mlc.as_metersets()],
-            is_mlc_hd=self.is_mlc_hd,
+            is_mlc_hd=self._is_mlc_hd,
         )
         self.add_beam(ref_beam)
         beam = TrueBeamBeam(
@@ -1140,7 +1176,7 @@ class TrueBeamPlanGenerator(PlanGenerator):
             fluence_mode=fluence_mode,
             mlc_positions=mlc.as_control_points(),
             metersets=[mu * m for m in mlc.as_metersets()],
-            is_mlc_hd=self.is_mlc_hd,
+            is_mlc_hd=self._is_mlc_hd,
         )
         self.add_beam(beam)
 
@@ -1261,8 +1297,8 @@ class TrueBeamPlanGenerator(PlanGenerator):
                 left_position=center - roi_size_mm / 2,
                 right_position=center + roi_size_mm / 2,
                 x_outfield_position=-200,  # not relevant
-                top_position=max(self.leaf_config),
-                bottom_position=min(self.leaf_config),
+                top_position=max(self._leaf_boundaries),
+                bottom_position=min(self._leaf_boundaries),
                 outer_strip_width=5,  # not relevant
                 meterset_at_target=0,
                 meterset_transition=0.5 / len(speeds),
@@ -1279,8 +1315,8 @@ class TrueBeamPlanGenerator(PlanGenerator):
                 left_position=center - roi_size_mm / 2,
                 right_position=center + roi_size_mm / 2,
                 x_outfield_position=-200,  # not used
-                top_position=max(self.leaf_config),
-                bottom_position=min(self.leaf_config),
+                top_position=max(self._leaf_boundaries),
+                bottom_position=min(self._leaf_boundaries),
                 outer_strip_width=5,  # not used
                 meterset_at_target=0,
                 meterset_transition=0.5 / len(speeds),
@@ -1310,7 +1346,7 @@ class TrueBeamPlanGenerator(PlanGenerator):
             fluence_mode=fluence_mode,
             mlc_positions=ref_mlc.as_control_points(),
             metersets=[mu * m for m in ref_mlc.as_metersets()],
-            is_mlc_hd=self.is_mlc_hd,
+            is_mlc_hd=self._is_mlc_hd,
         )
         self.add_beam(ref_beam)
         beam = TrueBeamBeam(
@@ -1330,7 +1366,7 @@ class TrueBeamPlanGenerator(PlanGenerator):
             fluence_mode=fluence_mode,
             mlc_positions=mlc.as_control_points(),
             metersets=[mu * m for m in mlc.as_metersets()],
-            is_mlc_hd=self.is_mlc_hd,
+            is_mlc_hd=self._is_mlc_hd,
         )
         self.add_beam(beam)
 
@@ -1424,7 +1460,7 @@ class TrueBeamPlanGenerator(PlanGenerator):
                 mlc_positions=mlc.as_control_points(),
                 metersets=[mu * m for m in mlc.as_metersets()],
                 fluence_mode=fluence_mode,
-                is_mlc_hd=self.is_mlc_hd,
+                is_mlc_hd=self._is_mlc_hd,
             )
             self.add_beam(beam)
 
@@ -1574,7 +1610,7 @@ class TrueBeamPlanGenerator(PlanGenerator):
             fluence_mode=fluence_mode,
             mlc_positions=mlc.as_control_points(),
             metersets=[mu * m for m in mlc.as_metersets()],
-            is_mlc_hd=self.is_mlc_hd,
+            is_mlc_hd=self._is_mlc_hd,
         )
         self.add_beam(beam)
         ref_beam = TrueBeamBeam(
@@ -1594,7 +1630,7 @@ class TrueBeamPlanGenerator(PlanGenerator):
             fluence_mode=fluence_mode,
             mlc_positions=ref_mlc.as_control_points(),
             metersets=[mu * m for m in ref_mlc.as_metersets()],
-            is_mlc_hd=self.is_mlc_hd,
+            is_mlc_hd=self._is_mlc_hd,
         )
         self.add_beam(ref_beam)
 
@@ -1694,7 +1730,7 @@ class TrueBeamPlanGenerator(PlanGenerator):
             mlc_positions=mlc.as_control_points(),
             metersets=[mu * m for m in mlc.as_metersets()],
             fluence_mode=fluence_mode,
-            is_mlc_hd=self.is_mlc_hd,
+            is_mlc_hd=self._is_mlc_hd,
         )
         self.add_beam(beam)
 
@@ -1702,6 +1738,9 @@ class TrueBeamPlanGenerator(PlanGenerator):
 class HalcyonPlanGenerator(PlanGenerator):
     """A class to generate a plan with two beams stacked on top of each other such as the Halcyon. This
     also assumes no jaws."""
+
+    _distal_leaf_boundaries: list[float] = MLC_DISTAL_BOUNDARIES
+    _proximal_leaf_bondaries: list[float] = MLC_PROXIMAL_BOUNDARIES
 
     def __init__(
         self,
@@ -1750,25 +1789,28 @@ class HalcyonPlanGenerator(PlanGenerator):
             max_overtravel_mm,
         )
 
-    @property
-    def distal_leaf_config(self) -> list[float]:
-        return self._old_beam.BeamLimitingDeviceSequence[-2].LeafPositionBoundaries
-
-    @property
-    def proximal_leaf_config(self) -> list[float]:
-        return self._old_beam.BeamLimitingDeviceSequence[-1].LeafPositionBoundaries
+    def _validate_machine_type(self, beam_sequence: Sequence):
+        has_valid_mlc_data: bool = any(
+            bld.RTBeamLimitingDeviceType == "MLCX1"
+            for bs in beam_sequence
+            for bld in bs.BeamLimitingDeviceSequence
+        )
+        if not has_valid_mlc_data:
+            raise ValueError(
+                "The machine on the template plan does not seem to be a Halcyon machine."
+            )
 
     def _create_mlc(self) -> tuple[MLCShaper, MLCShaper]:
         """Create 2 MLC shaper objects, one for each stack."""
         proximal_mlc = MLCShaper(
-            leaf_y_positions=self.proximal_leaf_config,
+            leaf_y_positions=self._proximal_leaf_bondaries,
             max_mlc_position=self.max_mlc_position,
             max_overtravel_mm=self.max_overtravel_mm,
             sacrifice_gap_mm=None,
             sacrifice_max_move_mm=None,
         )
         distal_mlc = MLCShaper(
-            leaf_y_positions=self.distal_leaf_config,
+            leaf_y_positions=self._distal_leaf_boundaries,
             max_mlc_position=self.max_mlc_position,
             max_overtravel_mm=self.max_overtravel_mm,
             sacrifice_gap_mm=None,
