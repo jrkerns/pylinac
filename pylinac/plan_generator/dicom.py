@@ -75,9 +75,6 @@ def _create_basic_beam_info(
     beam.SourceAxisDistance = 1000.0
 
     # Primary Fluence Mode Sequence
-    primary_fluence_mode_sequence = Sequence()
-    beam.PrimaryFluenceModeSequence = primary_fluence_mode_sequence
-
     primary_fluence_mode1 = Dataset()
     if fluence_mode == FluenceMode.STANDARD:
         primary_fluence_mode1.FluenceMode = "STANDARD"
@@ -87,8 +84,7 @@ def _create_basic_beam_info(
     elif fluence_mode == FluenceMode.SRS:
         primary_fluence_mode1.FluenceMode = "NON_STANDARD"
         primary_fluence_mode1.FluenceModeID = "SRS"
-
-    primary_fluence_mode_sequence.append(primary_fluence_mode1)
+    beam.PrimaryFluenceModeSequence = Sequence((primary_fluence_mode1,))
 
     # Beam Limiting Device Sequence
     beam.BeamLimitingDeviceSequence = beam_limiting_device_sequence
@@ -106,8 +102,7 @@ def _create_basic_beam_info(
     beam.NumberOfControlPoints = number_of_control_points
 
     # Control Point Sequence
-    cp_sequence = Sequence()
-    beam.ControlPointSequence = cp_sequence
+    beam.ControlPointSequence = Sequence()
     return beam
 
 
@@ -237,12 +232,12 @@ class _Beam(ABC):
         cp0.NominalBeamEnergy = energy
         cp0.DoseRateSet = dose_rate
         beam_limiting_device_position_sequence = Sequence()
-        cp0.BeamLimitingDevicePositionSequence = beam_limiting_device_position_sequence
         for key, values in bld_positions.items():
             beam_limiting_device_position = Dataset()
             beam_limiting_device_position.RTBeamLimitingDeviceType = key
             beam_limiting_device_position.LeafJawPositions = list(values[0])
             beam_limiting_device_position_sequence.append(beam_limiting_device_position)
+        cp0.BeamLimitingDevicePositionSequence = beam_limiting_device_position_sequence
         cp0.GantryAngle = gantry_angles[0]
         cp0.GantryRotationDirection = gantry_direction[0].value
         cp0.BeamLimitingDeviceAngle = coll_angle
@@ -567,22 +562,20 @@ class PlanGenerator(ABC):
         # Patient Setup Sequence
         patient_setup = Dataset()
         patient_setup.PatientPosition = "HFS"
-        patient_setup.PatientSetupNumber = "0"
+        patient_setup.PatientSetupNumber = 0
         self.ds.PatientSetupSequence = Sequence((patient_setup,))
 
         # Dose Reference Sequence
-        dose_ref_sequence = Sequence()
-        self.ds.DoseReferenceSequence = dose_ref_sequence
         dose_ref1 = Dataset()
-        dose_ref1.DoseReferenceNumber = "1"
+        dose_ref1.DoseReferenceNumber = 1
         dose_ref1.DoseReferenceUID = generate_uid()
         dose_ref1.DoseReferenceStructureType = "SITE"
         dose_ref1.DoseReferenceDescription = "PTV"
         dose_ref1.DoseReferenceType = "TARGET"
-        dose_ref1.DeliveryMaximumDose = "20.0"
-        dose_ref1.TargetPrescriptionDose = "40.0"
-        dose_ref1.TargetMaximumDose = "20.0"
-        self.ds.DoseReferenceSequence.append(dose_ref1)
+        dose_ref1.DeliveryMaximumDose = 20.0
+        dose_ref1.TargetPrescriptionDose = 40.0
+        dose_ref1.TargetMaximumDose = 20.0
+        self.ds.DoseReferenceSequence = Sequence((dose_ref1,))
 
         # Fraction Group Sequence
         frxn_gp_sequence = Sequence()
@@ -593,11 +586,8 @@ class PlanGenerator(ABC):
         frxn_gp1.NumberOfFractionsPlanned = 1
         frxn_gp1.NumberOfBeams = 0
         frxn_gp1.NumberOfBrachyApplicationSetups = 0
-
-        # Referenced Beam Sequence
-        refd_beam_sequence = Sequence()
-        frxn_gp1.ReferencedBeamSequence = refd_beam_sequence
-        self.ds.FractionGroupSequence.append(frxn_gp1)
+        frxn_gp1.ReferencedBeamSequence = Sequence()
+        self.ds.FractionGroupSequence = Sequence((frxn_gp1,))
 
         # Clear beam sequence
         # This will be filled with the custom beams
@@ -731,29 +721,6 @@ class TrueBeamPlanGenerator(PlanGenerator):
         max_gantry_speed: float = 4.8,
         max_overtravel_mm: float = 140,
     ):
-        """A tool for generating new QA RTPlan files based on an initial, somewhat empty RTPlan file.
-
-        Parameters
-        ----------
-        ds : Dataset
-              The RTPLAN dataset to base the new plan off of. The plan must already have MLC positions.
-        plan_label : str
-            The label of the new plan.
-        plan_name : str
-            The name of the new plan.
-        patient_name : str, optional
-            The name of the patient. If not provided, it will be taken from the RTPLAN file.
-        patient_id : str, optional
-            The ID of the patient. If not provided, it will be taken from the RTPLAN file.
-        max_mlc_position : float
-            The max mlc position in mm
-        max_mlc_speed : float
-            The maximum speed of the MLC leaves in mm/s
-        max_gantry_speed : float
-            The maximum speed of the gantry in degrees/s.
-        max_overtravel_mm : float
-            The maximum distance the MLC leaves can overtravel from each other as well as the jaw size (for tail exposure protection).
-        """
         super().__init__(
             ds,
             plan_label,
@@ -1754,29 +1721,6 @@ class HalcyonPlanGenerator(PlanGenerator):
         max_gantry_speed: float = 4.8,
         max_overtravel_mm: float = 140,
     ):
-        """A tool for generating new QA RTPlan files based on an initial, somewhat empty RTPlan file.
-
-        Parameters
-        ----------
-        ds : Dataset
-              The RTPLAN dataset to base the new plan off of. The plan must already have MLC positions.
-        plan_label : str
-            The label of the new plan.
-        plan_name : str
-            The name of the new plan.
-        patient_name : str, optional
-            The name of the patient. If not provided, it will be taken from the RTPLAN file.
-        patient_id : str, optional
-            The ID of the patient. If not provided, it will be taken from the RTPLAN file.
-        max_mlc_position : float
-            The max mlc position in mm
-        max_mlc_speed : float
-            The maximum speed of the MLC leaves in mm/s
-        max_gantry_speed : float
-            The maximum speed of the gantry in degrees/s.
-        max_overtravel_mm : float
-            The maximum distance the MLC leaves can overtravel from each other as well as the jaw size (for tail exposure protection).
-        """
         super().__init__(
             ds,
             plan_label,
