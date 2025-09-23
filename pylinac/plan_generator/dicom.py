@@ -61,57 +61,14 @@ MLC_DISTAL_BOUNDARIES = list(np.arange(-140, 140 + 1, 10))
 MLC_PROXIMAL_BOUNDARIES = list(np.arange(-145, 145 + 1, 10))
 
 
-def _create_basic_beam_info(
-    beam_name: str,
-    beam_type: str,
-    fluence_mode: FluenceMode,
-    beam_limiting_device_sequence: Sequence,
-    number_of_control_points: int,
-) -> Dataset:
-    beam = Dataset()
-    beam.Manufacturer = "Radformation"
-    beam.ManufacturerModelName = "RadMachine"
-    beam.PrimaryDosimeterUnit = "MU"
-    beam.SourceAxisDistance = 1000.0
-
-    # Primary Fluence Mode Sequence
-    primary_fluence_mode1 = Dataset()
-    if fluence_mode == FluenceMode.STANDARD:
-        primary_fluence_mode1.FluenceMode = "STANDARD"
-    elif fluence_mode == FluenceMode.FFF:
-        primary_fluence_mode1.FluenceMode = "NON_STANDARD"
-        primary_fluence_mode1.FluenceModeID = "FFF"
-    elif fluence_mode == FluenceMode.SRS:
-        primary_fluence_mode1.FluenceMode = "NON_STANDARD"
-        primary_fluence_mode1.FluenceModeID = "SRS"
-    beam.PrimaryFluenceModeSequence = Sequence((primary_fluence_mode1,))
-
-    # Beam Limiting Device Sequence
-    beam.BeamLimitingDeviceSequence = beam_limiting_device_sequence
-
-    # beam numbers start at 0 and increment from there.
-    beam.BeamName = beam_name
-    beam.BeamType = beam_type
-    beam.RadiationType = "PHOTON"
-    beam.TreatmentDeliveryType = "TREATMENT"
-    beam.NumberOfWedges = 0
-    beam.NumberOfCompensators = 0
-    beam.NumberOfBoli = 0
-    beam.NumberOfBlocks = 0
-    beam.FinalCumulativeMetersetWeight = 1.0
-    beam.NumberOfControlPoints = number_of_control_points
-
-    # Control Point Sequence
-    beam.ControlPointSequence = Sequence()
-    return beam
-
-
 class _Beam(ABC):
     """Represents a DICOM beam dataset. Has methods for creating the dataset and adding control points.
     Generally not created on its own but rather under the hood as part of a PlanGenerator object.
 
     It contains enough independent logic steps that it's worth separating out from the PlanGenerator class.
     """
+
+    ROUNDING_DECIMALS = 6
 
     meterset: float
 
@@ -162,7 +119,6 @@ class _Beam(ABC):
         couch_rot : float
             The couch rotation.
         """
-        ROUNDING_DECIMALS = 6
 
         number_of_control_points = len(metersets)
 
@@ -172,7 +128,7 @@ class _Beam(ABC):
         # divided by the Final Cumulative Meterset Weight (300A,010E)
         # https://dicom.innolitics.com/ciods/rt-plan/rt-beams/300a00b0/300a0111/300a0134
         metersets_weights = np.array(metersets) / metersets[-1]
-        self.meterset = np.round(metersets[-1], ROUNDING_DECIMALS)
+        self.meterset = np.round(metersets[-1], self.ROUNDING_DECIMALS)
 
         if len(beam_name) > 16:
             raise ValueError("Beam name must be less than or equal to 16 characters")
@@ -186,10 +142,10 @@ class _Beam(ABC):
         # Note: using np.isclose does not solve the problem since the tolerance should be the same
         # as Eclipse/Machine, and we don't know which tolerance they use.
         # Here we assume that their tolerance is tighter than ROUNDING_DECIMALS
-        metersets_weights = np.round(metersets_weights, ROUNDING_DECIMALS)
-        gantry_angles = np.round(gantry_angles, ROUNDING_DECIMALS)
+        metersets_weights = np.round(metersets_weights, self.ROUNDING_DECIMALS)
+        gantry_angles = np.round(gantry_angles, self.ROUNDING_DECIMALS)
         bld_positions = {
-            k: np.round(v, ROUNDING_DECIMALS)
+            k: np.round(v, self.ROUNDING_DECIMALS)
             for k, v in beam_limiting_device_positions.items()
         }
 
@@ -218,7 +174,7 @@ class _Beam(ABC):
         beam_type = "STATIC" if beam_is_static else "DYNAMIC"
 
         # Create dataset with basic beam info
-        self.ds = _create_basic_beam_info(
+        self.ds = self._create_basic_beam_info(
             beam_name,
             beam_type,
             fluence_mode,
@@ -278,6 +234,51 @@ class _Beam(ABC):
     def as_dicom(self) -> Dataset:
         """Return the beam as a DICOM dataset that represents a BeamSequence item."""
         return self.ds
+
+    @staticmethod
+    def _create_basic_beam_info(
+        beam_name: str,
+        beam_type: str,
+        fluence_mode: FluenceMode,
+        beam_limiting_device_sequence: Sequence,
+        number_of_control_points: int,
+    ) -> Dataset:
+        beam = Dataset()
+        beam.Manufacturer = "Radformation"
+        beam.ManufacturerModelName = "RadMachine"
+        beam.PrimaryDosimeterUnit = "MU"
+        beam.SourceAxisDistance = 1000.0
+
+        # Primary Fluence Mode Sequence
+        primary_fluence_mode1 = Dataset()
+        if fluence_mode == FluenceMode.STANDARD:
+            primary_fluence_mode1.FluenceMode = "STANDARD"
+        elif fluence_mode == FluenceMode.FFF:
+            primary_fluence_mode1.FluenceMode = "NON_STANDARD"
+            primary_fluence_mode1.FluenceModeID = "FFF"
+        elif fluence_mode == FluenceMode.SRS:
+            primary_fluence_mode1.FluenceMode = "NON_STANDARD"
+            primary_fluence_mode1.FluenceModeID = "SRS"
+        beam.PrimaryFluenceModeSequence = Sequence((primary_fluence_mode1,))
+
+        # Beam Limiting Device Sequence
+        beam.BeamLimitingDeviceSequence = beam_limiting_device_sequence
+
+        # beam numbers start at 0 and increment from there.
+        beam.BeamName = beam_name
+        beam.BeamType = beam_type
+        beam.RadiationType = "PHOTON"
+        beam.TreatmentDeliveryType = "TREATMENT"
+        beam.NumberOfWedges = 0
+        beam.NumberOfCompensators = 0
+        beam.NumberOfBoli = 0
+        beam.NumberOfBlocks = 0
+        beam.FinalCumulativeMetersetWeight = 1.0
+        beam.NumberOfControlPoints = number_of_control_points
+
+        # Control Point Sequence
+        beam.ControlPointSequence = Sequence()
+        return beam
 
 
 class TrueBeamBeam(_Beam):
