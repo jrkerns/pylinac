@@ -125,6 +125,33 @@ class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
         self.assertEqual(len(my_drgs.segments), 5)
 
 
+class TestPreprocessing(TestCase):
+    """Test that preprocessing steps (ala Kraken) are respected."""
+
+    @classmethod
+    def setUpClass(cls):
+        drmlc = DRMLC.from_demo_images()
+        drmlc.analyze()
+        cls.drmlc_mean_dev = drmlc.results_data().abs_mean_deviation
+        drgs = DRGS.from_demo_images()
+        drgs.analyze()
+        cls.drgs_mean_dev = drgs.results_data().abs_mean_deviation
+
+    def test_drmlc_preprocess(self):
+        my_drmlc = DRMLC.from_demo_images()
+        my_drmlc.dmlc_image.filter(size=7, kind="median")
+        my_drmlc.analyze()
+        results = my_drmlc.results_data()
+        self.assertNotEqual(results.abs_mean_deviation, self.drmlc_mean_dev)
+
+    def test_drgs_preprocess(self):
+        my_drgs = DRGS.from_demo_images()
+        my_drgs.dmlc_image.filter(size=7, kind="median")
+        my_drgs.analyze()
+        results = my_drgs.results_data()
+        self.assertNotEqual(results.abs_mean_deviation, self.drgs_mean_dev)
+
+
 class TestDRGSLoading(LoadingBase, TestCase):
     url = "drgs.zip"
     klass = DRGS

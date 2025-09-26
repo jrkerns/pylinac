@@ -156,6 +156,7 @@ class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
     open_image: image.DicomImage
     segments: list[Segment]
     _tolerance: float
+    ratio_image: np.ndarray
 
     def __init__(
         self,
@@ -182,7 +183,6 @@ class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
         self._identify_images(image1, image2)
         self.segments = []
         self._tolerance = 0
-        self.ratio_image = self.dmlc_image.array / self.open_image.array
 
     @classmethod
     def from_url(cls, url: str):
@@ -235,6 +235,7 @@ class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
         roi_config : dict
             A dict of the ROI settings. The keys are the names of the ROIs and each value is a dict containing the offset in mm 'offset_mm'.
         """
+        self.ratio_image = self.dmlc_image.array / self.open_image.array
         self._tolerance = tolerance / 100
         self.roi_config = roi_config or self.default_roi_config
 

@@ -10,6 +10,20 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.38.0
+--------
+
+VMAT
+^^^^
+
+* :bdg-warning:`Fixed` "Preprocessing" of VMAT images after instantiation would not be respected. I.e.
+
+  .. code-block:: python
+
+      drgs = DRGS(...)
+      drgs.open_image.filter(size=3)  # this would be ignored in analyze()
+      drgs.analyze()
+
 v 3.37.0
 --------
 
