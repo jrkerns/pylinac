@@ -13,12 +13,14 @@ from matplotlib import pyplot as plt
 from plotly import graph_objects as go
 from pydantic import BaseModel, ConfigDict, Field
 from scipy import ndimage
-from skimage.filters import threshold_otsu
+from skimage.filters import threshold_li, threshold_otsu
 
 from .core import pdf
 from .core.array_utils import fill_middle_zeros, find_nearest_idx
 from .core.geometry import Line, LineSerialized, Point
+from .core.image import DicomImage
 from .core.mtf import MTF
+from .core.plotly_utils import add_title
 from .core.profile import FWXMProfile
 from .core.roi import HighContrastDiskROI, RectangleROI
 from .core.utilities import QuaacDatum, ResultBase, ResultsDataMixin
@@ -1165,6 +1167,102 @@ class MRGeometricDistortionModuleOutput(BaseModel):
     )
 
 
+class SagittalLocalizationModule:
+    """Class for analysis of the Sagittal slice of the ACR Phantom."""
+
+    """This class shares some similarities with CatphanModule but also has key differences.
+    The options considered were: inherit to override, refactor into a common abstraction,
+    or duplicate plot code for a standalone implementation.
+    By design choice, the latter was taken."""
+
+    common_name = "Sagittal Distortion"
+    roi_settings: dict[str, dict[str, float]] = {
+        "ROI1": {"offset": -75},
+        "ROI2": {"offset": -25},
+        "ROI3": {"offset": 25},
+        "ROI4": {"offset": 75},
+    }  # offsets in mm left/right from phantom centroid
+    rois: dict[str, Line] = {}
+    profiles: dict = {}
+    image: DicomImage
+    window_min: int | None = None  # plt visualization
+    window_max: int | None = None  # plt visualization
+
+    def __init__(self, image: DicomImage | None):
+        if image is None:
+            return
+
+        self.image = image
+
+        # The processing is consistent with the geometric distortion module
+        threshold = round(threshold_li(image.array))
+        bin_image = image.as_binary(threshold=threshold)
+        bin_image = ndimage.binary_fill_holes(bin_image).astype(float)
+
+        centroid = np.argwhere(bin_image).mean(axis=0)
+        pixel_size = 1 / image.dpmm
+        for key, val in self.roi_settings.items():
+            offset_px = val["offset"] * pixel_size
+            col = round(centroid[1] + offset_px)
+            data = bin_image[:, col]
+            prof = FWXMProfile(values=data)
+            line = Line(
+                Point(col, prof.field_edge_idx(side="left")),
+                Point(col, prof.field_edge_idx(side="right")),
+            )
+            self.profiles[key] = {
+                "width (mm)": prof.field_width_px * pixel_size,
+                "line": line,
+            }
+            self.rois[key] = line
+
+    def distances(self) -> dict:
+        """The measurements of the phantom size in mm"""
+        return {name: f"{p['width (mm)']:2.2f}mm" for name, p in self.profiles.items()}
+
+    def plot(self, axis: plt.Axes):
+        """Plot the image along with ROIs to an axis"""
+        self.image.plot(ax=axis, show=False, vmin=self.window_min, vmax=self.window_max)
+        self.plot_rois(axis)
+        axis.autoscale(tight=True)
+        axis.set_title(f"{self.common_name}")
+        axis.axis("off")
+
+    def plotly(self, **kwargs) -> go.Figure:
+        """Plot the image along with the ROIs to a plotly figure."""
+        fig = go.Figure()
+        self.image.plotly(
+            fig, show=False, zmin=self.window_min, zmax=self.window_max, **kwargs
+        )
+        self.plotly_rois(fig)
+        add_title(fig, f"{self.common_name}")
+        return fig
+
+    def plotly_rois(self, fig: go.Figure) -> None:
+        for name, profile_data in self.profiles.items():
+            profile_data["line"].plotly(fig, line_width=2, color="blue", name=name)
+
+    def plot_rois(self, axis: plt.Axes):
+        for name, profile_data in self.profiles.items():
+            profile_data["line"].plot2axes(axis, width=2, color="blue")
+
+
+class MRSagittalLocalizationModuleOutput(BaseModel):
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+
+    Use the following attributes as normal class attributes."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    profiles: dict[str, dict[str, float | LineSerialized]] = Field(
+        description="A dictionary of the profiles used to measure the geometric distortion. The key is the name of the profile.",
+        title="Profile widths (mm)",
+    )
+    distances: dict = Field(
+        description="The lines measuring the ROI size. The key is the name of the line direction and the value is a string of the line length.",
+        title="Distance measurements (mm)",
+    )
+
+
 class ACRMRIResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
 
@@ -1189,6 +1287,10 @@ class ACRMRIResult(ResultBase):
         description="Results from the geometric distortion module",
         title="Geometric Distortion Module",
     )
+    sagittal_localizer_module: MRSagittalLocalizationModuleOutput = Field(
+        description="Results from the sagittal localizer module",
+        title="Sagittal Localization Module",
+    )
 
 
 @capture_warnings
@@ -1201,6 +1303,8 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
     geometric_distortion = GeometricDistortionModule
     uniformity_module = MRUniformityModule
     slice11 = MRSlice11PositionModule
+    sagittal_localization = SagittalLocalizationModule
+    has_sagittal_module: bool = False
     clip_in_localization = False
 
     def plot_analyzed_subimage(self, *args, **kwargs):
@@ -1304,6 +1408,8 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
         self.roi_size_factor = roi_size_factor
         self.scaling_factor = scaling_factor
         self._select_echo_images(echo_number)
+        sagittal_image = self._select_sagittal_image()
+        self.has_sagittal_module = sagittal_image is not None
         self.localize()
         self.slice1 = self.slice1(self, offset=0)
         self.geometric_distortion = self.geometric_distortion(
@@ -1313,6 +1419,7 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             self, offset=MR_UNIFORMITY_MODULE_OFFSET_MM
         )
         self.slice11 = self.slice11(self, offset=MR_SLICE11_MODULE_OFFSET_MM)
+        self.sagittal_localization = self.sagittal_localization(sagittal_image)
 
     def _select_echo_images(self, echo_number: int | None) -> None:
         """Select out the images that match the given echo number"""
@@ -1345,6 +1452,35 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             del self.dicom_stack[idx]
             del self.dicom_stack.metadatas[idx]
 
+    def _select_sagittal_image(self, max_dist: float = 0.01) -> DicomImage | None:
+        """This function return the sagittal image from the dicom stack.
+
+        Parameters
+        ----------
+        max_dist: float
+            Max vectorial distance from the nominal to the actual image orientation.
+        """
+        # It uses the table in this article to find the sagittal image
+        # https://www.kaggle.com/code/rickandjoe/mri-orientation-axial-sagittal-or-coronal
+
+        nominal_sagittal_image_orientation = np.array([0, 1, 0, 0, 0, -1])
+        metadatas = self.dicom_stack.metadatas
+        image_orientation = [m.ImageOrientationPatient for m in metadatas]
+        diff = np.array(image_orientation) - nominal_sagittal_image_orientation
+        dist = np.linalg.norm(diff, axis=1)
+        if np.sum(dist < max_dist) > 1:
+            raise ValueError("There are too many sagittal images in the dataset.")
+        min_value = dist.min()
+        min_index = dist.argmin()
+        if min_value >= max_dist:
+            return None
+
+        image = self.dicom_stack[min_index]
+        # Remove from the stack since localize() assumes only axial slices are present
+        del self.dicom_stack[min_index]
+        del self.dicom_stack.metadatas[min_index]
+        return image
+
     def plotly_analyzed_images(
         self,
         show: bool = True,
@@ -1373,12 +1509,15 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
         """
         figs = {}
         # plot the images
-        for module in (
+        modules: list = [
             self.slice1,
             self.geometric_distortion,
             self.uniformity_module,
             self.slice11,
-        ):
+        ]
+        if self.has_sagittal_module:
+            modules.append(self.sagittal_localization)
+        for module in modules:
             figs[module.common_name] = module.plotly(
                 show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
             )
@@ -1411,7 +1550,10 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
         """
         # set up grid and axes
         fig = plt.figure(**plt_kwargs)
-        grid_size = (2, 3)
+        if self.has_sagittal_module:
+            grid_size = (2, 4)
+        else:
+            grid_size = (2, 3)
         slice1_ax = plt.subplot2grid(grid_size, (0, 0))
         self.slice1.plot(slice1_ax)
         geom_ax = plt.subplot2grid(grid_size, (0, 1))
@@ -1427,6 +1569,10 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
         self.slice1.row_mtf.plot(spatial_res_graph, label="Row-wise rMTF")
         self.slice1.col_mtf.plot(spatial_res_graph, label="Column-wise rMTF")
         spatial_res_graph.legend()
+
+        if self.has_sagittal_module:
+            sag_ax = plt.subplot2grid(grid_size, (0, 3))
+            self.sagittal_localization.plot(sag_ax)
 
         # finish up
         plt.tight_layout()
@@ -1446,12 +1592,14 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
         """
         figs = {}
         # plot the images
-        modules = {
+        modules: dict = {
             "geometric": self.geometric_distortion,
             "slice 1": self.slice1,
             "signal uniformity": self.uniformity_module,
             "slice 11": self.slice11,
         }
+        if self.has_sagittal_module:
+            modules["sagittal"] = self.sagittal_localization
         for key, module in modules.items():
             fig, ax = plt.subplots(**plt_kwargs)
             module.plot(ax)
@@ -1571,6 +1719,11 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
                 value=line["width (mm)"],
                 unit="mm",
             )
+        for name, line in results_data["sagittal_localizer_module"]["profiles"].items():
+            data[f"Localizer Distortion {name} line length"] = QuaacDatum(
+                value=line["width (mm)"],
+                unit="mm",
+            )
         return data
 
     def publish_pdf(
@@ -1641,6 +1794,7 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             f'Uniformity Center ROI standard deviation: {self.uniformity_module.rois["Center"].std:2.2f}',
             f"Row-wise MTF 50% (lp/mm): {self.slice1.row_mtf.relative_resolution(50):2.2f}",
             f"Column-wise MTF 50% (lp/mm): {self.slice1.col_mtf.relative_resolution(50):2.2f}",
+            f"Sagittal Distortions: {self.sagittal_localization.distances()}",
         )
         if as_str:
             return "\n".join(string)
@@ -1696,5 +1850,9 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
                 ghosting_ratio=self.uniformity_module.ghosting_ratio,
                 piu=self.uniformity_module.percent_image_uniformity,
                 piu_passed=self.uniformity_module.piu_passed,
+            ),
+            sagittal_localizer_module=MRSagittalLocalizationModuleOutput(
+                profiles=self.sagittal_localization.profiles,
+                distances=self.sagittal_localization.distances(),
             ),
         )

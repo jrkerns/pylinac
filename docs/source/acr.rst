@@ -327,8 +327,20 @@ Allowances
 Restrictions
 ^^^^^^^^^^^^
 
-* There should be 11 slices per scan (although multiple echo scans are allowed) per the guidance document (section 0.3).
+* There should be 11 slices (without sagittal slice) or 12 slices (with sagittal slice) per scan
+  (although multiple echo scans are allowed) per the guidance document (section 0.3).
 * The phantom should have very little pitch, yaw, or roll (<1 degree).
+
+Sagittal slice
+^^^^^^^^^^^^^^
+
+If the sagittal slice was acquired in a separate acquisition it will have a different Series UID.
+By default pylinac assumes that there is only a single Series UID and therefore it will disregard
+the sagittal slice. To include the sagittal slice in the analysis, set the flag ``check_uid=False``.
+
+.. code-block:: python
+
+    mri = ACRMRILarge(acr_mri_folder, check_uid=False)
 
 Troubleshooting
 ^^^^^^^^^^^^^^^
@@ -353,8 +365,13 @@ Section 0.4 specifies the 8 tests to perform. Pylinac can perform 6 of these 8. 
 low-contrast object detectability test, while the the artifact assessment test is considered a visual inspection test.
 
 * **Geometric Accuracy** - The geometric accuracy is measured using profiles of slice 5. The only difference
-  is that pylinac uses an automatic image thresholding and then take the FWHM
-  of several profiles of this new image. The width between the two pixels defining the FWHM is the diameter.
+  is that pylinac uses an automatic image thresholding and then takes the FWHM of several profiles of this new image.
+  The width between the two pixels defining the FWHM is the diameter.
+* **Geometric Accuracy on sagittal slice** - The geometric accuracy on sagital slice is measured using profiles of
+  a sagittal slice. This analysis is conditional on the existence of a sagittal slice in the dataset.
+  The method follows the same principles as in the Geometric Accuracy analysis. Specifically, pylinac applies automatic
+  image thresholding and determines FWHM across several profiles in the image. The distance between the two pixels that
+  define the FWHM is taken as the measured length.
 * **High Contrast** - High contrast is hard to measure for the ACR MRI phantom simply because it does not use line pairs,
   but rather offset dots as well as the qualitative description in the guidance document about how to score these.
   Pylinac measures the high-contrast by sampling a circular ROI on the left ROI (phantom right) set. This is the
@@ -560,6 +577,18 @@ Interpreting MRI Results
           key is the name of the line direction and the value is a string of the
           line length.
 
+      * ``sagittal_localizer_module``: Results from the sagittal localizer module with the following items:
+
+        * ``profiles``: A dictionary of the profiles used to measure the geometric distortion.
+          The key is the name of the profile and the value is a dictionary with the following items:
+
+          * ``width_mm``: The FWHM of the profile in mm.
+          * ``line``: A dictionary representing the line to be plotted.
+
+        * ``distances``: The lines measuring the ROI size. The
+          key is the name of the line direction and the value is a string of the
+          line length.
+
 API Documentation
 -----------------
 
@@ -591,3 +620,5 @@ API Documentation
 .. autopydantic_model:: pylinac.acr.MRUniformityModuleOutput
 
 .. autopydantic_model:: pylinac.acr.MRGeometricDistortionModuleOutput
+
+.. autopydantic_model:: pylinac.acr.MRSagittalLocalizationModuleOutput

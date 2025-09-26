@@ -13,6 +13,12 @@ Legend
 v 3.38.0
 --------
 
+ACR Phantoms
+^^^^^^^^^^^^
+
+* :bdg-success:`Feature` The ACR MR analysis now includes geometric distortion evaluation on the sagittal localizer image
+  (performed if the sagittal slice is present in the dataset).
+
 VMAT
 ^^^^
 

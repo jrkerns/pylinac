@@ -464,6 +464,7 @@ class TestACRMRIQuaac(QuaacTestBase, CloudFileMixin, TestCase):
 
 class ACRMRMixin(CloudFileMixin):
     dir_path = ["ACR", "MRI"]
+    check_uid: bool = True
     phantom_roll: float = 0
     row_mtf_50: float
     col_mtf_50: float
@@ -471,7 +472,8 @@ class ACRMRMixin(CloudFileMixin):
     slice1_shift: float
     slice11_shift: float
     psg: float
-    profile_lengths: None | dict = None
+    geometric_profile_lengths: None | dict = None
+    localizer_profile_lengths: None | dict = None
     results: list[str] = []
     x_adjustment: float = 0
     y_adjustment: float = 0
@@ -482,7 +484,9 @@ class ACRMRMixin(CloudFileMixin):
     @classmethod
     def setUpClass(cls):
         filename = cls.get_filename()
-        cls.mri = ACRMRILarge.from_zip(filename, memory_efficient_mode=True)
+        cls.mri = ACRMRILarge.from_zip(
+            filename, memory_efficient_mode=True, check_uid=cls.check_uid
+        )
         cls.mri.analyze(
             x_adjustment=cls.x_adjustment,
             y_adjustment=cls.y_adjustment,
@@ -530,15 +534,27 @@ class ACRMRMixin(CloudFileMixin):
     def test_psg(self):
         self.assertAlmostEqual(self.mri.uniformity_module.psg, self.psg, delta=0.3)
 
-    def test_profile_lengths(self):
-        if self.profile_lengths:
-            results = self.mri.results_data()
-            for name, length in self.profile_lengths.items():
-                self.assertAlmostEqual(
-                    results.geometric_distortion_module.profiles[name]["width (mm)"],
-                    length,
-                    delta=0.05,
-                )
+    def test_geometric_profile_lengths(self):
+        if self.geometric_profile_lengths is None:
+            self.skipTest("geometric_profile_lengths not available")
+        results = self.mri.results_data()
+        for name, length in self.geometric_profile_lengths.items():
+            self.assertAlmostEqual(
+                results.geometric_distortion_module.profiles[name]["width (mm)"],
+                length,
+                delta=0.05,
+            )
+
+    def test_localizer_profile_lengths(self):
+        if self.localizer_profile_lengths is None:
+            self.skipTest("localizer_profile_lengths not available")
+        results = self.mri.results_data()
+        for name, length in self.localizer_profile_lengths.items():
+            self.assertAlmostEqual(
+                results.sagittal_localizer_module.profiles[name]["width (mm)"],
+                length,
+                delta=0.05,
+            )
 
     def test_results(self):
         results = self.mri.results()
@@ -708,7 +724,7 @@ class ACRMRNewHollowPhantom1(ACRMRMixin, TestCase):
     slice1_shift = 0.0
     slice11_shift = 0.49
     psg = 0.07
-    profile_lengths = {
+    geometric_profile_lengths = {
         "horizontal": 189.45,
         "vertical": 190.43,
         "negative diagonal": 189.70,
@@ -724,9 +740,39 @@ class ACRMRNewHollowPhantom2(ACRMRMixin, TestCase):
     slice1_shift = 0.0
     slice11_shift = 0.49
     psg = 0.12
-    profile_lengths = {
+    geometric_profile_lengths = {
         "horizontal": 190.43,
         "vertical": 191.41,
         "negative diagonal": 190.99,
         "positive diagonal": 191.19,
     }
+
+
+class ACRMRSagittal(ACRMRMixin, TestCase):
+    file_name = "ACR MR Sagittal.zip"
+    check_uid = False
+    row_mtf_50 = 1.04
+    col_mtf_50 = 0.82
+    slice_thickness = 5.29
+    slice1_shift = -0.98
+    slice11_shift = 0.98
+    psg = 0.11
+    phantom_roll = -0.84
+    localizer_profile_lengths = {
+        "ROI1": 149.41,
+        "ROI2": 148.44,
+        "ROI3": 148.44,
+        "ROI4": 148.44,
+    }
+
+    @skip("For visual inspection only")
+    def test_plot(self):
+        self.mri.plot_images()
+
+    @skip("For visual inspection only")
+    def test_plot_analyzed_image(self):
+        self.mri.plot_analyzed_image()
+
+    @skip("For visual inspection only")
+    def test_plotly_analyzed_images(self):
+        self.mri.plotly_analyzed_images()
