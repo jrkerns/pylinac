@@ -36,7 +36,7 @@ definitions:
           - apt-get update
           - apt-get -y install git
           - uv venv
-          - uv pip install .[developer]
+          - uv pip install . --group dev
           - uv pip freeze
           - uv tool run pre-commit run --all-files
         caches:
