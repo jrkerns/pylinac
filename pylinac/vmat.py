@@ -173,6 +173,7 @@ class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
         kwargs
             Passed to the image loading function. See :func:`~pylinac.core.image.load`.
         """
+        super().__init__()
         ground = kwargs.get("ground", False) or ground
         check_inversion = kwargs.get("check_inversion", False) or check_inversion
         if len(image_paths) != 2:
