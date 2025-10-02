@@ -6,6 +6,7 @@ from unittest import TestCase
 
 import numpy as np
 import scipy.signal as sps
+from scipy.ndimage import zoom
 
 from pylinac.core import image
 from pylinac.core.array_utils import normalize
@@ -688,6 +689,42 @@ class TestHillProfilePhysical(TestCase):
         self.assertAlmostEqual(
             prof100.field_width_px, prof100_2.field_width_px, delta=0.001
         )
+
+    def test_center(self):
+        # Test the center when the y-values are directly provided, not using dpmm
+        array = symmetrical_sharp_sigmoidal_21_profile()
+        z_array = zoom(array, zoom=10)
+        x_vals = np.arange(len(z_array)).astype(float)
+        x_vals -= x_vals.mean()  # center at ~0
+        profile = HillProfilePhysical(z_array, x_values=x_vals)
+        self.assertAlmostEqual(profile.center_idx, 0, delta=0.01)
+
+    def test_field_width(self):
+        # Test the field width when the y-values are directly provided, not using dpmm
+        array = symmetrical_sharp_sigmoidal_21_profile()
+        z_array = zoom(array, zoom=10)
+        x_vals = np.arange(len(z_array)).astype(float)
+        x_vals -= x_vals.mean()  # center at ~0
+        profile = HillProfilePhysical(z_array, x_values=x_vals)
+        self.assertAlmostEqual(profile.field_width_px, 125, delta=0.1)
+
+    def test_field_edges(self):
+        # Test the field edges when the y-values are directly provided, not using dpmm
+        array = symmetrical_sharp_sigmoidal_21_profile()
+        z_array = zoom(array, zoom=10)
+        x_vals = np.arange(len(z_array)).astype(float)
+        x_vals -= x_vals.mean()  # center at ~0
+        profile = HillProfilePhysical(z_array, x_values=x_vals)
+        self.assertAlmostEqual(profile.field_edge_idx("left"), -62.5, delta=0.1)
+        self.assertAlmostEqual(profile.field_edge_idx("right"), 62.5, delta=0.1)
+
+    def test_off_center_center(self):
+        # Center should be correct even if x-values aren't centered around 0
+        array = symmetrical_sharp_sigmoidal_21_profile()
+        z_array = zoom(array, zoom=2)
+        x_vals = np.arange(len(z_array)).astype(float) * 10
+        profile = HillProfilePhysical(z_array, x_values=x_vals)
+        self.assertAlmostEqual(profile.center_idx, x_vals.mean(), delta=1)
 
 
 class TestResampleTo(TestCase):

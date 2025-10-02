@@ -710,19 +710,22 @@ class HillProfile(InflectionDerivativeProfile):
         left_infl_idx = super().field_edge_idx(side=LEFT)
         right_infl_idx = super().field_edge_idx(side=RIGHT)
         window_size = (right_infl_idx - left_infl_idx) * self.hill_window_ratio
+        # left and right are *physical* values
         if side == LEFT:
-            left = int(round(left_infl_idx - window_size))
-            right = int(round(left_infl_idx + window_size))
-            x_data = self.x_values[left : right + 1]
-            y_data = self.values[left : right + 1]
+            left = left_infl_idx - window_size
+            right = left_infl_idx + window_size
         else:
-            left = int(round(right_infl_idx - window_size))
-            right = int(round(right_infl_idx + window_size))
-            x_data = self.x_values[left : right + 1]
-            y_data = self.values[left : right + 1]
+            left = right_infl_idx - window_size
+            right = right_infl_idx + window_size
+
+        # we need to convert back to indices for slicing
+        left_idx = self.x_idx_at_x(left)
+        right_idx = self.x_idx_at_x(right)
+        # x and y data are again physical values
+        x_data = self.x_values[left_idx : right_idx + 1]
+        y_data = self.values[left_idx : right_idx + 1]
         hill_fit = Hill.fit(x_data=x_data, y_data=y_data)
-        idx = hill_fit.inflection_idx()["index (exact)"]
-        return self.x_at_x_idx(idx)
+        return hill_fit.inflection_idx()["index (exact)"]
 
     def as_resampled(
         self, interpolation_factor: float = 10, order: int = 3
