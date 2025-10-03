@@ -14,6 +14,7 @@ from __future__ import annotations
 import copy
 import enum
 import webbrowser
+from abc import ABC
 from collections.abc import Sequence
 from io import BytesIO
 from pathlib import Path
@@ -101,40 +102,49 @@ class Segment(RectangleROI):
     For VMAT tests, there are either 4 or 7 'segments', which represents a section of the image that received
     radiation under the same conditions.
 
+    Parameters
+    ----------
+    center_point: Point
+        Center of the segment in image coordinates
+    width: float
+        Segment width in pixels
+    height: float
+        Segment height in pixels
+    ratio_image: np.ndarray
+        DMLC/Open field ratio array that segment is computed over.
+    tolerance: float | int
+        Acceptable clinical tolerance of r_dev.
+
     Attributes
     ----------
     r_dev : float
             The reading deviation (R_dev) from the average readings of all the segments. See documentation for equation info.
     """
 
-    # width of the segment (i.e. parallel to MLC motion) in pixels under reference conditions
-    _nominal_width_mm: int
-    _nominal_height_mm: int
     r_dev: float
 
     def __init__(
         self,
         center_point: Point,
+        width: float,
+        height: float,
         ratio_image: np.ndarray,
-        dpmm,
         tolerance: float | int,
     ):
         self.r_dev: float = 0.0  # is assigned after all segments constructed
         self._tolerance = tolerance
         self._ratio_image = ratio_image
-        width = self._nominal_width_mm * dpmm
-        height = self._nominal_height_mm * dpmm
-        super().__init__(ratio_image, width, height, center=center_point)
+        super().__init__(ratio_image, width, height, center_point)
 
     @property
     def r_corr(self) -> float:
         """Return the ratio of the mean pixel values of DMLC/OPEN images."""
-        return self.pixel_array.mean() * 100
+        return self.pixels_flat.mean() * 100
 
     @property
     def stdev(self) -> float:
         """Return the standard deviation of the segment."""
-        return self.pixel_array.std()
+        return self.pixels_flat.std()
 
     @property
     def passed(self) -> bool:
@@ -146,7 +156,7 @@ class Segment(RectangleROI):
         return "blue" if self.passed else "red"
 
 
-class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
+class VMATBase(ABC, ResultsDataMixin[VMATResult], QuaacMixin):
     _url_suffix: str
     _result_header: str
     _result_short_header: str
@@ -241,10 +251,8 @@ class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
         self.roi_config = roi_config or self.default_roi_config
 
         """Analysis"""
-        points = self._calculate_segment_centers()
-        Segment._nominal_width_mm = segment_size_mm[0]
-        Segment._nominal_height_mm = segment_size_mm[1]
-        self._construct_segments(points)
+        self._calculate_segments(segment_size_mm)
+        self._update_r_corrs()
 
     @staticmethod
     def _load_images(
@@ -352,27 +360,25 @@ class VMATBase(ResultsDataMixin[VMATResult], QuaacMixin):
             named_segment_data=named_segment_data,
         )
 
-    def _calculate_segment_centers(self) -> list[Point]:
+    def _calculate_segments(self, segment_size_mm: tuple):
         """Construct the center points of the segments based on the field center and known x-offsets."""
-        points = []
+
+        dpmm = self.open_image.dpmm
         _, open_prof = self._median_profiles(self.dmlc_image, self.open_image)
         x_field_center = round(open_prof.center_idx)
         for roi_data in self.roi_config.values():
             x_offset_mm = roi_data["offset_mm"]
             y = self.open_image.center.y
-            x_offset_pixels = x_offset_mm * self.open_image.dpmm
+            x_offset_pixels = x_offset_mm * dpmm
             x = x_field_center + x_offset_pixels
-            points.append(Point(x, y))
-        return points
-
-    def _construct_segments(self, points: list[Point]):
-        for point in points:
             segment = Segment(
-                point, self.ratio_image, self.dmlc_image.dpmm, self._tolerance
+                Point(x, y),
+                segment_size_mm[0] * dpmm,
+                segment_size_mm[1] * dpmm,
+                self.ratio_image,
+                self._tolerance,
             )
             self.segments.append(segment)
-        # post-analysis to update R_corr values
-        self._update_r_corrs()
 
     def _update_r_corrs(self):
         """After the Segment constructions, the R_corr must be set for each segment."""
