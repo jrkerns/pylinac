@@ -12,7 +12,7 @@ from scipy.interpolate import UnivariateSpline
 from scipy.optimize import minimize
 
 if typing.TYPE_CHECKING:
-    from ..core.profile import FieldProfileBase, PhysicalProfileMixin
+    from ..core.profile import PhysicalProfileMixin, ProfileBase
 
 
 RIGHT = "right"
@@ -26,7 +26,7 @@ class ProfileMetric(ABC):
 
     name: str
     unit: str = ""
-    profile: FieldProfileBase | PhysicalProfileMixin
+    profile: ProfileBase | PhysicalProfileMixin
 
     def __init__(self, color: str | None = None, linestyle: str | None = None):
         self.color = color
@@ -40,7 +40,7 @@ class ProfileMetric(ABC):
         else:
             return self.name
 
-    def inject_profile(self, profile: FieldProfileBase) -> None:
+    def inject_profile(self, profile: ProfileBase) -> None:
         """Inject the profile into the metric class.
         We can't do this at instantiation because we don't have
         the profile yet. We also don't want to force the user
