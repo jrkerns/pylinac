@@ -31,6 +31,7 @@ from pylinac.core.profile import (
     Interpolation,
     MultiProfile,
     Normalization,
+    ProfileData,
     SingleProfile,
     stretch,
 )
@@ -150,7 +151,22 @@ def symmetrical_sharp_sigmoidal_21_profile() -> np.array:
     )
 
 
-class TestProfileGeneric(TestCase):
+class TesProfileGeneric(TestCase):
+    def test_ground(self) -> None:
+        offset_array = create_simple_9_profile() + 1
+        self.assertEqual(offset_array.min(), 1)
+        profile = ProfileData(offset_array, ground=True)
+        # grounding makes min value 0
+        self.assertEqual(profile.values.min(), 0)
+
+    def test_max_normalization(self):
+        array = create_simple_9_profile()
+        self.assertNotEqual(array.max(), 1)
+        max_prof = ProfileData(array, normalize=True)
+        self.assertEqual(max_prof.values.max(), 1)
+
+
+class TestFieldProfileGeneric(TestCase):
     def test_ground(self) -> None:
         offset_array = create_simple_9_profile() + 1
         self.assertEqual(offset_array.min(), 1)

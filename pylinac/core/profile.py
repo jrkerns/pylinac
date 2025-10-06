@@ -192,8 +192,28 @@ class Centering(enum.Enum):
     GEOMETRIC_CENTER = "Geometric center"  #:
 
 
-class ProfileBase(ProfileMixin, ABC):
-    """The base class for multiple type of profiles. This class should not be instantiated directly.
+class ProfileData(ProfileMixin):
+    def __init__(
+        self,
+        values: np.ndarray,
+        x_values: np.ndarray | None = None,
+        ground: bool = False,
+        normalize: bool = False,
+    ):
+        """A 1D profile."""
+        validators.single_dimension(values)
+        if x_values is None:
+            x_values = np.arange(len(values))
+        self.values = values
+        self.x_values = x_values
+        if ground:
+            self.ground()
+        if normalize:
+            self.normalize()
+
+
+class FieldProfileBase(ProfileData, ABC):
+    """The base class for profiles related to beam. This class should not be instantiated directly.
 
     We use a base class to avoid having long stacked if statements for the different detection patterns.
     This is also more explicit and extensible."""
@@ -213,7 +233,7 @@ class ProfileBase(ProfileMixin, ABC):
         Signal analysis methods are given, mostly based on FWXM and on Hill function calculations.
         Profiles with multiple peaks are better suited by the MultiProfile class.
         """
-        validators.single_dimension(values)
+        super().__init__(values, x_values, ground)
         self.metrics = []
         self.metric_values = {}
         self._interp_order = interpolation_order
@@ -397,8 +417,8 @@ class ProfileBase(ProfileMixin, ABC):
         )
 
     def resample_to(
-        self, target_profile: ProfileBase | PhysicalProfileMixin
-    ) -> ProfileBase:
+        self, target_profile: FieldProfileBase | PhysicalProfileMixin
+    ) -> FieldProfileBase:
         """Resample a target profile to have the same sampling (x-values) rate as the source profile.
         This will return a new target profile with the same x-values as the source profile and with the values
         interpolated to match the source profile.
@@ -575,7 +595,7 @@ class ProfileBase(ProfileMixin, ABC):
             return values
 
 
-class FWXMProfile(ProfileBase):
+class FWXMProfile(FieldProfileBase):
     """A profile that has one large signal, e.g. a radiation beam profile and data derived from it is based on
     the Full-Width X-Maximum to find the edge indices"""
 
@@ -629,7 +649,7 @@ class FWXMProfile(ProfileBase):
         )
 
 
-class InflectionDerivativeProfile(ProfileBase):
+class InflectionDerivativeProfile(FieldProfileBase):
     """A profile that has one large signal, e.g. a radiation beam profile and data derived from it is based on
     the Full-Width X-Maximum"""
 
@@ -730,7 +750,7 @@ class HillProfile(InflectionDerivativeProfile):
     def as_resampled(
         self, interpolation_factor: float = 10, order: int = 3
     ) -> HillProfile:
-        return ProfileBase.as_resampled(
+        return FieldProfileBase.as_resampled(
             self,
             interpolation_factor=interpolation_factor,
             order=order,
@@ -821,7 +841,7 @@ class PhysicalProfileMixin:
 
     def gamma(
         self,
-        evaluation_profile: ProfileBase | PhysicalProfileMixin,
+        evaluation_profile: FieldProfileBase | PhysicalProfileMixin,
         dose_to_agreement: float = 3,
         distance_to_agreement: float = 3,
         gamma_cap_value: float = 2,
@@ -833,7 +853,7 @@ class PhysicalProfileMixin:
 
         Parameters
         ----------
-        evaluation_profile : ProfileBase
+        evaluation_profile : FieldProfileBase
             The evaluation profile to compare against.
         return_profiles : bool
             Whether to return the gamma index values or the gamma index values and the two profiles.
@@ -875,7 +895,7 @@ class PhysicalProfileMixin:
 
     def plot_gamma(
         self,
-        evaluation_profile: ProfileBase | PhysicalProfileMixin,
+        evaluation_profile: FieldProfileBase | PhysicalProfileMixin,
         dose_to_agreement: float = 3,
         distance_to_agreement: float = 3,
         gamma_cap_value: float = 2,
@@ -933,7 +953,7 @@ class PhysicalProfileMixin:
             plt.show()
         return axis
 
-    def as_simple_profile(self) -> ProfileBase:
+    def as_simple_profile(self) -> FieldProfileBase:
         """Convert a physical profile into a simple profile where
         the x-values have been converted to the physical x-values.
 
