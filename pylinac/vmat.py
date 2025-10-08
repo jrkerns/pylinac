@@ -1,20 +1,28 @@
-"""The VMAT module consists of the class VMAT, which is capable of loading an EPID DICOM Open field image and MLC field image and analyzing the
-images according to the Varian RapidArc QA tests and procedures, specifically the Dose-Rate & Gantry-Speed (DRGS)
-and Dose-Rate & MLC speed (DRMLC) tests.
+"""The VMAT module consists of the class VMAT, which is capable of loading an
+EPID DICOM Open field image and MLC field image. The analysis is based on recommendations
+from the Clif-Ling paper, Varian RapidArc QA tests and procedures, and
+Varian RapidArc Dynamic QA Test Procedures for TrueBeam, covering:
+
+* **Dose-Rate & Gantry-Speed (DRGS)** (aka T2 test)
+* **Dose-Rate & MLC speed (DRMLC)** (aka T3 test)
+* **Dose-Rate & Collimator speed (DRCS)** (aka T4 test / RapidArc Dynamic)
 
 Features:
 
-* **Do both tests** - Pylinac can handle either DRGS or DRMLC tests.
-* **Automatic offset correction** - Older VMAT tests had the ROIs offset, newer ones are centered. No worries, pylinac finds the ROIs automatically.
-* **Automatic open/DMLC identification** - Pass in both images--don't worry about naming. Pylinac will automatically identify the right images.
+* **Do all tests** - Pylinac can handle DRGS, DRMLC or DRCS tests.
+* **Automatic open/DMLC identification** - Pass in both images--don't worry about naming.
+  Pylinac will automatically identify the right images.
+* **Automatic offset correction** - Older VMAT tests had the ROIs offset, newer ones are centered.
+  No worries, pylinac finds the ROIs automatically, with DRCS assuming a centered image.
 """
 
 from __future__ import annotations
 
 import copy
 import enum
+import math
 import webbrowser
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from io import BytesIO
 from pathlib import Path
@@ -24,14 +32,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 from plotly import graph_objects as go
 from pydantic import BaseModel, ConfigDict, Field
+from scipy.ndimage import median_filter
+from skimage.transform import EuclideanTransform
 
 from . import Normalization
 from .core import image
+from .core.array_utils import normalize
 from .core.geometry import Point, PointSerialized
 from .core.image import DicomImage, ImageLike
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.pdf import PylinacCanvas
-from .core.profile import FWXMProfile
+from .core.profile import CircleProfile, FWXMProfile
 from .core.roi import RectangleROI
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
 from .core.warnings import capture_warnings
@@ -54,7 +65,10 @@ class SegmentResult(BaseModel):
         description="A boolean indicating if the segment passed or failed."
     )
     x_position_mm: float = Field(
-        description="The position of the segment ROI in mm from CAX."
+        description="The position of the segment ROI in mm from CAX (lateral offset if DRGS/DRMLC, radial distance if DRCS)."
+    )
+    angular_position_deg: float = Field(
+        description="The angle of the segment ROI in degrees."
     )
     r_corr: float = Field(
         description="R corrected (ratio)", title="R corrected (ratio)"
@@ -102,19 +116,6 @@ class Segment(RectangleROI):
     For VMAT tests, there are either 4 or 7 'segments', which represents a section of the image that received
     radiation under the same conditions.
 
-    Parameters
-    ----------
-    center_point: Point
-        Center of the segment in image coordinates
-    width: float
-        Segment width in pixels
-    height: float
-        Segment height in pixels
-    ratio_image: np.ndarray
-        DMLC/Open field ratio array that segment is computed over.
-    tolerance: float | int
-        Acceptable clinical tolerance of r_dev.
-
     Attributes
     ----------
     r_dev : float
@@ -130,11 +131,12 @@ class Segment(RectangleROI):
         height: float,
         ratio_image: np.ndarray,
         tolerance: float | int,
+        rotation: float = 0,
     ):
         self.r_dev: float = 0.0  # is assigned after all segments constructed
         self._tolerance = tolerance
         self._ratio_image = ratio_image
-        super().__init__(ratio_image, width, height, center_point)
+        super().__init__(ratio_image, width, height, center_point, rotation)
 
     @property
     def r_corr(self) -> float:
@@ -167,6 +169,17 @@ class VMATBase(ABC, ResultsDataMixin[VMATResult], QuaacMixin):
     segments: list[Segment]
     _tolerance: float
     ratio_image: np.ndarray
+    text_rotation: float | int
+
+    @property
+    @abstractmethod
+    def default_segment_size_mm(self) -> tuple[float, float]:
+        pass
+
+    @property
+    @abstractmethod
+    def default_roi_config(self) -> dict:
+        pass
 
     def __init__(
         self,
@@ -231,7 +244,7 @@ class VMATBase(ABC, ResultsDataMixin[VMATResult], QuaacMixin):
     def analyze(
         self,
         tolerance: float | int = 1.5,
-        segment_size_mm: tuple = (5, 100),
+        segment_size_mm: tuple | None = None,
         roi_config: dict | None = None,
     ):
         """Analyze the open and DMLC field VMAT images, according to 1 of 2 possible tests.
@@ -246,9 +259,14 @@ class VMATBase(ABC, ResultsDataMixin[VMATResult], QuaacMixin):
         roi_config : dict
             A dict of the ROI settings. The keys are the names of the ROIs and each value is a dict containing the offset in mm 'offset_mm'.
         """
-        self.ratio_image = self.dmlc_image.array / self.open_image.array
+        if segment_size_mm is None:
+            segment_size_mm = self.default_segment_size_mm
+        if roi_config is None:
+            roi_config = self.default_roi_config
+
         self._tolerance = tolerance / 100
-        self.roi_config = roi_config or self.default_roi_config
+        self.roi_config = roi_config
+        self.ratio_image = self.dmlc_image.array / self.open_image.array
 
         """Analysis"""
         self._calculate_segments(segment_size_mm)
@@ -265,32 +283,15 @@ class VMATBase(ABC, ResultsDataMixin[VMATResult], QuaacMixin):
             image2.ground()
         return image1, image2
 
+    @abstractmethod
     def _identify_images(self, image1: DicomImage, image2: DicomImage):
         """Identify which image is the DMLC and which is the open field."""
-        profile1, profile2 = self._median_profiles(image1=image1, image2=image2)
-        field_profile1 = profile1.field_values()
-        field_profile2 = profile2.field_values()
-        # first check if the profiles have a very different length
-        # if so, the longer one is the open field
-        # this leverages the shortcoming in FWXMProfile where the field might be very small because
-        # it "caught" on one of the first dips of the DMLC image
-        # catches most often with Halcyon images
-        if abs(len(field_profile1) - len(field_profile2)) > min(
-            len(field_profile1), len(field_profile2)
-        ):
-            if len(field_profile1) > len(field_profile2):
-                self.open_image = image1
-                self.dmlc_image = image2
-            else:
-                self.open_image = image2
-                self.dmlc_image = image1
-        # normal check of the STD compared; for flat-ish beams this works well.
-        elif np.std(field_profile1) > np.std(field_profile2):
-            self.dmlc_image = image1
-            self.open_image = image2
-        else:
-            self.dmlc_image = image2
-            self.open_image = image1
+        pass
+
+    @abstractmethod
+    def _calculate_segments(self, segment_size_mm: tuple[float, float]):
+        """Construct the center points of the segments based on the roi_config."""
+        pass
 
     def results(self) -> str:
         """A string of the summary of the analysis results.
@@ -332,54 +333,6 @@ class VMATBase(ABC, ResultsDataMixin[VMATResult], QuaacMixin):
             )
         return data
 
-    def _generate_results_data(self) -> VMATResult:
-        """Present the results data and metadata as a dataclass or dict.
-        The default return type is a dataclass."""
-        segment_data = []
-        named_segment_data = {}
-        for segment, (roi_name, roi_data) in zip(
-            self.segments, self.roi_config.items()
-        ):
-            segment = SegmentResult(
-                passed=segment.passed,
-                r_corr=segment.r_corr,
-                r_dev=segment.r_dev,
-                center_x_y=segment.center,
-                x_position_mm=roi_data["offset_mm"],
-                stdev=segment.stdev,
-            )
-            segment_data.append(segment)
-            named_segment_data[roi_name] = segment
-        return VMATResult(
-            test_type=self._result_header,
-            tolerance_percent=self._tolerance * 100,
-            max_deviation_percent=self.max_r_deviation,
-            abs_mean_deviation=self.avg_abs_r_deviation,
-            passed=self.passed,
-            segment_data=segment_data,
-            named_segment_data=named_segment_data,
-        )
-
-    def _calculate_segments(self, segment_size_mm: tuple):
-        """Construct the center points of the segments based on the field center and known x-offsets."""
-
-        dpmm = self.open_image.dpmm
-        _, open_prof = self._median_profiles(self.dmlc_image, self.open_image)
-        x_field_center = round(open_prof.center_idx)
-        for roi_data in self.roi_config.values():
-            x_offset_mm = roi_data["offset_mm"]
-            y = self.open_image.center.y
-            x_offset_pixels = x_offset_mm * dpmm
-            x = x_field_center + x_offset_pixels
-            segment = Segment(
-                Point(x, y),
-                segment_size_mm[0] * dpmm,
-                segment_size_mm[1] * dpmm,
-                self.ratio_image,
-                self._tolerance,
-            )
-            self.segments.append(segment)
-
     def _update_r_corrs(self):
         """After the Segment constructions, the R_corr must be set for each segment."""
         avg_r_corr = np.array([segment.r_corr for segment in self.segments]).mean()
@@ -409,6 +362,13 @@ class VMATBase(ABC, ResultsDataMixin[VMATResult], QuaacMixin):
     def max_r_deviation(self) -> float:
         """Return the value of the maximum R_deviation segment."""
         return np.max(np.abs(self.r_devs))
+
+    @abstractmethod
+    def _roi_profiles(
+        self, image1: DicomImage, image2: DicomImage
+    ) -> tuple[FWXMProfile, FWXMProfile]:
+        """Return two profiles from the open and DMLC image. Used for qualitative visualization and image identification."""
+        pass
 
     def plotly_analyzed_images(
         self,
@@ -455,8 +415,8 @@ class VMATBase(ABC, ResultsDataMixin[VMATResult], QuaacMixin):
         )
         self._draw_plotly_segments(fig=fig_dmlc)
 
-        # median profiles
-        dmlc_prof, open_prof = self._median_profiles(self.dmlc_image, self.open_image)
+        # ROI profiles
+        dmlc_prof, open_prof = self._roi_profiles(self.dmlc_image, self.open_image)
         fig_profile = go.Figure()
         dmlc_prof.plotly(fig_profile, name="DMLC", show=False)
         open_prof.plotly(fig_profile, name="Open", show=False)
@@ -565,9 +525,7 @@ class VMATBase(ABC, ResultsDataMixin[VMATResult], QuaacMixin):
 
         # plot profile
         elif subimage == ImageType.PROFILE:
-            dmlc_prof, open_prof = self._median_profiles(
-                self.dmlc_image, self.open_image
-            )
+            dmlc_prof, open_prof = self._roi_profiles(self.dmlc_image, self.open_image)
             ax.plot(dmlc_prof.values, label="DMLC")
             ax.plot(open_prof.values, label="Open")
             ax.autoscale(axis="x", tight=True)
@@ -602,37 +560,21 @@ class VMATBase(ABC, ResultsDataMixin[VMATResult], QuaacMixin):
         show_text : bool
             Whether to show the ROI name on the image
         """
-        for segment, roi_name in zip(self.segments, self.roi_config.keys()):
+        for segment, (roi_name, roi_config) in zip(
+            self.segments, self.roi_config.items()
+        ):
             color = segment.get_bg_color()
             if show_text:
                 text = f"{roi_name} : {segment.r_dev:2.2f}%"
             else:
                 text = ""
             segment.plot2axes(
-                axis, edgecolor=color, text=text, text_rotation=90, fontsize="small"
+                axis,
+                edgecolor=color,
+                text=text,
+                text_rotation=self.text_rotation,
+                fontsize="small",
             )
-
-    @classmethod
-    def _median_profiles(
-        cls, image1: DicomImage, image2: DicomImage
-    ) -> list[FWXMProfile, FWXMProfile]:
-        """Return two median profiles from the open and DMLC image. Only used for visual purposes.
-        Evaluation is not based on these profiles."""
-        profiles = []
-        for orig_img in (image1, image2):
-            img = copy.deepcopy(orig_img)
-            img.ground()
-            img.check_inversion()
-            profile = FWXMProfile(
-                np.mean(img.array, axis=0),
-                ground=True,
-                normalization=Normalization.BEAM_CENTER,
-            )
-            profile.stretch()
-            norm_val = np.percentile(profile.values, 90)
-            profile.normalize(norm_val)
-            profiles.append(profile)
-        return profiles
 
     def publish_pdf(
         self,
@@ -708,22 +650,132 @@ class VMATBase(ABC, ResultsDataMixin[VMATResult], QuaacMixin):
         return image1, image2
 
 
+class VMATLinearBase(VMATBase, ABC):
+    """Class representing linear VMAT tests:
+    - DRGS: Dose-Rate vs Gantry-speed
+    - DRMLC: Dose-Rate vs MLC-speed
+    Will accept, analyze, and return the results."""
+
+    text_rotation = 90  # rotation of text on image
+
+    @property
+    def default_segment_size_mm(self) -> tuple[float, float]:
+        return 5, 100
+
+    def _identify_images(self, image1: DicomImage, image2: DicomImage):
+        """Identify which image is the DMLC and which is the open field."""
+        profile1, profile2 = self._roi_profiles(image1=image1, image2=image2)
+        field_profile1 = profile1.field_values()
+        field_profile2 = profile2.field_values()
+        # first check if the profiles have a very different length
+        # if so, the longer one is the open field
+        # this leverages the shortcoming in FWXMProfile where the field might be very small because
+        # it "caught" on one of the first dips of the DMLC image
+        # catches most often with Halcyon images
+        if abs(len(field_profile1) - len(field_profile2)) > min(
+            len(field_profile1), len(field_profile2)
+        ):
+            if len(field_profile1) > len(field_profile2):
+                self.open_image = image1
+                self.dmlc_image = image2
+            else:
+                self.open_image = image2
+                self.dmlc_image = image1
+        # normal check of the STD compared; for flat-ish beams this works well.
+        elif np.std(field_profile1) > np.std(field_profile2):
+            self.dmlc_image = image1
+            self.open_image = image2
+        else:
+            self.dmlc_image = image2
+            self.open_image = image1
+
+    def _roi_profiles(
+        self, image1: DicomImage, image2: DicomImage
+    ) -> list[FWXMProfile]:
+        profiles: list[FWXMProfile] = []
+        for orig_img in (image1, image2):
+            img = copy.deepcopy(orig_img)
+            img.ground()
+            img.check_inversion()
+            profile = FWXMProfile(
+                np.mean(img.array, axis=0),
+                ground=True,
+                normalization=Normalization.BEAM_CENTER,
+            )
+            profile.stretch()
+            norm_val = np.percentile(profile.values, 90)
+            profile.normalize(norm_val)
+            profiles.append(profile)
+        return profiles
+
+    def _generate_results_data(self) -> VMATResult:
+        """Present the results data and metadata as a dataclass or dict.
+        The default return type is a dataclass."""
+        segment_data = []
+        named_segment_data = {}
+        for segment, (roi_name, roi_data) in zip(
+            self.segments, self.roi_config.items()
+        ):
+            segment = SegmentResult(
+                passed=segment.passed,
+                r_corr=segment.r_corr,
+                r_dev=segment.r_dev,
+                center_x_y=segment.center,
+                x_position_mm=roi_data["offset_mm"],
+                stdev=segment.stdev,
+                angular_position_deg=0,
+            )
+            segment_data.append(segment)
+            named_segment_data[roi_name] = segment
+        return VMATResult(
+            test_type=self._result_header,
+            tolerance_percent=self._tolerance * 100,
+            max_deviation_percent=self.max_r_deviation,
+            abs_mean_deviation=self.avg_abs_r_deviation,
+            passed=self.passed,
+            segment_data=segment_data,
+            named_segment_data=named_segment_data,
+        )
+
+    def _calculate_segments(self, segment_size_mm: tuple[float, float]):
+        """Construct the center points of the segments based on the field center and known x-offsets."""
+        y = self.open_image.center.y
+        _, open_prof = self._roi_profiles(self.dmlc_image, self.open_image)
+        x_field_center = round(open_prof.center_idx)
+        dpmm = self.open_image.dpmm
+        for roi_data in self.roi_config.values():
+            x_offset_mm = roi_data["offset_mm"]
+            x_offset_pixels = x_offset_mm * dpmm
+            x = x_field_center + x_offset_pixels
+            segment = Segment(
+                Point(x, y),
+                width=segment_size_mm[0] * dpmm,
+                height=segment_size_mm[1] * dpmm,
+                ratio_image=self.ratio_image,
+                tolerance=self._tolerance,
+            )
+            self.segments.append(segment)
+
+
 @capture_warnings
-class DRGS(VMATBase):
+class DRGS(VMATLinearBase):
     """Class representing a Dose-Rate, Gantry-speed VMAT test. Will accept, analyze, and return the results."""
 
     _url_suffix = "drgs.zip"
     _result_header = "Dose Rate & Gantry Speed"
     _result_short_header = "DR/GS"
-    default_roi_config = {
-        "ROI 1": {"offset_mm": -60},
-        "ROI 2": {"offset_mm": -40},
-        "ROI 3": {"offset_mm": -20},
-        "ROI 4": {"offset_mm": 0},
-        "ROI 5": {"offset_mm": 20},
-        "ROI 6": {"offset_mm": 40},
-        "ROI 7": {"offset_mm": 60},
-    }
+
+    @property
+    def default_roi_config(self) -> dict:
+        return {
+            "ROI 1": {"offset_mm": -60},
+            "ROI 2": {"offset_mm": -40},
+            "ROI 3": {"offset_mm": -20},
+            "ROI 4": {"offset_mm": 0},
+            "ROI 5": {"offset_mm": 20},
+            "ROI 6": {"offset_mm": 40},
+            "ROI 7": {"offset_mm": 60},
+        }
 
     @staticmethod
     def run_demo():
@@ -735,18 +787,21 @@ class DRGS(VMATBase):
 
 
 @capture_warnings
-class DRMLC(VMATBase):
+class DRMLC(VMATLinearBase):
     """Class representing a Dose-Rate, MLC speed VMAT test. Will accept, analyze, and return the results."""
 
     _url_suffix = "drmlc.zip"
     _result_header = "Dose Rate & MLC Speed"
     _result_short_header = "DR/MLCS"
-    default_roi_config = {
-        "ROI 1": {"offset_mm": -45},
-        "ROI 2": {"offset_mm": -15},
-        "ROI 3": {"offset_mm": 15},
-        "ROI 4": {"offset_mm": 45},
-    }
+
+    @property
+    def default_roi_config(self) -> dict:
+        return {
+            "ROI 1": {"offset_mm": -45},
+            "ROI 2": {"offset_mm": -15},
+            "ROI 3": {"offset_mm": 15},
+            "ROI 4": {"offset_mm": 45},
+        }
 
     @staticmethod
     def run_demo():
@@ -755,3 +810,154 @@ class DRMLC(VMATBase):
         vmat.analyze()
         print(vmat.results())
         vmat.plot_analyzed_image()
+
+
+@capture_warnings
+class DRCS(VMATBase):
+    """Class representing a Dose-Rate, Collimator speed VMAT test.
+    Will accept, analyze, and return the results."""
+
+    text_rotation = 0  # rotation of text on image
+
+    _url_suffix = "drcs.zip"
+    _result_header = "Dose Rate & Collimator Speed"
+    _result_short_header = "DR/CS"
+    _default_radial_distance = 50  # in mm
+
+    @property
+    def default_segment_size_mm(self) -> tuple[float, float]:
+        return 40, 10
+
+    @property
+    def default_roi_config(self) -> dict:
+        return {
+            "ROI 1": {"radial_distance": self._default_radial_distance, "angle": -120},
+            "ROI 2": {"radial_distance": self._default_radial_distance, "angle": -60},
+            "ROI 3": {"radial_distance": self._default_radial_distance, "angle": 0},
+            "ROI 4": {"radial_distance": self._default_radial_distance, "angle": 60},
+            "ROI 5": {"radial_distance": self._default_radial_distance, "angle": 120},
+        }
+
+    def _identify_images(self, image1: DicomImage, image2: DicomImage):
+        """Identify which image is the DMLC and which is the open field.
+
+        Notes
+        -----
+
+        In DRCS, the boundaries between regions on the DMLC image have higher intensity.
+        Normalizing to the max will produce a lower mean value. Furthermore, for the
+        example images provided, the open image is a full circle, whereas the DMLC image
+        has a pie slice missing, lowering the mean value even further.
+        """
+        filter_size = 10
+        sum1 = normalize(median_filter(image1.array, filter_size)).sum()
+        sum2 = normalize(median_filter(image2.array, filter_size)).sum()
+
+        if sum1 > sum2:
+            self.open_image = image1
+            self.dmlc_image = image2
+        else:
+            self.open_image = image2
+            self.dmlc_image = image1
+
+    def _generate_results_data(self) -> VMATResult:
+        """Present the results data and metadata as a dataclass or dict.
+        The default return type is a dataclass."""
+        segment_data = []
+        named_segment_data = {}
+        for segment, (roi_name, roi_data) in zip(
+            self.segments, self.roi_config.items()
+        ):
+            segment = SegmentResult(
+                passed=segment.passed,
+                r_corr=segment.r_corr,
+                r_dev=segment.r_dev,
+                center_x_y=segment.center,
+                x_position_mm=roi_data["radial_distance"],
+                stdev=segment.stdev,
+                angular_position_deg=roi_data["angle"],
+            )
+            segment_data.append(segment)
+            named_segment_data[roi_name] = segment
+        return VMATResult(
+            test_type=self._result_header,
+            tolerance_percent=self._tolerance * 100,
+            max_deviation_percent=self.max_r_deviation,
+            abs_mean_deviation=self.avg_abs_r_deviation,
+            passed=self.passed,
+            segment_data=segment_data,
+            named_segment_data=named_segment_data,
+        )
+
+    def _calculate_segments(self, segment_size_mm: tuple[float, float]):
+        """Calculate the segments based on ROI config.
+
+        Notes
+        -----
+        This assumes that the ratio image is centered to the central pixel.
+        Once we have more data we can verify this assumption and change if necessary.
+        """
+        dpmm = self.open_image.dpmm
+        image_center = self.open_image.center.as_array(("x", "y"))
+        im_translation = EuclideanTransform(translation=image_center)
+        for roi_data in self.roi_config.values():
+            radial_distance = roi_data["radial_distance"]
+            radial_distance_px = radial_distance * dpmm
+            roi_translation = EuclideanTransform(translation=(radial_distance_px, 0))
+
+            coll_angle = roi_data["angle"]
+            im_angle = -coll_angle - 90
+            angle_rad = np.deg2rad(im_angle)
+            roi_rotation = EuclideanTransform(rotation=angle_rad)
+
+            roi_tf = roi_translation + roi_rotation  # extrinsic translation -> rotation
+            tf = roi_tf + im_translation  # roi in image coordinates
+
+            segment = Segment(
+                center_point=Point(tf.translation),
+                width=segment_size_mm[0] * dpmm,
+                height=segment_size_mm[1] * dpmm,
+                ratio_image=self.ratio_image,
+                tolerance=self._tolerance,
+                rotation=np.rad2deg(tf.rotation),
+            )
+            self.segments.append(segment)
+
+    @staticmethod
+    def run_demo():
+        """Run the demo for the Dose Rate & Collimator Speed test."""
+        vmat = DRCS.from_demo_images()
+        vmat.analyze()
+        print(vmat.results())
+        vmat.plot_analyzed_image()
+
+    def _roi_profiles(
+        self, image1: DicomImage, image2: DicomImage
+    ) -> list[FWXMProfile]:
+        """Return two median profiles from the open and DMLC image. Compared
+        to the linear VMAT tests, we first extract a circular profile, then convert it to a linear FWXM profile."""
+        profiles: list[FWXMProfile] = []
+        for orig_img in (image1, image2):
+            img = copy.deepcopy(orig_img)
+            # we need one single radius; just take the first of the ROIs
+            # It's possible the user has overloaded the ROIs to be different distances, but that's not our problem
+            radius_px = (
+                list(self.roi_config.values())[0]["radial_distance"]
+                * self.dmlc_image.dpmm
+            )
+            circle_profile = CircleProfile(
+                center=img.center,
+                radius=radius_px,
+                image_array=img.array,
+                start_angle=math.pi / 2,  # start in the "empty" region and go CCW
+            )
+            # due to signature and implementation differences in later calls, it's easiest to directly create a FWXMProfile from the circle profile values
+            profile = FWXMProfile(
+                values=circle_profile.values,
+                ground=False,
+                normalization=Normalization.NONE,
+            )
+            # normalize so the profiles are visually comparable
+            profile.normalize(np.percentile(profile.values, 50))
+            profiles.append(profile)
+        return profiles

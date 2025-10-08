@@ -53,5 +53,5 @@ from .planar_imaging import (
 )
 from .quart import HypersightQuartDVT, QuartDVT
 from .starshot import Starshot
-from .vmat import DRGS, DRMLC
+from .vmat import DRCS, DRGS, DRMLC
 from .winston_lutz import WinstonLutz, WinstonLutz2D, WinstonLutzMultiTargetMultiField

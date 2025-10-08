@@ -4,12 +4,12 @@ import tempfile
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Union
-from unittest import TestCase
+from unittest import TestCase, skip
 
 import numpy as np
 from matplotlib import pyplot as plt
 
-from pylinac import DRGS, DRMLC
+from pylinac import DRCS, DRGS, DRMLC
 from pylinac.core.geometry import Point
 from pylinac.core.image_generator import (
     AS1200Image,
@@ -32,7 +32,7 @@ TEST_DIR = "VMAT"
 
 class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
     demo_load_method = "from_demo_images"
-    klass: Union[type[DRGS], type[DRMLC]]
+    klass: Union[type[DRGS], type[DRMLC], type[DRCS]]
 
     def test_normal_instantiation(self):
         one = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_1.dcm"])
@@ -151,6 +151,13 @@ class TestPreprocessing(TestCase):
         results = my_drgs.results_data()
         self.assertNotEqual(results.abs_mean_deviation, self.drgs_mean_dev)
 
+    def test_drcs_preprocess(self):
+        my_drcs = DRCS.from_demo_images()
+        my_drcs.dmlc_image.filter(size=7, kind="median")
+        my_drcs.analyze()
+        results = my_drcs.results_data()
+        self.assertNotEqual(results.abs_mean_deviation, self.drgs_mean_dev)
+
 
 class TestDRGSLoading(LoadingBase, TestCase):
     url = "drgs.zip"
@@ -160,6 +167,11 @@ class TestDRGSLoading(LoadingBase, TestCase):
 class TestDRMLCLoading(LoadingBase, TestCase):
     url = "drmlc.zip"
     klass = DRMLC
+
+
+class TestDRCSLoading(LoadingBase, TestCase):
+    url = "drcs.zip"
+    klass = DRCS
 
 
 class TestDRGSQuaac(QuaacTestBase, TestCase):
@@ -176,12 +188,24 @@ class TestDRMLCQuaac(QuaacTestBase, TestCase):
         return t
 
 
+class TestDRCSQuaac(QuaacTestBase, TestCase):
+    def quaac_instance(self):
+        t = DRCS.from_demo_images()
+        t.analyze()
+        return t
+
+
 class TestDRMLCResultsData(ResultsDataBase, TestCase):
     model = DRMLC
 
 
 class TestDRGSResultsData(ResultsDataBase, TestCase):
     model = DRGS
+
+
+@skip("No demo images for DRCS yet")
+class TestDRCSResultsData(ResultsDataBase, TestCase):
+    model = DRCS
 
 
 class VMATMixin:
@@ -310,6 +334,34 @@ class TestDRMLCDemo(VMATMixin, TestCase):
 
     def setUp(self):
         self.vmat = DRMLC.from_demo_images(**self.init_kwargs)
+        self.vmat.analyze()
+
+    def test_demo(self):
+        self.vmat.run_demo()
+
+
+class TestDRCSDemo(VMATMixin, TestCase):
+    """Tests of the result values of the DRCS demo images."""
+
+    segment_values = {
+        0: {"r_dev": -0.38, "r_corr": 13.50},
+        1: {"r_dev": 0.10, "r_corr": 13.57},
+        2: {"r_dev": 0.22, "r_corr": 13.58},
+        3: {"r_dev": 0.27, "r_corr": 13.59},
+        4: {"r_dev": -0.20, "r_corr": 13.53},
+    }
+    segment_positions = {
+        4: Point(465.63, 668.91),
+        3: Point(465.63, 520.09),
+        2: Point(594.50, 445.69),
+        1: Point(723.37, 520.09),
+        0: Point(723.37, 668.91),
+    }
+    avg_abs_r_deviation = 0.24
+    max_r_deviation = 0.38
+
+    def setUp(self):
+        self.vmat = DRCS.from_demo_images(**self.init_kwargs)
         self.vmat.analyze()
 
     def test_demo(self):
@@ -595,3 +647,40 @@ class TestContrivedWideGapTest(VMATMixin, TestCase):
         open_path, dmlc_path = self.create_synthetic_images()
         self.vmat = self.klass(image_paths=(open_path, dmlc_path), **self.init_kwargs)
         self.vmat.analyze(**self.analyze_kwargs)
+
+
+class TestDRCS(VMATMixin, PlotlyTestMixin, TestCase):
+    """Tests of the result values of DRCS images"""
+
+    filepaths = ("vmat-rad-open.dcm", "vmat-rad-dyn.dcm")
+    klass = DRCS
+    segment_values = {
+        0: {"r_dev": -0.38, "r_corr": 13.50},
+        1: {"r_dev": 0.10, "r_corr": 13.57},
+        2: {"r_dev": 0.22, "r_corr": 13.58},
+        3: {"r_dev": 0.27, "r_corr": 13.59},
+        4: {"r_dev": -0.20, "r_corr": 13.53},
+    }
+    segment_positions = {
+        4: Point(465.63, 668.91),
+        3: Point(465.63, 520.09),
+        2: Point(594.50, 445.69),
+        1: Point(723.37, 520.09),
+        0: Point(723.37, 668.91),
+    }
+
+    avg_abs_r_deviation = 0.24
+    max_r_deviation = 0.38
+    passes = True
+    num_figs = 3
+
+    def setUp(self):
+        # attach the instance attr for the plotly mixin
+        super().setUp()
+        self.instance = self.vmat
+
+
+class TestDRCSReverse(TestDRCS):
+    """Test image identification independent of order."""
+
+    filepaths = tuple(reversed(TestDRCS.filepaths))

@@ -22,6 +22,9 @@ ACR Phantoms
 VMAT
 ^^^^
 
+* :bdg-success:`Feature` Added RapidArc Dynamic analysis support via the :class:`~pylinac.vmat.DRCS` class. It functions the same
+  way as the other VMAT classes.
+
 * :bdg-warning:`Fixed` "Preprocessing" of VMAT images after instantiation would not be respected. I.e.
 
   .. code-block:: python
