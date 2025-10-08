@@ -36,6 +36,11 @@ Profiles
 * :bdg-warning:`Fixed` The ``center_idx`` and ``field_edge_idx`` methods of :class:`~pylinac.core.profile.HillProfilePhysical` were
   not correctly calculated if y-values were being passed in directly. I.e. ``HillProfilePhysical(x=..., y=..., dpmm=None)``. This has been fixed.
 
+Core
+^^^^
+
+* :bdg-warning:`Fixed` Vertical ``Line`` objects would fail to serialize due to the infinite slope.
+
 v 3.37.0
 --------
 

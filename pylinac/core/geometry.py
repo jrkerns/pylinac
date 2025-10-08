@@ -453,7 +453,10 @@ class Line:
 
         From: http://www.purplemath.com/modules/slope.htm
         """
-        return (self.point1.y - self.point2.y) / (self.point1.x - self.point2.x)
+        try:
+            return (self.point1.y - self.point2.y) / (self.point1.x - self.point2.x)
+        except ZeroDivisionError:
+            return float("inf")
 
     @property
     def b(self) -> float:

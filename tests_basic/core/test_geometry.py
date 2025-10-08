@@ -1,11 +1,15 @@
 """Test the various geometric patterns in the pylinac.core.geometry module."""
 
+import json
 import math
 import unittest
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from pylinac.core.geometry import (
     Circle,
     Line,
+    LineSerialized,
     Point,
     Rectangle,
     direction_to_coords,
@@ -147,6 +151,25 @@ class TestLine(unittest.TestCase):
         line = Line((0, 0, 0), (3, 3, 0))
         exp_dist = math.sqrt(18) / 2
         self.assertAlmostEqual(line.distance_to(point), exp_dist, delta=0.01)
+
+    def test_vertical_line(self):
+        line = Line((3, 0), (3, 4))
+        self.assertEqual(line.m, float("inf"))
+        self.assertEqual(line.b, -float("inf"))
+        self.assertTrue(math.isnan(line.y(0)))
+        self.assertTrue(math.isnan(line.x(0)))
+
+    def test_serialization(self):
+        class LinePydantic(BaseModel):
+            model_config = ConfigDict(arbitrary_types_allowed=True)
+            line: LineSerialized = Field()
+
+        # vertical line; m is infinite/undefined
+        line = LinePydantic(line=Line((3, 0), (3, 4)))
+        # shouldn't raise
+        j_data = line.model_dump_json()
+        self.assertIn("null", j_data)  # m should be null/None
+        json.loads(j_data)
 
 
 class TestRectangle(unittest.TestCase):
