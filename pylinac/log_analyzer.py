@@ -2819,7 +2819,11 @@ def load_log(
         file_or_dir = io.get_url(file_or_dir)
     if osp.isfile(file_or_dir):
         if zipfile.is_zipfile(file_or_dir):
-            return MachineLogs.from_zip(file_or_dir)
+            logs = MachineLogs.from_zip(file_or_dir)
+            # if user passes a zip of a single log, return just that log
+            if len(logs) == 1:
+                return logs[0]
+            return logs
         if not is_log(file_or_dir):
             raise NotALogError("Not a valid log")
         elif is_tlog(file_or_dir):

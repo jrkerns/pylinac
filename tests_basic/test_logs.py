@@ -4,6 +4,7 @@ import os
 import os.path as osp
 import shutil
 import tempfile
+import zipfile
 from pathlib import Path
 from unittest import TestCase
 
@@ -245,6 +246,26 @@ class TestLoadLog(TestCase):
     def test_zip(self):
         zip_file = get_file_from_cloud_test_repo(["mlc_logs", "mixed_types.zip"])
         self.assertIsInstance(load_log(zip_file), MachineLogs)
+
+    def test_zip_single_trajectory_log(self):
+        """A single log in a zip should return that log, not a MachineLogs object."""
+        tlog = get_file_from_cloud_test_repo(["mlc_logs", "tlogs", "dynamic_imrt.bin"])
+        with zipfile.ZipFile("single_tlog.zip", "w") as zfile:
+            zfile.write(filename=tlog)
+        self.assertIsInstance(load_log("single_tlog.zip"), TrajectoryLog)
+
+    def test_zip_single_dynalog(self):
+        """A single log in a zip should return that log, not a MachineLogs object."""
+        a_dlog = get_file_from_cloud_test_repo(
+            ["mlc_logs", "dlogs", "A_static_imrt.dlg"]
+        )
+        b_dlg = get_file_from_cloud_test_repo(
+            ["mlc_logs", "dlogs", "B_static_imrt.dlg"]
+        )
+        with zipfile.ZipFile("single_dlog.zip", "w") as zfile:
+            zfile.write(filename=a_dlog)
+            zfile.write(filename=b_dlg)
+        self.assertIsInstance(load_log("single_dlog.zip"), Dynalog)
 
     def test_invalid_file(self):
         invalid_file = get_file_from_cloud_test_repo(

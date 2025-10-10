@@ -39,6 +39,12 @@ Profiles
 * :bdg-warning:`Fixed` The ``center_idx`` and ``field_edge_idx`` methods of :class:`~pylinac.core.profile.HillProfilePhysical` were
   not correctly calculated if y-values were being passed in directly. I.e. ``HillProfilePhysical(x=..., y=..., dpmm=None)``. This has been fixed.
 
+Machine Logs
+^^^^^^^^^^^^
+
+* :bdg-success:`Feature` When using :func:`~pylinac.log_analyzer.load_log` with a ZIP archive, if the archive
+  only contains one log file, that single log will be returned instead of :class:`~pylinac.log_analyzer.MachineLogs` list.
+
 Core
 ^^^^
 
