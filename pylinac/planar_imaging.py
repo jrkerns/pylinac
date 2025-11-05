@@ -3048,11 +3048,11 @@ class ACRMammography(ImagePhantomBase):
     detection_conditions = [is_right_size]
     phantom_outline_object = {"Rectangle": {"width ratio": 70, "height ratio": 130}}
     low_contrast_background_roi_settings = {
-        "roi 1": {"distance from center": 40.738, "angle": 72.72, "roi radius": 1},
-        "roi 2": {"distance from center": 22.441, "angle": 57.37, "roi radius": 1},
-        "roi 3": {"distance from center": 12.150, "angle": -5.19, "roi radius": 1},
-        "roi 4": {"distance from center": 24.323, "angle": -60.17, "roi radius": 1},
-        "roi 5": {"distance from center": 42.844, "angle": -73.60, "roi radius": 1},
+        "roi 1": {"distance from center": 40.738, "angle": 72.72, "roi radius": 3},
+        "roi 2": {"distance from center": 22.441, "angle": 57.37, "roi radius": 3},
+        "roi 3": {"distance from center": 12.150, "angle": -5.19, "roi radius": 3},
+        "roi 4": {"distance from center": 24.323, "angle": -60.17, "roi radius": 3},
+        "roi 5": {"distance from center": 42.844, "angle": -73.60, "roi radius": 3},
     }
     low_contrast_roi_settings = {
         "roi 1": {"distance from center": 53.662, "angle": 65.68, "roi radius": 3.00},
