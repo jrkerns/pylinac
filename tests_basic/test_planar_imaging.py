@@ -222,8 +222,6 @@ class PlanarPhantomMixin(QuaacTestBase, CloudFileMixin, PlotlyTestMixin):
     rois_seen = None
     piu = None
     num_figs = 3
-    x_adjustment: float = (0,)
-    y_adjustment: float = (0,)
     angle_adjustment: float = 0
     visibility_threshold: float = 100
 
@@ -235,8 +233,6 @@ class PlanarPhantomMixin(QuaacTestBase, CloudFileMixin, PlotlyTestMixin):
         cls.instance.analyze(
             ssd=cls.ssd,
             invert=cls.invert,
-            x_adjustment=cls.x_adjustment,
-            y_adjustment=cls.y_adjustment,
             angle_adjustment=cls.angle_adjustment,
             visibility_threshold=cls.visibility_threshold,
         )
