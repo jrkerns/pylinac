@@ -3036,6 +3036,58 @@ class DoselabMC2MV(DoselabMC2kV):
         leeds.plot_analyzed_image()
 
 
+@capture_warnings
+class ACRMammography(ImagePhantomBase):
+    """ACR Digital Mammography QC phantom"""
+
+    common_name = "ACR Digital Mammography"
+    _demo_filename = "TBD.dcm"
+    phantom_bbox_size_mm2 = 130 * 70
+    roi_match_condition = "closest"
+    detection_canny_settings = {"sigma": 9, "percentiles": (0.001, 0.01)}
+    detection_conditions = [is_right_size]
+    phantom_outline_object = {"Rectangle": {"width ratio": 70, "height ratio": 130}}
+    low_contrast_background_roi_settings = {
+        "roi 1": {"distance from center": 40.738, "angle": 72.72, "roi radius": 1},
+        "roi 2": {"distance from center": 22.441, "angle": 57.37, "roi radius": 1},
+        "roi 3": {"distance from center": 12.150, "angle": -5.19, "roi radius": 1},
+        "roi 4": {"distance from center": 24.323, "angle": -60.17, "roi radius": 1},
+        "roi 5": {"distance from center": 42.844, "angle": -73.60, "roi radius": 1},
+    }
+    low_contrast_roi_settings = {
+        "roi 1": {"distance from center": 53.662, "angle": 65.68, "roi radius": 3.00},
+        "roi 2": {"distance from center": 36.382, "angle": 52.59, "roi radius": 2.25},
+        "roi 3": {"distance from center": 23.825, "angle": 21.94, "roi radius": 1.50},
+        "roi 4": {"distance from center": 24.731, "angle": -26.67, "roi radius": 1.14},
+        "roi 5": {"distance from center": 38.153, "angle": -54.60, "roi radius": 0.75},
+        "roi 6": {"distance from center": 55.674, "angle": -66.61, "roi radius": 0.60},
+    }
+
+    @staticmethod
+    def run_demo():
+        """Run the ACR Digital Mammography QC phantom analysis demonstration."""
+        raise NotImplementedError
+
+    def _phantom_radius_calc(self) -> float:
+        """The radius of the phantom in pixels; the value itself doesn't matter, it's just
+        used for relative distances to ROIs.
+
+        Returns
+        -------
+        radius : float
+        """
+        # Since all is relative we can use pixel size and then all objects can be
+        # referenced in mm.
+        return self.image.dpmm
+
+    def _phantom_angle_calc(self):
+        """Phantom angle. Assumed to be zero."""
+        # https://accreditationsupport.acr.org/support/solutions/articles/11000065938-phantom-testing-mammography-revised-11-22-2024-
+        # 'Chest-wall side of phantom must be completely flush with chest-wall side
+        # of image receptor.' Therefore assume zero.
+        return 0
+
+
 def take_centermost_roi(rprops: list[RegionProperties], image_shape: tuple[int, int]):
     """Return the ROI that is closest to the center."""
     larger_rois = [
