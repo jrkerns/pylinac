@@ -3,7 +3,7 @@ from unittest import TestCase
 import numpy as np
 
 from pylinac.core.geometry import Point
-from pylinac.core.roi import LowContrastDiskROI, RectangleROI
+from pylinac.core.roi import DiskROI, LowContrastDiskROI, RectangleROI
 
 
 class TestDiskROI(TestCase):
@@ -26,6 +26,27 @@ class TestDiskROI(TestCase):
         )
         self.assertEqual(disk.center.x, 260)
         self.assertEqual(disk.center.y, 250)
+
+    def test_masked_array(self):
+        size = 6
+        radius = 4
+        intensity = 10
+
+        array = intensity * np.ones((size, size))
+
+        # nominal mask
+        x = np.arange(size)
+        [X, Y] = np.meshgrid(x, x)
+        inside = np.sqrt(X**2 + Y**2) < radius
+        nominal = np.full((size, size), np.nan)
+        nominal[inside] = intensity
+
+        # actual mask
+        disk = DiskROI(array, radius=radius, center=Point(0, 0))
+        actual = disk.masked_array()
+
+        # assert
+        self.assertTrue(np.array_equal(actual, nominal, equal_nan=True))
 
 
 class TestRectangleROI(TestCase):

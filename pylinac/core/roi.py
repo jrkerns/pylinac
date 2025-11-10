@@ -111,16 +111,43 @@ class DiskROI(Circle):
         return float(np.median(masked_img))
 
     @cached_property
+    def mean(self) -> float:
+        """The mean value within the ROI."""
+        return float(np.mean(self.circle_mask()))
+
+    @cached_property
     def std(self) -> float:
         """The standard deviation of the pixel values."""
         masked_img = self.circle_mask()
         return float(np.std(masked_img))
+
+    @cached_property
+    def min(self) -> float:
+        """The min value within the ROI."""
+        return float(np.min(self.circle_mask()))
+
+    @cached_property
+    def max(self) -> float:
+        """The max value within the ROI."""
+        return float(np.max(self.circle_mask()))
 
     @lru_cache()
     def circle_mask(self) -> np.ndarray:
         """Return a mask of the image, only showing the circular ROI."""
         rr, cc = draw.disk(center=(self.center.y, self.center.x), radius=self.radius)
         return self._array[rr, cc]
+
+    def masked_array(self) -> np.ndarray:
+        """A 2D array the same shape as the underlying image array, with the pixels
+        within the ROI set to their pixel values, and the rest set to outside_value.
+        """
+        shape = self._array.shape
+        img = np.full(shape, np.nan, dtype=self._array.dtype)
+        rr, cc = draw.disk(
+            center=(self.center.y, self.center.x), radius=self.radius, shape=shape
+        )
+        img[rr, cc] = self._array[rr, cc]
+        return img
 
     def plot2axes(
         self,
@@ -378,24 +405,7 @@ class LowContrastDiskROI(DiskROI):
 
     def percentile(self, percentile: float) -> float:
         """Return the pixel value at the given percentile."""
-        return np.percentile(self.circle_mask(), percentile)
-
-    @cached_property
-    def std(self) -> float:
-        """The std within the ROI."""
-        return float(np.std(self.circle_mask()))
-
-    @cached_property
-    def max(self) -> float:
-        """The max pixel value of the ROI."""
-        masked_img = self.circle_mask()
-        return np.max(masked_img)
-
-    @cached_property
-    def min(self) -> float:
-        """The min pixel value of the ROI."""
-        masked_img = self.circle_mask()
-        return np.min(masked_img)
+        return float(np.percentile(self.circle_mask(), percentile))
 
 
 class HighContrastDiskROI(DiskROI):
@@ -466,24 +476,6 @@ class HighContrastDiskROI(DiskROI):
 
     def __repr__(self):
         return f"High-Contrast Disk; max pixel: {self.max}, min pixel: {self.min}"
-
-    @cached_property
-    def max(self) -> float:
-        """The max pixel value of the ROI."""
-        masked_img = self.circle_mask()
-        return float(np.max(masked_img))
-
-    @cached_property
-    def min(self) -> float:
-        """The min pixel value of the ROI."""
-        masked_img = self.circle_mask()
-        return float(np.min(masked_img))
-
-    @cached_property
-    def mean(self) -> float:
-        """The mean pixel value of the ROI."""
-        masked_img = self.circle_mask()
-        return float(np.mean(masked_img))
 
 
 class RectangleROI(Rectangle):
