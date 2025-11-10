@@ -3069,42 +3069,12 @@ class ACRMammography(ImagePhantomBase):
         "roi 6": {"distance from center": 55.674, "angle": -66.61, "roi radius": 0.60},
     }
     speck_group_roi_settings = {
-        "roi 1": {
-            "x offset": 1,
-            "y offset": 49,
-            "size": 20.0,
-            "speck_diameter": 0.33,
-        },
-        "roi 2": {
-            "x offset": 1,
-            "y offset": 29,
-            "size": 20.0,
-            "speck_diameter": 0.28,
-        },
-        "roi 3": {
-            "x offset": 1,
-            "y offset": 9,
-            "size": 20.0,
-            "speck_diameter": 0.23,
-        },
-        "roi 4": {
-            "x offset": 1,
-            "y offset": -11,
-            "size": 20.0,
-            "speck_diameter": 0.20,
-        },
-        "roi 5": {
-            "x offset": 1,
-            "y offset": -31,
-            "size": 20.0,
-            "speck_diameter": 0.17,
-        },
-        "roi 6": {
-            "x offset": 1,
-            "y offset": -51,
-            "size": 20.0,
-            "speck_diameter": 0.14,
-        },
+        "roi 1": {"x offset": 1, "y offset": 49, "size": 20.0, "speck_diameter": 0.33},
+        "roi 2": {"x offset": 1, "y offset": 29, "size": 20.0, "speck_diameter": 0.28},
+        "roi 3": {"x offset": 1, "y offset": 9, "size": 20.0, "speck_diameter": 0.23},
+        "roi 4": {"x offset": 1, "y offset": -11, "size": 20.0, "speck_diameter": 0.20},
+        "roi 5": {"x offset": 1, "y offset": -31, "size": 20.0, "speck_diameter": 0.17},
+        "roi 6": {"x offset": 1, "y offset": -51, "size": 20.0, "speck_diameter": 0.14},
     }
     speck_roi_settings = {
         "roi 1": {"distance from center": 0.0, "angle": 0, "search_radius": 3.0},
