@@ -1222,8 +1222,18 @@ class ACRMammographyTestMixin(PlanarPhantomMixin):
     klass = ACRMammography
     dir_path = ["planar_imaging", "ACRMammography"]
     invert = True
-    visibility_threshold = 20
+    low_contrast_visibility_threshold = 20
     num_figs = 2
+
+    @classmethod
+    def setUpClass(cls):
+        cls.instance = cls.create_instance()
+        cls.instance.analyze(
+            ssd=cls.ssd,
+            invert=cls.invert,
+            angle_adjustment=cls.angle_adjustment,
+            low_contrast_visibility_threshold=cls.low_contrast_visibility_threshold,
+        )
 
 
 class ACRMammographyStandard(ACRMammographyTestMixin, TestCase):

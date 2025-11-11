@@ -38,11 +38,11 @@ from plotly.subplots import make_subplots
 from py_linq import Enumerable
 from pydantic import Field
 from scipy.ndimage import median_filter
-from skimage import exposure, feature, measure
+from skimage import exposure, feature, measure, transform
 from skimage.measure._regionprops import RegionProperties
 
 from . import Normalization
-from .core import image, pdf, validators
+from .core import contrast, image, pdf, validators
 from .core.contrast import Contrast
 from .core.decorators import lru_cache
 from .core.geometry import Circle, Point, Rectangle, Vector
@@ -50,7 +50,13 @@ from .core.io import get_url, retrieve_demo_file
 from .core.mtf import MTF
 from .core.plotly_utils import add_title
 from .core.profile import CollapsedCircleProfile, FWXMProfilePhysical
-from .core.roi import DiskROI, HighContrastDiskROI, LowContrastDiskROI, bbox_center
+from .core.roi import (
+    DiskROI,
+    HighContrastDiskROI,
+    LowContrastDiskROI,
+    RectangleROI,
+    bbox_center,
+)
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
 from .core.warnings import capture_warnings
 from .metrics.image import SizedDiskLocator
@@ -3062,6 +3068,22 @@ class ACRMammography(ImagePhantomBase):
         "roi 5": {"distance from center": 38.153, "angle": -54.60, "roi radius": 0.75},
         "roi 6": {"distance from center": 55.674, "angle": -66.61, "roi radius": 0.60},
     }
+    speck_group_roi_settings = {
+        "roi 1": {"x offset": 1, "y offset": 49, "size": 20.0, "speck_diameter": 0.33},
+        "roi 2": {"x offset": 1, "y offset": 29, "size": 20.0, "speck_diameter": 0.28},
+        "roi 3": {"x offset": 1, "y offset": 9, "size": 20.0, "speck_diameter": 0.23},
+        "roi 4": {"x offset": 1, "y offset": -11, "size": 20.0, "speck_diameter": 0.20},
+        "roi 5": {"x offset": 1, "y offset": -31, "size": 20.0, "speck_diameter": 0.17},
+        "roi 6": {"x offset": 1, "y offset": -51, "size": 20.0, "speck_diameter": 0.14},
+    }
+    speck_roi_settings = {
+        "roi 1": {"distance from center": 0.0, "angle": 0, "search_radius": 3.0},
+        "roi 2": {"distance from center": 6.6, "angle": 35, "search_radius": 3.0},
+        "roi 3": {"distance from center": 6.6, "angle": 107, "search_radius": 3.0},
+        "roi 4": {"distance from center": 6.6, "angle": 179, "search_radius": 3.0},
+        "roi 5": {"distance from center": 6.6, "angle": 251, "search_radius": 3.0},
+        "roi 6": {"distance from center": 6.6, "angle": 323, "search_radius": 3.0},
+    }
 
     @staticmethod
     def run_demo():
@@ -3078,7 +3100,7 @@ class ACRMammography(ImagePhantomBase):
         """
         # Since all is relative we can use pixel size and then all objects can be
         # referenced in mm.
-        return self.image.dpmm
+        return self.dpmm
 
     def _phantom_angle_calc(self):
         """Phantom angle. Assumed to be zero."""
@@ -3086,6 +3108,311 @@ class ACRMammography(ImagePhantomBase):
         # 'Chest-wall side of phantom must be completely flush with chest-wall side
         # of image receptor.' Therefore assume zero.
         return 0
+
+    @property
+    def dpmm(self) -> float:
+        """Dots per mm (=1/pixel_size). Use to convert mm to pixels."""
+        return self.image.dpmm
+
+    def analyze(
+        self,
+        low_contrast_threshold: float = 0.05,
+        invert: bool = False,
+        angle_override: float | None = None,
+        center_override: tuple | None = None,
+        size_override: float | None = None,
+        ssd: float | Literal["auto"] = "auto",
+        low_contrast_method: str = Contrast.MICHELSON,
+        low_contrast_visibility_threshold: float = 20,
+        speck_group_contrast_method: str = Contrast.WEBER,
+        speck_group_visibility_threshold: float = 50,
+        x_adjustment: float = 0,
+        y_adjustment: float = 0,
+        angle_adjustment: float = 0,
+        roi_size_factor: float = 1,
+        scaling_factor: float = 1,
+    ) -> None:
+        """Analyze the phantom using the provided thresholds and settings.
+
+        Parameters
+        ----------
+        low_contrast_threshold : float
+            This is the contrast threshold value which defines any low-contrast ROI as passing or failing.
+        invert : bool
+            Whether to force an inversion of the image. This is useful if pylinac's automatic inversion algorithm fails
+            to properly invert the image.
+        angle_override : None, float
+            A manual override of the angle of the phantom. If None, pylinac will automatically determine the angle. If
+            a value is passed, this value will override the automatic detection.
+
+            .. Note::
+
+                0 is pointing from the center toward the right and positive values go counterclockwise.
+
+        center_override : None, 2-element tuple
+            A manual override of the center point of the phantom. If None, pylinac will automatically determine the center. If
+            a value is passed, this value will override the automatic detection. Format is (x, y)/(col, row).
+        size_override : None, float
+            A manual override of the relative size of the phantom. This size value is used to scale the positions of
+            the ROIs from the center. If None, pylinac will automatically determine the size.
+            If a value is passed, this value will override the automatic sizing.
+
+            .. Note::
+
+                 This value is not necessarily the physical size of the phantom. It is an arbitrary value.
+        ssd
+            The SSD of the phantom itself in mm. If set to "auto", will first search for the phantom at the SAD, then at 5cm above the SID.
+        low_contrast_method : str
+            The equation to use for calculating low contrast.
+        low_contrast_visibility_threshold : float
+            The threshold for whether an ROI is "seen".
+        speck_group_contrast_method : str
+            The equation to use for calculating the contrast of the speck group
+        speck_group_visibility_threshold : float
+            The threshold for whether a speck is "seen".
+        x_adjustment: float
+            A fine-tuning adjustment to the detected x-coordinate of the phantom center. This will move the
+            detected phantom position by this amount in the x-direction in mm. Positive values move the phantom to the right.
+
+            .. note::
+
+                This (along with the y-, scale-, and zoom-adjustment) is applied after the automatic detection in contrast to the center_override which is a **replacement** for
+                the automatic detection. The x, y, and angle adjustments cannot be used in conjunction with the angle, center, or size overrides.
+
+        y_adjustment: float
+            A fine-tuning adjustment to the detected y-coordinate of the phantom center. This will move the
+            detected phantom position by this amount in the y-direction in mm. Positive values move the phantom down.
+        angle_adjustment: float
+            A fine-tuning adjustment to the detected angle of the phantom. This will rotate the phantom by this amount in degrees.
+            Positive values rotate the phantom clockwise.
+        roi_size_factor: float
+            A fine-tuning adjustment to the ROI sizes of the phantom. This will scale the ROIs by this amount.
+            Positive values increase the ROI sizes. In contrast to the scaling adjustment, this
+            adjustment effectively makes the ROIs bigger or smaller, but does not adjust their position.
+        scaling_factor: float
+            A fine-tuning adjustment to the detected magnification of the phantom. This will zoom the ROIs and phantom outline by this amount.
+            In contrast to the roi size adjustment, the scaling adjustment effectively moves the phantom and ROIs
+            closer or further from the phantom center. I.e. this zooms the outline and ROI positions, but not ROI size.
+        """
+        super().analyze(
+            low_contrast_threshold=low_contrast_threshold,
+            invert=invert,
+            angle_override=angle_override,
+            center_override=center_override,
+            size_override=size_override,
+            ssd=ssd,
+            low_contrast_method=low_contrast_method,
+            visibility_threshold=low_contrast_visibility_threshold,
+            x_adjustment=x_adjustment,
+            y_adjustment=y_adjustment,
+            angle_adjustment=angle_adjustment,
+            roi_size_factor=roi_size_factor,
+            scaling_factor=scaling_factor,
+        )
+        self.analyze_speck_group(
+            speck_group_contrast_method=speck_group_contrast_method,
+            speck_group_visibility_threshold=speck_group_visibility_threshold,
+        )
+
+    def analyze_speck_group(
+        self, speck_group_contrast_method: str, speck_group_visibility_threshold: float
+    ) -> None:
+        """Analyze the speck group using the provided thresholds and settings.
+
+        Parameters
+        ----------
+        speck_group_contrast_method
+            The equation to use for calculating the contrast of the speck group
+        speck_group_visibility_threshold
+            The threshold for whether a speck is "seen".
+        """
+        grps: list[SpeckGroupROI] = []
+        tform_phan_global = transform.EuclideanTransform(
+            rotation=np.deg2rad(self.phantom_angle),
+            translation=[self.phantom_center.x, self.phantom_center.y],
+        )
+        for stng_grp in self.speck_group_roi_settings.values():
+            tform_grp_phan = transform.EuclideanTransform(
+                translation=[
+                    self.dpmm * stng_grp["x offset"],
+                    self.dpmm * stng_grp["y offset"],
+                ]
+            )
+            tform_grp_global = tform_grp_phan + tform_phan_global
+            grp = SpeckGroupROI(
+                array=self.image.array,
+                size=self.dpmm * stng_grp["size"],
+                center=tform_grp_global.translation,
+                speck_roi_settings=self.speck_roi_settings,
+                speck_radius=self.dpmm * 0.5 * stng_grp["speck_diameter"],
+                dpmm=self.dpmm,
+                speck_group_contrast_method=speck_group_contrast_method,
+                speck_group_visibility_threshold=speck_group_visibility_threshold,
+            )
+            grps.append(grp)
+
+
+class SpeckROI(DiskROI):
+    """Class that represents a single Speck in the Speck Group ROI."""
+
+    coords: tuple[int, int]
+    visibility: float
+    passed_visibility: bool
+
+    @classmethod
+    def from_speck_group_center(
+        cls,
+        array: np.ndarray,
+        angle: float,
+        dist_from_center: float,
+        center: tuple | Point,
+        search_radius: float,
+        speck_radius: float,
+        background_mean: float,
+        background_std: float,
+        speck_group_contrast_method: str,
+        speck_group_visibility_threshold: float,
+    ):
+        """
+        Parameters
+        ----------
+        array : ndarray
+            The 2D array representing the image the ROI is on.
+        angle : int, float
+            The angle of the ROI in degrees from the speck group center.
+        dist_from_center : float
+            The distance of the ROI from the speck group center in pixels.
+        center : tuple
+            The location of the speck group center.
+        search_radius : float
+            The radius of the search region in pixels
+        speck_radius : float
+            The radius of the glass sphere in pixels
+        background_mean : float
+            The value of the mean value of the background signal
+        background_std : float
+            The value of the standard deviation of the background signal
+        speck_group_contrast_method : str
+            The equation to use for calculating the contrast of the speck group
+        speck_group_visibility_threshold : float
+            The threshold for whether a speck is "seen".
+        """
+        center = cls._get_shifted_center(angle, dist_from_center, center)
+        return cls(
+            array,
+            center,
+            search_radius,
+            speck_radius,
+            background_mean,
+            background_std,
+            speck_group_contrast_method,
+            speck_group_visibility_threshold,
+        )
+
+    def __init__(
+        self,
+        array: np.ndarray,
+        center: Point,
+        search_radius: float,
+        speck_radius: float,
+        background_mean: float,
+        background_std: float,
+        speck_group_contrast_method: str,
+        speck_group_visibility_threshold: float,
+    ):
+        """
+        Parameters
+        ----------
+        array : ndarray
+            The 2D array representing the image the disk is on.
+        center : Point
+            The center of the Disk ROI.
+        search_radius : float
+            The radius of the search region in pixels
+        speck_radius : float
+            The radius of the glass sphere in pixels
+        background_mean : float
+            The value of the mean value of the background signal
+        background_std : float
+            The value of the standard deviation of the background signal
+        speck_group_contrast_method : str
+            The equation to use for calculating the contrast of the speck group
+        speck_group_visibility_threshold : float
+            The threshold for whether a speck is "seen".
+        """
+        super().__init__(array, search_radius, center)
+        masked_array = self.masked_array()
+        idx_max = np.nanargmax(masked_array)
+        coords = np.unravel_index(idx_max, masked_array.shape)
+        self.coords = (int(coords[0]), int(coords[1]))
+        self.visibility = contrast.visibility(
+            array=np.array([self.max, background_mean]),
+            radius=speck_radius,
+            std=background_std,
+            algorithm=speck_group_contrast_method,
+        )
+        passed_visibility = bool(self.visibility >= speck_group_visibility_threshold)
+        self.passed_visibility = passed_visibility
+
+
+class SpeckGroupROI(RectangleROI):
+    """Class that represents a Speck Group ROI."""
+
+    signal_mean: float
+    signal_std: float
+    rois: list[SpeckROI] = []
+
+    def __init__(
+        self,
+        array: np.ndarray,
+        size: float,
+        center: Point,
+        speck_roi_settings: dict,
+        speck_radius: float,
+        dpmm: float,
+        speck_group_contrast_method: str,
+        speck_group_visibility_threshold: float,
+    ):
+        """
+        Parameters
+        ----------
+        array : ndarray
+            The 2D array representing the image the ROI is on.
+        size : float
+            The size (side length) of the ROI in pixels.
+        center : Point
+            The location of the ROI center.
+        speck_roi_settings : dict
+            The location of the individual Speck
+        speck_radius : float
+            The radius of the glass sphere
+        dpmm : float
+            Dots per mm (= 1 / pixel_size)
+        speck_group_contrast_method : str
+            The equation to use for calculating the contrast of the speck group
+        speck_group_visibility_threshold : float
+            The threshold for whether a speck is "seen".
+        """
+        super().__init__(
+            array=array, width=size, height=size, center=center, rotation=0
+        )
+
+        self.signal_mean = self.mean
+        self.signal_std = self.std
+        for stng_roi in speck_roi_settings.values():
+            roi = SpeckROI.from_speck_group_center(
+                array=array,
+                angle=stng_roi["angle"],
+                search_radius=dpmm * stng_roi["search_radius"],
+                dist_from_center=dpmm * stng_roi["distance from center"],
+                center=self.center,
+                speck_radius=speck_radius,
+                background_mean=self.signal_mean,
+                background_std=self.signal_std,
+                speck_group_contrast_method=speck_group_contrast_method,
+                speck_group_visibility_threshold=speck_group_visibility_threshold,
+            )
+            self.rois.append(roi)
 
 
 def take_centermost_roi(rprops: list[RegionProperties], image_shape: tuple[int, int]):
