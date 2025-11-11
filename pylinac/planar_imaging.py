@@ -3226,7 +3226,7 @@ class ACRMammography(ImagePhantomBase):
         speck_group_visibility_threshold
             The threshold for whether a speck is "seen".
         """
-        grps = list[SpeckGroupROI]()
+        grps: list[SpeckGroupROI] = []
         tform_phan_global = transform.EuclideanTransform(
             rotation=np.deg2rad(self.phantom_angle),
             translation=[self.phantom_center.x, self.phantom_center.y],
@@ -3351,9 +3351,8 @@ class SpeckROI(DiskROI):
             std=background_std,
             algorithm=speck_group_contrast_method,
         )
-        self.passed_visibility = self.visibility >= speck_group_visibility_threshold
-
-        pass
+        passed_visibility = bool(self.visibility >= speck_group_visibility_threshold)
+        self.passed_visibility = passed_visibility
 
 
 class SpeckGroupROI(RectangleROI):
@@ -3361,7 +3360,7 @@ class SpeckGroupROI(RectangleROI):
 
     signal_mean: float
     signal_std: float
-    rois: list[SpeckROI]
+    rois: list[SpeckROI] = []
 
     def __init__(
         self,
@@ -3398,7 +3397,6 @@ class SpeckGroupROI(RectangleROI):
             array=array, width=size, height=size, center=center, rotation=0
         )
 
-        rois = list[SpeckROI]()
         self.signal_mean = self.mean
         self.signal_std = self.std
         for stng_roi in speck_roi_settings.values():
@@ -3414,8 +3412,7 @@ class SpeckGroupROI(RectangleROI):
                 speck_group_contrast_method=speck_group_contrast_method,
                 speck_group_visibility_threshold=speck_group_visibility_threshold,
             )
-            rois.append(roi)
-        self.rois = rois
+            self.rois.append(roi)
 
 
 def take_centermost_roi(rprops: list[RegionProperties], image_shape: tuple[int, int]):

@@ -139,7 +139,7 @@ class DiskROI(Circle):
 
     def masked_array(self) -> np.ndarray:
         """A 2D array the same shape as the underlying image array, with the pixels
-        within the ROI set to their pixel values, and the rest set to outside_value.
+        within the ROI set to their pixel values, and the rest set to nan.
         """
         shape = self._array.shape
         img = np.full(shape, np.nan, dtype=self._array.dtype)
