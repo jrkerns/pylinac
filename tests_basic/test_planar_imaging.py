@@ -24,6 +24,7 @@ from pylinac.planar_imaging import (
     SNCFSQA,
     SNCMV,
     SNCMV12510,
+    ACRMammography,
     IMTLRad,
     IsoAlign,
     LeedsTORBlue,
@@ -221,13 +222,20 @@ class PlanarPhantomMixin(QuaacTestBase, CloudFileMixin, PlotlyTestMixin):
     rois_seen = None
     piu = None
     num_figs = 3
+    angle_adjustment: float = 0
+    visibility_threshold: float = 100
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.instance = cls.create_instance()
         cls.preprocess(cls.instance)
-        cls.instance.analyze(ssd=cls.ssd, invert=cls.invert)
+        cls.instance.analyze(
+            ssd=cls.ssd,
+            invert=cls.invert,
+            angle_adjustment=cls.angle_adjustment,
+            visibility_threshold=cls.visibility_threshold,
+        )
 
     @classmethod
     def create_instance(cls):
@@ -1208,6 +1216,45 @@ class SNCFSQA10x10(SNCFSQAMixin, TestCase):
     field_epid_offset_y_mm = -0.1
     field_bb_offset_y_mm = -0.5
     field_bb_offset_x_mm = -0.5
+
+
+class ACRMammographyTestMixin(PlanarPhantomMixin):
+    klass = ACRMammography
+    dir_path = ["planar_imaging", "ACRMammography"]
+    invert = True
+    visibility_threshold = 20
+    num_figs = 2
+
+
+class ACRMammographyStandard(ACRMammographyTestMixin, TestCase):
+    file_name = "ACRMammography.dcm"
+    rois_seen = 3
+
+    def test_validation_center(self):
+        center = (2435, 2047)  # from imageJ
+        self.assertAlmostEqual(center[0], self.instance.phantom_center.x, delta=2)
+        self.assertAlmostEqual(center[1], self.instance.phantom_center.y, delta=2)
+
+    def test_validation_mass_positions(self):
+        masses = [(2776, 2803), (2776, 2494), (2776, 2179), (2776, 1875)]  # from imageJ
+        num_masses = len(masses)
+        lcrs = self.instance.low_contrast_rois[0:num_masses]
+        actual_centers = [lcr.center for lcr in lcrs]
+        for mass, lcr in zip(masses, actual_centers):
+            self.assertAlmostEqual(mass[0], lcr.x, delta=6)
+            self.assertAlmostEqual(mass[1], lcr.y, delta=6)
+
+
+class ACRMammographySlightlyRotated(ACRMammographyTestMixin, TestCase):
+    file_name = "ACRMammography_slightly_rotated.dcm"
+    angle_adjustment = -0.5
+    rois_seen = 3
+
+
+class ACRMammographySlightlyRotatedLowExposure(ACRMammographyTestMixin, TestCase):
+    file_name = "ACRMammography_slightly_rotated_low_exposure.dcm"
+    angle_adjustment = -0.5
+    rois_seen = 3
 
 
 class TestLasVegasResultsData(ResultsDataBase, TestCase):
