@@ -1236,6 +1236,12 @@ class ACRMammographyTestMixin(PlanarPhantomMixin):
         )
 
 
+class ACRMammographyDemo(ACRMammographyTestMixin, TestCase):
+    @staticmethod
+    def test_demo():
+        ACRMammography.run_demo()
+
+
 class ACRMammographyStandard(ACRMammographyTestMixin, TestCase):
     file_name = "ACRMammography.dcm"
     rois_seen = 3

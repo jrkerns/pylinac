@@ -3047,7 +3047,7 @@ class ACRMammography(ImagePhantomBase):
     """ACR Digital Mammography QC phantom"""
 
     common_name = "ACR Digital Mammography"
-    _demo_filename = "TBD.dcm"
+    _demo_filename = "ACRMammographyFF.dcm"
     phantom_bbox_size_mm2 = 130 * 70
     roi_match_condition = "closest"
     detection_canny_settings = {"sigma": 9, "percentiles": (0.001, 0.01)}
@@ -3088,7 +3088,9 @@ class ACRMammography(ImagePhantomBase):
     @staticmethod
     def run_demo():
         """Run the ACR Digital Mammography QC phantom analysis demonstration."""
-        raise NotImplementedError
+        acr = ACRMammography.from_demo_image()
+        acr.analyze()
+        acr.plot_analyzed_image()
 
     def _phantom_radius_calc(self) -> float:
         """The radius of the phantom in pixels; the value itself doesn't matter, it's just
@@ -3102,7 +3104,7 @@ class ACRMammography(ImagePhantomBase):
         # referenced in mm.
         return self.dpmm
 
-    def _phantom_angle_calc(self):
+    def _phantom_angle_calc(self) -> float:
         """Phantom angle. Assumed to be zero."""
         # https://accreditationsupport.acr.org/support/solutions/articles/11000065938-phantom-testing-mammography-revised-11-22-2024-
         # 'Chest-wall side of phantom must be completely flush with chest-wall side
