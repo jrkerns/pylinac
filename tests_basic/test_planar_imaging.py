@@ -1224,6 +1224,8 @@ class ACRDigitalMammographyTestMixin(PlanarPhantomMixin):
     invert = True
     low_contrast_visibility_threshold = 20
     num_figs = 2
+    speck_group_score: float | None = None
+    fiber_score: float | None = None
 
     @classmethod
     def setUpClass(cls):
@@ -1235,9 +1237,17 @@ class ACRDigitalMammographyTestMixin(PlanarPhantomMixin):
             low_contrast_visibility_threshold=cls.low_contrast_visibility_threshold,
         )
 
-    def test_results_data(self):
-        # just tests it works
-        self.instance.results_data()
+    def test_speck_group_score(self):
+        if self.speck_group_score is None:
+            self.skipTest("speck_group_score not available")
+        results = self.instance.results_data()
+        self.assertEqual(self.speck_group_score, results.speck_group_score)
+
+    def test_fiber_score(self):
+        if self.fiber_score is None:
+            self.skipTest("fiber_score not available")
+        results = self.instance.results_data()
+        self.assertEqual(self.fiber_score, results.fiber_score)
 
 
 class ACRDigitalMammographyDemo(ACRDigitalMammographyTestMixin, TestCase):
@@ -1249,6 +1259,8 @@ class ACRDigitalMammographyDemo(ACRDigitalMammographyTestMixin, TestCase):
 class ACRDigitalMammographyStandard(ACRDigitalMammographyTestMixin, TestCase):
     file_name = "ACRMammography.dcm"
     rois_seen = 3
+    speck_group_score = 4.5
+    fiber_score = 2.5
 
     def test_validation_center(self):
         center = (2435, 2047)  # from imageJ
@@ -1269,6 +1281,8 @@ class ACRDigitalMammographySlightlyRotated(ACRDigitalMammographyTestMixin, TestC
     file_name = "ACRMammography_slightly_rotated.dcm"
     angle_adjustment = -0.5
     rois_seen = 3
+    speck_group_score = 4.0
+    fiber_score = 4.0
 
 
 class ACRDigitalMammographySlightlyRotatedLowExposure(
@@ -1277,6 +1291,8 @@ class ACRDigitalMammographySlightlyRotatedLowExposure(
     file_name = "ACRMammography_slightly_rotated_low_exposure.dcm"
     angle_adjustment = -0.5
     rois_seen = 3
+    speck_group_score = 3.0
+    fiber_score = 3.0
 
 
 class TestLasVegasResultsData(ResultsDataBase, TestCase):

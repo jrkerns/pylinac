@@ -38,7 +38,7 @@ from plotly.subplots import make_subplots
 from py_linq import Enumerable
 from pydantic import Field
 from scipy.ndimage import median_filter
-from skimage import exposure, feature, measure, transform
+from skimage import exposure, feature, filters, measure, morphology, transform
 from skimage.measure._regionprops import RegionProperties
 
 from . import Normalization
@@ -1124,13 +1124,22 @@ class ACRDigitalMammographyResult(PlanarResult):
 
     Use the following attributes as normal class attributes."""
 
-    speck_group_scoring: float = Field(
-        description="The scoring of speck groups ROIs.",
-        title="Scoring of Speck Groups",
+    speck_group_score: float = Field(
+        description="The score of the speck groups ROIs.",
+        title="Score of Speck Groups",
     )
 
     speck_group_rois: list[dict] = Field(
         description="A dictionary of the speck group ROIs. The dictionary keys are the ROI number, starting at 0"
+    )
+
+    fiber_score: float = Field(
+        description="The score of the fibers ROIs.",
+        title="Score of Fibers",
+    )
+
+    fiber_rois: list[dict] = Field(
+        description="A dictionary of the fibers ROIs. The dictionary keys are the ROI number, starting at 0"
     )
 
 
@@ -3100,6 +3109,50 @@ class ACRDigitalMammography(ImagePhantomBase):
         "roi 5": {"distance from center": 6.6, "angle": 251, "search_radius": 3.0},
         "roi 6": {"distance from center": 6.6, "angle": 323, "search_radius": 3.0},
     }
+    fibers_roi_settings = {
+        "roi 1": {
+            "x offset": -20,
+            "y offset": 50,
+            "size": 20.0,
+            "fiber_diameter": 0.89,
+            "fiber_orientation": 45,
+        },
+        "roi 2": {
+            "x offset": -20,
+            "y offset": 30,
+            "size": 20.0,
+            "fiber_diameter": 0.75,
+            "fiber_orientation": -45,
+        },
+        "roi 3": {
+            "x offset": -20,
+            "y offset": 10,
+            "size": 20.0,
+            "fiber_diameter": 0.61,
+            "fiber_orientation": 45,
+        },
+        "roi 4": {
+            "x offset": -20,
+            "y offset": -10,
+            "size": 20.0,
+            "fiber_diameter": 0.54,
+            "fiber_orientation": -45,
+        },
+        "roi 5": {
+            "x offset": -20,
+            "y offset": -30,
+            "size": 20.0,
+            "fiber_diameter": 0.40,
+            "fiber_orientation": 45,
+        },
+        "roi 6": {
+            "x offset": -20,
+            "y offset": -50,
+            "size": 20.0,
+            "fiber_diameter": 0.30,
+            "fiber_orientation": -45,
+        },
+    }
 
     class SpeckGroupROI(RectangleROI):
         """Class that represents a Speck Group ROI."""
@@ -3227,22 +3280,24 @@ class ACRDigitalMammography(ImagePhantomBase):
         def __init__(
             self,
             array: np.ndarray,
-            size: float,
-            center: Point,
+            roi_size: float,
+            roi_center: Point,
             speck_roi_settings: dict,
             speck_radius: float,
             dpmm: float,
             contrast_method: str,
             visibility_threshold: float,
+            half_thresh: float,
+            full_thresh: float,
         ):
             """
             Parameters
             ----------
             array : ndarray
                 The 2D array representing the image the ROI is on.
-            size : float
+            roi_size : float
                 The size (side length) of the ROI in pixels.
-            center : Point
+            roi_center : Point
                 The location of the ROI center.
             speck_roi_settings : dict
                 The location of the individual Speck
@@ -3254,9 +3309,15 @@ class ACRDigitalMammography(ImagePhantomBase):
                 The equation to use for calculating the contrast of the speck group
             visibility_threshold : float
                 The threshold for whether a speck is "seen".
+            half_thresh : float
+                The speck group score is 0.5 if the number of visible specks is
+                between ``half_thresh`` and ``full_thresh``
+            full_thresh : float
+                The speck group score is 1.0 if the number of visible specks is largen or
+                equal than ``full_thresh``
             """
             super().__init__(
-                array=array, width=size, height=size, center=center, rotation=0
+                array=array, width=roi_size, height=roi_size, center=roi_center
             )
 
             self.specks: list = []
@@ -3274,18 +3335,110 @@ class ACRDigitalMammography(ImagePhantomBase):
                     visibility_threshold=visibility_threshold,
                 )
                 self.specks.append(roi)
-            self.num_specks_visible = sum([x.passed_visibility for x in self.specks])
-            self.scoring = 0
-            if self.num_specks_visible >= 2:
-                self.scoring = 0.5
-            if self.num_specks_visible >= 4:
-                self.scoring = 1
+            self.num_specks_visible = sum(x.passed_visibility for x in self.specks)
+            self.score = 0
+            if self.num_specks_visible >= half_thresh:
+                self.score = 0.5
+            if self.num_specks_visible >= full_thresh:
+                self.score = 1
 
         def as_dict(self) -> dict:
             return {
                 "num_specks_visible": self.num_specks_visible,
-                "scoring": self.scoring,
+                "score": self.score,
                 "specks": [s.as_dict() for s in self.specks],
+            }
+
+    class FiberROI(RectangleROI):
+        def __init__(
+            self,
+            array: np.ndarray,
+            roi_size: float,
+            roi_center: Point,
+            fiber_diameter: float,
+            fiber_len_half_thresh: float,
+            fiber_len_full_thresh: float,
+            fiber_orientation: float,
+            fiber_orientation_tolerance: float,
+            dpmm: float,
+            sigmas_ratio: tuple[float, ...],
+            max_gap: float,
+        ):
+            """
+            Parameters
+            ----------
+            array : ndarray
+                The 2D array representing the image the ROI is on.
+            roi_size : float
+                The size (side length) of the ROI in pixels.
+            roi_center : Point
+                The location of the ROI center.
+            fiber_diameter : float
+                The diameter of the fiber in mm
+            fiber_len_half_thresh: float
+                The fiber score is 0.5 if its length is between
+                ``fiber_len_half_thresh`` and
+                ``fiber_len_full_thresh`` [in mm].
+            fiber_len_full_thresh: float
+                The fiber score is 1.0 if its length is largen or equal than
+                ``fiber_len_full_thresh`` [in mm].
+            fiber_orientation : float
+                The expected orientation of the fiber.
+            fiber_orientation_tolerance : float
+                The tolerance in degrees to validate the fiber orientation.
+            dpmm : float
+                Dots per mm (= 1 / pixel_size)
+            sigmas_ratio : tuple[float,...]
+                The percentage of fiber_diameter to be used for the vesselness filter
+            max_gap : float
+                The max allowed gap in mm between partial fibers.
+            """
+            super().__init__(
+                array=array,
+                width=dpmm * roi_size,
+                height=dpmm * roi_size,
+                center=roi_center,
+            )
+            pixel_size = 1 / dpmm
+            self.fiber_diameter = fiber_diameter
+            self.fiber_len_half_thresh = fiber_len_half_thresh
+            self.fiber_len_full_thresh = fiber_len_full_thresh
+
+            img_frangi = filters.frangi(
+                self.pixel_array,
+                sigmas=np.array(sigmas_ratio) * dpmm * fiber_diameter,
+                black_ridges=False,
+            )
+
+            img_bin = img_frangi > filters.threshold_yen(img_frangi)
+
+            fp = np.ones((5, math.ceil(dpmm * 0.5 * max_gap)))
+            fp = transform.rotate(fp, angle=-fiber_orientation, resize=True)
+            img_clo = morphology.binary_closing(img_bin, footprint=fp)
+
+            img_lab = measure.label(img_clo)
+            regions = measure.regionprops(img_lab, intensity_image=img_clo)
+            self.region = sorted(regions, key=lambda r: r.axis_major_length)[-1]
+
+            self.fiber_length = self.region.axis_major_length * pixel_size
+
+            self.score = 0
+            diff = abs(np.rad2deg(self.region.orientation) - fiber_orientation)
+            if diff > fiber_orientation_tolerance:
+                return
+            if self.fiber_length >= fiber_len_half_thresh:
+                self.score = 0.5
+            if self.fiber_length >= fiber_len_full_thresh:
+                self.score = 1.0
+
+        def as_dict(self) -> dict[str, float]:
+            return {
+                "fiber_diameter": self.fiber_diameter,
+                "fiber_length": self.fiber_length,
+                "fiber_orientation": np.rad2deg(self.region.orientation),
+                "fiber_len_half_thresh": self.fiber_len_half_thresh,
+                "fiber_len_full_thresh": self.fiber_len_full_thresh,
+                "score": self.score,
             }
 
     @staticmethod
@@ -3331,6 +3484,13 @@ class ACRDigitalMammography(ImagePhantomBase):
         low_contrast_visibility_threshold: float = 20,
         speck_group_contrast_method: str = Contrast.WEBER,
         speck_group_visibility_threshold: float = 50,
+        speck_group_half_thresh: float = 2,
+        speck_group_full_thresh: float = 4,
+        fiber_sigmas_ratio: tuple[float, ...] = (0.75, 1),
+        fiber_max_gap: float = 4.0,
+        fiber_len_half_thresh: float = 5,
+        fiber_len_full_thresh: float = 8,
+        fiber_orientation_tolerance: float = 5,
         x_adjustment: float = 0,
         y_adjustment: float = 0,
         angle_adjustment: float = 0,
@@ -3375,6 +3535,24 @@ class ACRDigitalMammography(ImagePhantomBase):
             The equation to use for calculating the contrast of the speck group
         speck_group_visibility_threshold : float
             The threshold for whether a speck is "seen".
+        speck_group_half_thresh : float
+            The speck group score is 0.5 if the number of visible specks is
+            between ``speck_group_half_thresh`` and ``speck_group_full_thresh``
+        speck_group_full_thresh : float
+            The speck group score is 1.0 if the number of visible specks is largen or
+            equal than ``speck_group_full_thresh``
+        fiber_sigmas_ratio : tuple[float,...]
+            The percentage of fiber_diameter to be used for the vesselness filter
+        fiber_max_gap : float
+            The max allowed gap in mm between partial fibers.
+        fiber_len_half_thresh: float
+            The fiber score is 0.5 if its length is between
+            ``fiber_len_half_thresh`` and ``fiber_len_full_thresh`` [in mm]
+        fiber_len_full_thresh: float
+            The fiber score is 1.0 if its length is largen or equal than
+            ``fiber_len_full_thresh`` [in mm]
+        fiber_orientation_tolerance : float
+            The tolerance in degrees to validate the fiber orientation.
         x_adjustment: float
             A fine-tuning adjustment to the detected x-coordinate of the phantom center. This will move the
             detected phantom position by this amount in the x-direction in mm. Positive values move the phantom to the right.
@@ -3414,22 +3592,41 @@ class ACRDigitalMammography(ImagePhantomBase):
             roi_size_factor=roi_size_factor,
             scaling_factor=scaling_factor,
         )
-        self.analyze_speck_group(
+        self._analyze_speck_group(
             contrast_method=speck_group_contrast_method,
             visibility_threshold=speck_group_visibility_threshold,
+            half_thresh=speck_group_half_thresh,
+            full_thresh=speck_group_full_thresh,
+        )
+        self._analyze_fibers(
+            sigmas_ratio=fiber_sigmas_ratio,
+            max_gap=fiber_max_gap,
+            fiber_orientation_tolerance=fiber_orientation_tolerance,
+            fiber_len_half_thresh=fiber_len_half_thresh,
+            fiber_len_full_thresh=fiber_len_full_thresh,
         )
 
-    def analyze_speck_group(
-        self, contrast_method: str, visibility_threshold: float
+    def _analyze_speck_group(
+        self,
+        contrast_method: str,
+        visibility_threshold: float,
+        half_thresh: float,
+        full_thresh: float,
     ) -> None:
         """Analyze the speck group using the provided thresholds and settings.
 
         Parameters
         ----------
-        contrast_method
+        contrast_method : str
             The equation to use for calculating the contrast of the speck group
-        visibility_threshold
+        visibility_threshold : float
             The threshold for whether a speck is "seen".
+        half_thresh : float
+            The speck group score is 0.5 if the number of visible specks is
+            between ``half_thresh`` and ``full_thresh``
+        full_thresh : float
+            The speck group score is 1.0 if the number of visible specks is largen or
+            equal than ``full_thresh``
         """
         tform_phan_global = transform.EuclideanTransform(
             rotation=np.deg2rad(self.phantom_angle),
@@ -3446,15 +3643,71 @@ class ACRDigitalMammography(ImagePhantomBase):
             tform_grp_global = tform_grp_phan + tform_phan_global
             grp = self.SpeckGroupROI(
                 array=self.image.array,
-                size=self.dpmm * stng_grp["size"],
-                center=tform_grp_global.translation,
+                roi_size=self.dpmm * stng_grp["size"],
+                roi_center=tform_grp_global.translation,
                 speck_roi_settings=self.speck_roi_settings,
                 speck_radius=self.dpmm * 0.5 * stng_grp["speck_diameter"],
                 dpmm=self.dpmm,
                 contrast_method=contrast_method,
                 visibility_threshold=visibility_threshold,
+                half_thresh=half_thresh,
+                full_thresh=full_thresh,
             )
             self.speck_groups.append(grp)
+
+    def _analyze_fibers(
+        self,
+        sigmas_ratio: tuple[float, ...],
+        max_gap: float,
+        fiber_orientation_tolerance: float,
+        fiber_len_half_thresh: float,
+        fiber_len_full_thresh: float,
+    ) -> None:
+        """Analyze the speck group using the provided thresholds and settings.
+
+        Parameters
+        ----------
+        sigmas_ratio : tuple[float,...]
+            The percentage of fiber_diameter to be used for the vesselness filter
+        max_gap : float
+            The max allowed gap in mm between partial fibers.
+        fiber_orientation_tolerance
+            The tolerance in degrees to validate the fiber orientation.
+        fiber_len_half_thresh: float
+            The fiber score is 0.5 if its length is between
+            ``fiber_len_half_thresh`` and ``fiber_len_full_thresh`` [in mm]
+        fiber_len_full_thresh: float
+            The fiber score is 1.0 if its length is largen or equal than
+            ``fiber_len_full_thresh`` [in mm]
+        """
+        tform_phan_global = transform.EuclideanTransform(
+            rotation=np.deg2rad(self.phantom_angle),
+            translation=[self.phantom_center.x, self.phantom_center.y],
+        )
+        self.fibers: list[ACRDigitalMammography.FiberROI] = []
+        for stng in self.fibers_roi_settings.values():
+            tform_stng_phan = transform.EuclideanTransform(
+                translation=[
+                    self.dpmm * stng["x offset"],
+                    self.dpmm * stng["y offset"],
+                ]
+            )
+            tform_stng_global = tform_stng_phan + tform_phan_global
+
+            roi = self.FiberROI(
+                array=self.image.array,
+                roi_size=stng["size"],
+                roi_center=tform_stng_global.translation,
+                fiber_diameter=stng["fiber_diameter"],
+                fiber_len_half_thresh=fiber_len_half_thresh,
+                fiber_len_full_thresh=fiber_len_full_thresh,
+                fiber_orientation=stng["fiber_orientation"] + self.phantom_angle,
+                fiber_orientation_tolerance=fiber_orientation_tolerance,
+                dpmm=self.dpmm,
+                sigmas_ratio=sigmas_ratio,
+                max_gap=max_gap,
+            )
+            self.fibers.append(roi)
 
     def _generate_results_data(self) -> ACRDigitalMammographyResult:
         """Overridden because ROIs seen is based on visibility, not CNR"""
@@ -3468,8 +3721,10 @@ class ACRDigitalMammography(ImagePhantomBase):
             low_contrast_rois=[r.as_dict() for r in lcr],
             percent_integral_uniformity=self.percent_integral_uniformity(),
             phantom_area=self.phantom_area,
-            speck_group_scoring=sum([grp.scoring for grp in self.speck_groups]),
+            speck_group_score=sum(grp.score for grp in self.speck_groups),
             speck_group_rois=[s.as_dict() for s in self.speck_groups],
+            fiber_score=sum(f.score for f in self.fibers),
+            fiber_rois=[f.as_dict() for f in self.fibers],
         )
 
 
