@@ -24,7 +24,7 @@ from pylinac.planar_imaging import (
     SNCFSQA,
     SNCMV,
     SNCMV12510,
-    ACRMammography,
+    ACRDigitalMammography,
     IMTLRad,
     IsoAlign,
     LeedsTORBlue,
@@ -1218,8 +1218,8 @@ class SNCFSQA10x10(SNCFSQAMixin, TestCase):
     field_bb_offset_x_mm = -0.5
 
 
-class ACRMammographyTestMixin(PlanarPhantomMixin):
-    klass = ACRMammography
+class ACRDigitalMammographyTestMixin(PlanarPhantomMixin):
+    klass = ACRDigitalMammography
     dir_path = ["planar_imaging", "ACRMammography"]
     invert = True
     low_contrast_visibility_threshold = 20
@@ -1235,14 +1235,18 @@ class ACRMammographyTestMixin(PlanarPhantomMixin):
             low_contrast_visibility_threshold=cls.low_contrast_visibility_threshold,
         )
 
+    def test_results_data(self):
+        # just tests it works
+        self.instance.results_data()
 
-class ACRMammographyDemo(ACRMammographyTestMixin, TestCase):
+
+class ACRDigitalMammographyDemo(ACRDigitalMammographyTestMixin, TestCase):
     @staticmethod
     def test_demo():
-        ACRMammography.run_demo()
+        ACRDigitalMammography.run_demo()
 
 
-class ACRMammographyStandard(ACRMammographyTestMixin, TestCase):
+class ACRDigitalMammographyStandard(ACRDigitalMammographyTestMixin, TestCase):
     file_name = "ACRMammography.dcm"
     rois_seen = 3
 
@@ -1261,13 +1265,15 @@ class ACRMammographyStandard(ACRMammographyTestMixin, TestCase):
             self.assertAlmostEqual(mass[1], lcr.y, delta=6)
 
 
-class ACRMammographySlightlyRotated(ACRMammographyTestMixin, TestCase):
+class ACRDigitalMammographySlightlyRotated(ACRDigitalMammographyTestMixin, TestCase):
     file_name = "ACRMammography_slightly_rotated.dcm"
     angle_adjustment = -0.5
     rois_seen = 3
 
 
-class ACRMammographySlightlyRotatedLowExposure(ACRMammographyTestMixin, TestCase):
+class ACRDigitalMammographySlightlyRotatedLowExposure(
+    ACRDigitalMammographyTestMixin, TestCase
+):
     file_name = "ACRMammography_slightly_rotated_low_exposure.dcm"
     angle_adjustment = -0.5
     rois_seen = 3

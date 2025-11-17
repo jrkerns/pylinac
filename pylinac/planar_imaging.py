@@ -1118,6 +1118,22 @@ class LightRadResult(ResultBase):
     )
 
 
+class ACRDigitalMammographyResult(PlanarResult):
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes."""
+
+    speck_group_scoring: float = Field(
+        description="The scoring of speck groups ROIs.",
+        title="Scoring of Speck Groups",
+    )
+
+    speck_group_rois: list[dict] = Field(
+        description="A dictionary of the speck group ROIs. The dictionary keys are the ROI number, starting at 0"
+    )
+
+
 @capture_warnings
 class StandardImagingFC2(ImagePhantomBase):
     common_name = "SI FC-2"
@@ -3043,11 +3059,11 @@ class DoselabMC2MV(DoselabMC2kV):
 
 
 @capture_warnings
-class ACRMammography(ImagePhantomBase):
+class ACRDigitalMammography(ImagePhantomBase):
     """ACR Digital Mammography QC phantom"""
 
     common_name = "ACR Digital Mammography"
-    _demo_filename = "ACRMammographyFF.dcm"
+    _demo_filename = "ACRDigitalMammography.dcm"
     phantom_bbox_size_mm2 = 130 * 70
     roi_match_condition = "closest"
     detection_canny_settings = {"sigma": 9, "percentiles": (0.001, 0.01)}
@@ -3085,10 +3101,197 @@ class ACRMammography(ImagePhantomBase):
         "roi 6": {"distance from center": 6.6, "angle": 323, "search_radius": 3.0},
     }
 
+    class SpeckGroupROI(RectangleROI):
+        """Class that represents a Speck Group ROI."""
+
+        class SpeckROI(DiskROI):
+            """Class that represents a single Speck in the Speck Group ROI."""
+
+            @classmethod
+            def from_speck_group_center(
+                cls,
+                array: np.ndarray,
+                angle: float,
+                dist_from_center: float,
+                center: tuple | Point,
+                search_radius: float,
+                speck_radius: float,
+                background_mean: float,
+                background_std: float,
+                contrast_method: str,
+                visibility_threshold: float,
+            ):
+                """
+                Parameters
+                ----------
+                array : ndarray
+                    The 2D array representing the image the ROI is on.
+                angle : int, float
+                    The angle of the ROI in degrees from the speck group center.
+                dist_from_center : float
+                    The distance of the ROI from the speck group center in pixels.
+                center : tuple
+                    The location of the speck group center.
+                search_radius : float
+                    The radius of the search region in pixels
+                speck_radius : float
+                    The radius of the glass sphere in pixels
+                background_mean : float
+                    The value of the mean value of the background signal
+                background_std : float
+                    The value of the standard deviation of the background signal
+                contrast_method : str
+                    The equation to use for calculating the contrast of the speck group
+                visibility_threshold : float
+                    The threshold for whether a speck is "seen".
+                """
+                center = cls._get_shifted_center(angle, dist_from_center, center)
+                return cls(
+                    array,
+                    center,
+                    search_radius,
+                    speck_radius,
+                    background_mean,
+                    background_std,
+                    contrast_method,
+                    visibility_threshold,
+                )
+
+            def __init__(
+                self,
+                array: np.ndarray,
+                center: Point,
+                search_radius: float,
+                speck_radius: float,
+                background_mean: float,
+                background_std: float,
+                contrast_method: str,
+                visibility_threshold: float,
+            ):
+                """
+                Parameters
+                ----------
+                array : ndarray
+                    The 2D array representing the image the disk is on.
+                center : Point
+                    The center of the Disk ROI.
+                search_radius : float
+                    The radius of the search region in pixels
+                speck_radius : float
+                    The radius of the glass sphere in pixels
+                background_mean : float
+                    The value of the mean value of the background signal
+                background_std : float
+                    The value of the standard deviation of the background signal
+                contrast_method : str
+                    The equation to use for calculating the contrast of the speck group
+                visibility_threshold : float
+                    The threshold for whether a speck is "seen".
+                """
+                super().__init__(array, search_radius, center)
+                self.speck_radius = speck_radius
+                self.background_mean = background_mean
+                self.background_std = background_std
+                self.contrast_method = contrast_method
+                self.visibility_threshold = visibility_threshold
+                self.intensity = self.max
+
+                self.visibility = contrast.visibility(
+                    array=np.array([self.intensity, background_mean]),
+                    radius=speck_radius,
+                    std=background_std,
+                    algorithm=contrast_method,
+                )
+                passed_visibility = bool(self.visibility >= visibility_threshold)
+                self.passed_visibility = passed_visibility
+
+                masked_array = self.masked_array()
+                idx_max = np.nanargmax(masked_array)
+                coords = np.unravel_index(idx_max, masked_array.shape)
+                self.center = Point(int(coords[0]), int(coords[1]))
+
+            def as_dict(self) -> dict:
+                """Dump important data as a dictionary. Useful when exporting a `results_data` output"""
+                return {
+                    "speck_radius": self.speck_radius,
+                    "speck max intensity": self.intensity,
+                    "background mean intensity": self.background_mean,
+                    "background std intensity": self.background_std,
+                    "contrast method": self.contrast_method,
+                    "visibility": self.visibility,
+                    "visibility threshold": self.visibility_threshold,
+                    "passed visibility": bool(self.passed_visibility),
+                    "center": self.center,
+                }
+
+        def __init__(
+            self,
+            array: np.ndarray,
+            size: float,
+            center: Point,
+            speck_roi_settings: dict,
+            speck_radius: float,
+            dpmm: float,
+            contrast_method: str,
+            visibility_threshold: float,
+        ):
+            """
+            Parameters
+            ----------
+            array : ndarray
+                The 2D array representing the image the ROI is on.
+            size : float
+                The size (side length) of the ROI in pixels.
+            center : Point
+                The location of the ROI center.
+            speck_roi_settings : dict
+                The location of the individual Speck
+            speck_radius : float
+                The radius of the glass sphere
+            dpmm : float
+                Dots per mm (= 1 / pixel_size)
+            contrast_method : str
+                The equation to use for calculating the contrast of the speck group
+            visibility_threshold : float
+                The threshold for whether a speck is "seen".
+            """
+            super().__init__(
+                array=array, width=size, height=size, center=center, rotation=0
+            )
+
+            self.specks: list = []
+            for stng_roi in speck_roi_settings.values():
+                roi = self.SpeckROI.from_speck_group_center(
+                    array=array,
+                    angle=stng_roi["angle"],
+                    search_radius=dpmm * stng_roi["search_radius"],
+                    dist_from_center=dpmm * stng_roi["distance from center"],
+                    center=self.center,
+                    speck_radius=speck_radius,
+                    background_mean=self.mean,
+                    background_std=self.std,
+                    contrast_method=contrast_method,
+                    visibility_threshold=visibility_threshold,
+                )
+                self.specks.append(roi)
+            self.num_specks_visible = sum([x.passed_visibility for x in self.specks])
+            self.scoring = 0
+            if self.num_specks_visible >= 2:
+                self.scoring = 0.5
+            if self.num_specks_visible >= 4:
+                self.scoring = 1
+
+        def as_dict(self) -> dict:
+            return {
+                "num_specks_visible": self.num_specks_visible,
+                "scoring": self.scoring,
+                "specks": [s.as_dict() for s in self.specks],
+            }
+
     @staticmethod
     def run_demo():
         """Run the ACR Digital Mammography QC phantom analysis demonstration."""
-        acr = ACRMammography.from_demo_image()
+        acr = ACRDigitalMammography.from_demo_image()
         acr.analyze()
         acr.plot_analyzed_image()
 
@@ -3212,27 +3415,27 @@ class ACRMammography(ImagePhantomBase):
             scaling_factor=scaling_factor,
         )
         self.analyze_speck_group(
-            speck_group_contrast_method=speck_group_contrast_method,
-            speck_group_visibility_threshold=speck_group_visibility_threshold,
+            contrast_method=speck_group_contrast_method,
+            visibility_threshold=speck_group_visibility_threshold,
         )
 
     def analyze_speck_group(
-        self, speck_group_contrast_method: str, speck_group_visibility_threshold: float
+        self, contrast_method: str, visibility_threshold: float
     ) -> None:
         """Analyze the speck group using the provided thresholds and settings.
 
         Parameters
         ----------
-        speck_group_contrast_method
+        contrast_method
             The equation to use for calculating the contrast of the speck group
-        speck_group_visibility_threshold
+        visibility_threshold
             The threshold for whether a speck is "seen".
         """
-        grps: list[SpeckGroupROI] = []
         tform_phan_global = transform.EuclideanTransform(
             rotation=np.deg2rad(self.phantom_angle),
             translation=[self.phantom_center.x, self.phantom_center.y],
         )
+        self.speck_groups: list = []
         for stng_grp in self.speck_group_roi_settings.values():
             tform_grp_phan = transform.EuclideanTransform(
                 translation=[
@@ -3241,180 +3444,33 @@ class ACRMammography(ImagePhantomBase):
                 ]
             )
             tform_grp_global = tform_grp_phan + tform_phan_global
-            grp = SpeckGroupROI(
+            grp = self.SpeckGroupROI(
                 array=self.image.array,
                 size=self.dpmm * stng_grp["size"],
                 center=tform_grp_global.translation,
                 speck_roi_settings=self.speck_roi_settings,
                 speck_radius=self.dpmm * 0.5 * stng_grp["speck_diameter"],
                 dpmm=self.dpmm,
-                speck_group_contrast_method=speck_group_contrast_method,
-                speck_group_visibility_threshold=speck_group_visibility_threshold,
+                contrast_method=contrast_method,
+                visibility_threshold=visibility_threshold,
             )
-            grps.append(grp)
+            self.speck_groups.append(grp)
 
-
-class SpeckROI(DiskROI):
-    """Class that represents a single Speck in the Speck Group ROI."""
-
-    coords: tuple[int, int]
-    visibility: float
-    passed_visibility: bool
-
-    @classmethod
-    def from_speck_group_center(
-        cls,
-        array: np.ndarray,
-        angle: float,
-        dist_from_center: float,
-        center: tuple | Point,
-        search_radius: float,
-        speck_radius: float,
-        background_mean: float,
-        background_std: float,
-        speck_group_contrast_method: str,
-        speck_group_visibility_threshold: float,
-    ):
-        """
-        Parameters
-        ----------
-        array : ndarray
-            The 2D array representing the image the ROI is on.
-        angle : int, float
-            The angle of the ROI in degrees from the speck group center.
-        dist_from_center : float
-            The distance of the ROI from the speck group center in pixels.
-        center : tuple
-            The location of the speck group center.
-        search_radius : float
-            The radius of the search region in pixels
-        speck_radius : float
-            The radius of the glass sphere in pixels
-        background_mean : float
-            The value of the mean value of the background signal
-        background_std : float
-            The value of the standard deviation of the background signal
-        speck_group_contrast_method : str
-            The equation to use for calculating the contrast of the speck group
-        speck_group_visibility_threshold : float
-            The threshold for whether a speck is "seen".
-        """
-        center = cls._get_shifted_center(angle, dist_from_center, center)
-        return cls(
-            array,
-            center,
-            search_radius,
-            speck_radius,
-            background_mean,
-            background_std,
-            speck_group_contrast_method,
-            speck_group_visibility_threshold,
+    def _generate_results_data(self) -> ACRDigitalMammographyResult:
+        """Overridden because ROIs seen is based on visibility, not CNR"""
+        lcr = self.low_contrast_rois
+        return ACRDigitalMammographyResult(
+            analysis_type=self.common_name,
+            median_contrast=float(np.median([roi.contrast for roi in lcr])),
+            median_cnr=float(np.median([roi.contrast_to_noise for roi in lcr])),
+            num_contrast_rois_seen=int(sum(roi.passed_visibility for roi in lcr)),
+            phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
+            low_contrast_rois=[r.as_dict() for r in lcr],
+            percent_integral_uniformity=self.percent_integral_uniformity(),
+            phantom_area=self.phantom_area,
+            speck_group_scoring=sum([grp.scoring for grp in self.speck_groups]),
+            speck_group_rois=[s.as_dict() for s in self.speck_groups],
         )
-
-    def __init__(
-        self,
-        array: np.ndarray,
-        center: Point,
-        search_radius: float,
-        speck_radius: float,
-        background_mean: float,
-        background_std: float,
-        speck_group_contrast_method: str,
-        speck_group_visibility_threshold: float,
-    ):
-        """
-        Parameters
-        ----------
-        array : ndarray
-            The 2D array representing the image the disk is on.
-        center : Point
-            The center of the Disk ROI.
-        search_radius : float
-            The radius of the search region in pixels
-        speck_radius : float
-            The radius of the glass sphere in pixels
-        background_mean : float
-            The value of the mean value of the background signal
-        background_std : float
-            The value of the standard deviation of the background signal
-        speck_group_contrast_method : str
-            The equation to use for calculating the contrast of the speck group
-        speck_group_visibility_threshold : float
-            The threshold for whether a speck is "seen".
-        """
-        super().__init__(array, search_radius, center)
-        masked_array = self.masked_array()
-        idx_max = np.nanargmax(masked_array)
-        coords = np.unravel_index(idx_max, masked_array.shape)
-        self.coords = (int(coords[0]), int(coords[1]))
-        self.visibility = contrast.visibility(
-            array=np.array([self.max, background_mean]),
-            radius=speck_radius,
-            std=background_std,
-            algorithm=speck_group_contrast_method,
-        )
-        passed_visibility = bool(self.visibility >= speck_group_visibility_threshold)
-        self.passed_visibility = passed_visibility
-
-
-class SpeckGroupROI(RectangleROI):
-    """Class that represents a Speck Group ROI."""
-
-    signal_mean: float
-    signal_std: float
-    rois: list[SpeckROI] = []
-
-    def __init__(
-        self,
-        array: np.ndarray,
-        size: float,
-        center: Point,
-        speck_roi_settings: dict,
-        speck_radius: float,
-        dpmm: float,
-        speck_group_contrast_method: str,
-        speck_group_visibility_threshold: float,
-    ):
-        """
-        Parameters
-        ----------
-        array : ndarray
-            The 2D array representing the image the ROI is on.
-        size : float
-            The size (side length) of the ROI in pixels.
-        center : Point
-            The location of the ROI center.
-        speck_roi_settings : dict
-            The location of the individual Speck
-        speck_radius : float
-            The radius of the glass sphere
-        dpmm : float
-            Dots per mm (= 1 / pixel_size)
-        speck_group_contrast_method : str
-            The equation to use for calculating the contrast of the speck group
-        speck_group_visibility_threshold : float
-            The threshold for whether a speck is "seen".
-        """
-        super().__init__(
-            array=array, width=size, height=size, center=center, rotation=0
-        )
-
-        self.signal_mean = self.mean
-        self.signal_std = self.std
-        for stng_roi in speck_roi_settings.values():
-            roi = SpeckROI.from_speck_group_center(
-                array=array,
-                angle=stng_roi["angle"],
-                search_radius=dpmm * stng_roi["search_radius"],
-                dist_from_center=dpmm * stng_roi["distance from center"],
-                center=self.center,
-                speck_radius=speck_radius,
-                background_mean=self.signal_mean,
-                background_std=self.signal_std,
-                speck_group_contrast_method=speck_group_contrast_method,
-                speck_group_visibility_threshold=speck_group_visibility_threshold,
-            )
-            self.rois.append(roi)
 
 
 def take_centermost_roi(rprops: list[RegionProperties], image_shape: tuple[int, int]):
