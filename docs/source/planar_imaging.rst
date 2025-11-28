@@ -834,6 +834,72 @@ See also :ref:`Interpreting Results <interpreting-planar-results>` for specific 
     Labeled ROIs of the IBA Primus A phantom analysis.
 
 
+.. _acr_digital_mammography:
+
+ACR Digital Mammography
+-----------------------
+
+The ACR Digital Mammography phantom is for testing the performance of Full-Field Digital Mammography (FFDM) systems.
+
+Image Acquisition
+^^^^^^^^^^^^^^^^^
+
+The ACR Digital Mammography phantom has a recommended position as stated on `ACR Phantom Testing: Mammography (Revised 11-22-2024) <https://accreditationsupport.acr.org/support/solutions/articles/11000065938-phantom-testing-mammography-revised-11-22-2024-/>`__
+
+Best practices for the ACR Digital Mammography phantom:
+
+* Place the chest-wall side of phantom completely flush with chest-wall side of image receptor.
+* Small deviations from being flush can be accounted for using ``angle_adjustment``, ``x_adjustment``, and ``y_adjustment`` in the ``analyze`` parameter.
+
+Algorithm
+^^^^^^^^^
+
+**Pre-Analysis**
+
+* **Determine phantom location** -- A Canny edge search is performed on the image.
+  Connected edges that are semi-round and angled are thought to possibly be the phantom.
+  Of the ROIs, the one closest to the expected area is said to be the phantom edge.
+  The center of the bounding box of the ROI is set as the phantom center.
+
+**Analysis**
+
+The ACR Digital Mammography phantom is composed of 3 test objects: Masses, Speck groups, and Fibers.
+
+* **Calculate masses** -- Because the phantom center and angle are known, the angles to the ROIs can also be known.
+  The mean pixel value of each ROI is compared to the mean pixel value of the reference ROIs.
+  See also :ref:`low_contrast_topic`. By default, the :ref:`michelson` algorithm is used.
+  For example, the first contrast value would be calculated as:
+
+  .. math::
+
+        \frac{LC0_{mean} - LCR_{mean}}{LC0_{mean} + LCR_{mean}}
+
+
+* **Calculate speck groups** -- Because the phantom center and angle are known, the positions to the center of the speck groups can also be known.
+  Furthermore, since the individual specks within a group follow the vertices of a pentagon, their positions can also be know.
+  The visibility of the individual specks is evaluated with a variation of the :ref:`visibility` algorithm
+
+  .. math::
+
+        Visibility(I, R) = Contrast(I, R) * \frac{\sqrt{\pi * radius^2}}{R_{std}}
+
+  where ``I`` is the max intensity in the ROI,
+  ``R`` is the mean signal of the ROI,
+  :math:`R_{std}` is the standard deviation of the ROI,
+  and ``radius`` is the radius of the speck per manual description.
+  By default, the ``Weber`` algorithm is used for ``Contrast``.
+
+* **Calculate fibers** -- Because the phantom center and angle are known, the positions to the fibers can also be known.
+  A fiber is detected using a sequence of image processing filters:
+
+  #. Vesselness filter -- uses the Frangi filter to detect vessel-like structures.
+  #. Thresholding -- convert to binary.
+  #. Closing -- connects parts of a fiber if there are breaks.
+  #. Label -- detect connected blobs.
+  #. Regionprops -- detect the blob most likely to be the fiber.
+  #. Length -- calculate the length of the fiber as the length of the major axis of the ellipse in regionprops.
+
+
 Standard Imaging FC-2
 ---------------------
 
