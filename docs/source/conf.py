@@ -114,6 +114,11 @@ language = "en"
 # directories to ignore when looking for source files.
 exclude_patterns = []
 
+# Suppress specific warnings
+# Suppress SVG image warnings for LaTeX builder (SVG not supported in LaTeX)
+# These are expected warnings when building PDFs - badges will be skipped gracefully
+suppress_warnings = ["image.not_found"]
+
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
 # default_role = None
@@ -241,15 +246,33 @@ htmlhelp_basename = "pylinacdoc"
 
 # -- Options for LaTeX output ---------------------------------------------
 
+# Configure LaTeX to skip SVG images (not supported by pdflatex)
+# and handle Unicode characters gracefully
 latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
-    # 'papersize': 'letterpaper',
+    "papersize": "letterpaper",
     # The font size ('10pt', '11pt' or '12pt').
-    # 'pointsize': '10pt',
+    "pointsize": "10pt",
     # Additional stuff for the LaTeX preamble.
-    # 'preamble': '',
+    "preamble": r"""
+% Skip SVG images gracefully - they're not supported in pdflatex
+% This prevents errors when LaTeX encounters SVG files
+\makeatletter
+\def\Gin@extensions{.pdf,.png,.jpg,.jpeg,.gif}
+\makeatother
+% Handle Unicode characters (including emojis)
+% Use utf8 input encoding for basic Unicode support
+\usepackage[utf8]{inputenc}
+\usepackage{textcomp}
+% Define problematic Unicode characters to be ignored/replaced
+% This prevents LaTeX errors when encountering emoji characters
+\DeclareUnicodeCharacter{1F926}{}  % 🤦
+\DeclareUnicodeCharacter{2642}{}    % ♂
+\DeclareUnicodeCharacter{200D}{}  % Zero-width joiner
+\DeclareUnicodeCharacter{FE0F}{}  % Variation selector
+""",
     # Latex figure (float) alignment
-    # 'figure_align': 'htbp',
+    "figure_align": "htbp",
 }
 
 # Grouping the document tree into LaTeX files. List of tuples
