@@ -1,0 +1,9 @@
+.idea/
+.nox/
+.pytest_cache/
+.ruff_cache/
+.venv*/
+venv*/
+dist/
+docs/build/
+htmlcov/
