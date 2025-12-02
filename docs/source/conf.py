@@ -44,6 +44,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.viewcode",
     "sphinx.ext.mathjax",
+    "sphinx.ext.imgconverter",  # Convert SVG to PNG for LaTeX output
     "matplotlib.sphinxext.plot_directive",
     "sphinx_copybutton",
     "sphinx_design",
