@@ -270,6 +270,27 @@ latex_elements = {
 \DeclareUnicodeCharacter{2642}{}    % ♂
 \DeclareUnicodeCharacter{200D}{}  % Zero-width joiner
 \DeclareUnicodeCharacter{FE0F}{}  % Variation selector
+% Ensure amsmath is loaded for proper math environment support
+\usepackage{amsmath}
+% Fix for Sphinx math rendering bug: \end{equation}\end{split} should be \end{split}\end{equation}
+% This is a known Sphinx issue where nested math environments are closed in wrong order
+% We use etoolbox to patch the equation environment to handle this
+\usepackage{etoolbox}
+\makeatletter
+% Track if we're in a split environment
+\newif\ifinsplit
+\insplitfalse
+% Patch \split to set flag
+\pretocmd{\split}{\insplittrue}{}{}
+% Patch \endsplit to clear flag
+\apptocmd{\endsplit}{\insplitfalse}{}{}
+% Patch \end{equation} to close split first if needed
+\pretocmd{\endequation}{%
+  \ifinsplit
+    \endsplit
+  \fi
+}{}{}
+\makeatother
 """,
     # Latex figure (float) alignment
     "figure_align": "htbp",
