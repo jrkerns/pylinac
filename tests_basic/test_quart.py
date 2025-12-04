@@ -389,7 +389,7 @@ class TestHypersight(QuartDVTMixin, TestCase):
         )
 
 
-class TestQuartv2(QuartDVTMixin, TestCase):
+class TestQuartWithWaterVial(QuartDVTMixin, TestCase):
     """Tests the new quart phantom analysis detects the water ROI."""
 
     file_name = "Hypersight Quart (w water).zip"
@@ -413,13 +413,34 @@ class TestTableQuart(QuartDVTMixin, TestCase):
     phantom_roll = 0.0
     slice_thickness = 1.87
     origin_slice = 31
-    snr = 37
+    snr = 38.13
     cnr = 6.2
     horiz_dist = 159.3
     vert_dist = 159.7
     high_contrast_distance = 0.6
     hu_values = {"Poly": -63, "Acrylic": 111, "Air": -1000, "Teflon": 970}
     unif_values = {"Center": 112, "Left": 104, "Right": 104, "Top": 97, "Bottom": 124}
+
+
+class TestQuart2(QuartDVTMixin, TestCase):
+    """This dataset triggered a fix due to incorrect phantom rotation. See RAM-5287"""
+
+    file_name = "Quart_RAM-5287.zip"
+    phantom_roll = 0.07
+    origin_slice = 32
+    snr = 182.03
+    cnr = 31.73
+    horiz_dist = 159.58
+    vert_dist = 159.60
+    high_contrast_distance = 0.80
+    hu_values = {"Poly": -29.11, "Acrylic": 139.84, "Air": -999.93, "Teflon": 1006.08}
+    unif_values = {
+        "Center": 134.14,
+        "Left": 143.05,
+        "Right": 144.66,
+        "Top": 135.22,
+        "Bottom": 137.18,
+    }
 
 
 class TestHypersightPhantomDepracated(TestCase):

@@ -10,6 +10,25 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.39.1
+--------
+
+Quart
+^^^^^
+
+* :bdg-success:`Feature` Improved phantom roll detection. The phantom roll is
+  determined based on the two inserts in the central vertical axis of the HU module,
+  but this detection can be influenced by the inserts used for slice thickness.
+  A slice offset from the original slice is now used for roll detection,
+  and the offset can be customized via the ``roll_slice_offset`` parameter in ``analyze``.
+
+CatPhan
+^^^^^^^
+* :bdg-danger:`Change` The feature above required changes to the :class:`~pylinac.ct.CatPhanBase` class,
+  from which the Quart phantom class is derived (:class:`~pylinac.quart.QuartDVT`).
+  The default value for ``roll_slice_offset`` is set to zero for all phantoms
+  except the Quart, so no impact is expected for other phantoms.
+
 v 3.38.0
 --------
 

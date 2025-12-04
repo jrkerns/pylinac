@@ -458,6 +458,7 @@ class QuartDVT(CatPhanBase, ResultsDataMixin[QuartDVTResult]):
         roi_size_factor: float = 1,
         scaling_factor: float = 1,
         origin_slice: int | None = None,
+        roll_slice_offset: float = -8,
     ):
         """Single-method full analysis of Quart DICOM files.
 
@@ -499,12 +500,20 @@ class QuartDVT(CatPhanBase, ResultsDataMixin[QuartDVTResult]):
         origin_slice : int, None
             The slice number of the HU linearity slice. If None, will be automatically determined. This is a
             fallback method in case the automatic method fails.
+        roll_slice_offset : float
+            The offset in mm from ``origin_slice`` used to select the slice
+            for phantom roll detection. The phantom roll is determined based on the two
+            inserts in the central vertical axis of the HU module, but this
+            detection can be influenced by the inserts used for slice thickness.
+            Adjusting this offset to select a different slice can enhance the
+            accuracy of phantom roll detection.
         """
         self.x_adjustment = x_adjustment
         self.y_adjustment = y_adjustment
         self.angle_adjustment = angle_adjustment
         self.roi_size_factor = roi_size_factor
         self.scaling_factor = scaling_factor
+        self.roll_slice_offset = roll_slice_offset
         self.localize(origin_slice=origin_slice)
         self.hu_module = self.hu_module_class(
             self,

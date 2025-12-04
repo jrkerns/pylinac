@@ -470,6 +470,7 @@ class CatPhanModule(Slice):
         self.catphan_roll = catphan.catphan_roll
         self.roi_size_factor = catphan.roi_size_factor
         self.scaling_factor = catphan.scaling_factor
+        self.roll_slice_offset = catphan.roll_slice_offset
         self.mm_per_pixel = catphan.mm_per_pixel
         self.rois: dict[str, HUDiskROI] = {}
         self.background_rois: dict[str, HUDiskROI] = {}
@@ -2044,6 +2045,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
     roi_size_factor: float
     scaling_factor: float
     angle_adjustment: float
+    roll_slice_offset: float = 0
 
     def __init__(
         self,
@@ -2530,8 +2532,11 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         -------
         float : the angle of the phantom in **degrees**.
         """
+        # get slice for phantom roll detection
+        slice_offset = round(self.roll_slice_offset / self.dicom_stack.slice_spacing)
+        slice_num = self.origin_slice + slice_offset
+        slice = Slice(self, slice_num, clear_borders=self.clear_borders)
         # get edges and make ROIs from it
-        slice = Slice(self, self.origin_slice, clear_borders=self.clear_borders)
         larr, regions, _ = get_regions(slice)
         # find appropriate ROIs and grab the two most centrally positioned ones
         hu_bubbles = [
@@ -2720,6 +2725,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         roi_size_factor: float = 1,
         scaling_factor: float = 1,
         origin_slice: int | None = None,
+        roll_slice_offset: float = 0,
     ):
         """Single-method full analysis of CBCT DICOM files.
 
@@ -2784,12 +2790,19 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         origin_slice : int, None
             The slice number of the HU linearity module. If None, the slice will be determined automatically. This is
             a fallback method if the automatic localization algorithm fails.
+        roll_slice_offset : float
+            The offset in mm from ``origin_slice`` used to select the slice for phantom
+            roll detection. The phantom roll is determined based on the two
+            inserts in the central vertical axis of the HU module, but this
+            detection can be influenced by other structures. Adjusting this offset to
+            select a different slice can enhance the accuracy of phantom roll detection.
         """
         self.x_adjustment = x_adjustment
         self.y_adjustment = y_adjustment
         self.angle_adjustment = angle_adjustment
         self.roi_size_factor = roi_size_factor
         self.scaling_factor = scaling_factor
+        self.roll_slice_offset = roll_slice_offset
         self.localize(origin_slice)
         ctp404, offset = self._get_module(CTP404CP504, raise_empty=True)
         self.ctp404 = ctp404(
