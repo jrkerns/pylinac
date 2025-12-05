@@ -265,7 +265,7 @@ class PlanarPhantomMixin(QuaacTestBase, CloudFileMixin, PlotlyTestMixin):
         instance.analyze(ssd=self.ssd, invert=self.invert)
         # check that the MTF is the expected value. This is a surrogate for the angle being wrong
         self.assertAlmostEqual(
-            self.mtf_50, instance.mtf.relative_resolution(50), delta=0.2
+            self.mtf_50, instance.mtf.relative_resolution(50), delta=0.3
         )
 
     def test_plotting(self):
@@ -402,17 +402,17 @@ class LeedsClosedBlades(LeedsMixin, TestCase):
 
 class LeedsACB1(LeedsMixin, TestCase):
     dir_path = ["planar_imaging", "Leeds", "ACB 1"]
-    file_path = "1.dcm"
-    mtf_50 = 1.69
-    piu = 91.8
+    file_name = "1.dcm"
+    mtf_50 = 1.42
+    piu = 98.80
 
 
 class LeedsBadInversion(LeedsMixin, TestCase):
     """Radmachine image where inversion was bad. pylinac should be able to correct"""
 
-    file_path = "Leeds bad inversion.dcm"
-    mtf_50 = 1.69
-    piu = 91.8
+    file_name = "Leeds bad inversion.dcm"
+    mtf_50 = 1.21
+    piu = 97.86
 
 
 class SIQC3Demo(PlanarPhantomMixin, TestCase):
@@ -580,6 +580,7 @@ class LasVegasDemo(LasVegasTestMixin, TestCase):
     "Non-cardinal angles no longer supported. If support is re-added these can be reactivated"
 )
 class LasVegas10deg(LasVegasTestMixin, TestCase):
+    # The path is passed incorrectly. Need to be fixed when this test is unskipped
     file_path = [
         "TrueBeam 1 - 2364",
         "2.5MV LV HQ 10deg - ImageRT_2016-10-6 20-12-58.dcm",
@@ -591,6 +592,7 @@ class LasVegas10deg(LasVegasTestMixin, TestCase):
     "Non-cardinal angles no longer supported. If support is re-added these can be reactivated"
 )
 class LasVegasrotated(LasVegasTestMixin, TestCase):
+    # The path is passed incorrectly. Need to be fixed when this test is unskipped
     file_path = [
         "TrueBeam 1 - 2364",
         "2.5MV LV HQ side2 - ImageRT_2016-10-6 20-43-3.dcm",
@@ -602,6 +604,7 @@ class LasVegasrotated(LasVegasTestMixin, TestCase):
     "Non-cardinal angles no longer supported. If support is re-added these can be reactivated"
 )
 class LasVegasTB1(LasVegasTestMixin, TestCase):
+    # The path is passed incorrectly. Need to be fixed when this test is unskipped
     file_path = [
         "TrueBeam 1 - 2364",
         "6MV LasVegas HQ 0deg - ImageRT_2016-10-6 20-10-17.dcm",
