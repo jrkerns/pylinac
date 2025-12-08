@@ -24,10 +24,16 @@ Quart
 
 CatPhan
 ^^^^^^^
+
 * :bdg-danger:`Change` The feature above required changes to the :class:`~pylinac.ct.CatPhanBase` class,
   from which the Quart phantom class is derived (:class:`~pylinac.quart.QuartDVT`).
   The default value for ``roll_slice_offset`` is set to zero for all phantoms
   except the Quart, so no impact is expected for other phantoms.
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` The high contrast regions now shows as "green" when they're above threshold (passing ROIs).
 
 v 3.38.0
 --------

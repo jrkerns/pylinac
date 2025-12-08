@@ -670,7 +670,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             for idx, (roi, mtf) in enumerate(
                 zip(self.high_contrast_rois, self.mtf.norm_mtfs.values())
             ):
-                color = "blue" if mtf > self._high_contrast_threshold else "red"
+                color = "green" if mtf > self._high_contrast_threshold else "red"
                 roi.plotly(
                     image_fig,
                     line_color=color,
@@ -773,7 +773,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                 for roi, mtf in zip(
                     self.high_contrast_rois, self.mtf.norm_mtfs.values()
                 ):
-                    color = "b" if mtf > self._high_contrast_threshold else "r"
+                    color = "g" if mtf > self._high_contrast_threshold else "r"
                     roi.plot2axes(img_ax, edgecolor=color)
             # plot the center of the detected ROI; used for qualitative eval of detection algorithm
             img_ax.scatter(x=self.phantom_center.x, y=self.phantom_center.y, marker="x")
