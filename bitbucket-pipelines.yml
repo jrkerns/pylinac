@@ -162,6 +162,7 @@ definitions:
     - step: &planar-tests
         name: Run Planar Imaging Tests
         <<: *bb-runner
+        size: 2x
         script:
           - # set up memory monitoring
           - apt-get update && apt-get install -y --no-install-recommends procps jq

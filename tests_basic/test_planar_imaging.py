@@ -326,6 +326,10 @@ class PlanarPhantomMixin(QuaacTestBase, CloudFileMixin, PlotlyTestMixin):
     def test_results(self):
         self.assertIsInstance(self.instance.results(), str)
 
+    def test_results_data_as_json(self):
+        data_json = self.instance.results_data(as_json=True)
+        self.assertIsInstance(data_json, str)
+
 
 class LeedsMixin(PlanarPhantomMixin):
     klass = LeedsTOR
@@ -1229,6 +1233,7 @@ class ACRDigitalMammographyTestMixin(PlanarPhantomMixin):
     num_figs = 2
     speck_group_score: float | None = None
     fiber_score: float | None = None
+    instance: ACRDigitalMammography
 
     @classmethod
     def setUpClass(cls):
@@ -1251,6 +1256,12 @@ class ACRDigitalMammographyTestMixin(PlanarPhantomMixin):
             self.skipTest("fiber_score not available")
         results = self.instance.results_data()
         self.assertEqual(self.fiber_score, results.fiber_score)
+
+    def test_rois_seen(self):
+        """Alias for the # of masses seen; uses the parent test method"""
+        if self.rois_seen is None:
+            self.skipTest("rois_seen not available")
+        self.assertEqual(self.rois_seen, self.instance.results_data().mass_score)
 
 
 class ACRDigitalMammographyDemo(ACRDigitalMammographyTestMixin, TestCase):
