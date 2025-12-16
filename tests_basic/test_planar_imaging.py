@@ -6,6 +6,7 @@ from unittest import TestCase, skip
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.figure import Figure
 from scipy.ndimage import rotate
 
 from pylinac import (
@@ -1245,6 +1246,9 @@ class ACRDigitalMammographyTestMixin(PlanarPhantomMixin):
             low_contrast_visibility_threshold=cls.low_contrast_visibility_threshold,
         )
 
+    def tearDown(self):
+        plt.close("all")
+
     def test_speck_group_score(self):
         if self.speck_group_score is None:
             self.skipTest("speck_group_score not available")
@@ -1262,6 +1266,22 @@ class ACRDigitalMammographyTestMixin(PlanarPhantomMixin):
         if self.rois_seen is None:
             self.skipTest("rois_seen not available")
         self.assertEqual(self.rois_seen, self.instance.results_data().mass_score)
+
+    def test_plotting(self):
+        """Overridden because we pass independent figures and do not have the `split_plots` parameter"""
+        figs, names = self.instance.plot_analyzed_image()
+        self.assertEqual(len(figs), 22)
+        self.assertIsInstance(figs[0], Figure)
+        self.assertIsInstance(names[0], str)
+
+    def test_saving(self):
+        # save to file
+        save_file(self.instance.save_analyzed_image, to_single_file=False)
+        # save as stream
+        streams = self.instance.save_analyzed_image(to_stream=True)
+        self.assertIsInstance(streams, dict)
+        self.assertIsInstance(list(streams.values())[0], io.BytesIO)
+        self.assertIsInstance(list(streams.keys())[0], str)
 
 
 class ACRDigitalMammographyDemo(ACRDigitalMammographyTestMixin, TestCase):

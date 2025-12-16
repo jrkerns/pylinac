@@ -60,6 +60,7 @@ from .core.roi import (
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
 from .core.warnings import capture_warnings
 from .metrics.image import SizedDiskLocator
+from .metrics.utils import get_boundary
 
 
 class PlanarResult(ResultBase):
@@ -3079,6 +3080,14 @@ class DoselabMC2MV(DoselabMC2kV):
         leeds.plot_analyzed_image()
 
 
+# plot colors for the ROI boxes/objects
+ACR_SCORE_COLORS = {
+    0: "red",
+    0.5: "yellow",
+    1: "green",
+}
+
+
 @capture_warnings
 class ACRDigitalMammography(ImagePhantomBase):
     """ACR Digital Mammography QC phantom"""
@@ -3166,6 +3175,14 @@ class ACRDigitalMammography(ImagePhantomBase):
             "fiber_orientation": -45,
         },
     }
+
+    def window_ceiling(self) -> float:
+        """Better visual contrast; avoids the sharp line outside the ROI"""
+        return np.max(self.phantom_ski_region.image_intensity)
+
+    def window_floor(self) -> float:
+        """Better visual contrast; avoids the sharp line outside the ROI"""
+        return np.min(self.phantom_ski_region.image_intensity)
 
     class SpeckGroupROI(RectangleROI):
         """Class that represents a Speck Group ROI."""
@@ -3332,7 +3349,8 @@ class ACRDigitalMammography(ImagePhantomBase):
             super().__init__(
                 array=array, width=roi_size, height=roi_size, center=roi_center
             )
-
+            self.half_thresh = half_thresh
+            self.full_thresh = full_thresh
             self.specks: list = []
             for stng_roi in speck_roi_settings.values():
                 roi = self.SpeckROI.from_speck_group_center(
@@ -3354,6 +3372,28 @@ class ACRDigitalMammography(ImagePhantomBase):
                 self.score = 0.5
             if self.num_specks_visible >= full_thresh:
                 self.score = 1
+
+        def plot2axes(
+            self,
+            axes: plt.Axes,
+            fill: bool = False,
+            alpha: float = 1.0,
+            label=None,
+            text: str = "",
+            fontsize: str = "medium",
+            text_rotation: float = 0.0,
+            ha="center",
+            va="center",
+            **kwargs,
+        ):
+            """Plot the speck ROI sample outline and individual specks"""
+            color = ACR_SCORE_COLORS[self.score]
+            super().plot2axes(axes, edgecolor=color, fill=fill, alpha=alpha)
+            for roi in self.specks:
+                if roi.passed_visibility:
+                    roi.plot2axes(axes, edgecolor="green", fill=fill, alpha=alpha)
+                else:
+                    roi.plot2axes(axes, edgecolor="red", fill=fill, alpha=alpha)
 
         def as_dict(self) -> dict:
             return {
@@ -3444,6 +3484,11 @@ class ACRDigitalMammography(ImagePhantomBase):
             if self.fiber_length >= fiber_len_full_thresh:
                 self.score = 1.0
 
+        @property
+        def plot_color(self) -> str:
+            """Color of ROI box and object if found"""
+            return ACR_SCORE_COLORS[self.score]
+
         def as_dict(self) -> dict[str, float]:
             return {
                 "fiber_diameter": self.fiber_diameter,
@@ -3453,6 +3498,37 @@ class ACRDigitalMammography(ImagePhantomBase):
                 "fiber_len_full_thresh": self.fiber_len_full_thresh,
                 "score": self.score,
             }
+
+        def plot2axes(
+            self,
+            axes: plt.Axes,
+            fill: bool = False,
+            alpha: float = 1.0,
+            label=None,
+            text: str = "",
+            fontsize: str = "medium",
+            text_rotation: float = 0.0,
+            ha="center",
+            va="center",
+            **kwargs,
+        ):
+            """Plot the ROI box and fiber itself if it was found"""
+            super().plot2axes(axes=axes, edgecolor=self.plot_color)
+            # get the boundary of the fiber
+            boundary = get_boundary(
+                self.region,
+                round(self.center.y - self.height / 2),
+                round(self.center.x - self.width / 2),
+            )
+            boundary_y, boundary_x = np.nonzero(boundary)
+            axes.scatter(
+                boundary_x,
+                boundary_y,
+                s=3,
+                c=self.plot_color,
+                marker="s",
+                alpha=alpha,
+            )
 
     @staticmethod
     def run_demo():
@@ -3781,6 +3857,368 @@ class ACRDigitalMammography(ImagePhantomBase):
                 description="Speck Group ACR score",
             ),
         }
+
+    def plot_analyzed_image(
+        self,
+        show: bool = True,
+        **plt_kwargs: dict,
+    ) -> tuple[list[plt.Figure], list[str]]:
+        """Plot the analyzed image with ROIs marked and analysis plots.
+
+        Creates 22 figures:
+        1. The image with all ROIs marked (low contrast, fibers, speck groups, etc.)
+        2. Mass ROI contrast values (1D plot)
+        3. Speck counts per group (1D plot with dual y-axes)
+        4. Fiber lengths and scores (1D plot with dual y-axes)
+        5-10. Zoomed-in views of each mass ROI (6 figures)
+        11-16. Zoomed-in views of each speck group (6 figures)
+        17-22. Zoomed-in views of each fiber (6 figures)
+
+        Parameters
+        ----------
+        show : bool
+            Whether to show the plots when called.
+        plt_kwargs : dict
+            Keyword args passed to the plt.figure() method. Allows one to set things like figure size.
+
+        Returns
+        -------
+        tuple[list[plt.Figure], list[str]]
+            A tuple containing the list of figure objects and their names.
+        """
+        figs = []
+        names = []
+
+        # First figure: Image with ROIs marked
+        fig1, ax1 = plt.subplots(1, **plt_kwargs)
+        figs.append(fig1)
+        names.append("Image")
+
+        # Plot the image
+        self.image.plot(
+            ax=ax1,
+            show=False,
+            vmin=self.window_floor(),
+            vmax=self.window_ceiling(),
+        )
+        ax1.axis("off")
+        ax1.set_title(f"{self.common_name} Phantom Analysis")
+
+        # Plot the phantom outline
+        if self.phantom_outline_object is not None:
+            outline_obj = self._create_phantom_outline_object()
+            outline_obj.plot2axes(ax1, edgecolor="b")
+
+        # Plot masses background ROIs
+        for roi in self.low_contrast_background_rois:
+            roi.plot2axes(ax1, edgecolor="b")
+
+        # Plot masses ROIs
+        # We plot contrast in another figure, so we plot the contrast color
+        # correlation here so that when an ROI is red on the figure it's below
+        # the threshold in the other figure.
+        for roi in self.low_contrast_rois:
+            color = "green" if roi.contrast > roi.contrast_threshold else "red"
+            roi.plot2axes(ax1, edgecolor=color)
+
+        # Plot speck groups
+        for speck_group in self.speck_groups:
+            speck_group.plot2axes(ax1)
+
+        # Plot fibers
+        for fiber in self.fibers:
+            fiber.plot2axes(ax1, alpha=0.25)
+
+        # Second figure: Mass ROI contrast values
+        fig2, ax2 = plt.subplots(1, **plt_kwargs)
+        figs.append(fig2)
+        names.append("Mass Contrast")
+
+        roi_labels = []
+        contrast_values = []
+        for i, roi in enumerate(self.low_contrast_rois):
+            roi_labels.append(i + 1)
+            contrast_values.append(roi.contrast)
+
+        roi_indices = list(range(len(contrast_values)))
+        ax2.plot(
+            roi_indices,
+            contrast_values,
+            marker="o",
+            color="m",
+            label="Contrast",
+            linestyle="-",
+            linewidth=2,
+            markersize=8,
+        )
+        # Set hline for contrast threshold
+        ax2.axhline(
+            self._low_contrast_threshold,
+            color="c",
+            linestyle="--",
+            linewidth=2,
+            label="Contrast Threshold",
+        )
+        # Set x-axis labels
+        ax2.set_xticks(roi_indices)
+        ax2.set_xticklabels(roi_labels, rotation=45, ha="right")
+        ax2.set_ylabel("Contrast Value")
+        ax2.set_xlabel("Mass ROI")
+        ax2.set_title("Mass ROI Contrast")
+        ax2.grid(True, alpha=0.3)
+        ax2.legend(loc="best")
+
+        # Third figure: Speck counts per group
+        fig3, ax3 = plt.subplots(1, **plt_kwargs)
+        figs.append(fig3)
+        names.append("Speck Group")
+
+        speck_labels = []
+        speck_counts = []
+        speck_group_scores = []
+        for i, grp in enumerate(self.speck_groups):
+            speck_labels.append(i + 1)
+            speck_counts.append(grp.num_specks_visible)
+            speck_group_scores.append(grp.score)
+
+        speck_indices = list(range(len(speck_counts)))
+        (line1,) = ax3.plot(
+            speck_indices,
+            speck_counts,
+            marker="s",
+            color="b",
+            label="Specks Visible",
+            linestyle="-",
+            linewidth=2,
+            markersize=8,
+        )
+        # Set hlines for full and half scores
+        thresh1 = ax3.axhline(
+            y=self.speck_groups[0].half_thresh,
+            color="c",
+            linestyle="--",
+            label="Half Score Threshold",
+        )
+        thresh2 = ax3.axhline(
+            y=self.speck_groups[0].full_thresh,
+            color="m",
+            linestyle="--",
+            label="Full Score Threshold",
+        )
+        # Set x-axis labels
+        ax3.set_xticks(speck_indices)
+        ax3.set_xticklabels(speck_labels, rotation=45, ha="right")
+        ax3.set_xlabel("Speck Group")
+        ax3.set_ylabel("Number of Specks Visible")
+        ax3.set_title("Speck Groups")
+        ax3.grid(True, alpha=0.3)
+
+        # Create second y-axis for group scores
+        ax3_twin = ax3.twinx()
+        (line2,) = ax3_twin.plot(
+            speck_indices,
+            speck_group_scores,
+            marker="^",
+            color="g",
+            label="Group Score",
+            linestyle="-",
+            linewidth=2,
+            markersize=8,
+        )
+        ax3_twin.set_ylabel("Group Score")
+        ax3_twin.set_ylim(-0.1, 1.1)
+        ax3_twin.set_yticks([0, 0.5, 1])
+
+        ax3.legend(handles=[line1, line2, thresh1, thresh2], loc="lower left")
+
+        # Fourth figure: Fiber scores
+        # Note: AP decided not to show fiber lengths to avoid ambiguity
+        # when "long" ROIs are found for ROIs 5 & 6
+        fig4, ax4 = plt.subplots(1, **plt_kwargs)
+        figs.append(fig4)
+        names.append("Fiber")
+
+        fiber_labels = []
+        fiber_scores = []
+        for i, fiber in enumerate(self.fibers):
+            fiber_labels.append(i + 1)
+            fiber_scores.append(fiber.score)
+
+        fiber_indices = list(range(len(fiber_scores)))
+        (line3,) = ax4.plot(
+            fiber_indices,
+            fiber_scores,
+            marker="o",
+            color="r",
+            label="Fiber Score",
+            linestyle="-",
+            linewidth=2,
+            markersize=8,
+        )
+        # Set x-axis labels
+        ax4.set_xticks(fiber_indices)
+        ax4.set_xticklabels(fiber_labels, rotation=45, ha="right")
+        ax4.set_xlabel("Fiber")
+        ax4.set_ylabel("Fiber Score")
+        ax4.set_title("Fibers")
+        ax4.grid(True, alpha=0.3)
+
+        ax4.legend(loc="lower left")
+
+        # Create zoomed-in figures for each ROI
+        zoom_factor = 3.0  # How much larger than the ROI to show
+
+        # Zoomed-in figures for mass ROIs
+        for i, roi in enumerate(self.low_contrast_rois):
+            fig_zoom, ax_zoom = plt.subplots(1, **plt_kwargs)
+            figs.append(fig_zoom)
+            names.append(f"Mass {i + 1}")
+
+            # Plot the full image
+            self.image.plot(
+                ax=ax_zoom,
+                show=False,
+                vmin=self.window_floor(),
+                vmax=self.window_ceiling(),
+            )
+            ax_zoom.axis("off")
+            ax_zoom.set_title(f"Mass {i + 1} (Zoomed)")
+
+            # Plot the ROI
+            roi.plot2axes(ax_zoom, edgecolor=roi.plot_color)
+
+            # Set zoom limits (3x the ROI radius)
+            zoom_size = roi.radius * zoom_factor
+            ax_zoom.set_xlim(roi.center.x - zoom_size, roi.center.x + zoom_size)
+            ax_zoom.set_ylim(roi.center.y + zoom_size, roi.center.y - zoom_size)
+
+        # Zoomed-in figures for speck groups
+        for i, speck_group in enumerate(self.speck_groups):
+            fig_zoom, ax_zoom = plt.subplots(1, **plt_kwargs)
+            figs.append(fig_zoom)
+            names.append(f"Speck Group {i + 1}")
+
+            # Plot the full image
+            self.image.plot(
+                ax=ax_zoom,
+                show=False,
+                vmin=self.window_floor(),
+                vmax=self.window_ceiling(),
+            )
+            ax_zoom.axis("off")
+            ax_zoom.set_title(f"Speck Group {i + 1} (Zoomed)")
+
+            # Plot the speck group
+            speck_group.plot2axes(ax_zoom)
+
+            # Set zoom limits (3x the ROI size)
+            zoom_size = max(speck_group.width, speck_group.height) * zoom_factor / 2
+            ax_zoom.set_xlim(
+                speck_group.center.x - zoom_size, speck_group.center.x + zoom_size
+            )
+            ax_zoom.set_ylim(
+                speck_group.center.y + zoom_size, speck_group.center.y - zoom_size
+            )
+
+        # Zoomed-in figures for fibers
+        for i, fiber in enumerate(self.fibers):
+            fig_zoom, ax_zoom = plt.subplots(1, **plt_kwargs)
+            figs.append(fig_zoom)
+            names.append(f"Fiber {i + 1}")
+
+            # Plot the full image
+            self.image.plot(
+                ax=ax_zoom,
+                show=False,
+                vmin=self.window_floor(),
+                vmax=self.window_ceiling(),
+            )
+            ax_zoom.axis("off")
+            ax_zoom.set_title(f"Fiber {i + 1} (Zoomed)")
+
+            # Plot the fiber
+            fiber.plot2axes(ax_zoom, alpha=0.25)
+
+            # Set zoom limits (3x the ROI size)
+            zoom_size = max(fiber.width, fiber.height) * zoom_factor / 2
+            ax_zoom.set_xlim(fiber.center.x - zoom_size, fiber.center.x + zoom_size)
+            ax_zoom.set_ylim(fiber.center.y + zoom_size, fiber.center.y - zoom_size)
+
+        plt.tight_layout()
+        if show:
+            plt.show()
+        return figs, names
+
+    def save_analyzed_image(
+        self,
+        to_stream: bool = False,
+        file_prefix: str = "ACR_mammography_",
+        **kwargs,
+    ) -> dict[str, BinaryIO] | None:
+        figs, names = self.plot_analyzed_image(show=False, **kwargs)
+        if to_stream:
+            targets = [io.BytesIO() for _ in names]
+        else:
+            targets = [f"{file_prefix}_analyzed_{i}.png" for i in names]
+        for fig, data in zip(figs, targets):
+            fig.savefig(data, **kwargs)
+        if to_stream:
+            return {name: stream for name, stream in zip(names, targets)}
+
+    def publish_pdf(
+        self,
+        filename: str,
+        notes: str = None,
+        open_file: bool = False,
+        metadata: dict | None = None,
+        logo: Path | str | None = None,
+    ):
+        """Publish (print) a PDF containing the analysis, images, and quantitative results.
+
+        Parameters
+        ----------
+        filename : (str, file-like object}
+            The file to write the results to.
+        notes : str, list of strings
+            Text; if str, prints single line.
+            If list of strings, each list item is printed on its own line.
+        open_file : bool
+            Whether to open the file using the default program after creation.
+        metadata : dict
+            Extra data to be passed and shown in the PDF. The key and value will be shown with a colon.
+            E.g. passing {'Author': 'James', 'Unit': 'TrueBeam'} would result in text in the PDF like:
+            --------------
+            Author: James
+            Unit: TrueBeam
+            --------------
+        logo: Path, str
+            A custom logo to use in the PDF report. If nothing is passed, the default pylinac logo is used.
+        """
+        canvas = pdf.PylinacCanvas(
+            filename,
+            page_title=f"{self.common_name} Phantom Analysis",
+            metadata=metadata,
+            logo=logo,
+        )
+
+        # write the text/numerical values
+        text = self.results(as_list=True)
+        canvas.add_text(text=text, location=(1.5, 25), font_size=14)
+        if notes is not None:
+            canvas.add_text(text="Notes:", location=(1, 5.5), font_size=12)
+            canvas.add_text(text=notes, location=(1, 5))
+
+        fig_data = self.save_analyzed_image(to_stream=True)
+        figures = [f for _, f in fig_data.items()]
+        # initial figure is offset; rest are all centered
+        canvas.add_image(figures.pop(0), location=(1, 3.5), dimensions=(19, 19))
+        for fig in figures:
+            canvas.add_new_page()
+            canvas.add_image(fig, location=(1, 7), dimensions=(19, 19))
+
+        canvas.finish()
+        if open_file:
+            webbrowser.open(filename)
 
 
 def take_centermost_roi(rprops: list[RegionProperties], image_shape: tuple[int, int]):
