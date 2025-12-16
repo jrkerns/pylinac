@@ -1118,26 +1118,38 @@ class LightRadResult(ResultBase):
     )
 
 
-class ACRDigitalMammographyResult(PlanarResult):
+class ACRDigitalMammographyResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
 
     Use the following attributes as normal class attributes."""
 
+    analysis_type: str = Field(description="Phantom name")
+    phantom_center_x_y: tuple[float, float] = Field(
+        description="The center of the phantom in the image in pixels."
+    )
+    phantom_area: float = Field(
+        description="The area of the phantom in mm^2. This is an approximation. It calculates the area of a perfect, similar shape (circle, square) that fits the phantom.",
+        title="Phantom Area (mm^2)",
+    )
+    mass_score: int = Field(
+        description="The number of low contrast ROIs that had a visibility score above the passed threshold.",
+        title="Number of Low Contrast ROIs detected",
+    )
+    mass_rois: list[dict] = Field(
+        description="A list of dictionaries containing the ROI number, visibility score, and contrast. The ROI number is the index of the ROI in the list of low contrast ROIs."
+    )
     speck_group_score: float = Field(
         description="The score of the speck groups ROIs.",
         title="Score of Speck Groups",
     )
-
     speck_group_rois: list[dict] = Field(
         description="A dictionary of the speck group ROIs. The dictionary keys are the ROI number, starting at 0"
     )
-
     fiber_score: float = Field(
         description="The score of the fibers ROIs.",
         title="Score of Fibers",
     )
-
     fiber_rois: list[dict] = Field(
         description="A dictionary of the fibers ROIs. The dictionary keys are the ROI number, starting at 0"
     )
@@ -3113,42 +3125,43 @@ class ACRDigitalMammography(ImagePhantomBase):
         "roi 1": {
             "x offset": -20,
             "y offset": 50,
-            "size": 20.0,
+            # Just shy of 20 to keep adjacent bounding box colors separate
+            "size": 19.5,
             "fiber_diameter": 0.89,
             "fiber_orientation": 45,
         },
         "roi 2": {
             "x offset": -20,
             "y offset": 30,
-            "size": 20.0,
+            "size": 19.5,
             "fiber_diameter": 0.75,
             "fiber_orientation": -45,
         },
         "roi 3": {
             "x offset": -20,
             "y offset": 10,
-            "size": 20.0,
+            "size": 19.5,
             "fiber_diameter": 0.61,
             "fiber_orientation": 45,
         },
         "roi 4": {
             "x offset": -20,
             "y offset": -10,
-            "size": 20.0,
+            "size": 19.5,
             "fiber_diameter": 0.54,
             "fiber_orientation": -45,
         },
         "roi 5": {
             "x offset": -20,
             "y offset": -30,
-            "size": 20.0,
+            "size": 19.5,
             "fiber_diameter": 0.40,
             "fiber_orientation": 45,
         },
         "roi 6": {
             "x offset": -20,
             "y offset": -50,
-            "size": 20.0,
+            "size": 19.5,
             "fiber_diameter": 0.30,
             "fiber_orientation": -45,
         },
@@ -3183,7 +3196,7 @@ class ACRDigitalMammography(ImagePhantomBase):
                     The angle of the ROI in degrees from the speck group center.
                 dist_from_center : float
                     The distance of the ROI from the speck group center in pixels.
-                center : tuple
+                center : tuple | Point
                     The location of the speck group center.
                 search_radius : float
                     The radius of the search region in pixels
@@ -3213,7 +3226,7 @@ class ACRDigitalMammography(ImagePhantomBase):
             def __init__(
                 self,
                 array: np.ndarray,
-                center: Point,
+                center: tuple | Point,
                 search_radius: float,
                 speck_radius: float,
                 background_mean: float,
@@ -3226,7 +3239,7 @@ class ACRDigitalMammography(ImagePhantomBase):
                 ----------
                 array : ndarray
                     The 2D array representing the image the disk is on.
-                center : Point
+                center : tuple | Point
                     The center of the Disk ROI.
                 search_radius : float
                     The radius of the search region in pixels
@@ -3261,7 +3274,7 @@ class ACRDigitalMammography(ImagePhantomBase):
                 masked_array = self.masked_array()
                 idx_max = np.nanargmax(masked_array)
                 coords = np.unravel_index(idx_max, masked_array.shape)
-                self.center = Point(int(coords[0]), int(coords[1]))
+                self.center = Point(int(coords[1]), int(coords[0]))
 
             def as_dict(self) -> dict:
                 """Dump important data as a dictionary. Useful when exporting a `results_data` output"""
@@ -3274,7 +3287,7 @@ class ACRDigitalMammography(ImagePhantomBase):
                     "visibility": self.visibility,
                     "visibility threshold": self.visibility_threshold,
                     "passed visibility": bool(self.passed_visibility),
-                    "center": self.center,
+                    "center_x_y": (self.center.x, self.center.y),
                 }
 
         def __init__(
@@ -3484,8 +3497,8 @@ class ACRDigitalMammography(ImagePhantomBase):
         low_contrast_visibility_threshold: float = 20,
         speck_group_contrast_method: str = Contrast.WEBER,
         speck_group_visibility_threshold: float = 50,
-        speck_group_half_thresh: float = 2,
-        speck_group_full_thresh: float = 4,
+        speck_group_half_thresh: int = 2,
+        speck_group_full_thresh: int = 4,
         fiber_sigmas_ratio: tuple[float, ...] = (0.75, 1),
         fiber_max_gap: float = 4.0,
         fiber_len_half_thresh: float = 5,
@@ -3535,11 +3548,11 @@ class ACRDigitalMammography(ImagePhantomBase):
             The equation to use for calculating the contrast of the speck group
         speck_group_visibility_threshold : float
             The threshold for whether a speck is "seen".
-        speck_group_half_thresh : float
+        speck_group_half_thresh : int
             The speck group score is 0.5 if the number of visible specks is
             between ``speck_group_half_thresh`` and ``speck_group_full_thresh``
-        speck_group_full_thresh : float
-            The speck group score is 1.0 if the number of visible specks is largen or
+        speck_group_full_thresh : int
+            The speck group score is 1.0 if the number of visible specks is larger or
             equal than ``speck_group_full_thresh``
         fiber_sigmas_ratio : tuple[float,...]
             The percentage of fiber_diameter to be used for the vesselness filter
@@ -3709,23 +3722,65 @@ class ACRDigitalMammography(ImagePhantomBase):
             )
             self.fibers.append(roi)
 
+    def results(self, as_list: bool = False) -> str | list[str]:
+        """Analysis results"""
+        text = [f"{self.common_name} results:", f"File: {self.image.truncated_path}"]
+
+        # Mass ROIs (low contrast)
+        num_masses_seen = sum(roi.passed_visibility for roi in self.low_contrast_rois)
+        text += [
+            f"Median Contrast: {np.median([roi.contrast for roi in self.low_contrast_rois]):2.2f}",
+            f'Masses "seen": {num_masses_seen:2.0f} of {len(self.low_contrast_rois)}',
+        ]
+
+        # Speck group scores
+        speck_scores = [grp.score for grp in self.speck_groups]
+        speck_scores_str = ", ".join([f"{score:.1f}" for score in speck_scores])
+        text.append(f"Speck Group Scores: {speck_scores_str}")
+
+        # Fiber scores
+        fiber_scores = [fiber.score for fiber in self.fibers]
+        fiber_scores_str = ", ".join([f"{score:.1f}" for score in fiber_scores])
+        text.append(f"Fiber Scores: {fiber_scores_str}")
+
+        if not as_list:
+            text = "\n".join(text)
+        return text
+
     def _generate_results_data(self) -> ACRDigitalMammographyResult:
         """Overridden because ROIs seen is based on visibility, not CNR"""
         lcr = self.low_contrast_rois
         return ACRDigitalMammographyResult(
             analysis_type=self.common_name,
-            median_contrast=float(np.median([roi.contrast for roi in lcr])),
-            median_cnr=float(np.median([roi.contrast_to_noise for roi in lcr])),
-            num_contrast_rois_seen=int(sum(roi.passed_visibility for roi in lcr)),
             phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
-            low_contrast_rois=[r.as_dict() for r in lcr],
-            percent_integral_uniformity=self.percent_integral_uniformity(),
+            mass_score=sum(roi.passed_visibility for roi in lcr),
+            mass_rois=[roi.as_dict() for roi in lcr],
             phantom_area=self.phantom_area,
             speck_group_score=sum(grp.score for grp in self.speck_groups),
             speck_group_rois=[s.as_dict() for s in self.speck_groups],
             fiber_score=sum(f.score for f in self.fibers),
             fiber_rois=[f.as_dict() for f in self.fibers],
         )
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        data = self.results_data()
+        return {
+            "Mass ROI Score": QuaacDatum(
+                value=data.mass_score,
+                unit="",
+                description="Number of Mass ROIs 'seen'",
+            ),
+            "Fiber Score": QuaacDatum(
+                value=data.fiber_score,
+                unit="",
+                description="Fiber ACR score",
+            ),
+            "Speck Group Score": QuaacDatum(
+                value=data.speck_group_score,
+                unit="",
+                description="Speck Group ACR score",
+            ),
+        }
 
 
 def take_centermost_roi(rprops: list[RegionProperties], image_shape: tuple[int, int]):
