@@ -30,6 +30,12 @@ CatPhan
   The default value for ``roll_slice_offset`` is set to zero for all phantoms
   except the Quart, so no impact is expected for other phantoms.
 
+ACR Phantoms
+^^^^^^^^^^^^
+
+* :bdg-success:`Feature` There is a new class :class:`~pylinac.planar_imaging.ACRDigitalMammography` class which analyzes
+  ACR Digital Mammography phantom images. See :ref:`acr_digital_mammography`.
+
 Planar Imaging
 ^^^^^^^^^^^^^^
 

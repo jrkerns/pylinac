@@ -13,33 +13,35 @@ Overview
 Feature table
 -------------
 
-+------------------+------------------+-------------+----------------+---------------------------+
-| Feature/Phantom  | Can be inverted? | SSD setting | Auto-centering | Auto-rotation             |
-+------------------+------------------+-------------+----------------+---------------------------+
-| Doselab MC2 (MV) | No               | Manual      | Yes            | Semi (+/-5 from 0)        |
-+------------------+------------------+-------------+----------------+---------------------------+
-| Doselab MC2 (kV) | No               | Manual      | Yes            | Semi (+/-5 from 0)        |
-+------------------+------------------+-------------+----------------+---------------------------+
-| Las Vegas        | No               | Manual      | Yes            | No (0)                    |
-+------------------+------------------+-------------+----------------+---------------------------+
-| Elekta Las Vegas | No               | Manual      | Yes            | No (0)                    |
-+------------------+------------------+-------------+----------------+---------------------------+
-| Leeds TOR        | Yes              | Manual      | Yes            | Yes                       |
-+------------------+------------------+-------------+----------------+---------------------------+
-| PTW EPID QC      | No               | Manual      | Yes            | No (0)                    |
-+------------------+------------------+-------------+----------------+---------------------------+
-| SNC MV           | No               | Manual      | Yes            | No (45)                   |
-+------------------+------------------+-------------+----------------+---------------------------+
-| SNC MV (12510)   | No               | Manual      | Yes            | No (45)                   |
-+------------------+------------------+-------------+----------------+---------------------------+
-| SNC kV           | No               | Manual      | Yes            | No (135)                  |
-+------------------+------------------+-------------+----------------+---------------------------+
-| SI QC-3 (MV)     | No               | Manual      | Yes            | Semi (+/-5 from 45/135)   |
-+------------------+------------------+-------------+----------------+---------------------------+
-| SI QC kV         | No               | Manual      | Yes            | Semi (+/-5 from 45/135)   |
-+------------------+------------------+-------------+----------------+---------------------------+
-| IBA Primus A     | No               | Manual      | Yes (+/-2cm)   | Semi (+/-5 from 0,90,270) |
-+------------------+------------------+-------------+----------------+---------------------------+
++-------------------+------------------+-------------+----------------+---------------------------+
+| Feature/Phantom   | Can be inverted? | SSD setting | Auto-centering | Auto-rotation             |
++===================+==================+=============+================+===========================+
+| Doselab MC2 (MV)  | No               | Manual      | Yes            | Semi (+/-5 from 0)        |
++-------------------+------------------+-------------+----------------+---------------------------+
+| Doselab MC2 (kV)  | No               | Manual      | Yes            | Semi (+/-5 from 0)        |
++-------------------+------------------+-------------+----------------+---------------------------+
+| Las Vegas         | No               | Manual      | Yes            | No (0)                    |
++-------------------+------------------+-------------+----------------+---------------------------+
+| Elekta Las Vegas  | No               | Manual      | Yes            | No (0)                    |
++-------------------+------------------+-------------+----------------+---------------------------+
+| Leeds TOR         | Yes              | Manual      | Yes            | Yes                       |
++-------------------+------------------+-------------+----------------+---------------------------+
+| PTW EPID QC       | No               | Manual      | Yes            | No (0)                    |
++-------------------+------------------+-------------+----------------+---------------------------+
+| SNC MV            | No               | Manual      | Yes            | No (45)                   |
++-------------------+------------------+-------------+----------------+---------------------------+
+| SNC MV (12510)    | No               | Manual      | Yes            | No (45)                   |
++-------------------+------------------+-------------+----------------+---------------------------+
+| SNC kV            | No               | Manual      | Yes            | No (135)                  |
++-------------------+------------------+-------------+----------------+---------------------------+
+| SI QC-3 (MV)      | No               | Manual      | Yes            | Semi (+/-5 from 45/135)   |
++-------------------+------------------+-------------+----------------+---------------------------+
+| SI QC kV          | No               | Manual      | Yes            | Semi (+/-5 from 45/135)   |
++-------------------+------------------+-------------+----------------+---------------------------+
+| IBA Primus A      | No               | Manual      | Yes (+/-2cm)   | Semi (+/-5 from 0,90,270) |
++-------------------+------------------+-------------+----------------+---------------------------+
+| ACR Digital Mammo | No               | Manual      | Yes            | No (0)                    |
++-------------------+------------------+-------------+----------------+---------------------------+
 
 .. _typical_planar_usage:
 
@@ -839,6 +841,8 @@ See also :ref:`Interpreting Results <interpreting-planar-results>` for specific 
 ACR Digital Mammography
 -----------------------
 
+.. warning:: This phantom analysis is still in beta. The parameters may change in future releases.
+
 The ACR Digital Mammography phantom is for testing the performance of Full-Field Digital Mammography (FFDM) systems.
 
 Image Acquisition
@@ -1188,6 +1192,39 @@ These are the analysis parameters for Light/Rad phantoms.
       * **BB edge distance threshold**: The threshold in mm to determine if the BB is near the edge of the image. If the BB-to-field-edge is less than this threshold,
         a different, more robust algorithm is used to determine the BB position but
         results in higher uncertainty when in a flat region (i.e. away from the field edge).
+
+Analysis Parameters (ACR Mammography)
+-------------------------------------
+
+These are the analysis parameters for ACR Digital Mammography phantom:
+
+.. tab-set::
+   :sync-group: usage
+
+   .. tab-item:: pylinac
+      :sync: pylinac
+
+      See :meth:`pylinac.planar_imaging.ACRDigitalMammography.analyze` for details.
+
+   .. tab-item:: RadMachine
+      :sync: radmachine
+
+      * **Source-to-Phantom distance**: The distance in mm from the phantom to the source.
+      * **Mass Contrast definition**: The method to use to calculate contrast for mass ROIs. See :ref:`contrast`.
+      * **Mass Visibility threshold**: The minimum contrast value for a mass ROI to be considered passing.
+      * **Speck Group Contrast definition**: The method to use for calculating the contrast of speck groups.
+      * **Speck Group Visibility threshold**: The threshold for whether a speck is "seen".
+      * **Speck group half threshold**: The speck group score is 0.5 if the number of visible specks is between this value and the full threshold.
+      * **Speck group full threshold**: The speck group score is 1.0 if the number of visible specks is larger or equal than this value.
+      * **Max Fiber gap**: The max allowed gap in mm between partial fibers.
+      * **Fiber length half threshold**: The fiber score is 0.5 if its length is between this value and the full threshold (in mm).
+      * **Fiber length full threshold**: The fiber score is 1.0 if its length is larger or equal than this value (in mm).
+      * **Fiber orientation tolerance**: The tolerance in degrees to validate the fiber orientation.
+      * **X adjustment**: A fine-tuning adjustment to the detected x-coordinate of the phantom center in mm. Positive values move the phantom to the right.
+      * **Y adjustment**: A fine-tuning adjustment to the detected y-coordinate of the phantom center in mm. Positive values move the phantom down.
+      * **Angle adjustment**: A fine-tuning adjustment to the detected angle of the phantom in degrees. Positive values rotate the phantom clockwise.
+      * **ROI size factor**: A fine-tuning adjustment to the ROI sizes. This scales the ROIs by this amount. Positive values increase the ROI sizes.
+      * **Scaling factor**: A fine-tuning adjustment to the detected magnification of the phantom. This zooms the ROIs and phantom outline by this amount.
 
 Interpreting Results
 --------------------
@@ -1699,5 +1736,10 @@ API Documentation
 
 .. autoclass:: pylinac.planar_imaging.SNCFSQA
     :inherited-members:
+
+.. autoclass:: pylinac.planar_imaging.ACRDigitalMammography
+    :inherited-members:
+
+.. autopydantic_model:: pylinac.planar_imaging.ACRDigitalMammographyResult
 
 .. autopydantic_model:: pylinac.planar_imaging.PlanarResult
