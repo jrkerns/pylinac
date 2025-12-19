@@ -22,11 +22,13 @@ Features:
 
 from __future__ import annotations
 
+import gc
 import io
 import math
 import os.path as osp
 import warnings
 import webbrowser
+from collections.abc import Generator, Iterator
 from functools import cached_property
 from pathlib import Path
 from typing import BinaryIO, Callable, Literal
@@ -3858,12 +3860,12 @@ class ACRDigitalMammography(ImagePhantomBase):
             ),
         }
 
-    def plot_analyzed_image(
+    def _plot_analyzed_image_iter(
         self,
         show: bool = True,
         **plt_kwargs: dict,
-    ) -> tuple[list[plt.Figure], list[str]]:
-        """Plot the analyzed image with ROIs marked and analysis plots.
+    ) -> Iterator[tuple[plt.Figure, str]]:
+        """Internal iterator that yields analyzed image figures one at a time.
 
         Creates 22 figures:
         1. The image with all ROIs marked (low contrast, fibers, speck groups, etc.)
@@ -3877,22 +3879,17 @@ class ACRDigitalMammography(ImagePhantomBase):
         Parameters
         ----------
         show : bool
-            Whether to show the plots when called.
+            Whether to show the plots when called. If True, each figure is shown as it's generated.
         plt_kwargs : dict
             Keyword args passed to the plt.figure() method. Allows one to set things like figure size.
 
-        Returns
-        -------
-        tuple[list[plt.Figure], list[str]]
-            A tuple containing the list of figure objects and their names.
+        Yields
+        ------
+        tuple[plt.Figure, str]
+            A tuple containing the figure object and its name. Yields one figure at a time to reduce memory usage.
         """
-        figs = []
-        names = []
-
         # First figure: Image with ROIs marked
         fig1, ax1 = plt.subplots(1, **plt_kwargs)
-        figs.append(fig1)
-        names.append("Image")
 
         # Plot the image
         self.image.plot(
@@ -3929,10 +3926,12 @@ class ACRDigitalMammography(ImagePhantomBase):
         for fiber in self.fibers:
             fiber.plot2axes(ax1, alpha=0.25)
 
+        if show:
+            plt.show()
+        yield fig1, "Image"
+
         # Second figure: Mass ROI contrast values
         fig2, ax2 = plt.subplots(1, **plt_kwargs)
-        figs.append(fig2)
-        names.append("Mass Contrast")
 
         roi_labels = []
         contrast_values = []
@@ -3967,11 +3966,12 @@ class ACRDigitalMammography(ImagePhantomBase):
         ax2.set_title("Mass ROI Contrast")
         ax2.grid(True, alpha=0.3)
         ax2.legend(loc="best")
+        if show:
+            plt.show()
+        yield fig2, "Mass Contrast"
 
         # Third figure: Speck counts per group
         fig3, ax3 = plt.subplots(1, **plt_kwargs)
-        figs.append(fig3)
-        names.append("Speck Group")
 
         speck_labels = []
         speck_counts = []
@@ -4030,13 +4030,14 @@ class ACRDigitalMammography(ImagePhantomBase):
         ax3_twin.set_yticks([0, 0.5, 1])
 
         ax3.legend(handles=[line1, line2, thresh1, thresh2], loc="lower left")
+        if show:
+            plt.show()
+        yield fig3, "Speck Group"
 
         # Fourth figure: Fiber scores
         # Note: AP decided not to show fiber lengths to avoid ambiguity
         # when "long" ROIs are found for ROIs 5 & 6
         fig4, ax4 = plt.subplots(1, **plt_kwargs)
-        figs.append(fig4)
-        names.append("Fiber")
 
         fiber_labels = []
         fiber_scores = []
@@ -4064,6 +4065,9 @@ class ACRDigitalMammography(ImagePhantomBase):
         ax4.grid(True, alpha=0.3)
 
         ax4.legend(loc="lower left")
+        if show:
+            plt.show()
+        yield fig4, "Fiber"
 
         # Create zoomed-in figures for each ROI
         zoom_factor = 3.0  # How much larger than the ROI to show
@@ -4071,8 +4075,6 @@ class ACRDigitalMammography(ImagePhantomBase):
         # Zoomed-in figures for mass ROIs
         for i, roi in enumerate(self.low_contrast_rois):
             fig_zoom, ax_zoom = plt.subplots(1, **plt_kwargs)
-            figs.append(fig_zoom)
-            names.append(f"Mass {i + 1}")
 
             # Plot the full image
             self.image.plot(
@@ -4091,12 +4093,13 @@ class ACRDigitalMammography(ImagePhantomBase):
             zoom_size = roi.radius * zoom_factor
             ax_zoom.set_xlim(roi.center.x - zoom_size, roi.center.x + zoom_size)
             ax_zoom.set_ylim(roi.center.y + zoom_size, roi.center.y - zoom_size)
+            if show:
+                plt.show()
+            yield fig_zoom, f"Mass {i + 1}"
 
         # Zoomed-in figures for speck groups
         for i, speck_group in enumerate(self.speck_groups):
             fig_zoom, ax_zoom = plt.subplots(1, **plt_kwargs)
-            figs.append(fig_zoom)
-            names.append(f"Speck Group {i + 1}")
 
             # Plot the full image
             self.image.plot(
@@ -4119,12 +4122,13 @@ class ACRDigitalMammography(ImagePhantomBase):
             ax_zoom.set_ylim(
                 speck_group.center.y + zoom_size, speck_group.center.y - zoom_size
             )
+            if show:
+                plt.show()
+            yield fig_zoom, f"Speck Group {i + 1}"
 
         # Zoomed-in figures for fibers
         for i, fiber in enumerate(self.fibers):
             fig_zoom, ax_zoom = plt.subplots(1, **plt_kwargs)
-            figs.append(fig_zoom)
-            names.append(f"Fiber {i + 1}")
 
             # Plot the full image
             self.image.plot(
@@ -4143,10 +4147,43 @@ class ACRDigitalMammography(ImagePhantomBase):
             zoom_size = max(fiber.width, fiber.height) * zoom_factor / 2
             ax_zoom.set_xlim(fiber.center.x - zoom_size, fiber.center.x + zoom_size)
             ax_zoom.set_ylim(fiber.center.y + zoom_size, fiber.center.y - zoom_size)
+            if show:
+                plt.show()
+            yield fig_zoom, f"Fiber {i + 1}"
 
-        plt.tight_layout()
-        if show:
-            plt.show()
+    def plot_analyzed_image(
+        self,
+        show: bool = True,
+        **plt_kwargs: dict,
+    ) -> tuple[list[plt.Figure], list[str]]:
+        """Plot the analyzed image with ROIs marked and analysis plots.
+
+        Creates 22 figures:
+        1. The image with all ROIs marked (low contrast, fibers, speck groups, etc.)
+        2. Mass ROI contrast values (1D plot)
+        3. Speck counts per group (1D plot with dual y-axes)
+        4. Fiber lengths and scores (1D plot with dual y-axes)
+        5-10. Zoomed-in views of each mass ROI (6 figures)
+        11-16. Zoomed-in views of each speck group (6 figures)
+        17-22. Zoomed-in views of each fiber (6 figures)
+
+        Parameters
+        ----------
+        show : bool
+            Whether to show the plots when called.
+        plt_kwargs : dict
+            Keyword args passed to the plt.figure() method. Allows one to set things like figure size.
+
+        Returns
+        -------
+        tuple[list[plt.Figure], list[str]]
+            A tuple containing the list of figure objects and their names.
+        """
+        figs = []
+        names = []
+        for fig, name in self._plot_analyzed_image_iter(show=show, **plt_kwargs):
+            figs.append(fig)
+            names.append(name)
         return figs, names
 
     def save_analyzed_image(
@@ -4154,16 +4191,43 @@ class ACRDigitalMammography(ImagePhantomBase):
         to_stream: bool = False,
         file_prefix: str = "ACR_mammography_",
         **kwargs,
-    ) -> dict[str, BinaryIO] | None:
-        figs, names = self.plot_analyzed_image(show=False, **kwargs)
-        if to_stream:
-            targets = [io.BytesIO() for _ in names]
-        else:
-            targets = [f"{file_prefix}_analyzed_{i}.png" for i in names]
-        for fig, data in zip(figs, targets):
-            fig.savefig(data, **kwargs)
-        if to_stream:
-            return {name: stream for name, stream in zip(names, targets)}
+    ) -> Generator[tuple[str, io.BytesIO]] | None:
+        """Save the analyzed images to disk or streams.
+
+        Parameters
+        ----------
+        to_stream : bool
+            If True, saves to BytesIO streams and returns an iterator. If False, saves to files and returns None.
+        file_prefix : str
+            Prefix for filenames when saving to disk. Only used if to_stream is False.
+        kwargs
+            Additional keyword arguments passed to fig.savefig().
+
+        Returns
+        -------
+        Generator[tuple[str, BinaryIO]] | None
+            If to_stream is True, returns a generator yielding (name, BytesIO stream) tuples.
+            Otherwise returns None.
+        """
+        if not to_stream:
+            # Save to disk - process one at a time and aggressively clean up
+            for fig, name in self._plot_analyzed_image_iter(show=False, **kwargs):
+                filename = f"{file_prefix}_analyzed_{name}.png"
+                fig.savefig(filename, **kwargs)
+                plt.close(fig)
+                gc.collect()  # Force garbage collection to free memory immediately
+            return None
+
+        # Save to streams - return iterator
+        def stream_generator():
+            for fig, name in self._plot_analyzed_image_iter(show=False, **kwargs):
+                stream = io.BytesIO()
+                fig.savefig(stream, **kwargs)
+                plt.close(fig)
+                gc.collect()  # Force garbage collection to free memory immediately
+                yield name, stream
+
+        return stream_generator()
 
     def publish_pdf(
         self,
@@ -4208,13 +4272,14 @@ class ACRDigitalMammography(ImagePhantomBase):
             canvas.add_text(text="Notes:", location=(1, 5.5), font_size=12)
             canvas.add_text(text=notes, location=(1, 5))
 
-        fig_data = self.save_analyzed_image(to_stream=True)
-        figures = [f for _, f in fig_data.items()]
-        # initial figure is offset; rest are all centered
-        canvas.add_image(figures.pop(0), location=(1, 3.5), dimensions=(19, 19))
-        for fig in figures:
+        fig_data_iter = self.save_analyzed_image(to_stream=True)
+        # Get first figure (special positioning)
+        first_name, first_stream = next(fig_data_iter)
+        canvas.add_image(first_stream, location=(1, 3.5), dimensions=(19, 19))
+        # Process remaining figures
+        for name, stream in fig_data_iter:
             canvas.add_new_page()
-            canvas.add_image(fig, location=(1, 7), dimensions=(19, 19))
+            canvas.add_image(stream, location=(1, 7), dimensions=(19, 19))
 
         canvas.finish()
         if open_file:

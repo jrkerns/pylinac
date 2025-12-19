@@ -10,6 +10,15 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.39.2
+--------
+
+ACR Phantoms
+^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` When saving or publishing the PDF for the new class :class:`~pylinac.planar_imaging.ACRDigitalMammography`
+  an inordinate amount of memory would be used. This has been fixed.
+
 v 3.39.1
 --------
 

@@ -1,6 +1,10 @@
 import io
 import json
+import os
 import os.path as osp
+import tempfile
+from collections.abc import Generator
+from pathlib import Path
 from typing import Callable
 from unittest import TestCase, skip
 
@@ -1274,14 +1278,20 @@ class ACRDigitalMammographyTestMixin(PlanarPhantomMixin):
         self.assertIsInstance(figs[0], Figure)
         self.assertIsInstance(names[0], str)
 
-    def test_saving(self):
-        # save to file
-        save_file(self.instance.save_analyzed_image, to_single_file=False)
+    def test_saving_to_stream(self):
         # save as stream
         streams = self.instance.save_analyzed_image(to_stream=True)
-        self.assertIsInstance(streams, dict)
-        self.assertIsInstance(list(streams.values())[0], io.BytesIO)
-        self.assertIsInstance(list(streams.keys())[0], str)
+        self.assertIsInstance(streams, Generator)
+        name, fig = next(streams)
+        self.assertIsInstance(name, str)
+        self.assertIsInstance(fig, io.BytesIO)
+
+    def test_saving_to_disk(self):
+        tmpdir = tempfile.mkdtemp()
+        os.chdir(tmpdir)
+        self.instance.save_analyzed_image(to_stream=False)
+        files = list(Path(tmpdir).glob(pattern="ACR_mammography_*.png"))
+        self.assertEqual(len(files), 22)
 
 
 class ACRDigitalMammographyDemo(ACRDigitalMammographyTestMixin, TestCase):
