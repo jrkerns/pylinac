@@ -21,7 +21,6 @@ from pylinac.vmat import VMATResult
 from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
 from tests_basic.utils import (
     FromDemoImageTesterMixin,
-    FromURLTesterMixin,
     PlotlyTestMixin,
     get_file_from_cloud_test_repo,
     save_file,
@@ -30,15 +29,12 @@ from tests_basic.utils import (
 TEST_DIR = "VMAT"
 
 
-class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
-    demo_load_method = "from_demo_images"
-    klass: Union[type[DRGS], type[DRMLC], type[DRCS]]
-
+class TestLoading(TestCase):
     def test_normal_instantiation(self):
         one = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_1.dcm"])
         two = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_2.dcm"])
-        instance = self.klass(image_paths=(one, two))
-        self.assertIsInstance(instance, self.klass)
+        instance = DRGS(image_paths=(one, two))
+        self.assertIsInstance(instance, DRGS)
 
     def test_from_stream(self):
         one = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_1.dcm"])
@@ -46,17 +42,23 @@ class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
         with open(one, "rb") as s1, open(two, "rb") as s2:
             s11 = io.BytesIO(s1.read())
             s22 = io.BytesIO(s2.read())
-            instance = self.klass(image_paths=(s11, s22))
+            instance = DRGS(image_paths=(s11, s22))
             instance.analyze()
-        self.assertIsInstance(instance, self.klass)
+        self.assertIsInstance(instance, DRGS)
 
     def test_from_file_object(self):
         one = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_1.dcm"])
         two = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_2.dcm"])
         with open(one, "rb") as s1, open(two, "rb") as s2:
-            instance = self.klass(image_paths=(s1, s2))
+            instance = DRGS(image_paths=(s1, s2))
             instance.analyze()
-        self.assertIsInstance(instance, self.klass)
+        self.assertIsInstance(instance, DRGS)
+
+
+class ResultsBase(FromDemoImageTesterMixin):
+    demo_load_method = "from_demo_images"
+    klass: Union[type[DRGS], type[DRMLC], type[DRCS]]
+    results_length = 10
 
     def test_passing_3_images_fails(self):
         """Test passing the wrong number of images."""
@@ -85,7 +87,7 @@ class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
         self.assertIsInstance(data, VMATResult)
         self.assertEqual(data.test_type, instance._result_header)
         data_dict = instance.results_data(as_dict=True)
-        self.assertEqual(len(data_dict), 10)
+        self.assertEqual(len(data_dict), self.results_length)
 
         data_dict = instance.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
@@ -159,19 +161,20 @@ class TestPreprocessing(TestCase):
         self.assertNotEqual(results.abs_mean_deviation, self.drgs_mean_dev)
 
 
-class TestDRGSLoading(LoadingBase, TestCase):
+class TestDRGSResults(ResultsBase, TestCase):
     url = "drgs.zip"
     klass = DRGS
 
 
-class TestDRMLCLoading(LoadingBase, TestCase):
+class TestDRMLCResults(ResultsBase, TestCase):
     url = "drmlc.zip"
     klass = DRMLC
 
 
-class TestDRCSLoading(LoadingBase, TestCase):
+class TestDRCSResults(ResultsBase, TestCase):
     url = "drcs.zip"
     klass = DRCS
+    results_length = 11
 
 
 class TestDRGSQuaac(QuaacTestBase, TestCase):
