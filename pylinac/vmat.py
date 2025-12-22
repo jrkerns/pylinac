@@ -24,6 +24,7 @@ import math
 import webbrowser
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO
@@ -44,6 +45,7 @@ from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.pdf import PylinacCanvas
 from .core.profile import CircleProfile, FWXMProfile
 from .core.roi import RectangleROI
+from .core.scale import wrap180
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
 from .core.warnings import capture_warnings
 
@@ -82,6 +84,19 @@ class SegmentResult(BaseModel):
     )
 
 
+class CollimatorResult(BaseModel):
+    """An individual Collimator line result"""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    angle_deviation: float = Field(  # measured - ideal (215.2 - 215.0 = +0.2)
+        description="Collimator Deviation at angle"
+    )
+    angle_nominal: float = Field(
+        description="The nominal angle of the collimator", title="Nominal Angle (deg)"
+    )
+
+
 class VMATResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -104,9 +119,18 @@ class VMATResult(ResultBase):
     passed: bool = Field(
         description="A boolean indicating if the test passed or failed."
     )
-    segment_data: list[SegmentResult] = Field(description="Individual segment data.")
+    segment_data: list[SegmentResult] = Field(
+        description="List of individual segment data."
+    )
     named_segment_data: dict[str, SegmentResult] = Field(
         description="Named individual segment data."
+    )
+
+
+class DRCSResult(VMATResult):
+    # this is implicitly a named_collimator_data field
+    collimator_data: dict[str, CollimatorResult] = Field(
+        description="List of individual collimator deviation data"
     )
 
 
@@ -156,6 +180,37 @@ class Segment(RectangleROI):
     def get_bg_color(self) -> str:
         """Get the background color of the segment when plotted, based on the pass/fail status."""
         return "blue" if self.passed else "red"
+
+
+@dataclass
+class CollimatorDeviation:
+    """A class for holding collimator deviations of DRCS tests.
+
+    Attributes
+    ----------
+    name : str
+        The name of the collimator deviation line.
+    angle_nominal : float
+        The nominal angle of the line.
+    points: tuple[Point, Point]
+        The two points that make the line
+    """
+
+    name: str
+    angle_nominal: float
+    points: tuple[Point, Point]
+
+    @property
+    def angle_measured(self) -> float:
+        dy = self.points[1].y - self.points[0].y
+        dx = self.points[1].x - self.points[0].x
+        angle_im = np.arctan2(dy, dx)
+        angle_iec = -(np.rad2deg(angle_im) + 90) % 360
+        return angle_iec
+
+    @property
+    def angle_deviation(self) -> float:
+        return wrap180(self.angle_measured - self.angle_nominal)
 
 
 class VMATBase(ABC, ResultsDataMixin[VMATResult], QuaacMixin):
@@ -817,6 +872,7 @@ class DRCS(VMATBase):
     """Class representing a Dose-Rate, Collimator speed VMAT test.
     Will accept, analyze, and return the results."""
 
+    collimator_deviations = list[float]
     text_rotation = 0  # rotation of text on image
 
     _url_suffix = "drcs.zip"
@@ -837,6 +893,27 @@ class DRCS(VMATBase):
             "ROI 4": {"radial_distance": self._default_radial_distance, "angle": 60},
             "ROI 5": {"radial_distance": self._default_radial_distance, "angle": 120},
         }
+
+    @property
+    def default_collimator_config(self) -> dict[str, float]:
+        return {"A": 210, "B": 270, "C": 330, "D": 30, "E": 90, "F": 150}  # IEC
+
+    @property
+    def default_collimator_radial_distances(self) -> tuple[float, float]:
+        return 30, 70  # mm
+
+    def analyze(
+        self,
+        tolerance: float | int = 1.5,  # Segments, in %
+        segment_size_mm: tuple | None = None,
+        roi_config: dict | None = None,
+        collimator_radial_distances: dict | None = None,
+        collimator_config: dict | None = None,
+    ):
+        super().analyze(tolerance, segment_size_mm, roi_config)
+        cc = collimator_config or self.default_collimator_config
+        crd = collimator_radial_distances or self.default_collimator_radial_distances
+        self._calculate_collimator_deviations(cc, crd)
 
     def _identify_images(self, image1: DicomImage, image2: DicomImage):
         """Identify which image is the DMLC and which is the open field.
@@ -879,7 +956,15 @@ class DRCS(VMATBase):
             )
             segment_data.append(segment)
             named_segment_data[roi_name] = segment
-        return VMATResult(
+
+        coll_data = {}
+        for cd in self.collimator_deviations:
+            coll_data[cd.name] = CollimatorResult(
+                angle_deviation=cd.angle_deviation,
+                angle_nominal=cd.angle_nominal,
+            )
+
+        return DRCSResult(
             test_type=self._result_header,
             tolerance_percent=self._tolerance * 100,
             max_deviation_percent=self.max_r_deviation,
@@ -887,6 +972,7 @@ class DRCS(VMATBase):
             passed=self.passed,
             segment_data=segment_data,
             named_segment_data=named_segment_data,
+            collimator_data=coll_data,
         )
 
     def _calculate_segments(self, segment_size_mm: tuple[float, float]):
@@ -922,6 +1008,34 @@ class DRCS(VMATBase):
                 rotation=np.rad2deg(tf.rotation),
             )
             self.segments.append(segment)
+
+    def _calculate_collimator_deviations(
+        self,
+        collimator_config: dict[str, float],
+        collimator_radial_distances: tuple[float, float],
+    ):
+        num_angles = len(collimator_config)
+        nominal_angles = np.fromiter(collimator_config.values(), dtype=float)
+        max_diff_angle = max(np.abs(wrap180(np.diff(nominal_angles))))
+        crd_px = np.array(collimator_radial_distances) * self.dmlc_image.dpmm
+        peaks = list()
+        for crd in crd_px:
+            circle_profile = CircleProfile(
+                center=self.dmlc_image.center,
+                radius=crd,
+                image_array=self.ratio_image,
+                start_angle=math.pi / 2,  # start in the "empty" region and go CCW
+            )
+            min_distance = 2 * np.pi * crd / 360 * 0.9 * max_diff_angle
+            circle_profile.find_peaks(min_distance=min_distance, max_number=num_angles)
+            if len(circle_profile.peaks) != num_angles:
+                raise ValueError("Could not detect collimator lines.")
+            peaks.append(circle_profile.peaks)
+
+        self.collimator_deviations = list[CollimatorDeviation]()
+        for config, points in zip(collimator_config.items(), np.array(peaks).T):
+            cd = CollimatorDeviation(config[0], config[1], (points[0], points[1]))
+            self.collimator_deviations.append(cd)
 
     @staticmethod
     def run_demo():

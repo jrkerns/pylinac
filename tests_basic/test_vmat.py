@@ -668,6 +668,7 @@ class TestDRCS(VMATMixin, PlotlyTestMixin, TestCase):
         1: Point(723.37, 520.09),
         0: Point(723.37, 668.91),
     }
+    collimator_deviations = (-0.163, -0.001, -0.322, -0.162, -0.001, -0.321)
 
     avg_abs_r_deviation = 0.24
     max_r_deviation = 0.38
@@ -678,6 +679,15 @@ class TestDRCS(VMATMixin, PlotlyTestMixin, TestCase):
         # attach the instance attr for the plotly mixin
         super().setUp()
         self.instance = self.vmat
+
+    def test_collimator_deviations(self):
+        desired = self.collimator_deviations
+        actual = [cd.angle_deviation for cd in self.instance.collimator_deviations]
+        np.testing.assert_array_almost_equal(actual, desired, decimal=3)
+
+    def test_generate_results(self):
+        results = self.instance._generate_results_data()
+        self.assertEqual(6, len(results.collimator_data))
 
 
 class TestDRCSReverse(TestDRCS):

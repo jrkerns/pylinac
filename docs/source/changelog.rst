@@ -10,6 +10,14 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.40.0
+--------
+
+VMAT
+^^^^
+
+* :bdg-success:`Feature` The Dose-Rate & Collimator speed (DRCS) test now includes the collimator deviations.
+
 v 3.39.2
 --------
 
