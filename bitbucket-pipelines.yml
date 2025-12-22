@@ -65,6 +65,20 @@ definitions:
           - uv run nox -s build_docs
         caches:
           - nox-build-docs
+    - step: &build-pdf
+        # Note this step doesn't work in the pipeline yet and
+        # is not referenced, but likely just needs some tweaks.
+        # Left here as a guide and 90% completion.
+        name: Build Docs as PDF
+        <<: *bb-runner
+        script:
+          - apt-get update && apt-get install -y libexpat1
+          - uv venv
+          - uv pip install nox
+          - uv run nox -s build_docs_pdf
+        artifacts:
+          - pylinac-docs.pdf
+          - docs/build-pdf/**
     - step: &cbct-tests
         name: Run CBCT Tests
         <<: *bb-runner

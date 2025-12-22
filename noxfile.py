@@ -136,6 +136,25 @@ def build_docs(session: Session):
     )
 
 
+@nox.session(reuse_venv=True, venv_backend="uv|virtualenv")
+def build_docs_pdf(session: Session):
+    """Build the docs as PDF. Sphinx has PDF capabilities but it doesn't like SVGs, GIFs, latex, etc.
+    Instead, we build .rst -> HTML via Sphinx and then HTML -> PDF via plutoprint."""
+    session.install(".[docs]")
+    session.install("plutoprint")
+    session.run("sphinx-build", "docs/source", "docs/build-pdf", "-b", "singlehtml")
+    session.log("Single HTML built with Sphinx. Building PDF with plutoprint...")
+    output_file = "pylinac-docs.pdf"
+    session.run(
+        "plutoprint",
+        "docs/build-pdf/index.html",
+        output_file,
+        "--size=A4",
+        "--title=Pylinac",
+    )
+    session.log(f"PDF built successfully at {output_file}")
+
+
 @nox.session(reuse_venv=True, venv_backend="uv")
 def build_wheel(session: Session):
     """Build the wheel and sdist"""
