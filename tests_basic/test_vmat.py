@@ -105,27 +105,6 @@ class ResultsBase(FromDemoImageTesterMixin):
         data = instance.results_data()
         self.assertEqual(len(data.warnings), 0)
 
-    def test_custom_roi_config(self):
-        my_drgs = DRGS.from_demo_images()
-        my_drgs.analyze(roi_config={"DR: 150 MU/min": {"offset_mm": 0}})
-        self.assertEqual(len(my_drgs.segments), 1)
-        results_data = my_drgs.results_data()
-        self.assertIn("DR: 150 MU/min", results_data.named_segment_data.keys())
-
-    def test_custom_num_rois_and_spacing(self):
-        """Kraken minimizes the number of inputs; accepts the # of ROIs and spacing. Essentially the same implementation as Kraken"""
-        num_roi = 5
-        spacing_mm = 30
-        offsets = np.arange(0, num_roi * spacing_mm, 30)
-        centered_offsets = offsets - np.mean(offsets)
-        roi_config = {
-            f"ROI {idx + 1}": {"offset_mm": offset}
-            for idx, offset in enumerate(centered_offsets)
-        }
-        my_drgs = DRGS.from_demo_images()
-        my_drgs.analyze(roi_config=roi_config)
-        self.assertEqual(len(my_drgs.segments), 5)
-
 
 class TestPreprocessing(TestCase):
     """Test that preprocessing steps (ala Kraken) are respected."""
@@ -164,6 +143,27 @@ class TestPreprocessing(TestCase):
 class TestDRGSResults(ResultsBase, TestCase):
     url = "drgs.zip"
     klass = DRGS
+
+    def test_custom_roi_config(self):
+        my_drgs = DRGS.from_demo_images()
+        my_drgs.analyze(roi_config={"DR: 150 MU/min": {"offset_mm": 0}})
+        self.assertEqual(len(my_drgs.segments), 1)
+        results_data = my_drgs.results_data()
+        self.assertIn("DR: 150 MU/min", results_data.named_segment_data.keys())
+
+    def test_custom_num_rois_and_spacing(self):
+        """Kraken minimizes the number of inputs; accepts the # of ROIs and spacing. Essentially the same implementation as Kraken"""
+        num_roi = 5
+        spacing_mm = 30
+        offsets = np.arange(0, num_roi * spacing_mm, 30)
+        centered_offsets = offsets - np.mean(offsets)
+        roi_config = {
+            f"ROI {idx + 1}": {"offset_mm": offset}
+            for idx, offset in enumerate(centered_offsets)
+        }
+        my_drgs = DRGS.from_demo_images()
+        my_drgs.analyze(roi_config=roi_config)
+        self.assertEqual(len(my_drgs.segments), 5)
 
 
 class TestDRMLCResults(ResultsBase, TestCase):
