@@ -191,9 +191,9 @@ class CollimatorDeviation:
     name : str
         The name of the collimator deviation line.
     angle_nominal : float
-        The nominal angle of the line.
+        The nominal angle of the line in degrees (IEC).
     points: tuple[Point, Point]
-        The two points that make the line
+        The two points that make the line.
     """
 
     name: str
