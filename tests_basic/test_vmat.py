@@ -89,7 +89,6 @@ class TestDRCSLoading(LoadingBase, TestCase):
 
 class ResultsBase:
     klass: Union[type[DRGS], type[DRMLC], type[DRCS]]
-    instance: Union[DRGS, DRMLC, DRCS]
     results_length: int
 
     def setUp(self):
