@@ -4,7 +4,7 @@ import tempfile
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Union
-from unittest import TestCase, skip
+from unittest import TestCase
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -30,9 +30,13 @@ from tests_basic.utils import (
 TEST_DIR = "VMAT"
 
 
+# region Loading
+
+
 class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
     demo_load_method = "from_demo_images"
     klass: Union[type[DRGS], type[DRMLC], type[DRCS]]
+    results_length: int
 
     def test_normal_instantiation(self):
         one = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_1.dcm"])
@@ -47,7 +51,6 @@ class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
             s11 = io.BytesIO(s1.read())
             s22 = io.BytesIO(s2.read())
             instance = self.klass(image_paths=(s11, s22))
-            instance.analyze()
         self.assertIsInstance(instance, self.klass)
 
     def test_from_file_object(self):
@@ -55,108 +58,12 @@ class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
         two = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_2.dcm"])
         with open(one, "rb") as s1, open(two, "rb") as s2:
             instance = self.klass(image_paths=(s1, s2))
-            instance.analyze()
         self.assertIsInstance(instance, self.klass)
 
     def test_passing_3_images_fails(self):
         """Test passing the wrong number of images."""
         with self.assertRaises(ValueError):
             self.klass(image_paths=("", "", ""))
-
-    def test_print_results(self):
-        instance = self.klass.from_demo_images()
-        instance.analyze()
-        self.assertIsInstance(instance.results(), str)
-
-    def test_plot_analyzed_image(self):
-        instance = self.klass.from_demo_images()
-        instance.analyze()
-        instance.plot_analyzed_image()  # shouldn't raise
-
-    def test_publish_pdf(self):
-        instance = self.klass.from_demo_images()
-        instance.analyze()
-        save_file(instance.publish_pdf)
-
-    def test_results_data(self):
-        instance = self.klass.from_demo_images()
-        instance.analyze()
-        data = instance.results_data()
-        self.assertIsInstance(data, VMATResult)
-        self.assertEqual(data.test_type, instance._result_header)
-        data_dict = instance.results_data(as_dict=True)
-        self.assertEqual(len(data_dict), 10)
-
-        data_dict = instance.results_data(as_dict=True)
-        self.assertIsInstance(data_dict, dict)
-        self.assertIn("pylinac_version", data_dict)
-        self.assertEqual(data_dict["max_deviation_percent"], instance.max_r_deviation)
-
-        data_str = instance.results_data(as_json=True)
-        self.assertIsInstance(data_str, str)
-        # shouldn't raise
-        json.loads(data_str)
-
-    def test_results_warnings(self):
-        instance = self.klass.from_demo_images()
-        instance.analyze()
-        data = instance.results_data()
-        self.assertEqual(len(data.warnings), 0)
-
-    def test_custom_roi_config(self):
-        my_drgs = DRGS.from_demo_images()
-        my_drgs.analyze(roi_config={"DR: 150 MU/min": {"offset_mm": 0}})
-        self.assertEqual(len(my_drgs.segments), 1)
-        results_data = my_drgs.results_data()
-        self.assertIn("DR: 150 MU/min", results_data.named_segment_data.keys())
-
-    def test_custom_num_rois_and_spacing(self):
-        """Kraken minimizes the number of inputs; accepts the # of ROIs and spacing. Essentially the same implementation as Kraken"""
-        num_roi = 5
-        spacing_mm = 30
-        offsets = np.arange(0, num_roi * spacing_mm, 30)
-        centered_offsets = offsets - np.mean(offsets)
-        roi_config = {
-            f"ROI {idx + 1}": {"offset_mm": offset}
-            for idx, offset in enumerate(centered_offsets)
-        }
-        my_drgs = DRGS.from_demo_images()
-        my_drgs.analyze(roi_config=roi_config)
-        self.assertEqual(len(my_drgs.segments), 5)
-
-
-class TestPreprocessing(TestCase):
-    """Test that preprocessing steps (ala Kraken) are respected."""
-
-    @classmethod
-    def setUpClass(cls):
-        drmlc = DRMLC.from_demo_images()
-        drmlc.analyze()
-        cls.drmlc_mean_dev = drmlc.results_data().abs_mean_deviation
-        drgs = DRGS.from_demo_images()
-        drgs.analyze()
-        cls.drgs_mean_dev = drgs.results_data().abs_mean_deviation
-
-    def test_drmlc_preprocess(self):
-        my_drmlc = DRMLC.from_demo_images()
-        my_drmlc.dmlc_image.filter(size=7, kind="median")
-        my_drmlc.analyze()
-        results = my_drmlc.results_data()
-        self.assertNotEqual(results.abs_mean_deviation, self.drmlc_mean_dev)
-
-    def test_drgs_preprocess(self):
-        my_drgs = DRGS.from_demo_images()
-        my_drgs.dmlc_image.filter(size=7, kind="median")
-        my_drgs.analyze()
-        results = my_drgs.results_data()
-        self.assertNotEqual(results.abs_mean_deviation, self.drgs_mean_dev)
-
-    def test_drcs_preprocess(self):
-        my_drcs = DRCS.from_demo_images()
-        my_drcs.dmlc_image.filter(size=7, kind="median")
-        my_drcs.analyze()
-        results = my_drcs.results_data()
-        self.assertNotEqual(results.abs_mean_deviation, self.drgs_mean_dev)
 
 
 class TestDRGSLoading(LoadingBase, TestCase):
@@ -174,38 +81,128 @@ class TestDRCSLoading(LoadingBase, TestCase):
     klass = DRCS
 
 
-class TestDRGSQuaac(QuaacTestBase, TestCase):
+# endregion
+
+
+# region Results, plot, print, publish, preprocess
+
+
+class ResultsBase:
+    klass: Union[type[DRGS], type[DRMLC], type[DRCS]]
+    results_length: int
+
+    def setUp(self):
+        self.instance = self.klass.from_demo_images()
+        self.instance.analyze()
+
+    def test_print_results(self):
+        self.assertIsInstance(self.instance.results(), str)
+
+    def test_plot_analyzed_image(self):
+        self.instance.plot_analyzed_image()  # shouldn't raise
+
+    def test_publish_pdf(self):
+        save_file(self.instance.publish_pdf)
+
+    def test_results_data(self):
+        data = self.instance.results_data()
+        self.assertIsInstance(data, VMATResult)
+        self.assertEqual(data.test_type, self.instance._result_header)
+        data_dict = self.instance.results_data(as_dict=True)
+        self.assertEqual(len(data_dict), self.results_length)
+
+        data_dict = self.instance.results_data(as_dict=True)
+        self.assertIsInstance(data_dict, dict)
+        self.assertIn("pylinac_version", data_dict)
+        self.assertEqual(
+            data_dict["max_deviation_percent"], self.instance.max_r_deviation
+        )
+
+        data_str = self.instance.results_data(as_json=True)
+        self.assertIsInstance(data_str, str)
+        # shouldn't raise
+        json.loads(data_str)
+
+    def test_results_warnings(self):
+        data = self.instance.results_data()
+        self.assertEqual(len(data.warnings), 0)
+
+    def test_results_preprocess(self):
+        instance = self.klass.from_demo_images()
+        instance.analyze()
+        mean_dev1 = instance.results_data().abs_mean_deviation
+
+        instance = self.klass.from_demo_images()
+        instance.dmlc_image.filter(size=7, kind="median")
+        instance.analyze()
+        mean_dev2 = instance.results_data().abs_mean_deviation
+        self.assertNotEqual(mean_dev1, mean_dev2)
+
+
+class TestDRGSResults(ResultsBase, TestCase):
+    klass = DRGS
+    results_length = 10
+
+
+class TestDRMLCResults(ResultsBase, TestCase):
+    klass = DRMLC
+    results_length = 10
+
+
+class TestDRCSResults(ResultsBase, TestCase):
+    klass = DRCS
+    results_length = 11
+
+
+# endregion
+
+
+# region Quaac
+
+
+class QuaacBase(QuaacTestBase):
+    klass: Union[type[DRGS], type[DRMLC], type[DRCS]]
+
     def quaac_instance(self):
-        t = DRGS.from_demo_images()
+        t = self.klass.from_demo_images()
         t.analyze()
         return t
 
 
-class TestDRMLCQuaac(QuaacTestBase, TestCase):
-    def quaac_instance(self):
-        t = DRMLC.from_demo_images()
-        t.analyze()
-        return t
+class TestDRGSQuaac(QuaacBase, TestCase):
+    klass = DRGS
 
 
-class TestDRCSQuaac(QuaacTestBase, TestCase):
-    def quaac_instance(self):
-        t = DRCS.from_demo_images()
-        t.analyze()
-        return t
+class TestDRMLCQuaac(QuaacBase, TestCase):
+    klass = DRMLC
 
 
-class TestDRMLCResultsData(ResultsDataBase, TestCase):
-    model = DRMLC
+class TestDRCSQuaac(QuaacBase, TestCase):
+    klass = DRCS
+
+
+# endregion
+
+
+# region Results Data
 
 
 class TestDRGSResultsData(ResultsDataBase, TestCase):
     model = DRGS
 
 
-@skip("No demo images for DRCS yet")
+class TestDRMLCResultsData(ResultsDataBase, TestCase):
+    model = DRMLC
+
+
 class TestDRCSResultsData(ResultsDataBase, TestCase):
     model = DRCS
+
+
+# endregion
+
+
+# region Business logic
 
 
 class VMATMixin:
@@ -297,6 +294,7 @@ class VMATMixin:
 class TestDRGSDemo(VMATMixin, TestCase):
     """Tests of the result values of the DRGS demo images."""
 
+    klass = DRGS
     segment_positions = {0: Point(161, 192), 4: Point(314, 192)}
     segment_values = {
         0: {"r_dev": 0.965, "r_corr": 6.2, "stdev": 0.0008},
@@ -324,6 +322,7 @@ class TestDRGSDemo(VMATMixin, TestCase):
 class TestDRMLCDemo(VMATMixin, TestCase):
     """Tests of the result values of the DRMLC demo images."""
 
+    klass = DRMLC
     segment_positions = {0: Point(170, 192), 2: Point(285, 192)}
     segment_values = {
         0: {"r_dev": -0.7, "r_corr": 5.7, "stdev": 0.00086},
@@ -343,6 +342,7 @@ class TestDRMLCDemo(VMATMixin, TestCase):
 class TestDRCSDemo(VMATMixin, TestCase):
     """Tests of the result values of the DRCS demo images."""
 
+    klass = DRCS
     segment_values = {
         0: {"r_dev": -0.38, "r_corr": 13.50},
         1: {"r_dev": 0.10, "r_corr": 13.57},
@@ -378,6 +378,29 @@ class TestDRMLCDemoRawPixels(TestDRMLCDemo):
     }
     avg_abs_r_deviation = 0.54
     max_r_deviation = 0.56
+
+
+class TestDRGSCustomROI(TestCase):
+    def test_custom_roi_config(self):
+        my_drgs = DRGS.from_demo_images()
+        my_drgs.analyze(roi_config={"DR: 150 MU/min": {"offset_mm": 0}})
+        self.assertEqual(len(my_drgs.segments), 1)
+        results_data = my_drgs.results_data()
+        self.assertIn("DR: 150 MU/min", results_data.named_segment_data.keys())
+
+    def test_custom_num_rois_and_spacing(self):
+        """Kraken minimizes the number of inputs; accepts the # of ROIs and spacing. Essentially the same implementation as Kraken"""
+        num_roi = 5
+        spacing_mm = 30
+        offsets = np.arange(0, num_roi * spacing_mm, 30)
+        centered_offsets = offsets - np.mean(offsets)
+        roi_config = {
+            f"ROI {idx + 1}": {"offset_mm": offset}
+            for idx, offset in enumerate(centered_offsets)
+        }
+        my_drgs = DRGS.from_demo_images()
+        my_drgs.analyze(roi_config=roi_config)
+        self.assertEqual(len(my_drgs.segments), 5)
 
 
 class TestDRMLC105(VMATMixin, TestCase):
@@ -668,6 +691,7 @@ class TestDRCS(VMATMixin, PlotlyTestMixin, TestCase):
         1: Point(723.37, 520.09),
         0: Point(723.37, 668.91),
     }
+    collimator_deviations = (-0.163, -0.001, -0.322, -0.162, -0.001, -0.321)
 
     avg_abs_r_deviation = 0.24
     max_r_deviation = 0.38
@@ -679,8 +703,20 @@ class TestDRCS(VMATMixin, PlotlyTestMixin, TestCase):
         super().setUp()
         self.instance = self.vmat
 
+    def test_collimator_deviations(self):
+        desired = self.collimator_deviations
+        actual = [cd.angle_deviation for cd in self.instance.collimator_deviations]
+        np.testing.assert_array_almost_equal(actual, desired, decimal=3)
+
+    def test_generate_results(self):
+        results = self.instance._generate_results_data()
+        self.assertEqual(6, len(results.collimator_data))
+
 
 class TestDRCSReverse(TestDRCS):
     """Test image identification independent of order."""
 
     filepaths = tuple(reversed(TestDRCS.filepaths))
+
+
+# endregion
