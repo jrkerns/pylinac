@@ -13,6 +13,11 @@ Legend
 v 3.40.0
 --------
 
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* :bdg-success:`Feature` Window/Level for the following planar phantoms Leeds TOR 18, Standard Imaging QC-3, Standard Imaging QC-kV, Las Vegas, Elekta Las Vegas, Doselab MC2 MV, Doselab MC2 kV, SNC kV, SNC MV, PTW EPID QC have been adjusted to be dynamic based on the low-contrast ROIs. This should improve visualization for planar phantoms.
+
 VMAT
 ^^^^
 

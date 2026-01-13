@@ -42,6 +42,7 @@ from pydantic import Field
 from scipy.ndimage import median_filter
 from skimage import exposure, feature, filters, measure, morphology, transform
 from skimage.measure._regionprops import RegionProperties
+from typing_extensions import override
 
 from . import Normalization
 from .core import contrast, image, pdf, validators
@@ -251,14 +252,30 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
     def _check_inversion(self):
         pass
 
+    def _lcr_min(self) -> float:
+        """Min pixel value of low contrast ROIs"""
+        return min(roi.pixel_value for roi in self.low_contrast_rois)
+
+    def _lcr_max(self) -> float:
+        """Max pixel value of low contrast ROIs"""
+        return max(roi.pixel_value for roi in self.low_contrast_rois)
+
+    def _wl_spread(self):
+        """window/level spread based on low contrast ROI pixel values"""
+        return abs(self._lcr_max() - self._lcr_min())
+
     def window_floor(self) -> float | None:
         """The value to use as the minimum when displaying the image (see https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.imshow.html)
         Helps show contrast of images, specifically if there is an open background"""
-        return
+        if self.low_contrast_rois:
+            return self._lcr_min() - self._wl_spread()
+        return None
 
     def window_ceiling(self) -> float | None:
         """The value to use as the maximum when displaying the image. Helps show contrast of images, specifically if there is an open background"""
-        return
+        if self.low_contrast_rois:
+            return self._lcr_max() + self._wl_spread()
+        return None
 
     @property
     def magnification_factor(self) -> float:
@@ -2114,21 +2131,6 @@ class IBAPrimusA(ImagePhantomBase):
         if crosshair_disk.pixel_value < adjacent_disk.pixel_value:
             self.image.invert()
 
-    def _wl_spread(self):
-        """window/level spread based on low contrast ROI pixel values"""
-        pixel_values = [roi.pixel_value for roi in self.low_contrast_rois]
-        return abs(max(pixel_values) - min(pixel_values))
-
-    def window_floor(self) -> float | None:
-        return (
-            min(roi.pixel_value for roi in self.low_contrast_rois) - self._wl_spread()
-        )
-
-    def window_ceiling(self) -> float | None:
-        return (
-            max(roi.pixel_value for roi in self.low_contrast_rois) + self._wl_spread()
-        )
-
     @cached_property
     def phantom_angle(self) -> float:
         """Cache this; calculating the angle is expensive"""
@@ -3015,21 +3017,6 @@ class DoselabMC2kV(ImagePhantomBase):
             )
         return angle
 
-    def _wl_spread(self):
-        """window/level spread based on low contrast ROI pixel values"""
-        pixel_values = [roi.pixel_value for roi in self.low_contrast_rois]
-        return abs(max(pixel_values) - min(pixel_values))
-
-    def window_floor(self) -> float | None:
-        return (
-            min(roi.pixel_value for roi in self.low_contrast_rois) - self._wl_spread()
-        )
-
-    def window_ceiling(self) -> float | None:
-        return (
-            max(roi.pixel_value for roi in self.low_contrast_rois) + self._wl_spread()
-        )
-
 
 @capture_warnings
 class DoselabMC2MV(DoselabMC2kV):
@@ -3178,10 +3165,12 @@ class ACRDigitalMammography(ImagePhantomBase):
         },
     }
 
+    @override
     def window_ceiling(self) -> float:
         """Better visual contrast; avoids the sharp line outside the ROI"""
         return np.max(self.phantom_ski_region.image_intensity)
 
+    @override
     def window_floor(self) -> float:
         """Better visual contrast; avoids the sharp line outside the ROI"""
         return np.min(self.phantom_ski_region.image_intensity)
