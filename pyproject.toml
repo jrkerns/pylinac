@@ -44,6 +44,7 @@ dependencies = [
     "eval-type-backport; python_version<='3.9'",
     "quaac",
     "plotly>=5.0",
+    'typing-extensions>=4.14.1',
 ]
 
 [project.optional-dependencies]
