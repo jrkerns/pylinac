@@ -20,6 +20,11 @@ Planar Imaging
 
 * :bdg-warning:`Fixed` The default for the invert parameter for the ACRDigitalMammography analysis is now set to true.
 
+VMAT
+^^^^
+
+* :bdg-success:`Feature` The Dose-Rate & Collimator speed (DRCS) test now includes the collimator deviations.
+
 v 3.39.2
 --------
 
