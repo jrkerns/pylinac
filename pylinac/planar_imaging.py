@@ -3555,7 +3555,7 @@ class ACRDigitalMammography(ImagePhantomBase):
     def analyze(
         self,
         low_contrast_threshold: float = 0.05,
-        invert: bool = False,
+        invert: bool = True,
         angle_override: float | None = None,
         center_override: tuple | None = None,
         size_override: float | None = None,
