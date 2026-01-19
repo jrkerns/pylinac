@@ -13,6 +13,14 @@ Legend
 v 3.40.0
 --------
 
+Documentation
+^^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` The documentation incorrectly stated that low contrast calculations use the "mean" pixel value
+  of ROIs. The documentation has been corrected to accurately reflect that pylinac uses the **median** pixel value
+  for all low contrast algorithms (Michelson, Weber, Ratio, Difference). The median is more robust to outliers.
+  All mathematical formulas in the documentation have been updated accordingly.
+
 Planar Imaging
 ^^^^^^^^^^^^^^
 

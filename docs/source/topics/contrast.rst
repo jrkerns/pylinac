@@ -58,10 +58,11 @@ When applied to low contrast, there are usually two ROIs, the ROI of the contras
 value, usually the background. For low-contrast evaluation, the equation is the same, but is restated given the two
 individual ROIs:
 
-.. math:: \frac{I_{mean} - R_{mean}}{I_{mean} + R_{mean}}
+.. math:: \frac{I_{median} - R_{median}}{I_{median} + R_{median}}
 
 where :math:`I` is the ROI of the contrast region in question and :math:`R` is the background ROI, usually
-placed somewhere within the phantom area that is uniform.
+placed somewhere within the phantom area that is uniform. Note that pylinac uses the **median** pixel value of each ROI,
+not the mean, as the median is more robust to outliers.
 
 It is primarily used in high-contrast, periodic pattern situations, although it can
 be used in most situations.
@@ -91,10 +92,11 @@ The official definition is:
 
 Within pylinac, this is interpreted to be the following:
 
-.. math:: \frac{|I_{mean} - R_{mean}|}{R_{mean}}
+.. math:: \frac{|I_{median} - R_{median}|}{R_{median}}
 
 where :math:`I` is the ROI of the contrast region in question and :math:`R` is the background ROI, usually
-placed somewhere within the phantom area that is uniform.
+placed somewhere within the phantom area that is uniform. Note that pylinac uses the **median** pixel value of each ROI,
+not the mean, as the median is more robust to outliers.
 
 .. important::
 
@@ -125,10 +127,11 @@ The ratio algorithm is simply the value of interest over the reference or backgr
 
 Within pylinac, this is interpreted as:
 
-.. math:: \frac{I_{mean}}{R_{mean}}
+.. math:: \frac{I_{median}}{R_{median}}
 
 where :math:`I` is the ROI of the contrast region in question and :math:`R` is the background ROI, usually
-placed somewhere within the phantom area that is uniform.
+placed somewhere within the phantom area that is uniform. Note that pylinac uses the **median** pixel value of each ROI,
+not the mean, as the median is more robust to outliers.
 
 An example calculation:
 
@@ -155,10 +158,11 @@ You might prefer this algorithm if you want to have a strictly normal definition
 
 Within pylinac, this is interpreted as:
 
-.. math:: I_{mean} - R_{mean}
+.. math:: |I_{median} - R_{median}|
 
 where :math:`I` is the ROI of the contrast region in question and :math:`R` is the background/reference ROI, usually
-placed somewhere within the phantom area that is uniform.
+placed somewhere within the phantom area that is uniform. Note that pylinac uses the **median** pixel value of each ROI,
+not the mean, as the median is more robust to outliers.
 
 An example calculation:
 
