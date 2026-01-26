@@ -1413,93 +1413,102 @@ class CTP528CP504(CTP528):
     radius2linepairs_mm = 47
     combine_method: str = "max"
     num_slices: int = 3
-    boundaries: tuple[float, ...] = (
-        0,
-        0.107,
-        0.173,
-        0.236,
-        0.286,
-        0.335,
-        0.387,
-        0.434,
-        0.479,
-    )
-    start_angle: float = np.pi
-    ccw: bool = True
-    roi_settings = {
-        "region 1": {
-            "start": boundaries[0],
-            "end": boundaries[1],
-            "num peaks": 2,
-            "num valleys": 1,
-            "peak spacing": 0.021,
-            "gap size (cm)": 0.5,
-            "lp/mm": 0.1,
-        },
-        "region 2": {
-            "start": boundaries[1],
-            "end": boundaries[2],
-            "num peaks": 3,
-            "num valleys": 2,
-            "peak spacing": 0.01,
-            "gap size (cm)": 0.25,
-            "lp/mm": 0.2,
-        },
-        "region 3": {
-            "start": boundaries[2],
-            "end": boundaries[3],
-            "num peaks": 4,
-            "num valleys": 3,
-            "peak spacing": 0.006,
-            "gap size (cm)": 0.167,
-            "lp/mm": 0.3,
-        },
-        "region 4": {
-            "start": boundaries[3],
-            "end": boundaries[4],
-            "num peaks": 4,
-            "num valleys": 3,
-            "peak spacing": 0.00557,
-            "gap size (cm)": 0.125,
-            "lp/mm": 0.4,
-        },
-        "region 5": {
-            "start": boundaries[4],
-            "end": boundaries[5],
-            "num peaks": 4,
-            "num valleys": 3,
-            "peak spacing": 0.004777,
-            "gap size (cm)": 0.1,
-            "lp/mm": 0.5,
-        },
-        "region 6": {
-            "start": boundaries[5],
-            "end": boundaries[6],
-            "num peaks": 5,
-            "num valleys": 4,
-            "peak spacing": 0.00398,
-            "gap size (cm)": 0.083,
-            "lp/mm": 0.6,
-        },
-        "region 7": {
-            "start": boundaries[6],
-            "end": boundaries[7],
-            "num peaks": 5,
-            "num valleys": 4,
-            "peak spacing": 0.00358,
-            "gap size (cm)": 0.071,
-            "lp/mm": 0.7,
-        },
-        "region 8": {
-            "start": boundaries[7],
-            "end": boundaries[8],
-            "num peaks": 5,
-            "num valleys": 4,
-            "peak spacing": 0.0027866,
-            "gap size (cm)": 0.063,
-            "lp/mm": 0.8,
-        },
-    }
+
+    # Define roi_settings each time an instance is created
+    # This facilitates analyzing multiple CBCTs in one script
+    # Previously, these were class-level attributes, and were shared
+    # across instances
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.boundaries = (
+            0,
+            0.107,
+            0.173,
+            0.236,
+            0.286,
+            0.335,
+            0.387,
+            0.434,
+            0.479,
+        )
+
+        self.start_angle: float = np.pi
+        self.ccw: bool = True
+        self.roi_settings = {
+            "region 1": {
+                "start": self.boundaries[0],
+                "end": self.boundaries[1],
+                "num peaks": 2,
+                "num valleys": 1,
+                "peak spacing": 0.021,
+                "gap size (cm)": 0.5,
+                "lp/mm": 0.1,
+            },
+            "region 2": {
+                "start": self.boundaries[1],
+                "end": self.boundaries[2],
+                "num peaks": 3,
+                "num valleys": 2,
+                "peak spacing": 0.01,
+                "gap size (cm)": 0.25,
+                "lp/mm": 0.2,
+            },
+            "region 3": {
+                "start": self.boundaries[2],
+                "end": self.boundaries[3],
+                "num peaks": 4,
+                "num valleys": 3,
+                "peak spacing": 0.006,
+                "gap size (cm)": 0.167,
+                "lp/mm": 0.3,
+            },
+            "region 4": {
+                "start": self.boundaries[3],
+                "end": self.boundaries[4],
+                "num peaks": 4,
+                "num valleys": 3,
+                "peak spacing": 0.00557,
+                "gap size (cm)": 0.125,
+                "lp/mm": 0.4,
+            },
+            "region 5": {
+                "start": self.boundaries[4],
+                "end": self.boundaries[5],
+                "num peaks": 4,
+                "num valleys": 3,
+                "peak spacing": 0.004777,
+                "gap size (cm)": 0.1,
+                "lp/mm": 0.5,
+            },
+            "region 6": {
+                "start": self.boundaries[5],
+                "end": self.boundaries[6],
+                "num peaks": 5,
+                "num valleys": 4,
+                "peak spacing": 0.00398,
+                "gap size (cm)": 0.083,
+                "lp/mm": 0.6,
+            },
+            "region 7": {
+                "start": self.boundaries[6],
+                "end": self.boundaries[7],
+                "num peaks": 5,
+                "num valleys": 4,
+                "peak spacing": 0.00358,
+                "gap size (cm)": 0.071,
+                "lp/mm": 0.7,
+            },
+            "region 8": {
+                "start": self.boundaries[7],
+                "end": self.boundaries[8],
+                "num peaks": 5,
+                "num valleys": 4,
+                "peak spacing": 0.0027866,
+                "gap size (cm)": 0.063,
+                "lp/mm": 0.8,
+            },
+        }
 
     def _setup_rois(self):
         pass
@@ -1517,6 +1526,9 @@ class CTP528CP504(CTP528):
         """
         maxs = list()
         mins = list()
+
+        self._localize_lp_bounds()  # Adjust lp boundaries to this slice
+
         for key, value in self.roi_settings.items():
             max_indices, max_values = self.circle_profile.find_peaks(
                 min_distance=value["peak spacing"],
@@ -1577,6 +1589,61 @@ class CTP528CP504(CTP528):
         circle_profile.filter(0.001, kind="gaussian")
         circle_profile.ground()
         return circle_profile
+
+    def _localize_lp_bounds(self):
+        """Hard-coded boundaries between line-pairs may not be correct
+        due to rotation of ctp528 module within phantom. This
+        modifies the boundary locations based on the valleys
+
+        Tyson Reimer
+        """
+
+        peak_indices, _ = self.circle_profile.find_peaks(
+            min_distance=0.01,
+        )
+
+        valley_indices, _ = self.circle_profile.find_valleys(
+            threshold=0.925,
+            min_distance=0.03,
+            search_region=(0.1, 1.0),
+        )
+
+        # Keep only valleys after the first line pair
+        valley_indices = valley_indices[valley_indices >= np.sort(
+            peak_indices)[1]]
+        valley_bounds = np.sort(valley_indices) / len(self.circle_profile)
+
+        # Avg shift from default boundaries to inter-lp boundaries
+        bound_shift = np.mean(valley_bounds[0] - self.boundaries[1])
+        old_bounds = self.boundaries
+
+        circ_mm = np.linspace(
+            0, 2 * np.pi * self.radius2linepairs_mm,
+            len(self.circle_profile)
+        )
+
+        # Only apply shift to boundaries if <= 5 mm shift
+        # (A greater shift is likely due to extra peak/valley detection)
+        if not (
+                np.abs(circ_mm[int(bound_shift * len(self.circle_profile))])
+                >= 5):
+
+            # Modify self boundaries
+            self.boundaries = np.array(
+                [ii + bound_shift for ii in self.boundaries]
+            )
+
+            # Correct in case negative value - happens if the bound_shift
+            # is negative (indicating a negative rotation of the ctp528
+            # module)
+            self.boundaries[self.boundaries < 0] = 0
+
+            # Modify self.roi_settings boundaries
+            cc = 0
+            for ii in self.roi_settings.keys():
+                self.roi_settings[ii]["start"] = self.boundaries[cc]
+                self.roi_settings[ii]["end"] = self.boundaries[cc + 1]
+                cc += 1
 
 
 class CTP528CP604(CTP528CP504):
@@ -1666,9 +1733,17 @@ class CTP528CP600(CTP528CP504):
 
 
 class CTP528CP503(CTP528CP504):
-    start_angle = 0
-    ccw = False
-    boundaries = (0, 0.111, 0.176, 0.240, 0.289, 0.339, 0.390, 0.436, 0.481)
+    # Define roi_settings each time an instance is created
+    # This facilitates analyzing multiple CBCTs in one script
+    # Previously, these were class-level attributes, and were shared
+    # across instances
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.start_angle = 0
+        self.ccw = False
+        self.boundaries = (
+            0, 0.111, 0.176, 0.240, 0.289, 0.339, 0.390, 0.436, 0.481
+        )
 
 
 class CTP528CP700(CTP528):
