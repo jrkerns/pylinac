@@ -409,7 +409,7 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
         Thank the French for this."""
         bb_image = image.load(bb_image)
 
-        def _metrics(invert: bool):
+        def _metrics(invert: bool) -> SizedDiskLocator:
             # Helper to avoid repeating metric construction for the retry case.
             return SizedDiskLocator.from_center_physical(
                 expected_position_mm=(0, 0),
