@@ -602,7 +602,7 @@ class CatPhanModule(Slice):
         self.image.plot(ax=axis, show=False, vmin=self.window_min, vmax=self.window_max)
         self.plot_rois(axis)
         axis.autoscale(tight=True)
-        axis.set_title(f"{self.common_name} ({self.slice_num+1})")
+        axis.set_title(f"{self.common_name} ({self.slice_num + 1})")
         axis.axis("off")
 
     def plotly(self, **kwargs) -> go.Figure:
@@ -612,7 +612,7 @@ class CatPhanModule(Slice):
             fig, show=False, zmin=self.window_min, zmax=self.window_max, **kwargs
         )
         self.plotly_rois(fig)
-        add_title(fig, f"{self.common_name} ({self.slice_num+1})")
+        add_title(fig, f"{self.common_name} ({self.slice_num + 1})")
         return fig
 
     @property
@@ -2660,7 +2660,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
 
     def _zip_images(self) -> None:
         """Compress the raw images into a ZIP archive and remove the uncompressed images."""
-        zip_name = rf'{osp.dirname(self.dicom_stack[0].path)}\CBCT - {self.dicom_stack[0].date_created(format="%A, %I-%M-%S, %B %d, %Y")}.zip'
+        zip_name = rf"{osp.dirname(self.dicom_stack[0].path)}\CBCT - {self.dicom_stack[0].date_created(format='%A, %I-%M-%S, %B %d, %Y')}.zip"
         with zipfile.ZipFile(zip_name, "w", compression=zipfile.ZIP_DEFLATED) as zfile:
             for img in self.dicom_stack:
                 zfile.write(img.path, arcname=osp.basename(img.path))
