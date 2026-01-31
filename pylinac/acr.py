@@ -13,12 +13,11 @@ from matplotlib import pyplot as plt
 from plotly import graph_objects as go
 from pydantic import BaseModel, ConfigDict, Field
 from scipy import ndimage
-from skimage import exposure, measure
+from skimage import measure
 from skimage.filters import threshold_li, threshold_otsu
 
 from .core import pdf
 from .core.array_utils import fill_middle_zeros, find_nearest_idx
-from .core.contrast import Contrast
 from .core.geometry import Line, LineSerialized, Point
 from .core.image import DicomImage
 from .core.mtf import MTF
@@ -1059,17 +1058,18 @@ class MRLowContrastModule(CatPhanModule):
     low_contrast_region_radius = 40  # mm
 
     _distances = [12.75, 25.50, 38.25]
+    _rsf = 0.9 / 2  # roi_size_factor (/2 to convert diameter to radius)
     roi_settings = {
-        "spoke_1": {"angle": -90, "radius": 7.0 / 2, "distances": _distances},
-        "spoke_2": {"angle": -54, "radius": 6.5 / 2, "distances": _distances},
-        "spoke_3": {"angle": -18, "radius": 6.0 / 2, "distances": _distances},
-        "spoke_4": {"angle": 18, "radius": 5.5 / 2, "distances": _distances},
-        "spoke_5": {"angle": 54, "radius": 5.0 / 2, "distances": _distances},
-        "spoke_6": {"angle": 90, "radius": 4.5 / 2, "distances": _distances},
-        "spoke_7": {"angle": 126, "radius": 4.0 / 2, "distances": _distances},
-        "spoke_8": {"angle": 162, "radius": 3.5 / 2, "distances": _distances},
-        "spoke_9": {"angle": 198, "radius": 3.0 / 2, "distances": _distances},
-        "spoke_10": {"angle": 234, "radius": 2.5 / 2, "distances": _distances},
+        "spoke_1": {"angle": -90, "radius": 7.0 * _rsf, "distances": _distances},
+        "spoke_2": {"angle": -54, "radius": 6.4 * _rsf, "distances": _distances},
+        "spoke_3": {"angle": -18, "radius": 5.8 * _rsf, "distances": _distances},
+        "spoke_4": {"angle": 18, "radius": 5.2 * _rsf, "distances": _distances},
+        "spoke_5": {"angle": 54, "radius": 4.6 * _rsf, "distances": _distances},
+        "spoke_6": {"angle": 90, "radius": 3.9 * _rsf, "distances": _distances},
+        "spoke_7": {"angle": 126, "radius": 3.3 * _rsf, "distances": _distances},
+        "spoke_8": {"angle": 162, "radius": 2.7 * _rsf, "distances": _distances},
+        "spoke_9": {"angle": 198, "radius": 2.1 * _rsf, "distances": _distances},
+        "spoke_10": {"angle": 234, "radius": 1.5 * _rsf, "distances": _distances},
     }
 
     _distances = [0, 20, 32]
@@ -1186,10 +1186,6 @@ class MRLowContrastModule(CatPhanModule):
         lc_region_radius = rad_pix
         self.low_contrast_region = DiskROI(self.image, lc_region_radius, lc_center)
 
-        ### Enhance contrast
-        in_range = (self.window_min, self.window_max)
-        image = exposure.rescale_intensity(self.image.array, in_range, (0, 1))
-
         ### Setup objects (it assumes low contrast and background ROIs have the same dictionary structure.)
         if len(self.roi_settings) != len(self.background_roi_settings):
             msg = "There should be the same number of ROIs for low contrast and background."
@@ -1203,7 +1199,7 @@ class MRLowContrastModule(CatPhanModule):
             for idx in range(len(self.roi_settings[spoke_name]["distances_pixels"])):
                 bg_setting = self.background_roi_settings[spoke_name]
                 bg_roi = LowContrastDiskROI.from_phantom_center(
-                    np.array(image),
+                    self.image,
                     bg_setting["angle_corrected"] + self._spoke_start_angle,
                     bg_setting["radius_pixels"],
                     bg_setting["distances_pixels"][idx],
@@ -1213,13 +1209,12 @@ class MRLowContrastModule(CatPhanModule):
 
                 lc_setting = self.roi_settings[spoke_name]
                 lc_roi = LowContrastDiskROI.from_phantom_center(
-                    np.array(image),
+                    self.image,
                     lc_setting["angle_corrected"] + self._spoke_start_angle,
                     lc_setting["radius_pixels"],
                     lc_setting["distances_pixels"][idx],
                     lc_center,
                     contrast_reference=bg_roi.mean,
-                    contrast_method=Contrast.WEBER,
                     visibility_threshold=self.tolerance,
                 )
                 lc_rois.append(lc_roi)

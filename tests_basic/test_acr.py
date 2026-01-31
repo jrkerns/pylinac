@@ -595,7 +595,7 @@ class ACRMRMixin(CloudFileMixin):
                 offset = width * multiplier
                 ax.bar(x + offset, roi, width)
                 multiplier += 1
-            ax.set_ylim([0, 1.1 * np.max(visibility)])
+            # ax.set_ylim([0, 1.1 * np.max(visibility)])
             ax.set_title(list(self.mri.low_contrast_multi_slice.slices.keys())[idx])
         fig.suptitle("visibility")
         plt.show()
