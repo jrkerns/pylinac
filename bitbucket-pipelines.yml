@@ -38,12 +38,15 @@ definitions:
           - uv venv
           - uv pip install .[developer]
           - uv pip freeze
-          - uv tool run pre-commit run --all-files
+          - git branch -a
+          - git --no-pager diff origin/$BITBUCKET_PR_DESTINATION_BRANCH --name-only
+          - uv tool run pre-commit run --files $(git --no-pager diff origin/$BITBUCKET_PR_DESTINATION_BRANCH --name-only)
         caches:
           - precommit
           - uv
         artifacts:
           - .venv/**
+          - .cache/pre-commit/pre-commit.log
     - step: &push-to-github
         name: Push to Github
         <<: *bb-runner

@@ -361,7 +361,7 @@ class VMATBase(ABC, ResultsDataMixin[VMATResult], QuaacMixin):
         else:
             passfail_str = "FAIL"
 
-        string = f"{self._result_header}\nTest Results (Tol. +/-{self._tolerance*100:2.2}%): {passfail_str}\n"
+        string = f"{self._result_header}\nTest Results (Tol. +/-{self._tolerance * 100:2.2}%): {passfail_str}\n"
 
         string += f"Max Deviation: {self.max_r_deviation:2.3}%\nAbsolute Mean Deviation: {self.avg_abs_r_deviation:2.3}%"
         return string
@@ -684,7 +684,7 @@ class VMATBase(ABC, ResultsDataMixin[VMATResult], QuaacMixin):
         text = [
             f"{self._result_header} VMAT results:",
             f"Source-to-Image Distance (mm): {self.open_image.sid:2.0f}",
-            f"Tolerance (%): {self._tolerance*100:2.1f}",
+            f"Tolerance (%): {self._tolerance * 100:2.1f}",
             f"Absolute mean deviation (%): {self.avg_abs_r_deviation:2.2f}",
             f"Maximum deviation (%): {self.max_r_deviation:2.2f}",
         ]
