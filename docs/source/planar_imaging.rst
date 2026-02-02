@@ -212,13 +212,13 @@ The algorithm works like such:
 **Analysis**
 
 * **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
-  be known. The mean pixel value of each ROI (see below image, "LC0", ..., "LC17") is compared to the mean pixel value of all 4 reference ROIs ("LCR0", ..., "LCR3").
+  be known. The median pixel value of each ROI (see below image, "LC0", ..., "LC17") is compared to the median pixel value of all 4 reference ROIs ("LCR0", ..., "LCR3").
   See also :ref:`low_contrast_topic`. By default, the :ref:`michelson` algorithm is used.
   For example, the first contrast value would be calculated as:
 
   .. math::
 
-        \frac{LC0_{mean} - LCR_{mean}}{LC0_{mean} + LCR_{mean}}
+        \frac{LC0_{median} - LCR_{median}}{LC0_{median} + LCR_{median}}
 
 * **Calculate high contrast** -- Again, because the phantom position and angle are known, offsets are applied
   to sample the high contrast line pair regions. For each sample ("HC0", ..., "HC11"), the relative MTF is calculated using Peak-Valley methodology. See :ref:`peak-valley-mtf`.
@@ -330,13 +330,13 @@ The algorithm works like such:
 **Analysis**
 
 * **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
-  be known. The mean pixel value of each ROI (see below image, "LC0", ..., "LC8") is compared to the mean pixel value of the reference ROI ("LCR").
+  be known. The median pixel value of each ROI (see below image, "LC0", ..., "LC8") is compared to the median pixel value of the reference ROI ("LCR").
   See also :ref:`low_contrast_topic`. By default, the :ref:`michelson` algorithm is used.
   For example, the first contrast value would be calculated as:
 
   .. math::
 
-        \frac{LC0_{mean} - LCR_{mean}}{LC0_{mean} + LCR_{mean}}
+        \frac{LC0_{median} - LCR_{median}}{LC0_{median} + LCR_{median}}
 
 * **Calculate high contrast** -- Again, because the phantom position and angle are known, offsets are applied
   to sample the high contrast line pair regions. For each sample ("HC0", ..., "HC6"), the relative MTF is calculated using Peak-Valley methodology. See :ref:`peak-valley-mtf`.
@@ -411,13 +411,13 @@ The algorithm works like such:
 **Analysis**
 
 * **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
-  be known. The mean pixel value of each ROI (see below image, "LC0", ..., "LC4") is compared to the mean pixel value of the reference ROI ("LCR").
+  be known. The median pixel value of each ROI (see below image, "LC0", ..., "LC4") is compared to the median pixel value of the reference ROI ("LCR").
   See also :ref:`low_contrast_topic`. By default, the :ref:`michelson` algorithm is used.
   For example, the first contrast value would be calculated as:
 
   .. math::
 
-        \frac{LC0_{mean} - LCR_{mean}}{LC0_{mean} + LCR_{mean}}
+        \frac{LC0_{median} - LCR_{median}}{LC0_{median} + LCR_{median}}
 
 * **Calculate high contrast** -- Again, because the phantom position and angle are known, offsets are applied
   to sample the high contrast line pair regions. For each sample ("HC0", ..., "HC4"), the relative MTF is calculated using Peak-Valley methodology. See :ref:`peak-valley-mtf`.
@@ -500,13 +500,13 @@ The algorithm works like such:
 **Analysis**
 
 * **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
-  be known. The mean pixel value of each ROI (see below image, "LC0", ..., "LC4") is compared to the mean pixel value of the reference ROI ("LCR").
+  be known. The median pixel value of each ROI (see below image, "LC0", ..., "LC4") is compared to the median pixel value of the reference ROI ("LCR").
   See also :ref:`low_contrast_topic`. By default, the :ref:`michelson` algorithm is used.
   For example, the first contrast value would be calculated as:
 
   .. math::
 
-        \frac{LC0_{mean} - LCR_{mean}}{LC0_{mean} + LCR_{mean}}
+        \frac{LC0_{median} - LCR_{median}}{LC0_{median} + LCR_{median}}
 
 * **Calculate high contrast** -- Again, because the phantom position and angle are known, offsets are applied
   to sample the high contrast line pair regions. For each sample ("HC0", ..., "HC4"), the relative MTF is calculated using Peak-Valley methodology. See :ref:`peak-valley-mtf`.
@@ -585,13 +585,13 @@ The algorithm works like such:
 **Analysis**
 
 * **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
-  be known. The mean pixel value of each ROI (see below image, "LC0", ..., "LC18") is compared to the mean pixel value of all 4 reference ROIs ("LCR0", ..., "LCR3").
+  be known. The median pixel value of each ROI (see below image, "LC0", ..., "LC18") is compared to the median pixel value of all 4 reference ROIs ("LCR0", ..., "LCR3").
   See also :ref:`low_contrast_topic`. By default, the :ref:`michelson` algorithm is used.
   For example, the first contrast value would be calculated as:
 
   .. math::
 
-        \frac{LC0_{mean} - LCR_{mean}}{LC0_{mean} + LCR_{mean}}
+        \frac{LC0_{median} - LCR_{median}}{LC0_{median} + LCR_{median}}
 
 **Post-Analysis**
 
@@ -648,13 +648,13 @@ The algorithm works like such:
 **Analysis**
 
 * **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
-  be known. The mean pixel value of each ROI (see below image, "LC0", ..., "LC6") is compared to the mean pixel value of the reference ROI ("LCR").
+  be known. The median pixel value of each ROI (see below image, "LC0", ..., "LC6") is compared to the median pixel value of the reference ROI ("LCR").
   See also :ref:`low_contrast_topic`. By default, the :ref:`michelson` algorithm is used.
   For example, the first contrast value would be calculated as:
 
   .. math::
 
-        \frac{LC0_{mean} - LCR_{mean}}{LC0_{mean} + LCR_{mean}}
+        \frac{LC0_{median} - LCR_{median}}{LC0_{median} + LCR_{median}}
 
 * **Calculate high contrast** -- Again, because the phantom position and angle are known, offsets are applied
   to sample the high contrast line pair regions. For each sample ("HC0", ..., "HC3"), the relative MTF is calculated using Peak-Valley methodology. See :ref:`peak-valley-mtf`.
@@ -725,13 +725,13 @@ The algorithm works like such:
 **Analysis**
 
 * **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
-  be known. The mean pixel value of each ROI (see below image, "LC0", ..., "LC3") is compared to the mean pixel values of both of the reference ROIs ("LCR0", "LCR1").
+  be known. The median pixel value of each ROI (see below image, "LC0", ..., "LC3") is compared to the median pixel values of both of the reference ROIs ("LCR0", "LCR1").
   See also :ref:`low_contrast_topic`. By default, the :ref:`michelson` algorithm is used.
   For example, the first contrast value would be calculated as:
 
   .. math::
 
-        \frac{LC0_{mean} - LCR_{mean}}{LC0_{mean} + LCR_{mean}}
+        \frac{LC0_{median} - LCR_{median}}{LC0_{median} + LCR_{median}}
 
 * **Calculate high contrast** -- Again, because the phantom position and angle are known, offsets are applied
   to sample the high contrast line pair regions. For each sample ("HC0", ..., "HC3"), the relative MTF is calculated using Peak-Valley methodology. See :ref:`peak-valley-mtf`.
@@ -808,13 +808,13 @@ The algorithm works like such:
 **Analysis**
 
 * **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
-  be known. The mean pixel value of each ROI (see below image, "LC0", ..., "LC14") is compared to the mean pixel values of the reference ROI ("LCR").
+  be known. The median pixel value of each ROI (see below image, "LC0", ..., "LC14") is compared to the median pixel values of the reference ROI ("LCR").
   See also :ref:`low_contrast_topic`. By default, the :ref:`michelson` algorithm is used.
   For example, the first contrast value would be calculated as:
 
   .. math::
 
-        \frac{LC0_{mean} - LCR_{mean}}{LC0_{mean} + LCR_{mean}}
+        \frac{LC0_{median} - LCR_{median}}{LC0_{median} + LCR_{median}}
 
 * **Calculate high contrast** -- Again, because the phantom position and angle are known, offsets are applied
   to sample the high contrast line pair regions. For each sample ("HC0", ..., "HC12"), the relative MTF is calculated using Peak-Valley methodology. See :ref:`peak-valley-mtf`.
@@ -870,13 +870,13 @@ Algorithm
 The ACR Digital Mammography phantom is composed of 3 test objects: Masses, Speck groups, and Fibers.
 
 * **Calculate masses** -- Because the phantom center and angle are known, the angles to the ROIs can also be known.
-  The mean pixel value of each ROI is compared to the mean pixel value of the reference ROIs.
+  The median pixel value of each ROI is compared to the median pixel value of the reference ROIs.
   See also :ref:`low_contrast_topic`. By default, the :ref:`michelson` algorithm is used.
   For example, the first contrast value would be calculated as:
 
   .. math::
 
-        \frac{LC0_{mean} - LCR_{mean}}{LC0_{mean} + LCR_{mean}}
+        \frac{LC0_{median} - LCR_{median}}{LC0_{median} + LCR_{median}}
 
 
 * **Calculate speck groups** -- Because the phantom center and angle are known, the positions to the center of the speck groups can also be known.

@@ -1251,7 +1251,6 @@ class SNCFSQA10x10(SNCFSQAMixin, TestCase):
 class ACRDigitalMammographyTestMixin(PlanarPhantomMixin):
     klass = ACRDigitalMammography
     dir_path = ["planar_imaging", "ACRMammography"]
-    invert = True
     low_contrast_visibility_threshold = 20
     num_figs = 2
     speck_group_score: float | None = None
@@ -1263,7 +1262,6 @@ class ACRDigitalMammographyTestMixin(PlanarPhantomMixin):
         cls.instance = cls.create_instance()
         cls.instance.analyze(
             ssd=cls.ssd,
-            invert=cls.invert,
             angle_adjustment=cls.angle_adjustment,
             low_contrast_visibility_threshold=cls.low_contrast_visibility_threshold,
         )
