@@ -10,6 +10,17 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.41.0
+--------
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* :bdg-success:`Feature` Added ``kernel_size_multiplier`` parameter to :meth:`~pylinac.planar_imaging.StandardImagingFC2.analyze` method.
+  This parameter controls the kernel size multiplier used in adaptive histogram equalization when detecting BBs near the field edge.
+  The default value is 2.0, preserving backward compatibility. Lower values (e.g., 1.0) may help detect BBs that are very close to the field edge.
+  This addresses issues with BB detection for phantoms like Doselab RLf when BBs are positioned near the field edge.
+
 v 3.40.0
 --------
 
