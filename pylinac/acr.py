@@ -18,6 +18,7 @@ from skimage.filters import threshold_li, threshold_otsu
 
 from .core import pdf
 from .core.array_utils import fill_middle_zeros, find_nearest_idx
+from .core.contrast import Contrast
 from .core.geometry import Line, LineSerialized, Point
 from .core.image import DicomImage
 from .core.mtf import MTF
@@ -1058,7 +1059,7 @@ class MRLowContrastModule(CatPhanModule):
     low_contrast_region_radius = 40  # mm
 
     _distances = [12.75, 25.50, 38.25]
-    _rsf = 0.9 / 2  # roi_size_factor (/2 to convert diameter to radius)
+    _rsf = 0.8 / 2  # roi_size_factor (/2 to convert diameter to radius)
     roi_settings = {
         "spoke_1": {"angle": -90, "radius": 7.0 * _rsf, "distances": _distances},
         "spoke_2": {"angle": -54, "radius": 6.4 * _rsf, "distances": _distances},
@@ -1131,10 +1132,12 @@ class MRLowContrastModule(CatPhanModule):
     def __init__(
         self,
         catphan,
+        contrast_method: str,
         tolerance: float,
         offset: int,
         spoke_start_angle: float,
     ):
+        self.contrast_method = contrast_method
         self._spoke_start_angle = spoke_start_angle
         super().__init__(catphan, tolerance, offset)
 
@@ -1215,6 +1218,7 @@ class MRLowContrastModule(CatPhanModule):
                     lc_setting["distances_pixels"][idx],
                     lc_center,
                     contrast_reference=bg_roi.mean,
+                    contrast_method=self.contrast_method,
                     visibility_threshold=self.tolerance,
                 )
                 lc_rois.append(lc_roi)
@@ -1311,6 +1315,7 @@ class MRLowContrastMultiSliceModule:
     def __init__(
         self,
         catphan,
+        contrast_method: str,
         visibility_threshold: float,
     ):
         """Initialize the multi-slice Low Contrast Detectability module.
@@ -1319,6 +1324,8 @@ class MRLowContrastMultiSliceModule:
         ----------
         catphan : CatPhanBase
             The ACR MRI Large phantom instance.
+        contrast_method : str
+            The contrast equation to use. See :ref:`low_contrast_topic`.
         visibility_threshold : float
             The visibility threshold for determining if a disk is visible.
         """
@@ -1327,6 +1334,7 @@ class MRLowContrastMultiSliceModule:
         for key, value in self.roi_settings.items():
             self.slices[key] = MRLowContrastModule(
                 catphan=catphan,
+                contrast_method=contrast_method,
                 tolerance=visibility_threshold,
                 offset=value["offset"],
                 spoke_start_angle=value["spoke_start_angle"],
@@ -1690,7 +1698,8 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
         angle_adjustment: float = 0,
         roi_size_factor: float = 1,
         scaling_factor: float = 1,
-        visibility_threshold: float = 2,
+        low_contrast_method: str = Contrast.WEBER,
+        low_contrast_visibility_threshold: float = 0.001,
     ) -> None:
         """Analyze the ACR CT phantom
 
@@ -1715,7 +1724,10 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             A fine-tuning adjustment to the detected magnification of the phantom. This will zoom the ROIs and phantom outline (if applicable) by this amount.
             In contrast to the roi size adjustment, the scaling adjustment effectively moves the phantom and ROIs
             closer or further from the phantom center. I.e. this zooms the outline and ROI positions, but not ROI size.
-        visibility_threshold: float
+        low_contrast_method: str
+            The contrast equation to use in the low contrast modules. See
+            :ref:`low_contrast_topic`.
+        low_contrast_visibility_threshold: float
             The visibility threshold for determining if an object is visible in the low contrast modules.
         """
         self.x_adjustment = x_adjustment
@@ -1738,7 +1750,8 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
         self.sagittal_localization = self.sagittal_localization(sagittal_image)
         self.low_contrast_multi_slice = self.low_contrast_multi_slice(
             self,
-            visibility_threshold=visibility_threshold,
+            contrast_method=low_contrast_method,
+            visibility_threshold=low_contrast_visibility_threshold,
         )
 
     def _select_echo_images(self, echo_number: int | None) -> None:
