@@ -874,7 +874,6 @@ class FieldAnalysis(ResultsDataMixin[FieldResult], QuaacMixin):
         results = [
             "Field Analysis Results",
             "----------------------",
-            f"File: {self._path}",
             f"Protocol: {self._protocol.name}",
         ]
         if not self._from_device:
