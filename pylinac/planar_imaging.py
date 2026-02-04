@@ -909,7 +909,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         as_list : bool
             Whether to return as a list of strings vs single string. Pretty much for internal usage.
         """
-        text = [f"{self.common_name} results:", f"File: {self.image.truncated_path}"]
+        text = [f"{self.common_name} results:"]
         if self.low_contrast_rois:
             text += [
                 f"Median Contrast: {np.median([roi.contrast for roi in self.low_contrast_rois]):2.2f}",
@@ -1238,7 +1238,6 @@ class StandardImagingFC2(ImagePhantomBase):
         """Return the results of the analysis."""
         text = [
             f"{self.common_name} results:",
-            f"File: {self.image.truncated_path}",
             f"The detected inplane field size was {self.field_width_y:2.1f}mm",
             f"The detected crossplane field size was {self.field_width_x:2.1f}mm",
             f"The inplane field was {self.field_epid_offset_mm.y:2.1f}mm from the EPID CAX",
@@ -1790,7 +1789,7 @@ class LasVegas(ImagePhantomBase):
         as_list : bool
             Whether to return as a list of strings vs single string. Pretty much for internal usage.
         """
-        text = [f"{self.common_name} results:", f"File: {self.image.truncated_path}"]
+        text = [f"{self.common_name} results:"]
         text += [
             f"Median Contrast: {np.median([roi.contrast for roi in self.low_contrast_rois]):2.2f}",
             f"Median CNR: {np.median([roi.contrast_to_noise for roi in self.low_contrast_rois]):2.1f}",
@@ -3791,7 +3790,7 @@ class ACRDigitalMammography(ImagePhantomBase):
 
     def results(self, as_list: bool = False) -> str | list[str]:
         """Analysis results"""
-        text = [f"{self.common_name} results:", f"File: {self.image.truncated_path}"]
+        text = [f"{self.common_name} results:"]
 
         # Mass ROIs (low contrast)
         num_masses_seen = sum(roi.passed_visibility for roi in self.low_contrast_rois)

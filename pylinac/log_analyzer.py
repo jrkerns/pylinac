@@ -1701,7 +1701,7 @@ class LogBase:
         - Gamma pass percentage
         - Average gamma value
         """
-        title = f"Results of file: {self.filename}\n"
+        title = f"Results:\n"
         if self.treatment_type == TreatmentType.IMAGING.value:
             string = title + "Log is an Imaging field; no statistics can be calculated"
         else:
