@@ -569,13 +569,11 @@ class ACRMRMixin(CloudFileMixin):
         results = self.mri.results()
         self.assertIn("ACR MRI Large Results", results)
 
-    skip("For debugging purposes")
-
+    @skip("For debugging purposes")
     def test_plotly_analyzed_images(self):
         self.mri.plotly_analyzed_images()
 
-    skip("For debugging purposes")
-
+    @skip("For debugging purposes")
     def test_visibility(self):
         visibility = list()
         contrast = list()

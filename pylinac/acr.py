@@ -1136,9 +1136,11 @@ class MRLowContrastModule(CatPhanModule):
         tolerance: float,
         offset: int,
         spoke_start_angle: float,
+        visibility_sanity_multiplier: float,
     ):
         self.contrast_method = contrast_method
         self._spoke_start_angle = spoke_start_angle
+        self.visibility_sanity_multiplier = visibility_sanity_multiplier
         super().__init__(catphan, tolerance, offset)
 
     @property
@@ -1214,7 +1216,7 @@ class MRLowContrastModule(CatPhanModule):
                 lc_roi = LowContrastDiskROI.from_phantom_center(
                     self.image,
                     lc_setting["angle_corrected"] + self._spoke_start_angle,
-                    lc_setting["radius_pixels"],
+                    max(lc_setting["radius_pixels"], 1),  # ensure 2 pix to avoid std=0#
                     lc_setting["distances_pixels"][idx],
                     lc_center,
                     contrast_reference=bg_roi.mean,
@@ -1232,8 +1234,19 @@ class MRLowContrastModule(CatPhanModule):
         A spoke is complete only if all 3 disks are visible (visibility > threshold).
         Stop counting at the first incomplete spoke.
         """
-        is_visible = [all(r.passed_visibility for r in s) for s in self.rois.values()]
+        spoke1 = self.rois[list(self.roi_settings.keys())[0]]
+        max_visibility = max(r.visibility for r in spoke1)
+        sanity_visibility = max_visibility * self.visibility_sanity_multiplier
+        is_visible = [
+            all(self.roi_is_visible(r, sanity_visibility) for r in s)
+            for s in self.rois.values()
+        ]
         return len(is_visible) if all(is_visible) else np.argmin(is_visible)
+
+    @staticmethod
+    def roi_is_visible(roi: LowContrastDiskROI, sanity_visibility: float) -> bool:
+        """Helper method to determine if a roi is visible, including sanity check"""
+        return roi.passed_visibility and roi.visibility < sanity_visibility
 
     def as_dict(self) -> dict:
         """Dump important data as a dictionary."""
@@ -1243,6 +1256,10 @@ class MRLowContrastModule(CatPhanModule):
         }
 
     def plot_rois(self, axis: plt.Axes) -> None:
+        spoke1 = self.rois[list(self.roi_settings.keys())[0]]
+        max_visibility = max(r.visibility for r in spoke1)
+        sanity_visibility = max_visibility * self.visibility_sanity_multiplier
+
         """Plot the ROIs to the axis."""
         # low contrast region
         self.low_contrast_region.plot2axes(axis, edgecolor="blue")
@@ -1250,7 +1267,8 @@ class MRLowContrastModule(CatPhanModule):
         # low contrast rois
         for _, spoke in self.rois.items():
             for roi in spoke:
-                color = "green" if roi.visibility >= self.tolerance else "red"
+                roi_is_visible = self.roi_is_visible(roi, sanity_visibility)
+                color = "green" if roi_is_visible else "red"
                 roi.plot2axes(axis, edgecolor=color)
 
         # background rois
@@ -1259,13 +1277,18 @@ class MRLowContrastModule(CatPhanModule):
                 roi.plot2axes(axis, edgecolor="blue")
 
     def plotly_rois(self, fig: go.Figure) -> None:
+        spoke1 = self.rois[list(self.roi_settings.keys())[0]]
+        max_visibility = max(r.visibility for r in spoke1)
+        sanity_visibility = max_visibility * self.visibility_sanity_multiplier
+
         # low contrast region
         self.low_contrast_region.plotly(fig, line_color="blue")
 
         # low contrast rois
         for _, spoke in self.rois.items():
             for roi in spoke:
-                color = "green" if roi.visibility >= self.tolerance else "red"
+                roi_is_visible = self.roi_is_visible(roi, sanity_visibility)
+                color = "green" if roi_is_visible else "red"
                 roi.plotly(fig, line_color=color)
 
         # background rois
@@ -1317,6 +1340,7 @@ class MRLowContrastMultiSliceModule:
         catphan,
         contrast_method: str,
         visibility_threshold: float,
+        visibility_sanity_multiplier: float,
     ):
         """Initialize the multi-slice Low Contrast Detectability module.
 
@@ -1328,6 +1352,11 @@ class MRLowContrastMultiSliceModule:
             The contrast equation to use. See :ref:`low_contrast_topic`.
         visibility_threshold : float
             The visibility threshold for determining if a disk is visible.
+        visibility_sanity_multiplier: float
+            This applies to the smallest low-contrast ROIs. Due to the low standard deviation in small ROIs,
+            the calculated visibility can become significantly larger than is physically reasonable.
+            This sanity threshold ensures that a small ROI is considered not visible if its visibility
+            exceeds that of the first spoke by this multiplier.
         """
 
         self.slices: dict[str, MRLowContrastModule] = {}
@@ -1338,6 +1367,7 @@ class MRLowContrastMultiSliceModule:
                 tolerance=visibility_threshold,
                 offset=value["offset"],
                 spoke_start_angle=value["spoke_start_angle"],
+                visibility_sanity_multiplier=visibility_sanity_multiplier,
             )
 
     @property
@@ -1626,6 +1656,7 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
     low_contrast_multi_slice = MRLowContrastMultiSliceModule
     has_sagittal_module: bool = False
     clip_in_localization = False
+    low_contrast_visibility_sanity_multiplier: float
 
     def plot_analyzed_subimage(self, *args, **kwargs):
         raise NotImplementedError("Use `plot_images`")
@@ -1700,6 +1731,7 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
         scaling_factor: float = 1,
         low_contrast_method: str = Contrast.WEBER,
         low_contrast_visibility_threshold: float = 0.001,
+        low_contrast_visibility_sanity_multiplier: float = 3,
     ) -> None:
         """Analyze the ACR CT phantom
 
@@ -1729,12 +1761,20 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             :ref:`low_contrast_topic`.
         low_contrast_visibility_threshold: float
             The visibility threshold for determining if an object is visible in the low contrast modules.
+        low_contrast_visibility_sanity_multiplier: float
+            This applies to the smallest low-contrast ROIs. Due to the low standard deviation in small ROIs,
+            the calculated visibility can become significantly larger than is physically reasonable.
+            This sanity threshold ensures that a small ROI is considered not visible if its visibility
+            exceeds that of the first spoke by this multiplier.
         """
         self.x_adjustment = x_adjustment
         self.y_adjustment = y_adjustment
         self.angle_adjustment = angle_adjustment
         self.roi_size_factor = roi_size_factor
         self.scaling_factor = scaling_factor
+        self.low_contrast_visibility_sanity_multiplier = (
+            low_contrast_visibility_sanity_multiplier
+        )
         self._select_echo_images(echo_number)
         sagittal_image = self._select_sagittal_image()
         self.has_sagittal_module = sagittal_image is not None
@@ -1752,6 +1792,7 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             self,
             contrast_method=low_contrast_method,
             visibility_threshold=low_contrast_visibility_threshold,
+            visibility_sanity_multiplier=low_contrast_visibility_sanity_multiplier,
         )
 
     def _select_echo_images(self, echo_number: int | None) -> None:
