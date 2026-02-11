@@ -27,7 +27,6 @@ To load an XIM images use the :class:`~pylinac.core.image.XIM` class:
 
     from pylinac.core.image import XIM
 
-
     my_xim_file = r"C:\TDS\H12345\QA\image.xim"
     xim_img = XIM(my_xim_file)
 
@@ -44,7 +43,6 @@ pixels and only reading the properties is relatively fast (order of milliseconds
 .. code-block:: python
 
     from pylinac.core.image import XIM
-
 
     my_xim_files = [r"C:\TDS\H12345\QA\image.xim", ...]
     files_to_analyze = []
@@ -65,7 +63,6 @@ An XIM image has all the utility methods other pylinac images do, so use this to
 .. code-block:: python
 
     from pylinac.core.image import XIM
-
 
     my_xim_file = r"C:\TDS\H12345\QA\image.xim"
     xim_img = XIM(my_xim_file)
@@ -88,7 +85,6 @@ PNG images can usually be viewed easily across many devices and OSs and also loa
 .. code-block:: python
 
     from pylinac.core.image import XIM
-
 
     my_xim_file = r"C:\TDS\H12345\QA\image.xim"
     xim_img = XIM(my_xim_file)
