@@ -1196,6 +1196,7 @@ class StandardImagingFC2(ImagePhantomBase):
     field_strip_width_mm = 5
     bb_size_mm = 4
     bb_edge_threshold_mm: float
+    kernel_size_multiplier: float
     bb_centers: dict[str, Point]
 
     @staticmethod
@@ -1206,7 +1207,11 @@ class StandardImagingFC2(ImagePhantomBase):
         fc2.plot_analyzed_image()
 
     def analyze(
-        self, invert: bool = False, fwxm: int = 50, bb_edge_threshold_mm: float = 10
+        self,
+        invert: bool = False,
+        fwxm: int = 50,
+        bb_edge_threshold_mm: float = 10,
+        kernel_size_multiplier: float = 2.0,
     ) -> None:
         """Analyze the FC-2 phantom to find the BBs and the open field and compare to each other as well as the EPID.
 
@@ -1221,8 +1226,13 @@ class StandardImagingFC2(ImagePhantomBase):
             The threshold in mm to use to determine if the BB is near the edge of the image. If the BB is within this threshold,
             a different algorithm is used to determine the BB position that is more robust to edge effects but
             can give uncertainty when in a flat region (i.e. away from the field edge).
+        kernel_size_multiplier : float
+            Multiplier for the kernel size used in adaptive histogram equalization when detecting BBs near the edge.
+            The kernel size is calculated as ``bb_radius_px * kernel_size_multiplier``. Default is 2.0.
+            Lower values (e.g., 1.0) may help detect BBs that are very close to the field edge.
         """
         self.bb_edge_threshold_mm = bb_edge_threshold_mm
+        self.kernel_size_multiplier = kernel_size_multiplier
         self._check_inversion()
         if invert:
             self.image.invert()
@@ -1373,7 +1383,8 @@ class StandardImagingFC2(ImagePhantomBase):
                 original_array = np.copy(self.image.array)
                 bb_radius_px = self.bb_size_mm / 2 * dpmm
                 self.image.array = exposure.equalize_adapthist(
-                    self.image.array, kernel_size=int(round(bb_radius_px * 2))
+                    self.image.array,
+                    kernel_size=int(round(bb_radius_px * self.kernel_size_multiplier)),
                 )
                 self.image.filter(size=3, kind="median")
 
