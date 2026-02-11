@@ -1,9 +1,9 @@
 default_stages:
-    - commit
-    - push
+    - pre-commit
+    - pre-push
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
     -   id: check-json
     -   id: check-ast
@@ -17,7 +17,7 @@ repos:
         args: [--branch, master, --branch, staging, --branch, production]
 -   repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.6.6
+    rev: v0.14.14
     hooks:
       # Run the linter.
       - id: ruff
@@ -25,7 +25,7 @@ repos:
       # Run the formatter.
       - id: ruff-format
 -   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.11.2
+    rev: v1.19.1
     hooks:
     -   id: mypy
         exclude: docs\*
@@ -38,11 +38,11 @@ repos:
     -   id: rst-directive-colons
     -   id: rst-inline-touching-normal
 -   repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: '0.29.2'
+    rev: '0.36.1'
     hooks:
     -   id: check-readthedocs
 -   repo: https://github.com/adamchainz/blacken-docs
-    rev: "1.18.0"
+    rev: "1.20.0"
     hooks:
     -   id: blacken-docs
         additional_dependencies:

@@ -420,7 +420,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         results = [
             " - Starshot Results - ",
             f"Result: {self._passfail_str}",
-            f"The minimum circle that touches all the star lines has a diameter of {self.wobble.radius_mm*2:2.3f} mm.",
+            f"The minimum circle that touches all the star lines has a diameter of {self.wobble.radius_mm * 2:2.3f} mm.",
             f"The center of the minimum circle is at {self.wobble.center.x:3.1f}, {self.wobble.center.y:3.1f}",
         ]
         if not as_list:
@@ -659,7 +659,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             "Starshot results:",
             f"Source-to-Image Distance (mm): {self.image.sid:2.0f}",
             f"Tolerance (mm): {self.tolerance:2.1f}",
-            f"Minimum circle diameter (mm): {self.wobble.radius_mm*2:2.2f}",
+            f"Minimum circle diameter (mm): {self.wobble.radius_mm * 2:2.2f}",
         ]
         canvas.add_text(text=text, location=(10, 25.5), font_size=12)
         if notes is not None:

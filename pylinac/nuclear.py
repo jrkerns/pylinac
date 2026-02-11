@@ -614,7 +614,7 @@ class CenterOfRotation(ResultsDataMixin[CenterOfRotationResults], QuaacMixin):
             self.cor_x["x_values"],
             self.cor_x["fitted_y_values"],
             "r-",
-            label=f'{self.cor_x["a"]:2.2f}{self.cor_x["b"]:+2.3f}*sin({self.cor_x["c"]:2.2f}*\N{GREEK SMALL LETTER THETA}{self.cor_x["phi"]:+2.2f})',
+            label=f"{self.cor_x['a']:2.2f}{self.cor_x['b']:+2.3f}*sin({self.cor_x['c']:2.2f}*\N{GREEK SMALL LETTER THETA}{self.cor_x['phi']:+2.2f})",
         )
         ax.legend()
         ax.set_xlabel("Angle (radians)")
@@ -1290,14 +1290,14 @@ class QuadrantResolution(ResultsDataMixin[QuadrantResolutionResults], QuaacMixin
             zip(self.mtf.mtfs.items(), self.mtf.fwhms.values())
         ):
             spacing = 1 / (lpmm * 2)
-            s += f"Quadrant {quadrant+1}; Bar width: {spacing:.2f}mm; FWHM: {fwhm:.3f}mm; MTF: {mtf:.3f}\n"
+            s += f"Quadrant {quadrant + 1}; Bar width: {spacing:.2f}mm; FWHM: {fwhm:.3f}mm; MTF: {mtf:.3f}\n"
         return s
 
     def _generate_results_data(self) -> QuadrantResolutionResults:
         """Return the results as a structure."""
         return QuadrantResolutionResults(
             quadrants={
-                f"{idx+1}": {
+                f"{idx + 1}": {
                     "mtf": mtf,
                     "fwhm": fwhm,
                     "lpmm": lpmm,
@@ -1325,7 +1325,7 @@ class QuadrantResolution(ResultsDataMixin[QuadrantResolutionResults], QuaacMixin
         axes.append(ax)
         ax.imshow(self.stack.frames[0].array, cmap="gray")
         for idx, (spacing, roi) in enumerate(self.rois.items()):
-            roi.plot2axes(ax, edgecolor="y", text=f"{idx+1}: {spacing:.2f}mm")
+            roi.plot2axes(ax, edgecolor="y", text=f"{idx + 1}: {spacing:.2f}mm")
         fig.suptitle(f"Quadrant Resolution for {self.path.name}")
         # plot MTFs
         fig, ax = plt.subplots()
@@ -1757,7 +1757,7 @@ class TomographicContrast(ResultsDataMixin[TomographicContrastResults], QuaacMix
         roi_ax.imshow(self.stack.frames[median_slice].array, cmap="gray")
         for roi in self.rois.values():
             roi.plot_to(roi_ax)
-        roi_ax.set_title(f"Sphere frame ({median_slice+1})")
+        roi_ax.set_title(f"Sphere frame ({median_slice + 1})")
         # plot the uniformity slice
         unif_fig, unif_ax = plt.subplots()
         unif_ax.imshow(
