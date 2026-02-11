@@ -536,7 +536,7 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
             f"HU ROIs: {self.ct_calibration_module.roi_vals_as_str}\n"
             f"Contrast to Noise Ratio: {self.low_contrast_module.cnr():2.2f}\n"
             f"Uniformity ROIs: {self.uniformity_module.roi_vals_as_str}\n"
-            f'Uniformity Center ROI standard deviation: {self.uniformity_module.rois["Center"].std:2.2f}\n'
+            f"Uniformity Center ROI standard deviation: {self.uniformity_module.rois['Center'].std:2.2f}\n"
             f"MTF 50% (lp/mm): {self.spatial_resolution_module.mtf.relative_resolution(50):2.2f}\n"
         )
         return string
@@ -2166,7 +2166,7 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             f"Slice 11 S/I Position shift: {self.slice11.slice_shift_mm:2.2f}mm",
             f"Uniformity PIU: {self.uniformity_module.percent_image_uniformity:2.2f}",
             f"Percent-signal ghosting: {self.uniformity_module.psg:2.2f}%",
-            f'Uniformity Center ROI standard deviation: {self.uniformity_module.rois["Center"].std:2.2f}',
+            f"Uniformity Center ROI standard deviation: {self.uniformity_module.rois['Center'].std:2.2f}",
             f"Row-wise MTF 50% (lp/mm): {self.slice1.row_mtf.relative_resolution(50):2.2f}",
             f"Column-wise MTF 50% (lp/mm): {self.slice1.col_mtf.relative_resolution(50):2.2f}",
             f"Sagittal Distortions: {self.sagittal_localization.distances()}",
