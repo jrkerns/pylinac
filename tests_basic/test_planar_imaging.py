@@ -931,12 +931,17 @@ class FC2Mixin(PlanarPhantomMixin):
     field_bb_offset_x_mm = 0
     field_bb_offset_y_mm = 0
     fwxm = 50
+    kernel_size_multiplier = 2.0
     num_figs = 1
 
     @classmethod
     def setUpClass(cls):
         cls.instance = cls.create_instance()
-        cls.instance.analyze(invert=cls.invert, fwxm=cls.fwxm)
+        cls.instance.analyze(
+            invert=cls.invert,
+            fwxm=cls.fwxm,
+            kernel_size_multiplier=cls.kernel_size_multiplier,
+        )
 
     def test_bad_inversion_recovers(self):
         # no inversion issues w/ this phantom
@@ -1126,6 +1131,19 @@ class DoselabRLfKB2(DoselabRLfMixin, TestCase):
     field_epid_offset_y_mm = 0.8
     field_bb_offset_y_mm = 1
     field_bb_offset_x_mm = 0.2
+
+
+class DoselabRLfBBNearEdge(DoselabRLfMixin, TestCase):
+    # see RAM-5266
+
+    file_name = "BBNearEdge.dcm"
+    kernel_size_multiplier = 1.0
+    field_size_y_mm = 99.29
+    field_size_x_mm = 98.79
+    field_epid_offset_x_mm = 0.33
+    field_epid_offset_y_mm = 0.46
+    field_bb_offset_y_mm = 1.29
+    field_bb_offset_x_mm = 1.41
 
 
 class IsoAlignMixin(FC2Mixin):
