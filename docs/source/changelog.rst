@@ -13,6 +13,18 @@ Legend
 v 3.41.0
 --------
 
+ACR Phantoms
+^^^^^^^^^^^^
+
+* :bdg-success:`Feature` Added ACR MRI low-contrast detectability analysis.
+  This introduces automatic low-contrast ROI detection and scoring for the low-contrast module,
+  and the result is now included in analysis outputs/reporting.
+
+.. warning::
+   The ACR MRI low-contrast detectability analysis is currently in **alpha**.
+   Behavior, thresholds, and presentation may still change in upcoming releases as
+   validation continues.
+
 Planar Imaging
 ^^^^^^^^^^^^^^
 

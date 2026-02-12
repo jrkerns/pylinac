@@ -216,13 +216,13 @@ class ACRPhilips(ACRCTMixin, PlotlyTestMixin, TestCase):
             "title": "Low Contrast",
             "num_traces": 3,
         },
-        8: {
+        4: {
             "title": "Relative MTF",
             "num_traces": 1,
             "x_label": "Line pairs / mm",
             "y_label": "Relative MTF",
         },
-        9: {
+        5: {
             "title": "Side View",
             "num_traces": 5,
         },
@@ -631,7 +631,6 @@ class ACRMRMixin(CloudFileMixin):
             ax.set_title(list(self.mri.low_contrast_multi_slice.slices.keys())[idx])
         fig.suptitle("std")
         plt.show()
-        pass
 
 
 class ACRT1Single(ACRMRMixin, PlotlyTestMixin, TestCase):

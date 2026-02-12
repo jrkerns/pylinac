@@ -1073,59 +1073,59 @@ class MRLowContrastModule(CatPhanModule):
         "spoke_10": {"angle": 234, "radius": 1.5 * _rsf, "distances": _distances},
     }
 
-    _distances = [0, 20, 32]
+    _bg_distances = [0, 20, 32]
     _bg_roi_radius = 2.5
     _angle_offset = 0
     background_roi_settings = {
         "spoke_1": {
             "angle": -90 + _angle_offset,
             "radius": _bg_roi_radius,
-            "distances": _distances,
+            "distances": _bg_distances,
         },
         "spoke_2": {
             "angle": -54 + _angle_offset,
             "radius": _bg_roi_radius,
-            "distances": _distances,
+            "distances": _bg_distances,
         },
         "spoke_3": {
             "angle": -18 + _angle_offset,
             "radius": _bg_roi_radius,
-            "distances": _distances,
+            "distances": _bg_distances,
         },
         "spoke_4": {
             "angle": 18 + _angle_offset,
             "radius": _bg_roi_radius,
-            "distances": _distances,
+            "distances": _bg_distances,
         },
         "spoke_5": {
             "angle": 54 + _angle_offset,
             "radius": _bg_roi_radius,
-            "distances": _distances,
+            "distances": _bg_distances,
         },
         "spoke_6": {
             "angle": 90 + _angle_offset,
             "radius": _bg_roi_radius,
-            "distances": _distances,
+            "distances": _bg_distances,
         },
         "spoke_7": {
             "angle": 126 + _angle_offset,
             "radius": _bg_roi_radius,
-            "distances": _distances,
+            "distances": _bg_distances,
         },
         "spoke_8": {
             "angle": 162 + _angle_offset,
             "radius": _bg_roi_radius,
-            "distances": _distances,
+            "distances": _bg_distances,
         },
         "spoke_9": {
             "angle": 198 + _angle_offset,
             "radius": _bg_roi_radius,
-            "distances": _distances,
+            "distances": _bg_distances,
         },
         "spoke_10": {
             "angle": 234 + _angle_offset,
             "radius": _bg_roi_radius,
-            "distances": _distances,
+            "distances": _bg_distances,
         },
     }
 
@@ -1144,11 +1144,11 @@ class MRLowContrastModule(CatPhanModule):
         super().__init__(catphan, tolerance, offset)
 
     @property
-    def window_min(self):
+    def window_min(self) -> int:
         return int(self.low_contrast_region.min)
 
     @property
-    def window_max(self):
+    def window_max(self) -> int:
         return int(self.low_contrast_region.max)
 
     def _convert_units_in_settings(self) -> None:
@@ -1171,7 +1171,7 @@ class MRLowContrastModule(CatPhanModule):
         It assumes ``roi_settings`` and ``background_roi_settings`` have the same dictionary structure.
         ROIs are organized as nested structure: rois[spoke_num][disk_num]
         """
-        self.common_name = f"Low Contrast - {self.slice_num+1}"
+        self.common_name = f"Low Contrast - {self.slice_num + 1}"
         self.rois: dict[str, list[LowContrastDiskROI]] = {}
         self.background_rois: dict[str, list[LowContrastDiskROI]] = {}
 
@@ -1199,8 +1199,8 @@ class MRLowContrastModule(CatPhanModule):
             msg = "Low contrast and background dictionaries must have the same keys."
             raise ValueError(msg)
         for spoke_name in self.roi_settings.keys():
-            lc_rois = list[LowContrastDiskROI]()  # low contrast
-            bg_rois = list[LowContrastDiskROI]()  # background
+            lc_rois: list[LowContrastDiskROI] = []  # low contrast
+            bg_rois: list[LowContrastDiskROI] = []  # background
             for idx in range(len(self.roi_settings[spoke_name]["distances_pixels"])):
                 bg_setting = self.background_roi_settings[spoke_name]
                 bg_roi = LowContrastDiskROI.from_phantom_center(
@@ -1256,23 +1256,23 @@ class MRLowContrastModule(CatPhanModule):
         }
 
     def plot_rois(self, axis: plt.Axes) -> None:
+        """Plot the ROIs to the axis."""
         spoke1 = self.rois[list(self.roi_settings.keys())[0]]
         max_visibility = max(r.visibility for r in spoke1)
         sanity_visibility = max_visibility * self.visibility_sanity_multiplier
 
-        """Plot the ROIs to the axis."""
         # low contrast region
         self.low_contrast_region.plot2axes(axis, edgecolor="blue")
 
         # low contrast rois
-        for _, spoke in self.rois.items():
+        for spoke in self.rois.values():
             for roi in spoke:
                 roi_is_visible = self.roi_is_visible(roi, sanity_visibility)
                 color = "green" if roi_is_visible else "red"
                 roi.plot2axes(axis, edgecolor=color)
 
         # background rois
-        for _, spoke in self.rois.items():
+        for spoke in self.background_rois.values():
             for roi in spoke:
                 roi.plot2axes(axis, edgecolor="blue")
 
@@ -1285,14 +1285,14 @@ class MRLowContrastModule(CatPhanModule):
         self.low_contrast_region.plotly(fig, line_color="blue")
 
         # low contrast rois
-        for _, spoke in self.rois.items():
+        for spoke in self.rois.values():
             for roi in spoke:
                 roi_is_visible = self.roi_is_visible(roi, sanity_visibility)
                 color = "green" if roi_is_visible else "red"
                 roi.plotly(fig, line_color=color)
 
         # background rois
-        for _, spoke in self.background_rois.items():
+        for spoke in self.background_rois.values():
             for roi in spoke:
                 roi.plotly(fig, line_color="blue")
 
@@ -1947,6 +1947,9 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
         self.slice1.row_mtf.plot(axes[ax_idx], label="Row-wise rMTF")
         self.slice1.col_mtf.plot(axes[ax_idx], label="Column-wise rMTF")
         axes[ax_idx].legend()
+
+        for i in range(ax_idx + 1, len(axes)):
+            axes[i].set_visible(False)
 
         # finish up
         plt.tight_layout()
