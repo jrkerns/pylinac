@@ -13,16 +13,18 @@ from matplotlib import pyplot as plt
 from plotly import graph_objects as go
 from pydantic import BaseModel, ConfigDict, Field
 from scipy import ndimage
+from skimage import measure
 from skimage.filters import threshold_li, threshold_otsu
 
 from .core import pdf
 from .core.array_utils import fill_middle_zeros, find_nearest_idx
+from .core.contrast import Contrast
 from .core.geometry import Line, LineSerialized, Point
 from .core.image import DicomImage
 from .core.mtf import MTF
 from .core.plotly_utils import add_title
 from .core.profile import FWXMProfile
-from .core.roi import HighContrastDiskROI, RectangleROI
+from .core.roi import DiskROI, HighContrastDiskROI, LowContrastDiskROI, RectangleROI
 from .core.utilities import QuaacDatum, ResultBase, ResultsDataMixin
 from .core.warnings import capture_warnings
 from .ct import (
@@ -43,6 +45,7 @@ CT_LOW_CONTRAST_MODULE_OFFSET_MM = 30
 MR_SLICE11_MODULE_OFFSET_MM = 100
 MR_GEOMETRIC_DISTORTION_MODULE_OFFSET_MM = 40
 MR_UNIFORMITY_MODULE_OFFSET_MM = 60
+MR_LOW_CONTRAST_MODULE_OFFSETS_MM = {8: 70, 9: 80, 10: 90, 11: 100}
 
 
 class CTModule(CatPhanModule):
@@ -1043,6 +1046,348 @@ class MRUniformityModuleOutput(BaseModel):
     )
 
 
+class MRLowContrastModule(CatPhanModule):
+    """Class for analysis of the Low Contrast of a single slice of the ACR MRI Large phantom.
+
+    It counts complete spokes where all 3 disks are visible.
+    Each slice has 10 spokes arranged in a circular pattern, with spoke diameters decreasing
+    clockwise from 7.0 mm (spoke 1) to 1.5 mm (spoke 10).
+    """
+
+    attr_name = "low_contrast_module"
+
+    low_contrast_region_radius = 40  # mm
+
+    _distances = [12.75, 25.50, 38.25]
+    _rsf = 0.8 / 2  # roi_size_factor (/2 to convert diameter to radius)
+    roi_settings = {
+        "spoke_1": {"angle": -90, "radius": 7.0 * _rsf, "distances": _distances},
+        "spoke_2": {"angle": -54, "radius": 6.4 * _rsf, "distances": _distances},
+        "spoke_3": {"angle": -18, "radius": 5.8 * _rsf, "distances": _distances},
+        "spoke_4": {"angle": 18, "radius": 5.2 * _rsf, "distances": _distances},
+        "spoke_5": {"angle": 54, "radius": 4.6 * _rsf, "distances": _distances},
+        "spoke_6": {"angle": 90, "radius": 3.9 * _rsf, "distances": _distances},
+        "spoke_7": {"angle": 126, "radius": 3.3 * _rsf, "distances": _distances},
+        "spoke_8": {"angle": 162, "radius": 2.7 * _rsf, "distances": _distances},
+        "spoke_9": {"angle": 198, "radius": 2.1 * _rsf, "distances": _distances},
+        "spoke_10": {"angle": 234, "radius": 1.5 * _rsf, "distances": _distances},
+    }
+
+    _bg_distances = [0, 20, 32]
+    _bg_roi_radius = 2.5
+    _angle_offset = 0
+    background_roi_settings = {
+        "spoke_1": {
+            "angle": -90 + _angle_offset,
+            "radius": _bg_roi_radius,
+            "distances": _bg_distances,
+        },
+        "spoke_2": {
+            "angle": -54 + _angle_offset,
+            "radius": _bg_roi_radius,
+            "distances": _bg_distances,
+        },
+        "spoke_3": {
+            "angle": -18 + _angle_offset,
+            "radius": _bg_roi_radius,
+            "distances": _bg_distances,
+        },
+        "spoke_4": {
+            "angle": 18 + _angle_offset,
+            "radius": _bg_roi_radius,
+            "distances": _bg_distances,
+        },
+        "spoke_5": {
+            "angle": 54 + _angle_offset,
+            "radius": _bg_roi_radius,
+            "distances": _bg_distances,
+        },
+        "spoke_6": {
+            "angle": 90 + _angle_offset,
+            "radius": _bg_roi_radius,
+            "distances": _bg_distances,
+        },
+        "spoke_7": {
+            "angle": 126 + _angle_offset,
+            "radius": _bg_roi_radius,
+            "distances": _bg_distances,
+        },
+        "spoke_8": {
+            "angle": 162 + _angle_offset,
+            "radius": _bg_roi_radius,
+            "distances": _bg_distances,
+        },
+        "spoke_9": {
+            "angle": 198 + _angle_offset,
+            "radius": _bg_roi_radius,
+            "distances": _bg_distances,
+        },
+        "spoke_10": {
+            "angle": 234 + _angle_offset,
+            "radius": _bg_roi_radius,
+            "distances": _bg_distances,
+        },
+    }
+
+    def __init__(
+        self,
+        catphan,
+        contrast_method: str,
+        tolerance: float,
+        offset: int,
+        spoke_start_angle: float,
+        visibility_sanity_multiplier: float,
+    ):
+        self.contrast_method = contrast_method
+        self._spoke_start_angle = spoke_start_angle
+        self.visibility_sanity_multiplier = visibility_sanity_multiplier
+        super().__init__(catphan, tolerance, offset)
+
+    @property
+    def window_min(self) -> int:
+        return int(self.low_contrast_region.min)
+
+    @property
+    def window_max(self) -> int:
+        return int(self.low_contrast_region.max)
+
+    def _convert_units_in_settings(self) -> None:
+        super()._convert_units_in_settings()
+        for roi, settings in self.roi_settings.items():
+            settings["distances_pixels"] = [
+                d * self.scaling_factor / self.mm_per_pixel
+                for d in settings["distances"]
+            ]
+        for roi, settings in self.background_roi_settings.items():
+            settings["distances_pixels"] = [
+                d * self.scaling_factor / self.mm_per_pixel
+                for d in settings["distances"]
+            ]
+
+    def _setup_rois(self) -> None:
+        """Set up ROIs for all spokes and disks.
+
+        Creates low contrast and background ROIs for each of the 3 disks in each of the 10 spokes.
+        It assumes ``roi_settings`` and ``background_roi_settings`` have the same dictionary structure.
+        ROIs are organized as nested structure: rois[spoke_num][disk_num]
+        """
+        self.common_name = f"Low Contrast - {self.slice_num + 1}"
+        self.rois: dict[str, list[LowContrastDiskROI]] = {}
+        self.background_rois: dict[str, list[LowContrastDiskROI]] = {}
+
+        ### Detect the low contrast region containing the objects
+        rad_pix = self.low_contrast_region_radius / self.mm_per_pixel
+        nominal_area = rad_pix * rad_pix * np.pi
+        larr, _, _ = get_regions(self)
+        larr = measure.label(~larr)
+        prop = measure.regionprops(larr)
+        lc_region = min(prop, key=lambda x: np.abs(x.area - nominal_area))
+        actual_area = lc_region.area
+        is_proper_size = abs(actual_area / nominal_area - 1) < 0.3
+        if not is_proper_size:
+            raise ValueError("Unable to find the Low Contrast region.")
+        centroid = lc_region.centroid
+        lc_center = Point(centroid[1], centroid[0])
+        lc_region_radius = rad_pix
+        self.low_contrast_region = DiskROI(self.image, lc_region_radius, lc_center)
+
+        ### Setup objects (it assumes low contrast and background ROIs have the same dictionary structure.)
+        if len(self.roi_settings) != len(self.background_roi_settings):
+            msg = "There should be the same number of ROIs for low contrast and background."
+            raise ValueError(msg)
+        if len(self.roi_settings.keys()) != len(self.background_roi_settings.keys()):
+            msg = "Low contrast and background dictionaries must have the same keys."
+            raise ValueError(msg)
+        for spoke_name in self.roi_settings.keys():
+            lc_rois: list[LowContrastDiskROI] = []  # low contrast
+            bg_rois: list[LowContrastDiskROI] = []  # background
+            for idx in range(len(self.roi_settings[spoke_name]["distances_pixels"])):
+                bg_setting = self.background_roi_settings[spoke_name]
+                bg_roi = LowContrastDiskROI.from_phantom_center(
+                    self.image,
+                    bg_setting["angle_corrected"] + self._spoke_start_angle,
+                    bg_setting["radius_pixels"],
+                    bg_setting["distances_pixels"][idx],
+                    lc_center,
+                )
+                bg_rois.append(bg_roi)
+
+                lc_setting = self.roi_settings[spoke_name]
+                lc_roi = LowContrastDiskROI.from_phantom_center(
+                    self.image,
+                    lc_setting["angle_corrected"] + self._spoke_start_angle,
+                    max(lc_setting["radius_pixels"], 1),  # ensure 2 pix to avoid std=0#
+                    lc_setting["distances_pixels"][idx],
+                    lc_center,
+                    contrast_reference=bg_roi.mean,
+                    contrast_method=self.contrast_method,
+                    visibility_threshold=self.tolerance,
+                )
+                lc_rois.append(lc_roi)
+            self.rois[spoke_name] = lc_rois
+            self.background_rois[spoke_name] = bg_rois
+
+    @property
+    def score(self) -> int:
+        """The number of complete spokes for this slice.
+
+        A spoke is complete only if all 3 disks are visible (visibility > threshold).
+        Stop counting at the first incomplete spoke.
+        """
+        spoke1 = self.rois[list(self.roi_settings.keys())[0]]
+        max_visibility = max(r.visibility for r in spoke1)
+        sanity_visibility = max_visibility * self.visibility_sanity_multiplier
+        is_visible = [
+            all(self.roi_is_visible(r, sanity_visibility) for r in s)
+            for s in self.rois.values()
+        ]
+        return len(is_visible) if all(is_visible) else np.argmin(is_visible)
+
+    @staticmethod
+    def roi_is_visible(roi: LowContrastDiskROI, sanity_visibility: float) -> bool:
+        """Helper method to determine if a roi is visible, including sanity check"""
+        return roi.passed_visibility and roi.visibility < sanity_visibility
+
+    def as_dict(self) -> dict:
+        """Dump important data as a dictionary."""
+        return {
+            spoke_name: [roi.as_dict() for roi in spoke_rois]
+            for spoke_name, spoke_rois in self.rois.items()
+        }
+
+    def plot_rois(self, axis: plt.Axes) -> None:
+        """Plot the ROIs to the axis."""
+        spoke1 = self.rois[list(self.roi_settings.keys())[0]]
+        max_visibility = max(r.visibility for r in spoke1)
+        sanity_visibility = max_visibility * self.visibility_sanity_multiplier
+
+        # low contrast region
+        self.low_contrast_region.plot2axes(axis, edgecolor="blue")
+
+        # low contrast rois
+        for spoke in self.rois.values():
+            for roi in spoke:
+                roi_is_visible = self.roi_is_visible(roi, sanity_visibility)
+                color = "green" if roi_is_visible else "red"
+                roi.plot2axes(axis, edgecolor=color)
+
+        # background rois
+        for spoke in self.background_rois.values():
+            for roi in spoke:
+                roi.plot2axes(axis, edgecolor="blue")
+
+    def plotly_rois(self, fig: go.Figure) -> None:
+        spoke1 = self.rois[list(self.roi_settings.keys())[0]]
+        max_visibility = max(r.visibility for r in spoke1)
+        sanity_visibility = max_visibility * self.visibility_sanity_multiplier
+
+        # low contrast region
+        self.low_contrast_region.plotly(fig, line_color="blue")
+
+        # low contrast rois
+        for spoke in self.rois.values():
+            for roi in spoke:
+                roi_is_visible = self.roi_is_visible(roi, sanity_visibility)
+                color = "green" if roi_is_visible else "red"
+                roi.plotly(fig, line_color=color)
+
+        # background rois
+        for spoke in self.background_rois.values():
+            for roi in spoke:
+                roi.plotly(fig, line_color="blue")
+
+
+class MRLowContrastModuleOutput(BaseModel):
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+
+    Use the following attributes as normal class attributes."""
+
+    offset: float = Field(
+        description="The offset of the slice in mm from the origin slice."
+    )
+    slice_num: int = Field(description="The slice number.")
+    spoke_settings: dict = Field(description="A dictionary of the spoke settings.")
+    background_settings: dict = Field(
+        description="A dictionary of the background roi settings."
+    )
+    spokes: dict = Field(description="A dictionary of the spokes.")
+
+
+class MRLowContrastMultiSliceModule:
+    """Class for managing Low Contrast analysis across multiple slices."""
+
+    roi_settings = {
+        "slice_8": {
+            "offset": MR_LOW_CONTRAST_MODULE_OFFSETS_MM[8],
+            "spoke_start_angle": 0,
+        },
+        "slice_9": {
+            "offset": MR_LOW_CONTRAST_MODULE_OFFSETS_MM[9],
+            "spoke_start_angle": 9,
+        },
+        "slice_10": {
+            "offset": MR_LOW_CONTRAST_MODULE_OFFSETS_MM[10],
+            "spoke_start_angle": 18,
+        },
+        "slice_11": {
+            "offset": MR_LOW_CONTRAST_MODULE_OFFSETS_MM[11],
+            "spoke_start_angle": 27,
+        },
+    }
+
+    def __init__(
+        self,
+        catphan,
+        contrast_method: str,
+        visibility_threshold: float,
+        visibility_sanity_multiplier: float,
+    ):
+        """Initialize the multi-slice Low Contrast Detectability module.
+
+        Parameters
+        ----------
+        catphan : CatPhanBase
+            The ACR MRI Large phantom instance.
+        contrast_method : str
+            The contrast equation to use. See :ref:`low_contrast_topic`.
+        visibility_threshold : float
+            The visibility threshold for determining if a disk is visible.
+        visibility_sanity_multiplier: float
+            This applies to the smallest low-contrast ROIs. Due to the low standard deviation in small ROIs,
+            the calculated visibility can become significantly larger than is physically reasonable.
+            This sanity threshold ensures that a small ROI is considered not visible if its visibility
+            exceeds that of the first spoke by this multiplier.
+        """
+
+        self.slices: dict[str, MRLowContrastModule] = {}
+        for key, value in self.roi_settings.items():
+            self.slices[key] = MRLowContrastModule(
+                catphan=catphan,
+                contrast_method=contrast_method,
+                tolerance=visibility_threshold,
+                offset=value["offset"],
+                spoke_start_angle=value["spoke_start_angle"],
+                visibility_sanity_multiplier=visibility_sanity_multiplier,
+            )
+
+    @property
+    def score(self) -> int:
+        """Get the total low contrast detectability score as the sum of the number of complete spokes."""
+        return sum(s.score for s in self.slices.values())
+
+
+class MRLowContrastMultiSliceModuleOutput(BaseModel):
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+
+    Use the following attributes as normal class attributes."""
+
+    score: int = Field(
+        description="The total score across all slices (sum of all slice scores).",
+        title="Total Score",
+    )
+    low_contrast_rois: dict = Field(description="Low contrast outputs.")
+
+
 class GeometricDistortionModule(CatPhanModule):
     """Class for analysis of the Uniformity slice of the CTP module. Measures 5 ROIs around the slice that
     should all be close to the same value.
@@ -1291,6 +1636,10 @@ class ACRMRIResult(ResultBase):
         description="Results from the sagittal localizer module",
         title="Sagittal Localization Module",
     )
+    low_contrast_multi_slice_module: MRLowContrastMultiSliceModuleOutput = Field(
+        description="Results from the low contrast modules",
+        title="Low Contrast Multi Slice",
+    )
 
 
 @capture_warnings
@@ -1304,8 +1653,10 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
     uniformity_module = MRUniformityModule
     slice11 = MRSlice11PositionModule
     sagittal_localization = SagittalLocalizationModule
+    low_contrast_multi_slice = MRLowContrastMultiSliceModule
     has_sagittal_module: bool = False
     clip_in_localization = False
+    low_contrast_visibility_sanity_multiplier: float
 
     def plot_analyzed_subimage(self, *args, **kwargs):
         raise NotImplementedError("Use `plot_images`")
@@ -1332,6 +1683,7 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             MR_UNIFORMITY_MODULE_OFFSET_MM,
             MR_SLICE11_MODULE_OFFSET_MM,
         ]
+        relative_offsets_mm.extend(MR_LOW_CONTRAST_MODULE_OFFSETS_MM.values())
         return [
             absolute_origin_position + offset_mm for offset_mm in relative_offsets_mm
         ]
@@ -1377,6 +1729,9 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
         angle_adjustment: float = 0,
         roi_size_factor: float = 1,
         scaling_factor: float = 1,
+        low_contrast_method: str = Contrast.WEBER,
+        low_contrast_visibility_threshold: float = 0.001,
+        low_contrast_visibility_sanity_multiplier: float = 3,
     ) -> None:
         """Analyze the ACR CT phantom
 
@@ -1401,12 +1756,25 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             A fine-tuning adjustment to the detected magnification of the phantom. This will zoom the ROIs and phantom outline (if applicable) by this amount.
             In contrast to the roi size adjustment, the scaling adjustment effectively moves the phantom and ROIs
             closer or further from the phantom center. I.e. this zooms the outline and ROI positions, but not ROI size.
+        low_contrast_method: str
+            The contrast equation to use in the low contrast modules. See
+            :ref:`low_contrast_topic`.
+        low_contrast_visibility_threshold: float
+            The visibility threshold for determining if an object is visible in the low contrast modules.
+        low_contrast_visibility_sanity_multiplier: float
+            This applies to the smallest low-contrast ROIs. Due to the low standard deviation in small ROIs,
+            the calculated visibility can become significantly larger than is physically reasonable.
+            This sanity threshold ensures that a small ROI is considered not visible if its visibility
+            exceeds that of the first spoke by this multiplier.
         """
         self.x_adjustment = x_adjustment
         self.y_adjustment = y_adjustment
         self.angle_adjustment = angle_adjustment
         self.roi_size_factor = roi_size_factor
         self.scaling_factor = scaling_factor
+        self.low_contrast_visibility_sanity_multiplier = (
+            low_contrast_visibility_sanity_multiplier
+        )
         self._select_echo_images(echo_number)
         sagittal_image = self._select_sagittal_image()
         self.has_sagittal_module = sagittal_image is not None
@@ -1420,6 +1788,12 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
         )
         self.slice11 = self.slice11(self, offset=MR_SLICE11_MODULE_OFFSET_MM)
         self.sagittal_localization = self.sagittal_localization(sagittal_image)
+        self.low_contrast_multi_slice = self.low_contrast_multi_slice(
+            self,
+            contrast_method=low_contrast_method,
+            visibility_threshold=low_contrast_visibility_threshold,
+            visibility_sanity_multiplier=low_contrast_visibility_sanity_multiplier,
+        )
 
     def _select_echo_images(self, echo_number: int | None) -> None:
         """Select out the images that match the given echo number"""
@@ -1515,6 +1889,7 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             self.uniformity_module,
             self.slice11,
         ]
+        modules.extend(list(self.low_contrast_multi_slice.slices.values()))
         if self.has_sagittal_module:
             modules.append(self.sagittal_localization)
         for module in modules:
@@ -1548,31 +1923,33 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
         plt_kwargs
             Keywords to pass to matplotlib for figure customization.
         """
+        modules: list = [
+            self.slice1,
+            self.geometric_distortion,
+            self.uniformity_module,
+            self.slice11,
+        ]
+        modules.extend(list(self.low_contrast_multi_slice.slices.values()))
+        if self.has_sagittal_module:
+            modules.append(self.sagittal_localization)
+
         # set up grid and axes
-        fig = plt.figure(**plt_kwargs)
-        if self.has_sagittal_module:
-            grid_size = (2, 4)
-        else:
-            grid_size = (2, 3)
-        slice1_ax = plt.subplot2grid(grid_size, (0, 0))
-        self.slice1.plot(slice1_ax)
-        geom_ax = plt.subplot2grid(grid_size, (0, 1))
-        self.geometric_distortion.plot(geom_ax)
-        unif_ax = plt.subplot2grid(grid_size, (0, 2))
-        self.uniformity_module.plot(unif_ax)
-        position_ax = plt.subplot2grid(grid_size, (1, 0))
-        self.slice11.plot(position_ax)
+        fig, axs = plt.subplots(3, 4, **plt_kwargs)
+        axes = axs.ravel()
+        ax_idx = -1
+        for module in modules:
+            ax_idx += 1
+            module.plot(axes[ax_idx])
 
-        side_view_ax = plt.subplot2grid(grid_size, (1, 1))
-        self.plot_side_view(side_view_ax)
-        spatial_res_graph = plt.subplot2grid(grid_size, (1, 2))
-        self.slice1.row_mtf.plot(spatial_res_graph, label="Row-wise rMTF")
-        self.slice1.col_mtf.plot(spatial_res_graph, label="Column-wise rMTF")
-        spatial_res_graph.legend()
+        ax_idx += 1
+        self.plot_side_view(axes[ax_idx])
+        ax_idx += 1
+        self.slice1.row_mtf.plot(axes[ax_idx], label="Row-wise rMTF")
+        self.slice1.col_mtf.plot(axes[ax_idx], label="Column-wise rMTF")
+        axes[ax_idx].legend()
 
-        if self.has_sagittal_module:
-            sag_ax = plt.subplot2grid(grid_size, (0, 3))
-            self.sagittal_localization.plot(sag_ax)
+        for i in range(ax_idx + 1, len(axes)):
+            axes[i].set_visible(False)
 
         # finish up
         plt.tight_layout()
@@ -1598,6 +1975,7 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             "signal uniformity": self.uniformity_module,
             "slice 11": self.slice11,
         }
+        modules |= self.low_contrast_multi_slice.slices
         if self.has_sagittal_module:
             modules["sagittal"] = self.sagittal_localization
         for key, module in modules.items():
@@ -1795,6 +2173,7 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             f"Row-wise MTF 50% (lp/mm): {self.slice1.row_mtf.relative_resolution(50):2.2f}",
             f"Column-wise MTF 50% (lp/mm): {self.slice1.col_mtf.relative_resolution(50):2.2f}",
             f"Sagittal Distortions: {self.sagittal_localization.distances()}",
+            f"Low Contrast Score: {self.low_contrast_multi_slice.score}",
         )
         if as_str:
             return "\n".join(string)
@@ -1811,6 +2190,16 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             resolution: self.slice1.col_mtf.relative_resolution(resolution)
             for resolution in resolutions
         }
+        low_contrast_rois = {}
+        for k, v in self.low_contrast_multi_slice.slices.items():
+            low_contrast_rois[k] = MRLowContrastModuleOutput(
+                offset=MR_LOW_CONTRAST_MODULE_OFFSETS_MM[v.slice_num + 1],
+                slice_num=v.slice_num + 1,
+                spoke_settings=v.roi_settings,
+                background_settings=v.background_roi_settings,
+                spokes=v.as_dict(),
+            )
+
         return ACRMRIResult(
             phantom_model=self._model,
             phantom_roll_deg=self.catphan_roll,
@@ -1854,5 +2243,9 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             sagittal_localizer_module=MRSagittalLocalizationModuleOutput(
                 profiles=self.sagittal_localization.profiles,
                 distances=self.sagittal_localization.distances(),
+            ),
+            low_contrast_multi_slice_module=MRLowContrastMultiSliceModuleOutput(
+                score=self.low_contrast_multi_slice.score,
+                low_contrast_rois=low_contrast_rois,
             ),
         )

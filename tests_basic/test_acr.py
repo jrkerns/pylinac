@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from unittest import TestCase, skip
 
+import numpy as np
 from matplotlib import pyplot as plt
 from scipy import ndimage
 
@@ -474,6 +475,7 @@ class ACRMRMixin(CloudFileMixin):
     psg: float
     geometric_profile_lengths: None | dict = None
     localizer_profile_lengths: None | dict = None
+    low_contrast_score: None | int = None
     results: list[str] = []
     x_adjustment: float = 0
     y_adjustment: float = 0
@@ -556,9 +558,79 @@ class ACRMRMixin(CloudFileMixin):
                 delta=0.05,
             )
 
+    def test_low_contrast(self):
+        if self.low_contrast_score is None:
+            self.skipTest("low_contrast_score not available")
+        results = self.mri.results_data()
+        score = results.low_contrast_multi_slice_module.score
+        self.assertEqual(score, self.low_contrast_score)
+
     def test_results(self):
         results = self.mri.results()
         self.assertIn("ACR MRI Large Results", results)
+
+    @skip("For debugging purposes")
+    def test_plotly_analyzed_images(self):
+        self.mri.plotly_analyzed_images()
+
+    @skip("For debugging purposes")
+    def test_visibility(self):
+        visibility = list()
+        contrast = list()
+        std = list()
+        for sl in self.mri.low_contrast_multi_slice.slices.values():
+            visibility.append(
+                np.array([[r.visibility for r in v] for k, v in sl.rois.items()])
+            )
+            contrast.append(
+                np.array([[r.contrast for r in v] for k, v in sl.rois.items()])
+            )
+            std.append(np.array([[r.std for r in v] for k, v in sl.rois.items()]))
+
+        fig, axs = plt.subplots(2, 2)
+        axs = axs.ravel()
+        x = np.arange(10)  # the label locations
+        width = 0.25  # the width of the bars
+        for idx, (ax, d) in enumerate(zip(axs, visibility)):
+            multiplier = 0
+            for roi in np.transpose(d):
+                offset = width * multiplier
+                ax.bar(x + offset, roi, width)
+                multiplier += 1
+            # ax.set_ylim([0, 1.1 * np.max(visibility)])
+            ax.set_title(list(self.mri.low_contrast_multi_slice.slices.keys())[idx])
+        fig.suptitle("visibility")
+        plt.show()
+
+        fig, axs = plt.subplots(2, 2)
+        axs = axs.ravel()
+        x = np.arange(10)  # the label locations
+        width = 0.25  # the width of the bars
+        for idx, (ax, d) in enumerate(zip(axs, contrast)):
+            multiplier = 0
+            for roi in np.transpose(d):
+                offset = width * multiplier
+                ax.bar(x + offset, roi, width)
+                multiplier += 1
+            ax.set_ylim([0, 1.1 * np.max(contrast)])
+            ax.set_title(list(self.mri.low_contrast_multi_slice.slices.keys())[idx])
+        fig.suptitle("contrast")
+        plt.show()
+
+        fig, axs = plt.subplots(2, 2)
+        axs = axs.ravel()
+        x = np.arange(10)  # the label locations
+        width = 0.25  # the width of the bars
+        for idx, (ax, d) in enumerate(zip(axs, std)):
+            multiplier = 0
+            for roi in np.transpose(d):
+                offset = width * multiplier
+                ax.bar(x + offset, roi, width)
+                multiplier += 1
+            ax.set_ylim([0, 1.1 * np.max(std)])
+            ax.set_title(list(self.mri.low_contrast_multi_slice.slices.keys())[idx])
+        fig.suptitle("std")
+        plt.show()
 
 
 class ACRT1Single(ACRMRMixin, PlotlyTestMixin, TestCase):
@@ -570,11 +642,12 @@ class ACRT1Single(ACRMRMixin, PlotlyTestMixin, TestCase):
     slice1_shift = -1
     slice11_shift = 0
     psg = 0.3
-    num_figs = 6
+    low_contrast_score = 25
+    num_figs = 10
     fig_data = {
         0: {"title": "Slice 1 (Thickness, Offset, Resolution)", "num_traces": 13},
         1: {"title": "Geometric Distortion", "num_traces": 5},
-        5: {
+        9: {
             "title": "Relative MTF",
             "num_traces": 2,
             "x_label": "Line pairs / mm",
@@ -636,6 +709,7 @@ class ACRGE3T(ACRMRMixin, TestCase):
     slice1_shift = 0
     slice11_shift = 1.5
     psg = 0.3
+    low_contrast_score = 7
 
 
 @skip("The ROI's need to be corrected, see RAM-4869")
@@ -676,6 +750,7 @@ class ACRGE3TRotated(ACRGE3T):
 
     phantom_roll = -0.4
     slice_thickness = 4.8  # induced rotation does change this a bit. See above.
+    low_contrast_score = 10
 
     @classmethod
     def setUpClass(cls):
