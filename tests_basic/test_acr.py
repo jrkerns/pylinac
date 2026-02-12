@@ -750,6 +750,7 @@ class ACRGE3TRotated(ACRGE3T):
 
     phantom_roll = -0.4
     slice_thickness = 4.8  # induced rotation does change this a bit. See above.
+    low_contrast_score = 10
 
     @classmethod
     def setUpClass(cls):
