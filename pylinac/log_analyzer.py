@@ -163,7 +163,7 @@ class MachineLogs(list):
         print(f"{len(log_files)} logs found.")
         for idx, file in enumerate(log_files):
             self.append(file)
-            print(f"Log loaded: {idx+1} of {len(log_files)}", end="\r")
+            print(f"Log loaded: {idx + 1} of {len(log_files)}", end="\r")
         print("")
 
     def _check_empty(self) -> None:
@@ -224,7 +224,7 @@ class MachineLogs(list):
         for num, log in enumerate(self):
             log.fluence.gamma.calc_map(doseTA, distTA, threshold, resolution)
             gamma_list[num] = log.fluence.gamma.avg_gamma
-            print(f"Calculating gammas: {num+1} of {self.num_logs}", end="\r")
+            print(f"Calculating gammas: {num + 1} of {self.num_logs}", end="\r")
         print("")
         return gamma_list.mean()
 
@@ -244,7 +244,8 @@ class MachineLogs(list):
             log.fluence.gamma.calc_map(doseTA, distTA, threshold, resolution)
             gamma_list[num] = log.fluence.gamma.pass_prcnt
             print(
-                f"Calculating gamma pass percent: {num+1} of {self.num_logs}", end="\r"
+                f"Calculating gamma pass percent: {num + 1} of {self.num_logs}",
+                end="\r",
             )
         print("")
         return gamma_list.mean()
@@ -1705,9 +1706,9 @@ class LogBase:
         if self.treatment_type == TreatmentType.IMAGING.value:
             string = title + "Log is an Imaging field; no statistics can be calculated"
         else:
-            avg_rms = f"Average RMS of all leaves: {self.axis_data.mlc.get_RMS_avg(only_moving_leaves=False)*10:3.3f} mm\n"
-            max_rms = f"Max RMS error of all leaves: {self.axis_data.mlc.get_RMS_max()*10:3.3f} mm\n"
-            p95 = f"95th percentile error: {self.axis_data.mlc.get_error_percentile(95, only_moving_leaves=False)*10:3.3f} mm\n"
+            avg_rms = f"Average RMS of all leaves: {self.axis_data.mlc.get_RMS_avg(only_moving_leaves=False) * 10:3.3f} mm\n"
+            max_rms = f"Max RMS error of all leaves: {self.axis_data.mlc.get_RMS_max() * 10:3.3f} mm\n"
+            p95 = f"95th percentile error: {self.axis_data.mlc.get_error_percentile(95, only_moving_leaves=False) * 10:3.3f} mm\n"
             num_holdoffs = f"Number of beam holdoffs: {self.num_beamholds:1.0f}\n"
             self.fluence.gamma.calc_map()
             gamma_pass = f"Gamma pass %: {self.fluence.gamma.pass_prcnt:2.2f}\n"
@@ -2037,9 +2038,9 @@ class Dynalog(LogBase):
         canvas.add_text(
             text=[
                 "Dynalog results:",
-                f"Average RMS (mm): {self.axis_data.mlc.get_RMS_avg()*10:2.2f}",
-                f"Max RMS (mm): {self.axis_data.mlc.get_RMS_max()*10:2.2f}",
-                f"95th Percentile error (mm): {self.axis_data.mlc.get_error_percentile(95)*10:2.2f}",
+                f"Average RMS (mm): {self.axis_data.mlc.get_RMS_avg() * 10:2.2f}",
+                f"Max RMS (mm): {self.axis_data.mlc.get_RMS_max() * 10:2.2f}",
+                f"95th Percentile error (mm): {self.axis_data.mlc.get_error_percentile(95) * 10:2.2f}",
                 f"Number of beam holdoffs: {self.num_beamholds}",
                 f"Gamma pass (%): {self.fluence.gamma.pass_prcnt:2.1f}",
                 f"Gamma average: {self.fluence.gamma.avg_gamma:2.2f}",
@@ -2692,9 +2693,9 @@ class TrajectoryLog(LogBase):
         canvas.add_text(
             text=[
                 "Trajectory Log results:",
-                f"Average RMS (mm): {self.axis_data.mlc.get_RMS_avg()*10:2.2f}",
-                f"Max RMS (mm): {self.axis_data.mlc.get_RMS_max()*10:2.2f}",
-                f"95th Percentile error (mm): {self.axis_data.mlc.get_error_percentile(95)*10:2.2f}",
+                f"Average RMS (mm): {self.axis_data.mlc.get_RMS_avg() * 10:2.2f}",
+                f"Max RMS (mm): {self.axis_data.mlc.get_RMS_max() * 10:2.2f}",
+                f"95th Percentile error (mm): {self.axis_data.mlc.get_error_percentile(95) * 10:2.2f}",
                 f"Number of beam holdoffs: {self.num_beamholds}",
                 f"Gamma pass (%): {self.fluence.gamma.pass_prcnt:2.1f}",
                 f"Gamma average: {self.fluence.gamma.avg_gamma:2.2f}",

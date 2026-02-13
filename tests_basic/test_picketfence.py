@@ -369,6 +369,18 @@ class TestBBBasedAnalysis(TestCase):
         # bb is 2mm off in bb setup image above
         self.assertAlmostEqual(results.mlc_positions_by_leaf["17"][0], 102, delta=0.1)
 
+    def test_invert_bb_image(self):
+        # See RM-5424
+        # load both images
+        pf_path = [TEST_DIR, "BBs-inverted", "PF-image.dcm"]
+        bb_path = [TEST_DIR, "BBs-inverted", "BB-image.dcm"]
+        pf_file = get_file_from_cloud_test_repo(pf_path)
+        bb_file = get_file_from_cloud_test_repo(bb_path)
+        pf = PicketFence.from_bb_setup(pf_file, bb_image=bb_file, bb_diameter=5)
+        pf.analyze()
+        max_offset = max(pf.results_data().offsets_from_cax_mm)
+        self.assertAlmostEqual(max_offset, 80.32, delta=0.01)
+
 
 class LoadingFromMultiple(TestCase):
     def test_loading_with_keywords(self):

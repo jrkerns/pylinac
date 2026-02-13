@@ -408,14 +408,22 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
 
         Thank the French for this."""
         bb_image = image.load(bb_image)
-        caxs = bb_image.compute(
-            metrics=SizedDiskLocator.from_center_physical(
+
+        def _metrics(invert: bool) -> SizedDiskLocator:
+            # Helper to avoid repeating metric construction for the retry case.
+            return SizedDiskLocator.from_center_physical(
                 expected_position_mm=(0, 0),
                 search_window_mm=(30 + bb_diameter, 30 + bb_diameter),
                 radius_mm=bb_diameter / 2,
                 radius_tolerance_mm=bb_diameter * 0.1 + 1,
+                invert=invert,
             )
-        )
+
+        try:
+            caxs = bb_image.compute(metrics=_metrics(invert=True))
+        except ValueError:
+            caxs = bb_image.compute(metrics=_metrics(invert=False))
+
         cax_shift = caxs[0] - bb_image.center
         # we convert to physical because we may have images of different sizes/dpmms
         cax_physical_shift = Point(

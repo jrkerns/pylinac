@@ -361,8 +361,7 @@ video: `Filling the ACR MRI Phantom <https://youtu.be/MH3sj2HC6Xo?si=l0I869rg07Q
 Analysis
 ^^^^^^^^
 
-Section 0.4 specifies the 8 tests to perform. Pylinac can perform 6 of these 8. It cannot yet perform the
-low-contrast object detectability test, while the the artifact assessment test is considered a visual inspection test.
+Section 0.4 specifies the 8 tests to perform. Pylinac can perform 7 of these 8. The artifact assessment test is considered a visual inspection test.
 
 * **Geometric Accuracy** - The geometric accuracy is measured using profiles of slice 5. The only difference
   is that pylinac uses an automatic image thresholding and then takes the FWHM of several profiles of this new image.
@@ -420,6 +419,15 @@ low-contrast object detectability test, while the the artifact assessment test i
 
   .. math:: PSG = ghosting_{ratio} * 100
 
+* **Low Contrast Detectability** - The low contrast detectability test analyzes slices 8, 9, 10, and 11 of the ACR MRI Large phantom.
+  Each slice contains 10 spokes arranged in a circular pattern, with spoke diameters decreasing clockwise from 7.0 mm (spoke 1) to 1.5 mm (spoke 10).
+  Each spoke contains 3 disks (objects) at different radial distances from the phantom center.
+
+  The analysis counts complete spokes per slice, where a spoke is considered complete only if all 3 disks are visible.
+  Counting starts from spoke 1 and stops at the first incomplete spoke. Complete spokes that appear after
+  an incomplete spoke are not counted. The visibility of the individual objects is evaluated with the :ref:`visibility` algorithm.
+
+
 MRI Analysis Parameters
 -----------------------
 
@@ -448,6 +456,7 @@ MRI Analysis Parameters
       * **Scaling factor**: A fine-tuning adjustment to the detected magnification of the phantom. This will zoom the ROIs and phantom outline (if applicable) by this amount.
         In contrast to the roi size adjustment, the scaling adjustment effectively moves the phantom and ROIs
         closer or further from the phantom center. I.e. this zooms the outline and ROI positions, but not ROI size.
+      * **Visibility threshold**: The visibility threshold for determining if a disk is visible in the low contrast slices.
 
 Interpreting MRI Results
 ------------------------
@@ -622,3 +631,7 @@ API Documentation
 .. autopydantic_model:: pylinac.acr.MRGeometricDistortionModuleOutput
 
 .. autopydantic_model:: pylinac.acr.MRSagittalLocalizationModuleOutput
+
+.. autopydantic_model:: pylinac.acr.MRLowContrastModuleOutput
+
+.. autopydantic_model:: pylinac.acr.MRLowContrastMultiSliceModuleOutput
