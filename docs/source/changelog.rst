@@ -25,6 +25,9 @@ ACR Phantoms
    Behavior, thresholds, and presentation may still change in upcoming releases as
    validation continues.
 
+* :bdg-danger:`Change` The ACR CT analysis for HU linearity and HU uniformity modules now report the mean rather than the median HU value.
+  I.e. the Air, Poly, Top, Bottom, ... ROI values will change. This change should be negligable. E.g. 987 -> 986.8.
+
 Planar Imaging
 ^^^^^^^^^^^^^^
 

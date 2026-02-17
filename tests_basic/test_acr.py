@@ -180,24 +180,35 @@ class ACRCTMixin(CloudFileMixin):
 
     def test_HU_values(self):
         """Test HU values."""
-        for key, roi in self.ct.ct_calibration_module.rois.items():
+        measurements = self.ct.results_data().ct_module.rois
+        for key, meas_val in measurements.items():
             exp_val = self.hu_values[key]
-            meas_val = roi.pixel_value
-            self.assertAlmostEqual(exp_val, meas_val, delta=5)
+            self.assertAlmostEqual(
+                exp_val, meas_val, delta=0.2, msg=f"ROI {key} failed"
+            )
 
     def test_uniformity_values(self):
         """Test Uniformity HU values."""
-        for key, exp_val in self.unif_values.items():
-            meas_val = self.ct.uniformity_module.rois[key].pixel_value
-            self.assertAlmostEqual(exp_val, meas_val, delta=5)
+        measurements = self.ct.results_data().uniformity_module.rois
+        for key, meas_val in measurements.items():
+            exp_val = self.unif_values[key]
+            self.assertAlmostEqual(
+                exp_val, meas_val, delta=0.2, msg=f"ROI {key} failed"
+            )
 
 
 class ACRPhilips(ACRCTMixin, PlotlyTestMixin, TestCase):
     file_name = "Philips.zip"
     mtf_50 = 0.54
     phantom_roll = -0.3
-    hu_values = {"Poly": -87, "Acrylic": 126, "Bone": 904, "Air": -987, "Water": 4}
-    unif_values = {"Center": 1, "Left": 1, "Right": 1, "Top": 1, "Bottom": 1}
+    hu_values = {
+        "Poly": -87,
+        "Acrylic": 126.3,
+        "Bone": 904.5,
+        "Air": -986.6,
+        "Water": 4,
+    }
+    unif_values = {"Center": 0.08, "Left": 1.47, "Right": 1, "Top": 0.51, "Bottom": 1}
     num_figs = 6
     fig_data = {
         0: {
@@ -241,7 +252,14 @@ class ACRCTApplyROIOffset(ACRPhilips):
     scaling_factor = 1.02
     mtf_50 = 46
     phantom_roll = 4.75
-    hu_values = {"Poly": -79, "Acrylic": 119, "Bone": 891, "Air": -971, "Water": 4}
+    hu_values = {"Poly": -48.1, "Acrylic": 77.7, "Bone": 549, "Air": -629, "Water": 3.7}
+    unif_values = {
+        "Center": 0.21,
+        "Left": 1.25,
+        "Right": 1.0,
+        "Top": 0.56,
+        "Bottom": 1.0,
+    }
 
 
 class ACRPhilipsOffset(ACRCTMixin, TestCase):
@@ -253,8 +271,14 @@ class ACRPhilipsOffset(ACRCTMixin, TestCase):
     file_name = "Philips.zip"
     mtf_50 = 0.54
     phantom_roll = -0.3
-    hu_values = {"Poly": -87, "Acrylic": 126, "Bone": 904, "Air": -987, "Water": 4}
-    unif_values = {"Center": 1, "Left": 1, "Right": 1, "Top": 1, "Bottom": 1}
+    hu_values = {
+        "Poly": -87,
+        "Acrylic": 126.3,
+        "Bone": 904.5,
+        "Air": -986.6,
+        "Water": 4,
+    }
+    unif_values = {"Center": 0.08, "Left": 1.47, "Right": 1, "Top": 0.51, "Bottom": 1}
 
     @classmethod
     def setUpClass(cls):
@@ -274,8 +298,14 @@ class ACRPhilipsRotated(ACRCTMixin, TestCase):
     file_name = "Philips.zip"
     mtf_50 = 0.54
     phantom_roll = -3.3
-    hu_values = {"Poly": -87, "Acrylic": 126, "Bone": 904, "Air": -987, "Water": 4}
-    unif_values = {"Center": 1, "Left": 1, "Right": 1, "Top": 1, "Bottom": 1}
+    hu_values = {
+        "Poly": -87,
+        "Acrylic": 126.3,
+        "Bone": 904.5,
+        "Air": -986.6,
+        "Water": 4,
+    }
+    unif_values = {"Center": 0.08, "Left": 1.47, "Right": 1, "Top": 0.51, "Bottom": 1}
 
     @classmethod
     def setUpClass(cls):
