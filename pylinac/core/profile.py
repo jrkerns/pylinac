@@ -1135,6 +1135,7 @@ class SingleProfile(ProfileMixin):
         edge_smoothing_ratio: float = 0.003,
         hill_window_ratio: float = 0.1,
         x_values: np.ndarray | None = None,
+        centering: Centering | str = Centering.BEAM_CENTER,
     ):
         """
         Parameters
@@ -1172,6 +1173,11 @@ class SingleProfile(ProfileMixin):
             detection is INFLECTION_HILL**.
         x_values
             The x-values of the profile, if any. If None, will generate a simple range(len(values)).
+        centering
+            The centering method to use for field region extraction in ``field_data()``.
+            This affects flatness and symmetry calculations. Use ``Centering.BEAM_CENTER``
+            to center on the midpoint between field edges (default). Use ``Centering.GEOMETRIC_CENTER``
+            to center on the midpoint of the detector array.
         """
         self._interp_method = convert_to_enum(interpolation, Interpolation)
         self._interpolation_res = interpolation_resolution_mm
@@ -1180,6 +1186,7 @@ class SingleProfile(ProfileMixin):
         self._edge_method = convert_to_enum(edge_detection_method, Edge)
         self._edge_smoothing_ratio = edge_smoothing_ratio
         self._hill_window_ratio = hill_window_ratio
+        self._centering = convert_to_enum(centering, Centering)
         self.values = (
             values  # set initial data so we can do things like find beam center
         )
@@ -1442,16 +1449,22 @@ class SingleProfile(ProfileMixin):
         cax_idx = self.geometric_center()["index (exact)"]
         cax_idx_r = int(round(cax_idx))
 
-        field_left_idx = beam_center_idx - in_field_ratio * full_width / 2
+        # Select center for field region extraction based on centering setting
+        if self._centering == Centering.GEOMETRIC_CENTER:
+            center_idx = cax_idx
+        else:
+            center_idx = beam_center_idx
+
+        field_left_idx = center_idx - in_field_ratio * full_width / 2
         field_left_idx_r = int(round(field_left_idx))
-        field_right_idx = beam_center_idx + in_field_ratio * full_width / 2
+        field_right_idx = center_idx + in_field_ratio * full_width / 2
         field_right_idx_r = int(round(field_right_idx))
         field_width = field_right_idx - field_left_idx
 
         # slope calcs
-        inner_left_idx = beam_center_idx - slope_exclusion_ratio * field_width / 2
+        inner_left_idx = center_idx - slope_exclusion_ratio * field_width / 2
         inner_left_idx_r = int(round(inner_left_idx))
-        inner_right_idx = beam_center_idx + slope_exclusion_ratio * field_width / 2
+        inner_right_idx = center_idx + slope_exclusion_ratio * field_width / 2
         inner_right_idx_r = int(round(inner_right_idx))
         left_fit = linregress(
             range(field_left_idx_r, inner_left_idx_r + 1),
@@ -1490,17 +1503,17 @@ class SingleProfile(ProfileMixin):
         top_val = -min_f.fun
 
         # see RAM-4559: https://radformation.atlassian.net/browse/RAM-4559?focusedCommentId=119935
-        # When the beam center is in between points, as we expand or contract the in-field ratio,
-        # we will sometimes include a point on one side of the beam but not the other.
+        # When the center is in between points, as we expand or contract the in-field ratio,
+        # we will sometimes include a point on one side of the center but not the other.
         # See figure in comment.
         # To avoid this, we shift the x_indices by the pixel offset
         # This doesn't change the results; it just ensures that when we ask for
         # indices on either side (to calculate flat, sym, etc) that we always grab
-        # equal numbers of points on either side of the beam center.
+        # equal numbers of points on either side of the center.
         # This still has the possibility of being incorrect if the sampling is not uniform
         # within the in-field ratio area, but this is a rare case IMO. E.g. water tank
         # scans will scan more densely in the penumbra region, but this is outside the in-field area.
-        pixel_offset = beam_center_idx - beam_center_idx_r
+        pixel_offset = center_idx - int(round(center_idx))
         x_indices_shifted = self.x_indices + pixel_offset
         # field data index range;
         # We use indices because we want to retain the original indices

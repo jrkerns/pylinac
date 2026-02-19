@@ -36,6 +36,18 @@ Planar Imaging
   The default value is 2.0, preserving backward compatibility. Lower values (e.g., 1.0) may help detect BBs that are very close to the field edge.
   This addresses issues with BB detection for phantoms like Doselab RLf when BBs are positioned near the field edge.
 
+Profiles
+^^^^^^^^
+
+* :bdg-success:`Feature` Added ``centering`` parameter to :class:`~pylinac.core.profile.SingleProfile`.
+  The center point used for field region extraction (and thus for flatness and symmetry calculations in protocols such as Varian and Siemens) can now be chosen:
+
+  * **Beam center** (default): midpoint between detected field edges (FWHM, inflection, etc.). Preserves previous behavior.
+  * **Geometric center**: midpoint of the detector array (physical center).
+
+  Use the ``centering`` parameter in the constructor, e.g. ``SingleProfile(values, centering=Centering.GEOMETRIC_CENTER)``.
+  The :class:`~pylinac.core.profile.Centering` enum is available from ``pylinac``.
+
 v 3.40.0
 --------
 
