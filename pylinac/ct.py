@@ -2503,6 +2503,53 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         # drop slices that are way far from median
         hu_slices = hu_slices[((c + ln / 2) >= hu_slices) & (hu_slices >= (c - ln / 2))]
         center_hu_slice = int(round(float(np.median(hu_slices))))
+
+        # If we have a DICOM header, we'll use it to adjust how many slices we search either side. That's because the
+        # thicker the slice thickness the more we are moving in the phantom, so we quickly are beyond where the markers
+        # should be. Conversely, the thinner the slices the more slices we need to step through to cover the same
+        # physical distance. Normalised to 5 slices either side for a 2 mm scan, which seemed reasonable looking at a
+        # selection of datasets
+        if "SliceThickness" in self.dicom_stack.metadata:
+            slices_either_side = int(
+                10 / self.dicom_stack.metadata["SliceThickness"].value
+            )
+        else:
+            slices_either_side = 5
+
+        # Iterate through the slices before and after the found center of the phantom based on the original analysis,
+        # and look for the three markers at the edge of the phantom. If all three are found, store that slice. We then
+        # use these slices to 'fine tune' the central key slice locating the phantom. Note that the original analysis
+        # goes through the slices with a stride of two, this goes one by one - so we've got greater resolution during
+        # this 'fine tune' step
+        slices_where_markers_found = []
+        for image_number in range(
+            center_hu_slice - slices_either_side,
+            center_hu_slice + slices_either_side + 1,
+        ):
+            if self._is_within_image_extent(image_number):
+                slice = Slice(
+                    self, image_number, combine=False, clear_borders=self.clear_borders
+                )
+                circle_prof = CollapsedCircleProfile(
+                    center=slice.phan_center,  # This shouldn't fail as only valid slices have been selected originally
+                    radius=(self.catphan_radius_mm - 3)
+                    / self.mm_per_pixel,  # Go inside by 3 mm
+                    image_array=slice.image,
+                    start_angle=20,
+                    width_ratio=0.015,
+                    num_profiles=5,
+                )
+
+                peaks = circle_prof.find_peaks(threshold=np.percentile(slice.image.array, 98), min_distance=0.225)
+
+                if len(peaks[0]) == 3:
+                    slices_where_markers_found.append(image_number)
+
+        # If slices are found with the markers, take the median of all the slices as the center of the phantom
+        if slices_where_markers_found:
+            center_hu_slice = int(round(float(np.median(slices_where_markers_found))))
+
+        # If no slices are found with the three markers, just use the previously found center
         if self._is_within_image_extent(center_hu_slice):
             return center_hu_slice
 
