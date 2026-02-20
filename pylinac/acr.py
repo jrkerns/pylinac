@@ -2136,7 +2136,7 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
         analysis_images = self.save_images(to_stream=True)
 
         canvas = pdf.PylinacCanvas(
-            filename, page_title=analysis_title, metadata=metadata
+            filename, page_title=analysis_title, metadata=metadata, logo=logo
         )
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)
