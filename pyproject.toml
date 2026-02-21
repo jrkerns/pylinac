@@ -1,6 +1,6 @@
 [project]
 name = "pylinac"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 description = "A toolkit for performing TG-142 QA-related tasks on a linear accelerator"
 authors = [
     {name = "James Kerns", email = "jkerns100@gmail.com"}
@@ -31,7 +31,7 @@ dependencies = [
     "scikit-image>=0.18; python_version<'3.13'",
     "scikit-image>=0.25; python_version>='3.13'",
     "numpy>=1.22",
-    "scipy>=1.11.0",
+    "scipy>=1.16.0",
     "tqdm>=3.8",
     "Pillow>=4.0",
     "argue~=0.3.1",
