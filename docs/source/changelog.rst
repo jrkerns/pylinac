@@ -10,6 +10,28 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.42.0
+--------
+
+Core
+^^^^
+
+* :bdg-success:`Feature` Added ``display_dtype`` parameter to :meth:`~pylinac.core.image.BaseImage.plotly` to reduce the size of Plotly HTML/JSON output when writing figures to HTML (e.g. via ``fig.write_html()``).
+  Passing a dtype such as ``np.float32`` casts the heatmap data before serialization; Plotly's JSON encoder then writes fewer significant digits, which significantly reduces file size (often ~50% or more for large images).
+* :bdg-success:`Refactor` Improved the generation speed and memory usage when calling ``plot_analyzed_image`` for the ``ACRDigitalMammography`` phantom.
+
+Profiles
+^^^^^^^^
+
+* :bdg-success:`Feature` Added ``centering`` parameter to :class:`~pylinac.core.profile.SingleProfile`.
+  The center point used for field region extraction (and thus for flatness and symmetry calculations in protocols such as Varian and Siemens) can now be chosen:
+
+  * **Beam center** (default): midpoint between detected field edges (FWHM, inflection, etc.). Preserves previous behavior.
+  * **Geometric center**: midpoint of the detector array (physical center).
+
+  Use the ``centering`` parameter in the constructor, e.g. ``SingleProfile(values, centering=Centering.GEOMETRIC_CENTER)``.
+  The :class:`~pylinac.core.profile.Centering` enum is available from ``pylinac``.
+
 v 3.41.0
 --------
 
@@ -36,17 +58,10 @@ Planar Imaging
   The default value is 2.0, preserving backward compatibility. Lower values (e.g., 1.0) may help detect BBs that are very close to the field edge.
   This addresses issues with BB detection for phantoms like Doselab RLf when BBs are positioned near the field edge.
 
-Profiles
-^^^^^^^^
+* :bdg-primary:`Refactor` ACR digital mammography analysis now crops the image array before matplotlib rendering instead of after,
+  reducing memory use and improving performance when generating the numerous figures for the ACR mammography report.
+  This does not affect analysis results.
 
-* :bdg-success:`Feature` Added ``centering`` parameter to :class:`~pylinac.core.profile.SingleProfile`.
-  The center point used for field region extraction (and thus for flatness and symmetry calculations in protocols such as Varian and Siemens) can now be chosen:
-
-  * **Beam center** (default): midpoint between detected field edges (FWHM, inflection, etc.). Preserves previous behavior.
-  * **Geometric center**: midpoint of the detector array (physical center).
-
-  Use the ``centering`` parameter in the constructor, e.g. ``SingleProfile(values, centering=Centering.GEOMETRIC_CENTER)``.
-  The :class:`~pylinac.core.profile.Centering` enum is available from ``pylinac``.
 
 v 3.40.0
 --------

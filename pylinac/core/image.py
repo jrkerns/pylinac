@@ -79,6 +79,93 @@ MM_PER_INCH = 25.4
 ImageLike = Union["DicomImage", "ArrayImage", "FileImage", "LinacDicomImage"]
 
 
+def _render_zoomed_window(
+    ax: plt.Axes,
+    array: np.ndarray,
+    *,
+    center_x: float,
+    center_y: float,
+    half_width: float,
+    half_height: float,
+    cmap: str,
+    vmin: float | None,
+    vmax: float | None,
+    **imshow_kwargs: dict,
+) -> tuple[int, int, int, int]:
+    """Render a clamped zoomed window in global image coordinates.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Axis to render the zoomed image window to.
+    array : np.ndarray
+        Full source image array. Must be 2D.
+    center_x : float
+        X coordinate (in global image coordinates) of the zoom center.
+    center_y : float
+        Y coordinate (in global image coordinates) of the zoom center.
+    half_width : float
+        Half-width of the zoom window in pixels.
+    half_height : float
+        Half-height of the zoom window in pixels.
+    cmap : str
+        Matplotlib colormap name passed to ``imshow``.
+    vmin : float | None
+        Lower display window level for ``imshow``.
+    vmax : float | None
+        Upper display window level for ``imshow``.
+    imshow_kwargs : dict
+        Additional keyword arguments forwarded to ``imshow``.
+
+    Returns
+    -------
+    tuple[int, int, int, int]
+        Clamped window bounds as ``(x0, x1, y0, y1)`` where x1/y1 are exclusive.
+
+    Notes
+    -----
+    The ``extent`` is set in global image coordinates so downstream ROI overlays
+    can draw using their original coordinates without coordinate transforms.
+    """
+    if array.ndim != 2:
+        raise ValueError("array must be 2D.")
+    rows, cols = array.shape
+    if rows <= 0 or cols <= 0:
+        raise ValueError("array dimensions must be positive.")
+    if half_width < 0 or half_height < 0:
+        raise ValueError("half_width and half_height must be non-negative.")
+
+    x0 = int(np.floor(center_x - half_width))
+    x1 = int(np.ceil(center_x + half_width))
+    y0 = int(np.floor(center_y - half_height))
+    y1 = int(np.ceil(center_y + half_height))
+
+    x0 = max(0, min(x0, cols - 1))
+    x1 = max(0, min(x1, cols))
+    y0 = max(0, min(y0, rows - 1))
+    y1 = max(0, min(y1, rows))
+
+    # Ensure a non-empty window after clamping to image edges.
+    if x1 <= x0:
+        x1 = min(cols, x0 + 1)
+    if y1 <= y0:
+        y1 = min(rows, y0 + 1)
+
+    data = array[y0:y1, x0:x1]
+    # Use global-coordinate extent so geometry overlays align directly.
+    ax.imshow(
+        data,
+        cmap=cmap,
+        vmin=vmin,
+        vmax=vmax,
+        extent=(x0, x1, y1, y0),
+        **imshow_kwargs,
+    )
+    ax.set_xlim(x0, x1)
+    ax.set_ylim(y1, y0)
+    return x0, x1, y0, y1
+
+
 def equate_images(image1: ImageLike, image2: ImageLike) -> tuple[ImageLike, ImageLike]:
     """Crop and resize two images to make them:
       * The same pixel dimensions
@@ -494,6 +581,7 @@ class BaseImage:
         show: bool = True,
         show_metrics: bool = True,
         show_colorbar: bool = True,
+        display_dtype: np.dtype | None = np.float32,
         **kwargs,
     ) -> go.Figure:
         """Plot the image in a plotly figure.
@@ -512,6 +600,9 @@ class BaseImage:
             The title of the plot.
         show_colorbar : bool
             Whether to show the colorbar on the plot.
+        display_dtype: np.dtype | None
+            The numpy dtype to cast to when displaying.
+            Adjust this for performance optimization (e.g. np.float32). None won't touch the dtype.
         kwargs
             Additional keyword arguments to pass to the plot.
         """
@@ -534,6 +625,9 @@ class BaseImage:
         )
         add_title(fig, title)
         data = kwargs.pop("z", self.array)
+        # RAM-5650; written HTML can be humungous; float32 seems like the sweet spot w/ Plotly
+        if display_dtype is not None:
+            data = data.astype(display_dtype)
         fig.add_heatmap(z=data, colorscale=colorscale, **kwargs)
         fig.update_traces(showscale=show_colorbar)
         if show_metrics:

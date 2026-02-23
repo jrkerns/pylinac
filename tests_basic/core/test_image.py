@@ -11,6 +11,7 @@ from builtins import ValueError
 from pathlib import Path
 from unittest import TestCase
 
+import matplotlib.pyplot as plt
 import numpy as np
 import PIL.Image
 import pydicom
@@ -31,6 +32,7 @@ from pylinac.core.image import (
     LazyDicomImageStack,
     LazyZipDicomImageStack,
     LinacDicomImage,
+    _render_zoomed_window,
     _rescale_dicom_values,
     _unscale_dicom_values,
     equate_images,
@@ -548,6 +550,53 @@ class TestBaseImage(TestCase):
         expected_avg_gamma = 0.87
         self.assertAlmostEqual(pass_pct, expected_pass_pct, delta=1)
         self.assertAlmostEqual(average_gamma, expected_avg_gamma, delta=0.02)
+
+
+class TestImageWindowHelpers(TestCase):
+    def test_render_zoomed_window_within_bounds(self):
+        array = np.arange(100).reshape((10, 10))
+        fig, ax = plt.subplots()
+        window = _render_zoomed_window(
+            ax=ax,
+            array=array,
+            center_x=4,
+            center_y=3,
+            half_width=2,
+            half_height=2,
+            cmap="gray",
+            vmin=0,
+            vmax=99,
+            interpolation="none",
+        )
+        self.assertEqual(window, (2, 6, 1, 5))
+        img = ax.images[0]
+        self.assertEqual(tuple(img.get_extent()), (2, 6, 5, 1))
+        self.assertEqual(ax.get_xlim(), (2.0, 6.0))
+        self.assertEqual(ax.get_ylim(), (5.0, 1.0))
+        plt.close(fig)
+
+    def test_render_zoomed_window_clamps_to_edges_and_is_non_empty(self):
+        array = np.arange(100).reshape((10, 10))
+        fig, ax = plt.subplots()
+        x0, x1, y0, y1 = _render_zoomed_window(
+            ax=ax,
+            array=array,
+            center_x=-5,
+            center_y=20,
+            half_width=0,
+            half_height=0,
+            cmap="gray",
+            vmin=0,
+            vmax=99,
+            interpolation="none",
+        )
+        self.assertGreaterEqual(x0, 0)
+        self.assertLessEqual(x1, array.shape[1])
+        self.assertGreaterEqual(y0, 0)
+        self.assertLessEqual(y1, array.shape[0])
+        self.assertGreater(x1, x0)
+        self.assertGreater(y1, y0)
+        plt.close(fig)
 
 
 class TestDicomImage(TestCase):

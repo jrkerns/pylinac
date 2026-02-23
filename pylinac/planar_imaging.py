@@ -3888,6 +3888,11 @@ class ACRDigitalMammography(ImagePhantomBase):
         tuple[plt.Figure, str]
             A tuple containing the figure object and its name. Yields one figure at a time to reduce memory usage.
         """
+        # ACR mammography zoom views are standardized at 3x ROI size for consistency.
+        zoom_factor = 3.0
+        vmin = self.window_floor()
+        vmax = self.window_ceiling()
+
         # First figure: Image with ROIs marked
         fig1, ax1 = plt.subplots(1, **plt_kwargs)
 
@@ -3895,8 +3900,8 @@ class ACRDigitalMammography(ImagePhantomBase):
         self.image.plot(
             ax=ax1,
             show=False,
-            vmin=self.window_floor(),
-            vmax=self.window_ceiling(),
+            vmin=vmin,
+            vmax=vmax,
         )
         ax1.axis("off")
         ax1.set_title(f"{self.common_name} Phantom Analysis")
@@ -4069,19 +4074,23 @@ class ACRDigitalMammography(ImagePhantomBase):
             plt.show()
         yield fig4, "Fiber"
 
-        # Create zoomed-in figures for each ROI
-        zoom_factor = 3.0  # How much larger than the ROI to show
-
         # Zoomed-in figures for mass ROIs
         for i, roi in enumerate(self.low_contrast_rois):
             fig_zoom, ax_zoom = plt.subplots(1, **plt_kwargs)
 
-            # Plot the full image
-            self.image.plot(
+            zoom_size = roi.radius * zoom_factor
+            # Render only the required tile to avoid repeatedly rasterizing the full detector image.
+            image._render_zoomed_window(
                 ax=ax_zoom,
-                show=False,
-                vmin=self.window_floor(),
-                vmax=self.window_ceiling(),
+                array=self.image.array,
+                center_x=roi.center.x,
+                center_y=roi.center.y,
+                half_width=zoom_size,
+                half_height=zoom_size,
+                cmap=image.get_dicom_cmap(),
+                vmin=vmin,
+                vmax=vmax,
+                interpolation="none",
             )
             ax_zoom.axis("off")
             ax_zoom.set_title(f"Mass {i + 1} (Zoomed)")
@@ -4089,10 +4098,6 @@ class ACRDigitalMammography(ImagePhantomBase):
             # Plot the ROI
             roi.plot2axes(ax_zoom, edgecolor=roi.plot_color)
 
-            # Set zoom limits (3x the ROI radius)
-            zoom_size = roi.radius * zoom_factor
-            ax_zoom.set_xlim(roi.center.x - zoom_size, roi.center.x + zoom_size)
-            ax_zoom.set_ylim(roi.center.y + zoom_size, roi.center.y - zoom_size)
             if show:
                 plt.show()
             yield fig_zoom, f"Mass {i + 1}"
@@ -4101,12 +4106,19 @@ class ACRDigitalMammography(ImagePhantomBase):
         for i, speck_group in enumerate(self.speck_groups):
             fig_zoom, ax_zoom = plt.subplots(1, **plt_kwargs)
 
-            # Plot the full image
-            self.image.plot(
+            zoom_size = max(speck_group.width, speck_group.height) * zoom_factor / 2
+            # Keep global coordinates so existing overlay objects can plot unchanged.
+            image._render_zoomed_window(
                 ax=ax_zoom,
-                show=False,
-                vmin=self.window_floor(),
-                vmax=self.window_ceiling(),
+                array=self.image.array,
+                center_x=speck_group.center.x,
+                center_y=speck_group.center.y,
+                half_width=zoom_size,
+                half_height=zoom_size,
+                cmap=image.get_dicom_cmap(),
+                vmin=vmin,
+                vmax=vmax,
+                interpolation="none",
             )
             ax_zoom.axis("off")
             ax_zoom.set_title(f"Speck Group {i + 1} (Zoomed)")
@@ -4114,14 +4126,6 @@ class ACRDigitalMammography(ImagePhantomBase):
             # Plot the speck group
             speck_group.plot2axes(ax_zoom)
 
-            # Set zoom limits (3x the ROI size)
-            zoom_size = max(speck_group.width, speck_group.height) * zoom_factor / 2
-            ax_zoom.set_xlim(
-                speck_group.center.x - zoom_size, speck_group.center.x + zoom_size
-            )
-            ax_zoom.set_ylim(
-                speck_group.center.y + zoom_size, speck_group.center.y - zoom_size
-            )
             if show:
                 plt.show()
             yield fig_zoom, f"Speck Group {i + 1}"
@@ -4130,12 +4134,19 @@ class ACRDigitalMammography(ImagePhantomBase):
         for i, fiber in enumerate(self.fibers):
             fig_zoom, ax_zoom = plt.subplots(1, **plt_kwargs)
 
-            # Plot the full image
-            self.image.plot(
+            zoom_size = max(fiber.width, fiber.height) * zoom_factor / 2
+            # Crop-first rendering minimizes memory churn when exporting many zoom figures.
+            image._render_zoomed_window(
                 ax=ax_zoom,
-                show=False,
-                vmin=self.window_floor(),
-                vmax=self.window_ceiling(),
+                array=self.image.array,
+                center_x=fiber.center.x,
+                center_y=fiber.center.y,
+                half_width=zoom_size,
+                half_height=zoom_size,
+                cmap=image.get_dicom_cmap(),
+                vmin=vmin,
+                vmax=vmax,
+                interpolation="none",
             )
             ax_zoom.axis("off")
             ax_zoom.set_title(f"Fiber {i + 1} (Zoomed)")
@@ -4143,10 +4154,6 @@ class ACRDigitalMammography(ImagePhantomBase):
             # Plot the fiber
             fiber.plot2axes(ax_zoom, alpha=0.25)
 
-            # Set zoom limits (3x the ROI size)
-            zoom_size = max(fiber.width, fiber.height) * zoom_factor / 2
-            ax_zoom.set_xlim(fiber.center.x - zoom_size, fiber.center.x + zoom_size)
-            ax_zoom.set_ylim(fiber.center.y + zoom_size, fiber.center.y - zoom_size)
             if show:
                 plt.show()
             yield fig_zoom, f"Fiber {i + 1}"
@@ -4181,7 +4188,10 @@ class ACRDigitalMammography(ImagePhantomBase):
         """
         figs = []
         names = []
-        for fig, name in self._plot_analyzed_image_iter(show=show, **plt_kwargs):
+        for fig, name in self._plot_analyzed_image_iter(
+            show=show,
+            **plt_kwargs,
+        ):
             figs.append(fig)
             names.append(name)
         return figs, names
@@ -4211,7 +4221,10 @@ class ACRDigitalMammography(ImagePhantomBase):
         """
         if not to_stream:
             # Save to disk - process one at a time and aggressively clean up
-            for fig, name in self._plot_analyzed_image_iter(show=False, **kwargs):
+            for fig, name in self._plot_analyzed_image_iter(
+                show=False,
+                **kwargs,
+            ):
                 filename = f"{file_prefix}_analyzed_{name}.png"
                 fig.savefig(filename, **kwargs)
                 plt.close(fig)
@@ -4220,7 +4233,10 @@ class ACRDigitalMammography(ImagePhantomBase):
 
         # Save to streams - return iterator
         def stream_generator():
-            for fig, name in self._plot_analyzed_image_iter(show=False, **kwargs):
+            for fig, name in self._plot_analyzed_image_iter(
+                show=False,
+                **kwargs,
+            ):
                 stream = io.BytesIO()
                 fig.savefig(stream, **kwargs)
                 plt.close(fig)
