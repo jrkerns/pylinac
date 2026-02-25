@@ -1294,6 +1294,48 @@ class ACRDigitalMammographyTestMixin(PlanarPhantomMixin):
         self.assertIsInstance(figs[0], Figure)
         self.assertIsInstance(names[0], str)
 
+    def _outline_bounds(self) -> tuple[float, float, float, float]:
+        self.assertIsNotNone(self.instance.phantom_outline_object)
+        outline = self.instance._create_phantom_outline_object()
+        xs = [float(v.x) for v in outline.vertices]
+        ys = [float(v.y) for v in outline.vertices]
+        return min(xs), min(ys), max(xs), max(ys)
+
+    def test_plotly_image_is_display_cropped(self):
+        figs = self.instance.plotly_analyzed_images(show=False)
+        self.assertEqual(len(figs), self.num_figs)
+        image_fig = figs["Image"]
+        heatmaps = [trace for trace in image_fig.data if trace.type == "heatmap"]
+        self.assertEqual(len(heatmaps), 1)
+        heatmap = heatmaps[0]
+
+        z = np.asarray(heatmap.z)
+        self.assertLess(z.shape[0], self.instance.image.shape[0])
+        self.assertLess(z.shape[1], self.instance.image.shape[1])
+
+        x = np.asarray(heatmap.x, dtype=float)
+        y = np.asarray(heatmap.y, dtype=float)
+        min_x, min_y, max_x, max_y = self._outline_bounds()
+        # One pixel tolerance accounts for integer window indexing and inclusive ROI edges.
+        self.assertLessEqual(x[0], min_x + 1)
+        self.assertGreaterEqual(x[-1], max_x - 1)
+        self.assertLessEqual(y[0], min_y + 1)
+        self.assertGreaterEqual(y[-1], max_y - 1)
+
+    def test_plotly_image_ignores_user_crop_arrays(self):
+        figs = self.instance.plotly_analyzed_images(
+            show=False,
+            x=np.arange(0, 2, 1),
+            y=np.arange(0, 2, 1),
+            z=np.zeros((2, 2)),
+        )
+        heatmap = [trace for trace in figs["Image"].data if trace.type == "heatmap"][0]
+        z = np.asarray(heatmap.z)
+        self.assertGreater(z.shape[0], 2)
+        self.assertGreater(z.shape[1], 2)
+        self.assertLess(z.shape[0], self.instance.image.shape[0])
+        self.assertLess(z.shape[1], self.instance.image.shape[1])
+
     def test_saving_to_stream(self):
         # save as stream
         streams = self.instance.save_analyzed_image(to_stream=True)

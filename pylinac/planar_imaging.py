@@ -3860,6 +3860,61 @@ class ACRDigitalMammography(ImagePhantomBase):
             ),
         }
 
+    def _plotly_display_window(
+        self, padding_ratio: float = 0.08, min_padding_px: int = 12
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Return display-only cropped image based on the phantom outline."""
+        outline_obj = self._create_phantom_outline_object()
+        xs = [float(v.x) for v in outline_obj.vertices]
+        ys = [float(v.y) for v in outline_obj.vertices]
+        min_x = min(xs)
+        min_y = min(ys)
+        max_x = max(xs)
+        max_y = max(ys)
+
+        span = max(max_x - min_x, max_y - min_y)
+        padding = max(min_padding_px, int(np.ceil(span * padding_ratio)))
+        rows, cols = self.image.shape
+        x0 = max(0, int(np.floor(min_x - padding)))
+        y0 = max(0, int(np.floor(min_y - padding)))
+        x1 = min(cols, int(np.ceil(max_x + padding)))
+        y1 = min(rows, int(np.ceil(max_y + padding)))
+
+        # Ensure non-empty bounds after clamping.
+        if x1 <= x0:
+            x1 = min(cols, x0 + 1)
+        if y1 <= y0:
+            y1 = min(rows, y0 + 1)
+
+        return (
+            np.arange(x0, x1, 1),
+            np.arange(y0, y1, 1),
+            self.image.array[y0:y1, x0:x1],
+        )
+
+    @override
+    def plotly_analyzed_images(
+        self,
+        show: bool = True,
+        show_legend: bool = True,
+        show_colorbar: bool = True,
+        **kwargs,
+    ) -> dict[str, go.Figure]:
+        """Plot analyzed images to Plotly with a display-only cropped image window."""
+        kwargs.pop("x", None)
+        kwargs.pop("y", None)
+        kwargs.pop("z", None)
+        x, y, z = self._plotly_display_window()
+        return super().plotly_analyzed_images(
+            show=show,
+            show_legend=show_legend,
+            show_colorbar=show_colorbar,
+            x=x,
+            y=y,
+            z=z,
+            **kwargs,
+        )
+
     def _plot_analyzed_image_iter(
         self,
         show: bool = True,

@@ -32,6 +32,12 @@ Profiles
   Use the ``centering`` parameter in the constructor, e.g. ``SingleProfile(values, centering=Centering.GEOMETRIC_CENTER)``.
   The :class:`~pylinac.core.profile.Centering` enum is available from ``pylinac``.
 
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* :bdg-success:`Refactor` :class:`~pylinac.planar_imaging.ACRDigitalMammography` Plotly image rendering now uses a display-only crop based on the phantom ROI outline.
+  This reduces Plotly HTML size and write/render time substantially for ACR mammography figures while leaving analysis data/results unchanged.
+
 v 3.41.0
 --------
 
