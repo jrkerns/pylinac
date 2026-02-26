@@ -553,7 +553,7 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
                 roi_radius_mm=self.ct_calibration_module.roi_radius_mm,
                 roi_settings=self.ct_calibration_module.roi_settings,
                 rois={
-                    name: roi.pixel_value
+                    name: roi.mean
                     for name, roi in self.ct_calibration_module.rois.items()
                 },
             ),
@@ -563,8 +563,7 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
                 roi_radius_mm=self.uniformity_module.roi_radius_mm,
                 roi_settings=self.uniformity_module.roi_settings,
                 rois={
-                    name: roi.pixel_value
-                    for name, roi in self.uniformity_module.rois.items()
+                    name: roi.mean for name, roi in self.uniformity_module.rois.items()
                 },
                 center_roi_stdev=self.uniformity_module.rois["Center"].std,
             ),

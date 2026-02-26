@@ -10,6 +10,34 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.42.0
+--------
+
+Core
+^^^^
+
+* :bdg-success:`Feature` Added ``display_dtype`` parameter to :meth:`~pylinac.core.image.BaseImage.plotly` to reduce the size of Plotly HTML/JSON output when writing figures to HTML (e.g. via ``fig.write_html()``).
+  Passing a dtype such as ``np.float32`` casts the heatmap data before serialization; Plotly's JSON encoder then writes fewer significant digits, which significantly reduces file size (often ~50% or more for large images).
+* :bdg-success:`Refactor` Improved the generation speed and memory usage when calling ``plot_analyzed_image`` for the ``ACRDigitalMammography`` phantom.
+
+Profiles
+^^^^^^^^
+
+* :bdg-success:`Feature` Added ``centering`` parameter to :class:`~pylinac.core.profile.SingleProfile`.
+  The center point used for field region extraction (and thus for flatness and symmetry calculations in protocols such as Varian and Siemens) can now be chosen:
+
+  * **Beam center** (default): midpoint between detected field edges (FWHM, inflection, etc.). Preserves previous behavior.
+  * **Geometric center**: midpoint of the detector array (physical center).
+
+  Use the ``centering`` parameter in the constructor, e.g. ``SingleProfile(values, centering=Centering.GEOMETRIC_CENTER)``.
+  The :class:`~pylinac.core.profile.Centering` enum is available from ``pylinac``.
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* :bdg-success:`Refactor` :class:`~pylinac.planar_imaging.ACRDigitalMammography` Plotly image rendering now uses a display-only crop based on the phantom ROI outline.
+  This reduces Plotly HTML size and write/render time substantially for ACR mammography figures while leaving analysis data/results unchanged.
+
 v 3.41.0
 --------
 
@@ -25,6 +53,9 @@ ACR Phantoms
    Behavior, thresholds, and presentation may still change in upcoming releases as
    validation continues.
 
+* :bdg-danger:`Change` The ACR CT analysis for HU linearity and HU uniformity modules now report the mean rather than the median HU value.
+  I.e. the Air, Poly, Top, Bottom, ... ROI values will change. This change should be negligable. E.g. 987 -> 986.8.
+
 Planar Imaging
 ^^^^^^^^^^^^^^
 
@@ -32,6 +63,11 @@ Planar Imaging
   This parameter controls the kernel size multiplier used in adaptive histogram equalization when detecting BBs near the field edge.
   The default value is 2.0, preserving backward compatibility. Lower values (e.g., 1.0) may help detect BBs that are very close to the field edge.
   This addresses issues with BB detection for phantoms like Doselab RLf when BBs are positioned near the field edge.
+
+* :bdg-primary:`Refactor` ACR digital mammography analysis now crops the image array before matplotlib rendering instead of after,
+  reducing memory use and improving performance when generating the numerous figures for the ACR mammography report.
+  This does not affect analysis results.
+
 
 v 3.40.0
 --------

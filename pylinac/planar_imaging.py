@@ -28,10 +28,10 @@ import math
 import os.path as osp
 import warnings
 import webbrowser
-from collections.abc import Generator, Iterator
+from collections.abc import Callable, Generator, Iterator
 from functools import cached_property
 from pathlib import Path
-from typing import BinaryIO, Callable, Literal
+from typing import BinaryIO, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -3396,6 +3396,60 @@ class ACRDigitalMammography(ImagePhantomBase):
                 else:
                     roi.plot2axes(axes, edgecolor="red", fill=fill, alpha=alpha)
 
+        def plotly(
+            self,
+            fig: go.Figure,
+            fill: bool = False,
+            alpha: float = 1.0,
+            showlegend: bool = True,
+            legendgroup: str | None = None,
+            **kwargs,
+        ) -> None:
+            """Plot the speck group ROI and individual specks to a plotly figure."""
+            color = ACR_SCORE_COLORS[self.score]
+            group = legendgroup or "speck_group"
+            existing_names = {trace.name for trace in fig.data}
+            super().plotly(
+                fig=fig,
+                fill=fill,
+                line_color=color,
+                opacity=alpha,
+                name=kwargs.pop("name", "Speck Group ROI"),
+                showlegend=showlegend and "Speck Group ROI" not in existing_names,
+                legendgroup=group,
+                **kwargs,
+            )
+            existing_names.add("Speck Group ROI")
+            for roi in self.specks:
+                if roi.passed_visibility:
+                    show_this_legend = (
+                        showlegend and "Visible Speck" not in existing_names
+                    )
+                    roi.plotly(
+                        fig,
+                        line_color="green",
+                        opacity=alpha,
+                        name="Visible Speck",
+                        showlegend=show_this_legend,
+                        legendgroup=f"{group}_visible",
+                    )
+                    if show_this_legend:
+                        existing_names.add("Visible Speck")
+                else:
+                    show_this_legend = (
+                        showlegend and "Hidden Speck" not in existing_names
+                    )
+                    roi.plotly(
+                        fig,
+                        line_color="red",
+                        opacity=alpha,
+                        name="Hidden Speck",
+                        showlegend=show_this_legend,
+                        legendgroup=f"{group}_hidden",
+                    )
+                    if show_this_legend:
+                        existing_names.add("Hidden Speck")
+
         def as_dict(self) -> dict:
             return {
                 "num_specks_visible": self.num_specks_visible,
@@ -3529,6 +3583,52 @@ class ACRDigitalMammography(ImagePhantomBase):
                 c=self.plot_color,
                 marker="s",
                 alpha=alpha,
+            )
+
+        def plotly(
+            self,
+            fig: go.Figure,
+            fill: bool = False,
+            alpha: float = 1.0,
+            line_color: str | None = None,
+            showlegend: bool = True,
+            legendgroup: str | None = None,
+            **kwargs,
+        ) -> None:
+            """Plot the ROI box and detected fiber boundary to a plotly figure."""
+            group = legendgroup or "fiber"
+            color = line_color or self.plot_color
+            existing_names = {trace.name for trace in fig.data}
+            super().plotly(
+                fig=fig,
+                fill=fill,
+                line_color=color,
+                opacity=alpha,
+                name=kwargs.pop("name", "Fiber ROI"),
+                showlegend=showlegend and "Fiber ROI" not in existing_names,
+                legendgroup=group,
+                **kwargs,
+            )
+
+            boundary = get_boundary(
+                self.region,
+                round(self.center.y - self.height / 2),
+                round(self.center.x - self.width / 2),
+            )
+            boundary_y, boundary_x = np.nonzero(boundary)
+            fig.add_scatter(
+                x=boundary_x,
+                y=boundary_y,
+                mode="markers",
+                marker={
+                    "size": 3,
+                    "color": color,
+                    "symbol": "square",
+                },
+                opacity=alpha,
+                name="Fiber Boundary",
+                showlegend=showlegend and "Fiber Boundary" not in existing_names,
+                legendgroup=f"{group}_boundary",
             )
 
     @staticmethod
@@ -3859,6 +3959,318 @@ class ACRDigitalMammography(ImagePhantomBase):
             ),
         }
 
+    def _plotly_display_window(
+        self, padding_ratio: float = 0.08, min_padding_px: int = 12
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Return display-only cropped image based on the phantom outline."""
+
+        outline_obj = self._create_phantom_outline_object()
+        xs = [float(v.x) for v in outline_obj.vertices]
+        ys = [float(v.y) for v in outline_obj.vertices]
+        min_x = min(xs)
+        min_y = min(ys)
+        max_x = max(xs)
+        max_y = max(ys)
+
+        span = max(max_x - min_x, max_y - min_y)
+        padding = max(min_padding_px, int(np.ceil(span * padding_ratio)))
+        rows, cols = self.image.shape
+        x0 = max(0, int(np.floor(min_x - padding)))
+        y0 = max(0, int(np.floor(min_y - padding)))
+        x1 = min(cols, int(np.ceil(max_x + padding)))
+        y1 = min(rows, int(np.ceil(max_y + padding)))
+
+        # Ensure non-empty bounds after clamping.
+        if x1 <= x0:
+            x1 = min(cols, x0 + 1)
+        if y1 <= y0:
+            y1 = min(rows, y0 + 1)
+
+        return (
+            np.arange(x0, x1, 1),
+            np.arange(y0, y1, 1),
+            self.image.array[y0:y1, x0:x1],
+        )
+
+    @override
+    def plotly_analyzed_images(
+        self,
+        show: bool = True,
+        show_legend: bool = True,
+        show_colorbar: bool = True,
+        **kwargs,
+    ) -> dict[str, go.Figure]:
+        """Plot analyzed images to Plotly with a display-only cropped image window."""
+        figs: dict[str, go.Figure] = {}
+        kwargs.pop("x", None)
+        kwargs.pop("y", None)
+        kwargs.pop("z", None)
+        x, y, z = self._plotly_display_window()
+
+        image_fig = self.image.plotly(
+            show=False,
+            title=f"{self.common_name} Phantom Analysis",
+            zmin=self.window_floor(),
+            zmax=self.window_ceiling(),
+            x=x,
+            y=y,
+            z=z,
+            show_colorbar=show_colorbar,
+            show_legend=show_legend,
+            **kwargs,
+        )
+        figs["Image"] = image_fig
+
+        if self.phantom_outline_object is not None:
+            outline_obj = self._create_phantom_outline_object()
+            outline_obj.plotly(
+                image_fig,
+                line_color="blue",
+                name="Outline",
+                showlegend=show_legend,
+            )
+
+        show_bg_legend = show_legend
+        for roi in self.low_contrast_background_rois:
+            roi.plotly(
+                image_fig,
+                line_color="blue",
+                name="Mass Background ROI",
+                showlegend=show_bg_legend,
+                legendgroup="mass_background",
+            )
+            show_bg_legend = False
+
+        show_mass_pass_legend = show_legend
+        show_mass_fail_legend = show_legend
+        for roi in self.low_contrast_rois:
+            color = "green" if roi.contrast > roi.contrast_threshold else "red"
+            passed = color == "green"
+            roi.plotly(
+                image_fig,
+                line_color=color,
+                name="Mass ROI (Pass)" if passed else "Mass ROI (Fail)",
+                showlegend=(show_mass_pass_legend if passed else show_mass_fail_legend),
+                legendgroup="mass_pass" if passed else "mass_fail",
+            )
+            if passed:
+                show_mass_pass_legend = False
+            else:
+                show_mass_fail_legend = False
+
+        for speck_group in self.speck_groups:
+            speck_group.plotly(
+                image_fig,
+                showlegend=show_legend,
+                legendgroup="speck_group",
+            )
+
+        for fiber in self.fibers:
+            fiber.plotly(
+                image_fig,
+                line_color="limegreen",
+                showlegend=show_legend,
+                legendgroup="fiber",
+            )
+
+        mass_fig = go.Figure()
+        self._plotly_mass_contrast_graph(mass_fig, show_legend=show_legend)
+        figs["Low Contrast"] = mass_fig
+
+        speck_fig = make_subplots(specs=[[{"secondary_y": True}]])
+        self._plotly_speck_group_graph(speck_fig, show_legend=show_legend)
+        figs["Speck Group"] = speck_fig
+
+        fiber_fig = go.Figure()
+        self._plotly_fiber_graph(fiber_fig, show_legend=show_legend)
+        figs["Fiber"] = fiber_fig
+
+        if show:
+            for fig in figs.values():
+                fig.show()
+        return figs
+
+    def _plotly_mass_contrast_graph(self, fig: go.Figure, show_legend: bool) -> None:
+        roi_labels = []
+        contrast_values = []
+        for i, roi in enumerate(self.low_contrast_rois):
+            roi_labels.append(i + 1)
+            contrast_values.append(roi.contrast)
+
+        roi_indices = list(range(len(contrast_values)))
+        fig.add_scatter(
+            x=roi_indices,
+            y=contrast_values,
+            mode="lines+markers",
+            line={
+                "color": "magenta",
+                "width": 2,
+            },
+            marker={
+                "size": 8,
+            },
+            name="Contrast",
+        )
+        fig.add_scatter(
+            x=roi_indices,
+            y=[self._low_contrast_threshold] * len(roi_indices),
+            mode="lines",
+            line={
+                "color": "cyan",
+                "dash": "dash",
+                "width": 2,
+            },
+            name="Contrast Threshold",
+        )
+        add_title(fig, "Mass ROI Contrast")
+        fig.update_layout(
+            showlegend=show_legend,
+            xaxis_title="Mass ROI",
+            yaxis_title="Contrast Value",
+        )
+        fig.update_xaxes(
+            tickmode="array",
+            tickvals=roi_indices,
+            ticktext=roi_labels,
+            showspikes=True,
+        )
+        fig.update_yaxes(showspikes=True)
+
+    def _plotly_speck_group_graph(self, fig: go.Figure, show_legend: bool) -> None:
+        speck_labels = []
+        speck_counts = []
+        speck_group_scores = []
+        for i, grp in enumerate(self.speck_groups):
+            speck_labels.append(i + 1)
+            speck_counts.append(grp.num_specks_visible)
+            speck_group_scores.append(grp.score)
+
+        speck_indices = list(range(len(speck_counts)))
+        fig.add_scatter(
+            x=speck_indices,
+            y=speck_counts,
+            mode="lines+markers",
+            line={
+                "color": "blue",
+                "width": 2,
+            },
+            marker={
+                "symbol": "square",
+                "size": 8,
+            },
+            name="Specks Visible",
+            secondary_y=False,
+        )
+
+        if self.speck_groups:
+            xvals = (
+                [speck_indices[0], speck_indices[-1]]
+                if speck_indices
+                else [0, len(self.speck_groups) - 1]
+            )
+            fig.add_scatter(
+                x=xvals,
+                y=[self.speck_groups[0].half_thresh] * 2,
+                mode="lines",
+                line={
+                    "color": "cyan",
+                    "dash": "dash",
+                },
+                name="Half Score Threshold",
+                secondary_y=False,
+            )
+            fig.add_scatter(
+                x=xvals,
+                y=[self.speck_groups[0].full_thresh] * 2,
+                mode="lines",
+                line={
+                    "color": "magenta",
+                    "dash": "dash",
+                },
+                name="Full Score Threshold",
+                secondary_y=False,
+            )
+
+        fig.add_scatter(
+            x=speck_indices,
+            y=speck_group_scores,
+            mode="lines+markers",
+            line={
+                "color": "green",
+                "width": 2,
+            },
+            marker={
+                "symbol": "triangle-up",
+                "size": 8,
+            },
+            name="Group Score",
+            secondary_y=True,
+        )
+
+        add_title(fig, "Speck Groups")
+        fig.update_layout(
+            showlegend=show_legend,
+        )
+        fig.update_xaxes(
+            title_text="Speck Group",
+            tickmode="array",
+            tickvals=speck_indices,
+            ticktext=speck_labels,
+            showspikes=True,
+        )
+        fig.update_yaxes(
+            title_text="Number of Specks Visible",
+            secondary_y=False,
+            showspikes=True,
+        )
+        fig.update_yaxes(
+            title_text="Group Score",
+            secondary_y=True,
+            range=[-0.1, 1.1],
+            tickvals=[0, 0.5, 1],
+            showgrid=False,
+            showspikes=True,
+        )
+
+    def _plotly_fiber_graph(self, fig: go.Figure, show_legend: bool) -> None:
+        fiber_labels = []
+        fiber_scores = []
+        for i, fiber in enumerate(self.fibers):
+            fiber_labels.append(i + 1)
+            fiber_scores.append(fiber.score)
+
+        fiber_indices = list(range(len(fiber_scores)))
+        fig.add_scatter(
+            x=fiber_indices,
+            y=fiber_scores,
+            mode="lines+markers",
+            line={
+                "color": "red",
+                "width": 2,
+            },
+            marker={
+                "size": 8,
+            },
+            name="Fiber Score",
+        )
+        add_title(fig, "Fibers")
+        fig.update_layout(
+            showlegend=show_legend,
+            xaxis_title="Fiber",
+            yaxis_title="Fiber Score",
+        )
+        fig.update_xaxes(
+            tickmode="array",
+            tickvals=fiber_indices,
+            ticktext=fiber_labels,
+            showspikes=True,
+        )
+        fig.update_yaxes(
+            range=[-0.1, 1.1],
+            tickvals=[0, 0.5, 1],
+            showspikes=True,
+        )
+
     def _plot_analyzed_image_iter(
         self,
         show: bool = True,
@@ -3887,6 +4299,11 @@ class ACRDigitalMammography(ImagePhantomBase):
         tuple[plt.Figure, str]
             A tuple containing the figure object and its name. Yields one figure at a time to reduce memory usage.
         """
+        # ACR mammography zoom views are standardized at 3x ROI size for consistency.
+        zoom_factor = 3.0
+        vmin = self.window_floor()
+        vmax = self.window_ceiling()
+
         # First figure: Image with ROIs marked
         fig1, ax1 = plt.subplots(1, **plt_kwargs)
 
@@ -3894,8 +4311,8 @@ class ACRDigitalMammography(ImagePhantomBase):
         self.image.plot(
             ax=ax1,
             show=False,
-            vmin=self.window_floor(),
-            vmax=self.window_ceiling(),
+            vmin=vmin,
+            vmax=vmax,
         )
         ax1.axis("off")
         ax1.set_title(f"{self.common_name} Phantom Analysis")
@@ -4068,19 +4485,23 @@ class ACRDigitalMammography(ImagePhantomBase):
             plt.show()
         yield fig4, "Fiber"
 
-        # Create zoomed-in figures for each ROI
-        zoom_factor = 3.0  # How much larger than the ROI to show
-
         # Zoomed-in figures for mass ROIs
         for i, roi in enumerate(self.low_contrast_rois):
             fig_zoom, ax_zoom = plt.subplots(1, **plt_kwargs)
 
-            # Plot the full image
-            self.image.plot(
+            zoom_size = roi.radius * zoom_factor
+            # Render only the required tile to avoid repeatedly rasterizing the full detector image.
+            image._render_zoomed_window(
                 ax=ax_zoom,
-                show=False,
-                vmin=self.window_floor(),
-                vmax=self.window_ceiling(),
+                array=self.image.array,
+                center_x=roi.center.x,
+                center_y=roi.center.y,
+                half_width=zoom_size,
+                half_height=zoom_size,
+                cmap=image.get_dicom_cmap(),
+                vmin=vmin,
+                vmax=vmax,
+                interpolation="none",
             )
             ax_zoom.axis("off")
             ax_zoom.set_title(f"Mass {i + 1} (Zoomed)")
@@ -4088,10 +4509,6 @@ class ACRDigitalMammography(ImagePhantomBase):
             # Plot the ROI
             roi.plot2axes(ax_zoom, edgecolor=roi.plot_color)
 
-            # Set zoom limits (3x the ROI radius)
-            zoom_size = roi.radius * zoom_factor
-            ax_zoom.set_xlim(roi.center.x - zoom_size, roi.center.x + zoom_size)
-            ax_zoom.set_ylim(roi.center.y + zoom_size, roi.center.y - zoom_size)
             if show:
                 plt.show()
             yield fig_zoom, f"Mass {i + 1}"
@@ -4100,12 +4517,19 @@ class ACRDigitalMammography(ImagePhantomBase):
         for i, speck_group in enumerate(self.speck_groups):
             fig_zoom, ax_zoom = plt.subplots(1, **plt_kwargs)
 
-            # Plot the full image
-            self.image.plot(
+            zoom_size = max(speck_group.width, speck_group.height) * zoom_factor / 2
+            # Keep global coordinates so existing overlay objects can plot unchanged.
+            image._render_zoomed_window(
                 ax=ax_zoom,
-                show=False,
-                vmin=self.window_floor(),
-                vmax=self.window_ceiling(),
+                array=self.image.array,
+                center_x=speck_group.center.x,
+                center_y=speck_group.center.y,
+                half_width=zoom_size,
+                half_height=zoom_size,
+                cmap=image.get_dicom_cmap(),
+                vmin=vmin,
+                vmax=vmax,
+                interpolation="none",
             )
             ax_zoom.axis("off")
             ax_zoom.set_title(f"Speck Group {i + 1} (Zoomed)")
@@ -4113,14 +4537,6 @@ class ACRDigitalMammography(ImagePhantomBase):
             # Plot the speck group
             speck_group.plot2axes(ax_zoom)
 
-            # Set zoom limits (3x the ROI size)
-            zoom_size = max(speck_group.width, speck_group.height) * zoom_factor / 2
-            ax_zoom.set_xlim(
-                speck_group.center.x - zoom_size, speck_group.center.x + zoom_size
-            )
-            ax_zoom.set_ylim(
-                speck_group.center.y + zoom_size, speck_group.center.y - zoom_size
-            )
             if show:
                 plt.show()
             yield fig_zoom, f"Speck Group {i + 1}"
@@ -4129,12 +4545,19 @@ class ACRDigitalMammography(ImagePhantomBase):
         for i, fiber in enumerate(self.fibers):
             fig_zoom, ax_zoom = plt.subplots(1, **plt_kwargs)
 
-            # Plot the full image
-            self.image.plot(
+            zoom_size = max(fiber.width, fiber.height) * zoom_factor / 2
+            # Crop-first rendering minimizes memory churn when exporting many zoom figures.
+            image._render_zoomed_window(
                 ax=ax_zoom,
-                show=False,
-                vmin=self.window_floor(),
-                vmax=self.window_ceiling(),
+                array=self.image.array,
+                center_x=fiber.center.x,
+                center_y=fiber.center.y,
+                half_width=zoom_size,
+                half_height=zoom_size,
+                cmap=image.get_dicom_cmap(),
+                vmin=vmin,
+                vmax=vmax,
+                interpolation="none",
             )
             ax_zoom.axis("off")
             ax_zoom.set_title(f"Fiber {i + 1} (Zoomed)")
@@ -4142,10 +4565,6 @@ class ACRDigitalMammography(ImagePhantomBase):
             # Plot the fiber
             fiber.plot2axes(ax_zoom, alpha=0.25)
 
-            # Set zoom limits (3x the ROI size)
-            zoom_size = max(fiber.width, fiber.height) * zoom_factor / 2
-            ax_zoom.set_xlim(fiber.center.x - zoom_size, fiber.center.x + zoom_size)
-            ax_zoom.set_ylim(fiber.center.y + zoom_size, fiber.center.y - zoom_size)
             if show:
                 plt.show()
             yield fig_zoom, f"Fiber {i + 1}"
@@ -4180,7 +4599,10 @@ class ACRDigitalMammography(ImagePhantomBase):
         """
         figs = []
         names = []
-        for fig, name in self._plot_analyzed_image_iter(show=show, **plt_kwargs):
+        for fig, name in self._plot_analyzed_image_iter(
+            show=show,
+            **plt_kwargs,
+        ):
             figs.append(fig)
             names.append(name)
         return figs, names
@@ -4210,7 +4632,10 @@ class ACRDigitalMammography(ImagePhantomBase):
         """
         if not to_stream:
             # Save to disk - process one at a time and aggressively clean up
-            for fig, name in self._plot_analyzed_image_iter(show=False, **kwargs):
+            for fig, name in self._plot_analyzed_image_iter(
+                show=False,
+                **kwargs,
+            ):
                 filename = f"{file_prefix}_analyzed_{name}.png"
                 fig.savefig(filename, **kwargs)
                 plt.close(fig)
@@ -4219,7 +4644,10 @@ class ACRDigitalMammography(ImagePhantomBase):
 
         # Save to streams - return iterator
         def stream_generator():
-            for fig, name in self._plot_analyzed_image_iter(show=False, **kwargs):
+            for fig, name in self._plot_analyzed_image_iter(
+                show=False,
+                **kwargs,
+            ):
                 stream = io.BytesIO()
                 fig.savefig(stream, **kwargs)
                 plt.close(fig)

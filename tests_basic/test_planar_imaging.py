@@ -11,6 +11,7 @@ from unittest import TestCase, skip
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.figure import Figure
+from plotly import graph_objects as go
 from scipy.ndimage import rotate
 
 from pylinac import (
@@ -1252,7 +1253,7 @@ class ACRDigitalMammographyTestMixin(PlanarPhantomMixin):
     klass = ACRDigitalMammography
     dir_path = ["planar_imaging", "ACRMammography"]
     low_contrast_visibility_threshold = 20
-    num_figs = 2
+    num_figs = 4
     speck_group_score: float | None = None
     fiber_score: float | None = None
     instance: ACRDigitalMammography
@@ -1293,6 +1294,97 @@ class ACRDigitalMammographyTestMixin(PlanarPhantomMixin):
         self.assertEqual(len(figs), 22)
         self.assertIsInstance(figs[0], Figure)
         self.assertIsInstance(names[0], str)
+
+    def _outline_bounds(self) -> tuple[float, float, float, float]:
+        self.assertIsNotNone(self.instance.phantom_outline_object)
+        outline = self.instance._create_phantom_outline_object()
+        xs = [float(v.x) for v in outline.vertices]
+        ys = [float(v.y) for v in outline.vertices]
+        return min(xs), min(ys), max(xs), max(ys)
+
+    def test_plotly_image_is_display_cropped(self):
+        figs = self.instance.plotly_analyzed_images(show=False)
+        self.assertEqual(len(figs), self.num_figs)
+        image_fig = figs["Image"]
+        heatmaps = [trace for trace in image_fig.data if trace.type == "heatmap"]
+        self.assertEqual(len(heatmaps), 1)
+        heatmap = heatmaps[0]
+
+        z = np.asarray(heatmap.z)
+        self.assertLess(z.shape[0], self.instance.image.shape[0])
+        self.assertLess(z.shape[1], self.instance.image.shape[1])
+
+        x = np.asarray(heatmap.x, dtype=float)
+        y = np.asarray(heatmap.y, dtype=float)
+        min_x, min_y, max_x, max_y = self._outline_bounds()
+        # One pixel tolerance accounts for integer window indexing and inclusive ROI edges.
+        self.assertLessEqual(x[0], min_x + 1)
+        self.assertGreaterEqual(x[-1], max_x - 1)
+        self.assertLessEqual(y[0], min_y + 1)
+        self.assertGreaterEqual(y[-1], max_y - 1)
+
+    def test_plotly_image_ignores_user_crop_arrays(self):
+        figs = self.instance.plotly_analyzed_images(
+            show=False,
+            x=np.arange(0, 2, 1),
+            y=np.arange(0, 2, 1),
+            z=np.zeros((2, 2)),
+        )
+        heatmap = [trace for trace in figs["Image"].data if trace.type == "heatmap"][0]
+        z = np.asarray(heatmap.z)
+        self.assertGreater(z.shape[0], 2)
+        self.assertGreater(z.shape[1], 2)
+        self.assertLess(z.shape[0], self.instance.image.shape[0])
+        self.assertLess(z.shape[1], self.instance.image.shape[1])
+
+    def test_plotly_keys(self):
+        figs = self.instance.plotly_analyzed_images(show=False)
+        self.assertEqual(
+            set(figs.keys()), {"Image", "Low Contrast", "Speck Group", "Fiber"}
+        )
+
+    def test_plotly_image_has_expected_overlays(self):
+        figs = self.instance.plotly_analyzed_images(show=False)
+        names = [trace.name for trace in figs["Image"].data]
+        self.assertIn("Mass Background ROI", names)
+        self.assertTrue(
+            any(name in ("Mass ROI (Pass)", "Mass ROI (Fail)") for name in names)
+        )
+        self.assertIn("Speck Group ROI", names)
+        self.assertIn("Visible Speck", names)
+        self.assertIn("Fiber ROI", names)
+        self.assertIn("Fiber Boundary", names)
+
+    def test_plotly_speck_group_graph(self):
+        figs = self.instance.plotly_analyzed_images(show=False)
+        fig = figs["Speck Group"]
+        names = {trace.name for trace in fig.data}
+        self.assertIn("Specks Visible", names)
+        self.assertIn("Half Score Threshold", names)
+        self.assertIn("Full Score Threshold", names)
+        self.assertIn("Group Score", names)
+        group_trace = next(trace for trace in fig.data if trace.name == "Group Score")
+        self.assertEqual(group_trace.yaxis, "y2")
+
+    def test_plotly_fiber_graph_scores(self):
+        figs = self.instance.plotly_analyzed_images(show=False)
+        trace = figs["Fiber"].data[0]
+        scores = list(trace.y)
+        self.assertEqual(len(scores), 6)
+        self.assertTrue(set(scores).issubset({0, 0.5, 1}))
+
+    def test_plotly_show_legend_false(self):
+        figs = self.instance.plotly_analyzed_images(
+            show=False,
+            show_legend=False,
+            show_colorbar=False,
+        )
+        self.assertTrue(all(isinstance(fig, go.Figure) for fig in figs.values()))
+        for fig in figs.values():
+            self.assertNotEqual(fig.layout.showlegend, True)
+            for trace in fig.data:
+                if trace.showlegend is not None:
+                    self.assertFalse(trace.showlegend)
 
     def test_saving_to_stream(self):
         # save as stream

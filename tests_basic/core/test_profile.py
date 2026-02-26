@@ -20,6 +20,7 @@ from pylinac.core.image_generator import (
 from pylinac.core.image_generator.layers import Layer
 from pylinac.core.image_generator.simulators import Simulator
 from pylinac.core.profile import (
+    Centering,
     CircleProfile,
     CollapsedCircleProfile,
     FWXMProfile,
@@ -33,6 +34,10 @@ from pylinac.core.profile import (
     Normalization,
     SingleProfile,
     stretch,
+)
+from pylinac.field_analysis import (
+    flatness_dose_difference,
+    symmetry_point_difference,
 )
 from pylinac.metrics.profile import (
     PDD,
@@ -2298,6 +2303,210 @@ class SingleProfileTests(TestCase):
         )
         with self.assertRaises(ValueError):
             reference.gamma(evaluation)
+
+    def test_centering_default_is_beam_center(self):
+        """Default centering should be BEAM_CENTER for backwards compatibility."""
+        field = generate_open_field()
+        p = SingleProfile(
+            field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.NONE
+        )
+        self.assertEqual(p._centering, Centering.BEAM_CENTER)
+
+    def test_centering_accepts_enum(self):
+        """Centering parameter should accept Centering enum."""
+        field = generate_open_field()
+        p = SingleProfile(
+            field.image[:, int(field.shape[1] / 2)],
+            interpolation=Interpolation.NONE,
+            centering=Centering.GEOMETRIC_CENTER,
+        )
+        self.assertEqual(p._centering, Centering.GEOMETRIC_CENTER)
+
+    def test_centering_accepts_string(self):
+        """Centering parameter should accept string value."""
+        field = generate_open_field()
+        p = SingleProfile(
+            field.image[:, int(field.shape[1] / 2)],
+            interpolation=Interpolation.NONE,
+            centering="Geometric center",
+        )
+        self.assertEqual(p._centering, Centering.GEOMETRIC_CENTER)
+
+    def test_centering_beam_center_uses_beam_center_for_field_data(self):
+        """With BEAM_CENTER, field_data() should extract field around beam center."""
+        # Create an offset field (beam center != geometric center)
+        field = generate_open_field(center=(20, 20))
+        p = SingleProfile(
+            field.image[:, int(field.shape[1] / 2)],
+            interpolation=Interpolation.NONE,
+            centering=Centering.BEAM_CENTER,
+        )
+        field_data = p.field_data()
+        beam_center = p.beam_center()["index (exact)"]
+        geo_center = p.geometric_center()["index (exact)"]
+        # Verify exact values for offset field with center=(20, 20)
+        self.assertAlmostEqual(beam_center, 435, delta=1)
+        self.assertAlmostEqual(geo_center, 383.5, delta=0.5)
+        self.assertAlmostEqual(field_data["left index (exact)"], 332, delta=1)
+        self.assertAlmostEqual(field_data["right index (exact)"], 537, delta=1)
+
+    def test_centering_geometric_center_uses_geometric_center_for_field_data(self):
+        """With GEOMETRIC_CENTER, field_data() should extract field around geometric center."""
+        # Create an offset field (beam center != geometric center)
+        field = generate_open_field(center=(20, 20))
+        p = SingleProfile(
+            field.image[:, int(field.shape[1] / 2)],
+            interpolation=Interpolation.NONE,
+            centering=Centering.GEOMETRIC_CENTER,
+        )
+        field_data = p.field_data()
+        geo_center = p.geometric_center()["index (exact)"]
+        # Verify exact values for offset field with center=(20, 20)
+        self.assertAlmostEqual(geo_center, 383.5, delta=0.5)
+        self.assertAlmostEqual(field_data["left index (exact)"], 281, delta=1)
+        self.assertAlmostEqual(field_data["right index (exact)"], 486, delta=1)
+
+    def test_centering_produces_different_field_values_for_offset_profile(self):
+        """For an offset profile, different centering should produce different field values."""
+        # Create an offset field
+        field = generate_open_field(center=(20, 20))
+        profile_data = field.image[:, int(field.shape[1] / 2)]
+
+        p_beam = SingleProfile(
+            profile_data,
+            interpolation=Interpolation.NONE,
+            centering=Centering.BEAM_CENTER,
+        )
+        p_geo = SingleProfile(
+            profile_data,
+            interpolation=Interpolation.NONE,
+            centering=Centering.GEOMETRIC_CENTER,
+        )
+
+        field_data_beam = p_beam.field_data()
+        field_data_geo = p_geo.field_data()
+
+        # Verify exact values differ for offset field with center=(20, 20)
+        self.assertAlmostEqual(field_data_beam["left index (exact)"], 332, delta=1)
+        self.assertAlmostEqual(field_data_beam["right index (exact)"], 537, delta=1)
+        self.assertAlmostEqual(field_data_geo["left index (exact)"], 281, delta=1)
+        self.assertAlmostEqual(field_data_geo["right index (exact)"], 486, delta=1)
+
+    def test_centering_same_for_centered_profile(self):
+        """For a centered profile, both centering methods should give identical results."""
+        # Create a centered field
+        field = generate_open_field(center=(0, 0))
+        profile_data = field.image[:, int(field.shape[1] / 2)]
+
+        p_beam = SingleProfile(
+            profile_data,
+            interpolation=Interpolation.NONE,
+            centering=Centering.BEAM_CENTER,
+        )
+        p_geo = SingleProfile(
+            profile_data,
+            interpolation=Interpolation.NONE,
+            centering=Centering.GEOMETRIC_CENTER,
+        )
+
+        beam_center = p_beam.beam_center()["index (exact)"]
+        geo_center = p_geo.geometric_center()["index (exact)"]
+
+        # For a centered profile, beam center equals geometric center exactly
+        self.assertAlmostEqual(beam_center, 383.5, delta=0.5)
+        self.assertAlmostEqual(geo_center, 383.5, delta=0.5)
+
+    def test_centering_field_region_symmetric_about_chosen_center(self):
+        """Field region should be symmetric about the chosen center point."""
+        # Create an offset field
+        field = generate_open_field(center=(25, 25))
+        profile_data = field.image[:, int(field.shape[1] / 2)]
+
+        # For GEOMETRIC_CENTER, verify exact values for center=(25, 25)
+        p_geo = SingleProfile(
+            profile_data,
+            interpolation=Interpolation.NONE,
+            centering=Centering.GEOMETRIC_CENTER,
+        )
+        fd_geo = p_geo.field_data()
+        self.assertAlmostEqual(
+            p_geo.geometric_center()["index (exact)"], 383.5, delta=0.5
+        )
+        self.assertAlmostEqual(fd_geo["left index (exact)"], 281, delta=1)
+        self.assertAlmostEqual(fd_geo["right index (exact)"], 486, delta=1)
+
+        # For BEAM_CENTER, verify exact values for center=(25, 25)
+        p_beam = SingleProfile(
+            profile_data,
+            interpolation=Interpolation.NONE,
+            centering=Centering.BEAM_CENTER,
+        )
+        fd_beam = p_beam.field_data()
+        self.assertAlmostEqual(p_beam.beam_center()["index (exact)"], 448, delta=1)
+        self.assertAlmostEqual(fd_beam["left index (exact)"], 345, delta=1)
+        self.assertAlmostEqual(fd_beam["right index (exact)"], 550, delta=1)
+
+    def test_centering_field_values_differ_for_offset_beam(self):
+        """For offset beam, field values should differ significantly between centering methods."""
+        field = generate_open_field(center=(30, 30))  # Larger offset
+        profile_data = field.image[:, int(field.shape[1] / 2)]
+
+        p_beam = SingleProfile(
+            profile_data,
+            interpolation=Interpolation.NONE,
+            centering=Centering.BEAM_CENTER,
+        )
+        p_geo = SingleProfile(
+            profile_data,
+            interpolation=Interpolation.NONE,
+            centering=Centering.GEOMETRIC_CENTER,
+        )
+
+        fd_beam = p_beam.field_data(in_field_ratio=0.8)
+        fd_geo = p_geo.field_data(in_field_ratio=0.8)
+
+        # Verify exact values for center=(30, 30) with in_field_ratio=0.8
+        self.assertAlmostEqual(np.mean(fd_beam["field values"]), 1.0, delta=0.05)
+        self.assertAlmostEqual(np.mean(fd_geo["field values"]), 0.74, delta=0.05)
+        self.assertAlmostEqual(fd_beam["left index (exact)"], 358, delta=1)
+        self.assertAlmostEqual(fd_beam["right index (exact)"], 563, delta=1)
+        self.assertAlmostEqual(fd_geo["left index (exact)"], 281, delta=1)
+        self.assertAlmostEqual(fd_geo["right index (exact)"], 486, delta=1)
+
+    def test_centering_affects_symmetry_and_flatness_calculations(self):
+        """Different centering should produce different symmetry and flatness values."""
+        # Create offset field with center=(10, 10)
+        field = generate_open_field(center=(10, 10))
+        profile_data = field.image[:, int(field.shape[1] / 2)]
+
+        p_beam = SingleProfile(
+            profile_data,
+            interpolation=Interpolation.NONE,
+            centering=Centering.BEAM_CENTER,
+        )
+        p_geo = SingleProfile(
+            profile_data,
+            interpolation=Interpolation.NONE,
+            centering=Centering.GEOMETRIC_CENTER,
+        )
+
+        # Calculate symmetry using point difference method
+        sym_beam = symmetry_point_difference(p_beam, in_field_ratio=0.8)
+        sym_geo = symmetry_point_difference(p_geo, in_field_ratio=0.8)
+
+        # Beam-centered symmetry should be near 0 since beam is the reference
+        # Geometric-centered symmetry should show significant asymmetry
+        self.assertAlmostEqual(sym_beam, -1.1, delta=0.2)
+        self.assertAlmostEqual(sym_geo, -51, delta=1)
+
+        # Calculate flatness using dose difference method
+        flat_beam = flatness_dose_difference(p_beam, in_field_ratio=0.8)
+        flat_geo = flatness_dose_difference(p_geo, in_field_ratio=0.8)
+
+        # Beam-centered flatness should be low (good flatness)
+        # Geometric-centered flatness should be much higher (poor flatness)
+        self.assertAlmostEqual(flat_beam, 1.1, delta=0.1)
+        self.assertAlmostEqual(flat_geo, 33, delta=1)
 
 
 class MultiProfileTestMixin:
