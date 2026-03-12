@@ -49,6 +49,15 @@ class HeliosContrastScaleModule(CatPhanModule):
         """Difference in mean HU: Plexiglass - Water."""
         return self.rois["Plexiglass"].mean - self.rois["Water"].mean
 
+    def as_dict(self) -> dict:
+        """Dump important data as a dictionary."""
+        return {
+            "data": {
+                "mean_hu": {name: roi.mean for name, roi in self.rois.items()},
+                "Std_dev": {name: roi.std for name, roi in self.rois.items()},
+            }
+        }
+
     def plot_rois(self, axis: plt.Axes) -> None:
         """Plot the ROIs to the axis."""
         for roi in self.rois.values():
@@ -68,26 +77,10 @@ class HeliosContrastScaleModuleOutput(BaseModel):
     offset: float = Field(
         description="The offset of this module slice from the origin slice in mm."
     )
-    plexiglass_hu: float = Field(
-        description="Mean HU of the Plexiglass ROI.",
-        title="Plexiglass Mean HU",
+    roi_settings: dict = Field(
+        description="The ROI settings. The keys are the material names."
     )
-    plexiglass_stdev: float = Field(
-        description="Standard deviation of the Plexiglass ROI.",
-        title="Plexiglass standard deviation",
-    )
-    water_hu: float = Field(
-        description="Mean HU of the Water ROI.",
-        title="Water Mean HU",
-    )
-    water_stdev: float = Field(
-        description="Standard deviation of the Water ROI.",
-        title="Water standard deviation",
-    )
-    contrast_difference: float = Field(
-        description="Difference in mean HU between Plexiglass and Water.",
-        title="Contrast Difference (HU)",
-    )
+    rois: dict = Field(description="The analyzed ROIs.")
 
 
 class HeliosHighContrastModule(CatPhanModule):
@@ -140,15 +133,14 @@ class HeliosHighContrastModule(CatPhanModule):
             )
 
     @property
-    def stdev_per_bar(self) -> dict[str, float]:
-        """Standard deviation measured within each bar-pattern ROI."""
-        return {name: float(roi.std) for name, roi in self.rois.items()}
-
-    @property
     def mtf(self) -> MTF:
         spacings = [1 / (2 * roi["bar_size"]) for roi in self.roi_settings.values()]
         diskset = list(self.rois.values())
         return MTF.from_high_contrast_diskset(spacings=spacings, diskset=diskset)
+
+    def as_dict(self) -> dict:
+        """Dump important data as a dictionary."""
+        return {name: roi.std for name, roi in self.rois.items()}
 
     def plot_rois(self, axis: plt.Axes) -> None:
         """Plot the ROIs to the axis."""
@@ -169,12 +161,9 @@ class HeliosHighContrastModuleOutput(BaseModel):
     offset: float = Field(
         description="The offset of this module slice from the origin slice in mm."
     )
-    stdev_per_bar: dict[str, float] = Field(
-        description="Standard deviation measured in each bar pattern ROI. Keys are the bar sizes.",
-        title="Standard deviation per Bar Pattern",
-    )
-    mtf_lp_mm: dict[float, float] = Field(
-        description="Relative MTF at each spatial frequency (lp/mm), normalized to the coarsest bar pattern.",
+    rois: dict = Field(description="The analyzed ROIs.")
+    mtf_lp_mm: dict[int, float] = Field(
+        description="A key-value pair of the MTF. The key is the relative resolution in % and the value is the lp/mm at that resolution",
         title="MTF (lp/mm)",
     )
 
@@ -184,22 +173,22 @@ class HeliosNoiseUniformityModule(CatPhanModule):
 
     common_name = "Noise & Uniformity"
     attr_name = "noise_uniformity_module"
-    center_roi_settings = {
-        "Noise": {"width": 25, "height": 25, "distance": 0, "angle": 0},
-        "Uniformity": {"width": 15, "height": 15, "distance": 0, "angle": 0},
-    }
-    edge_roi_settings = {
+    roi_settings = {
+        "Center": {"width": 15, "height": 15, "distance": 0, "angle": 0},
         "12 o'clock": {"width": 15, "height": 15, "distance": 75, "angle": -90},
         "3 o'clock": {"width": 15, "height": 15, "distance": 75, "angle": 0},
     }
-    center_rois: dict
-    edge_rois: dict
+    noise_roi_settings = {
+        "Center": {"width": 25, "height": 25, "distance": 0, "angle": 0},
+    }
+    rois: dict
+    noise_rois: dict
 
     def _setup_rois(self) -> None:
-        self.center_rois = {}
-        self.edge_rois = {}
-        for name, setting in self.center_roi_settings.items():
-            self.center_rois[name] = RectangleROI.from_phantom_center(
+        self.rois = {}
+        self.noise_rois = {}
+        for name, setting in self.roi_settings.items():
+            self.rois[name] = RectangleROI.from_phantom_center(
                 array=self.image,
                 width=setting["width_pixels"],
                 height=setting["height_pixels"],
@@ -207,8 +196,8 @@ class HeliosNoiseUniformityModule(CatPhanModule):
                 dist_from_center=setting["distance_pixels"],
                 phantom_center=self.phan_center,
             )
-        for name, setting in self.edge_roi_settings.items():
-            self.edge_rois[name] = RectangleROI.from_phantom_center(
+        for name, setting in self.noise_rois.items():
+            self.noise_rois[name] = RectangleROI.from_phantom_center(
                 array=self.image,
                 width=setting["width_pixels"],
                 height=setting["height_pixels"],
@@ -218,33 +207,42 @@ class HeliosNoiseUniformityModule(CatPhanModule):
             )
 
     @property
-    def center_mean_hu(self) -> float:
-        """Mean HU of the 15 mm center ROI."""
-        return float(self.center_rois["Uniformity"].mean)
+    def noise_center(self) -> float:
+        """Std of the central ROI."""
+        return self.rois["Center"].std
 
     @property
-    def center_stdev(self) -> float:
-        """Standard deviation (noise) of the 25 mm center ROI."""
-        return self.center_rois["Noise"].std
+    def mean_outer(self) -> float:
+        """Mean HU of the outer ROIs."""
+        roi_keys = ["12 o'clock", "3 o'clock"]
+        return float(np.mean([self.rois[key].mean for key in roi_keys]))
 
     @property
     def uniformity_difference(self) -> float:
         """Difference between the center mean and the average edge mean."""
-        edge_mean = np.mean([roi.mean for roi in self.edge_rois.values()])
-        return float(self.center_mean_hu - edge_mean)
+        return float(self.rois["Center"].mean - self.mean_outer)
+
+    def as_dict(self) -> dict:
+        """Dump important data as a dictionary."""
+        return {
+            "data": {
+                "mean_hu": {name: roi.mean for name, roi in self.rois.items()},
+                "Std_dev": {name: roi.std for name, roi in self.rois.items()},
+            }
+        }
 
     def plot_rois(self, axis: plt.Axes) -> None:
         """Plot the ROIs to the axis."""
-        for roi in self.center_rois.values():
+        for roi in self.rois.values():
             roi.plot2axes(axis, edgecolor="blue")
-        for roi in self.edge_rois.values():
+        for roi in self.noise_rois.values():
             roi.plot2axes(axis, edgecolor="blue")
 
     def plotly_rois(self, fig: go.Figure) -> None:
         """Plot the ROIs to a Plotly figure."""
-        for name, roi in self.center_rois.items():
+        for name, roi in self.rois.items():
             roi.plotly(fig, line_color="blue", name=name)
-        for name, roi in self.edge_rois.items():
+        for name, roi in self.noise_rois.items():
             roi.plotly(fig, line_color="blue", name=name)
 
 
@@ -256,19 +254,13 @@ class HeliosNoiseUniformityModuleOutput(BaseModel):
     offset: float = Field(
         description="The offset of this module slice from the origin slice in mm."
     )
-    center_mean_hu: float = Field(
-        description="Mean HU of the center uniformity ROI.",
-        title="Center Mean HU",
+    roi_settings: dict = Field(
+        description="The ROI settings. The keys are the ROI locations."
     )
-    center_stdev: float = Field(
-        description="Standard deviation of the center noise ROI (25 mm box).",
-        title="Center StdDev (Noise)",
-    )
-    edge_rois: dict = Field(
-        description="Mean HU values of each edge ROI, keyed by position name.",
-        title="Edge ROI Mean HU Values",
-    )
-    uniformity_difference: float = Field(
+    rois: dict = Field(description="The analyzed ROIs.")
+    noise_center: float = Field("The noise in the central ROI")
+    mean_outer: float = Field("Mean HU values of the outer ROIs.")
+    means_diff: float = Field(
         description="Difference between the center ROI mean and the average of the edge ROIs.",
         title="Uniformity Difference (HU)",
     )
@@ -631,6 +623,12 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         return paths
 
     def _generate_results_data(self) -> GEHeliosResult:
+        resolutions = range(10, 91, 10)  # 10-90% in 10% increments
+        mtfs = {
+            resolution: self.high_contrast_module.mtf.relative_resolution(resolution)
+            for resolution in resolutions
+        }
+
         return GEHeliosResult(
             phantom_model=self._model,
             phantom_roll_deg=self.catphan_roll,
@@ -638,29 +636,21 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             num_images=self.num_images,
             contrast_scale=HeliosContrastScaleModuleOutput(
                 offset=0,
-                plexiglass_hu=self.contrast_scale_module.rois["Plexiglass"].mean,
-                plexiglass_stdev=self.contrast_scale_module.rois["Plexiglass"].std,
-                water_hu=self.contrast_scale_module.rois["Water"].mean,
-                water_stdev=self.contrast_scale_module.rois["Water"].std,
-                contrast_difference=self.contrast_scale_module.contrast_difference,
+                roi_settings=self.contrast_scale_module.roi_settings,
+                rois=self.contrast_scale_module.as_dict(),
             ),
             high_contrast=HeliosHighContrastModuleOutput(
                 offset=0,
-                stdev_per_bar={
-                    name: roi.std
-                    for name, roi in self.high_contrast_module.rois.items()
-                },
-                mtf_lp_mm=self.high_contrast_module.mtf.norm_mtfs,
+                rois=self.high_contrast_module.as_dict(),
+                mtf_lp_mm=mtfs,
             ),
             noise_uniformity=HeliosNoiseUniformityModuleOutput(
                 offset=SECTION_3_OFFSET_MM,
-                center_mean_hu=self.noise_uniformity_module.center_mean_hu,
-                center_stdev=self.noise_uniformity_module.center_stdev,
-                edge_rois={
-                    name: float(roi.mean)
-                    for name, roi in self.noise_uniformity_module.edge_rois.items()
-                },
-                uniformity_difference=self.noise_uniformity_module.uniformity_difference,
+                roi_settings=self.noise_uniformity_module.roi_settings,
+                rois=self.noise_uniformity_module.as_dict(),
+                noise_center=self.noise_uniformity_module.noise_center,
+                mean_outer=self.noise_uniformity_module.mean_outer,
+                means_diff=self.noise_uniformity_module.uniformity_difference,
             ),
         )
 

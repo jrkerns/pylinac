@@ -111,16 +111,15 @@ class HeliosMixin(CloudFileMixin):
     origin_slice: int
     phantom_roll: float = 0
     contrast_difference: float
-    center_mean_hu: float
     noise_stdev: float
     uniformity_difference: float
-    high_contrast_stdevs: dict
+    high_contrast_mtf_50: dict
     x_adjustment: float = 0
     y_adjustment: float = 0
     angle_adjustment: float = 0
     roi_size_factor: float = 1
     scaling_factor: float = 1
-    num_figs = 5
+    num_figs = 4
 
     @classmethod
     def setUpClass(cls):
@@ -153,16 +152,9 @@ class HeliosMixin(CloudFileMixin):
             delta=2,
         )
 
-    def test_center_mean_hu(self):
-        self.assertAlmostEqual(
-            self.ct.noise_uniformity_module.center_mean_hu,
-            self.center_mean_hu,
-            delta=3,
-        )
-
     def test_noise_stdev(self):
         self.assertAlmostEqual(
-            self.ct.noise_uniformity_module.center_stdev,
+            self.ct.noise_uniformity_module.noise_center,
             self.noise_stdev,
             delta=0.3,
         )
@@ -174,26 +166,21 @@ class HeliosMixin(CloudFileMixin):
             delta=3,
         )
 
-    def test_high_contrast_stdevs(self):
-        measurements = self.ct.high_contrast_module.stdev_per_bar
-        for key, meas_val in measurements.items():
-            exp_val = self.high_contrast_stdevs[key]
-            self.assertAlmostEqual(exp_val, meas_val, delta=1)
+    def test_high_contrast_mtf(self):
+        self.assertAlmostEqual(
+            self.ct.high_contrast_module.mtf.relative_resolution(50),
+            self.high_contrast_mtf_50,
+            delta=0.1,
+        )
 
 
 class Helios_1(HeliosMixin, PlotlyTestMixin, TestCase):
     file_name = "GEHeliosCTDaily1.zip"
     origin_slice = 5
     contrast_difference = 124.66
-    center_mean_hu = 0.73
     noise_stdev = 4.40
     uniformity_difference = -0.01
-    high_contrast_stdevs = {
-        "1.6mm": 37.54,
-        "1.3mm": 30.40,
-        "1.0mm": 20.95,
-        "0.8mm": 11.06,
-    }
+    high_contrast_mtf_50 = 0.54
 
     def setUp(self) -> None:
         self.instance = self.ct
@@ -206,15 +193,9 @@ class Helios_2(HeliosMixin, TestCase):
     file_name = "GEHeliosCTDaily2.zip"
     origin_slice = 5
     contrast_difference = 126.15
-    center_mean_hu = -0.06
     noise_stdev = 4.06
     uniformity_difference = -0.18
-    high_contrast_stdevs = {
-        "1.6mm": 40.90,
-        "1.3mm": 31.70,
-        "1.0mm": 23.21,
-        "0.8mm": 10.73,
-    }
+    high_contrast_mtf_50 = 0.55
 
     def test_plotly_analyzed_images(self):
         self.ct.plotly_analyzed_images()
