@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import io
-import webbrowser
 from io import BytesIO
 from pathlib import Path
 
@@ -11,11 +10,9 @@ from plotly import graph_objects as go
 from pydantic import BaseModel, Field
 from skimage import draw
 
-from .core import pdf
 from .core.mtf import MTF
-from .core.plotly_utils import add_title
 from .core.roi import RectangleROI
-from .core.utilities import QuaacDatum, ResultBase, ResultsDataMixin
+from .core.utilities import ResultBase, ResultsDataMixin
 from .core.warnings import capture_warnings
 from .ct import CatPhanBase, CatPhanModule, Slice
 
@@ -196,7 +193,7 @@ class HeliosNoiseUniformityModule(CatPhanModule):
                 dist_from_center=setting["distance_pixels"],
                 phantom_center=self.phan_center,
             )
-        for name, setting in self.noise_rois.items():
+        for name, setting in self.noise_roi_settings.items():
             self.noise_rois[name] = RectangleROI.from_phantom_center(
                 array=self.image,
                 width=setting["width_pixels"],
@@ -438,64 +435,6 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             absolute_origin_position + SECTION_3_OFFSET_MM,
         ]
 
-    # -----------------------------------------------------------------
-    # Plotting
-    # -----------------------------------------------------------------
-
-    def plot_analyzed_image(self, show: bool = True, **plt_kwargs) -> plt.Figure:
-        """Plot all analysis results in a single figure.
-
-        Parameters
-        ----------
-        show : bool
-            Whether to call ``plt.show()``.
-        plt_kwargs
-            Keyword arguments forwarded to ``plt.figure()``.
-
-        Returns
-        -------
-        matplotlib.figure.Figure
-        """
-        fig = plt.figure(**plt_kwargs)
-        grid_size = (2, 3)
-        cs_ax = plt.subplot2grid(grid_size, (0, 0))
-        self.contrast_scale_module.plot(cs_ax)
-        hc_ax = plt.subplot2grid(grid_size, (0, 1))
-        self.high_contrast_module.plot(hc_ax)
-        nu_ax = plt.subplot2grid(grid_size, (0, 2))
-        self.noise_uniformity_module.plot(nu_ax)
-        mtf_ax = plt.subplot2grid(grid_size, (1, 0))
-        self._plot_mtf(mtf_ax)
-        side_ax = plt.subplot2grid(grid_size, (1, 1))
-        self.plot_side_view(side_ax)
-        plt.tight_layout()
-        if show:
-            plt.show()
-        return fig
-
-    def save_analyzed_image(self, filename: str | Path | BytesIO, **plt_kwargs) -> None:
-        """Save the combined analysis image to disk or stream.
-
-        Parameters
-        ----------
-        filename : str, Path, or BytesIO
-            Destination file path or stream.
-        plt_kwargs
-            Keyword arguments forwarded to ``plt.figure()``.
-        """
-        fig = self.plot_analyzed_image(show=False, **plt_kwargs)
-        fig.savefig(filename)
-
-    def _plot_mtf(self, axis: plt.Axes) -> None:
-        """Plot the bar-pattern relative MTF curve."""
-        mtf = self.high_contrast_module.mtf
-        axis.plot(list(mtf.keys()), list(mtf.values()), "bo-")
-        axis.set_xlabel("Spatial Frequency (lp/mm)")
-        axis.set_ylabel("Relative MTF")
-        axis.set_title("MTF")
-        axis.set_ylim(0, 1.1)
-        axis.grid(True)
-
     def plotly_analyzed_images(
         self,
         show: bool = True,
@@ -503,88 +442,119 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         show_legend: bool = True,
         **kwargs,
     ) -> dict[str, go.Figure]:
-        """Plot the analysis results as Plotly figures.
+        """Plot the analyzed set of images to Plotly figures.
 
         Parameters
         ----------
         show : bool
-            Whether to call ``fig.show()`` on each figure.
+            Whether to show the plot.
         show_colorbar : bool
-            Whether to display the colour-bar on image plots.
+            Whether to show the colorbar on the plot.
         show_legend : bool
-            Whether to display the legend.
+            Whether to show the legend on the plot.
+        kwargs
+            Additional keyword arguments to pass to the plot.
 
         Returns
         -------
-        dict[str, go.Figure]
-            A dictionary mapping descriptive names to Plotly figures.
+        dict
+            A dictionary of the Plotly figures where the key is the name of the
+            image and the value is the figure.
         """
         figs = {}
-        for module in (
+        # plot the images
+        modules: list = [
             self.contrast_scale_module,
             self.high_contrast_module,
             self.noise_uniformity_module,
-        ):
+        ]
+        for module in modules:
             figs[module.common_name] = module.plotly(
-                show_colorbar=show_colorbar,
-                show_legend=show_legend,
-                **kwargs,
+                show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
             )
+        # side view
+        figs["Side View"] = self.plotly_side_view(show_legend=show_legend)
+        # mtf
+        fig = go.Figure()
         figs["MTF"] = self.high_contrast_module.mtf.plotly(
-            show_legend=show_legend, **kwargs
+            show_legend=show_legend, fig=fig, name="rMTF"
         )
+
         if show:
             for fig in figs.values():
                 fig.show()
         return figs
 
-    def _plotly_mtf(self, show_legend: bool = True) -> go.Figure:
-        """Create a Plotly figure for the MTF curve."""
-        fig = go.Figure()
-        mtf = self.high_contrast_module.mtf
-        fig.add_scatter(
-            x=list(mtf.keys()),
-            y=list(mtf.values()),
-            mode="lines+markers",
-            name="MTF",
-        )
-        add_title(fig, "MTF")
-        fig.update_xaxes(title_text="Spatial Frequency (lp/mm)")
-        fig.update_yaxes(title_text="Relative MTF", range=[0, 1.1])
-        fig.update_layout(showlegend=show_legend)
-        return fig
-
-    def plot_images(self, show: bool = True, **plt_kwargs) -> dict[str, plt.Figure]:
-        """Plot each analysis image as a separate figure.
+    def plot_analyzed_image(self, show: bool = True, **plt_kwargs) -> plt.Figure:
+        """Plot the analyzed image
 
         Parameters
         ----------
-        show : bool
-            Whether to call ``plt.show()``.
+        show
+            Whether to show the image.
         plt_kwargs
-            Keyword arguments forwarded to ``plt.subplots()``.
+            Keywords to pass to matplotlib for figure customization.
+        """
+        modules: list = [
+            self.contrast_scale_module,
+            self.high_contrast_module,
+            self.noise_uniformity_module,
+        ]
 
-        Returns
-        -------
-        dict[str, matplotlib.figure.Figure]
+        # set up grid and axes
+        fig, axs = plt.subplots(2, 3, **plt_kwargs)
+        axes = axs.ravel()
+        ax_idx = -1
+        for module in modules:
+            ax_idx += 1
+            module.plot(axes[ax_idx])
+
+        ax_idx += 1
+        self.plot_side_view(axes[ax_idx])
+        ax_idx += 1
+        self.high_contrast_module.mtf.plot(axes[ax_idx], label="rMTF")
+        axes[ax_idx].legend()
+
+        for i in range(ax_idx + 1, len(axes)):
+            axes[i].set_visible(False)
+
+        # finish up
+        plt.tight_layout()
+        if show:
+            plt.show()
+        return fig
+
+    def plot_images(self, show: bool = True, **plt_kwargs) -> dict[str, plt.Figure]:
+        """Plot all the individual images separately
+
+        Parameters
+        ----------
+        show
+            Whether to show the images.
+        plt_kwargs
+            Keywords to pass to matplotlib for figure customization.
         """
         figs = {}
-        modules = {
-            "contrast_scale": self.contrast_scale_module,
-            "high_contrast": self.high_contrast_module,
-            "noise_uniformity": self.noise_uniformity_module,
+        # plot the images
+        modules: dict = {
+            "contrast scale": self.contrast_scale_module,
+            "high contrast": self.high_contrast_module,
+            "noise and uniformity": self.noise_uniformity_module,
         }
         for key, module in modules.items():
             fig, ax = plt.subplots(**plt_kwargs)
             module.plot(ax)
             figs[key] = fig
+        # plot rMTF
         fig, ax = plt.subplots(**plt_kwargs)
-        self._plot_mtf(ax)
-        figs["mtf"] = fig
+        self.high_contrast_module.mtf.plot(ax, label="rMTF")
+        ax.legend()
+        figs["rMTF"] = fig
+        # plot the side view
         fig, ax = plt.subplots(**plt_kwargs)
-        self.plot_side_view(ax)
         figs["side"] = fig
-        plt.tight_layout()
+        self.plot_side_view(ax)
+
         if show:
             plt.show()
         return figs
@@ -595,28 +565,24 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         to_stream: bool = False,
         **plt_kwargs,
     ) -> list[Path | BytesIO]:
-        """Save each analysis image to disk or to in-memory streams.
+        """Save separate images to disk or stream.
 
         Parameters
         ----------
-        directory : Path or str or None
-            Output directory. Defaults to the current working directory.
-        to_stream : bool
-            If True, return ``BytesIO`` streams instead of writing files.
+        directory
+            The directory to write the images to. If None, will use current working directory
+        to_stream
+            Whether to write to stream or disk. If True, will return streams. Directory is ignored in that scenario.
         plt_kwargs
-            Keyword arguments forwarded to ``plt.subplots()``.
-
-        Returns
-        -------
-        list[Path | BytesIO]
+            Keywords to pass to matplotlib for figure customization.
         """
         figs = self.plot_images(show=False, **plt_kwargs)
-        paths: list[Path | BytesIO] = []
+        paths = []
         for name, fig in figs.items():
             if to_stream:
                 path = io.BytesIO()
             else:
-                destination = Path(directory) if directory else Path.cwd()
+                destination = Path(directory) or Path.cwd()
                 path = (destination / name).with_suffix(".png").absolute()
             fig.savefig(path)
             paths.append(path)
@@ -653,86 +619,3 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
                 means_diff=self.noise_uniformity_module.uniformity_difference,
             ),
         )
-
-    def publish_pdf(
-        self,
-        filename: str | Path,
-        notes: str | None = None,
-        open_file: bool = False,
-        metadata: dict | None = None,
-        logo: Path | str | None = None,
-    ) -> None:
-        """Publish a PDF report containing the analysis results.
-
-        Parameters
-        ----------
-        filename : str or Path
-            The file to write the PDF to.
-        notes : str or None
-            Optional text to include in the report.
-        open_file : bool
-            Whether to open the PDF after creation.
-        metadata : dict or None
-            Extra metadata shown in the report header (e.g.
-            ``{'Author': 'Jane', 'Unit': 'CT-1'}``).
-        logo : Path, str, or None
-            Custom logo for the report. Uses the pylinac logo if None.
-        """
-        analysis_title = f"{self._model} Analysis"
-        cs = self.contrast_scale_module
-        nu = self.noise_uniformity_module
-        texts = [
-            f" - {self._model} Results - ",
-            f"Contrast Scale: Difference={cs.contrast_difference:.1f} HU "
-            f"Noise (StdDev): {nu.center_stdev:.2f}",
-            f"Uniformity Difference: {nu.uniformity_difference:.1f} HU",
-        ]
-        analysis_images = self.save_images(to_stream=True)
-        canvas = pdf.PylinacCanvas(
-            filename,
-            page_title=analysis_title,
-            metadata=metadata,
-            logo=logo,
-        )
-        if notes is not None:
-            canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)
-            canvas.add_text(text=notes, location=(1, 4))
-        for idx, text in enumerate(texts):
-            canvas.add_text(text=text, location=(1.5, 23 - idx * 0.5))
-        for img in analysis_images:
-            canvas.add_new_page()
-            canvas.add_image(img, location=(1, 5), dimensions=(18, 18))
-        canvas.finish()
-        if open_file:
-            webbrowser.open(filename)
-
-    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
-        results = self.results_data(as_dict=True)
-        data: dict[str, QuaacDatum] = {}
-        data["Phantom Roll"] = QuaacDatum(
-            value=results["phantom_roll_deg"],
-            unit="degrees",
-            description="The roll of the phantom in degrees",
-        )
-        data["Contrast Difference"] = QuaacDatum(
-            value=results["contrast_scale"]["contrast_difference"],
-            unit="HU",
-            description="Plexiglass minus Water mean HU",
-        )
-        for bar_name, stdev in results["high_contrast"]["stdev_per_bar"].items():
-            data[f"{bar_name} StdDev"] = QuaacDatum(
-                value=stdev,
-                unit="HU",
-                description=f"Standard deviation of {bar_name} bar pattern ROI",
-            )
-        data["Noise StdDev"] = QuaacDatum(
-            value=results["noise_uniformity"]["center_stdev"],
-            unit="HU",
-            description="Center ROI standard deviation (noise)",
-        )
-        data["Uniformity Difference"] = QuaacDatum(
-            value=results["noise_uniformity"]["uniformity_difference"],
-            unit="HU",
-            description="Center minus edge mean HU",
-        )
-        return data

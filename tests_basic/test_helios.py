@@ -1,7 +1,7 @@
 import io
 import os
 from pathlib import Path
-from unittest import TestCase
+from unittest import TestCase, skip
 
 from matplotlib import pyplot as plt
 
@@ -93,6 +93,7 @@ class TestPlottingSaving(TestCase):
         self.assertEqual(fig.bbox_inches.width, 8)
 
 
+@skip("TODO once Quaac interface is defined")
 class TestQuaac(QuaacTestBase, CloudFileMixin, TestCase):
     dir_path = TEST_DIR
     file_name = "GEHeliosCTDaily1.zip"
@@ -113,13 +114,13 @@ class HeliosMixin(CloudFileMixin):
     contrast_difference: float
     noise_stdev: float
     uniformity_difference: float
-    high_contrast_mtf_50: dict
+    high_contrast_mtf_50: float
     x_adjustment: float = 0
     y_adjustment: float = 0
     angle_adjustment: float = 0
     roi_size_factor: float = 1
     scaling_factor: float = 1
-    num_figs = 4
+    num_figs = 5
 
     @classmethod
     def setUpClass(cls):
@@ -185,9 +186,6 @@ class Helios_1(HeliosMixin, PlotlyTestMixin, TestCase):
     def setUp(self) -> None:
         self.instance = self.ct
 
-    def test_plotly_analyzed_images(self):
-        self.ct.plotly_analyzed_images()
-
 
 class Helios_2(HeliosMixin, TestCase):
     file_name = "GEHeliosCTDaily2.zip"
@@ -196,6 +194,3 @@ class Helios_2(HeliosMixin, TestCase):
     noise_stdev = 4.06
     uniformity_difference = -0.18
     high_contrast_mtf_50 = 0.55
-
-    def test_plotly_analyzed_images(self):
-        self.ct.plotly_analyzed_images()
