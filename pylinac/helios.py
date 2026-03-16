@@ -10,6 +10,7 @@ from plotly import graph_objects as go
 from pydantic import BaseModel, Field
 from skimage import draw
 
+from .core.geometry import Point
 from .core.mtf import MTF
 from .core.roi import RectangleROI
 from .core.utilities import ResultBase, ResultsDataMixin
@@ -165,6 +166,70 @@ class HeliosHighContrastModuleOutput(BaseModel):
     )
 
 
+class HeliosLowContrastModule(CatPhanModule):
+    """Class for analysis of the Low Contrast Detectability."""
+
+    common_name = "Low Contrast Detectability"
+    attr_name = "low_contrast_module"
+    cell_size: float = 5.0
+    num_cells: int = 15
+
+    def _setup_rois(self) -> None:
+        roi_size_px = self.cell_size / self.mm_per_pixel
+        total_size_px = roi_size_px * self.num_cells
+        half_grid = total_size_px / 2
+        half_roi = roi_size_px / 2
+
+        self.rois: list[RectangleROI] = []
+        for row in range(self.num_cells):
+            for col in range(self.num_cells):
+                center = Point(
+                    self.phan_center.x - half_grid + col * roi_size_px + half_roi,
+                    self.phan_center.y - half_grid + row * roi_size_px + half_roi,
+                )
+                self.rois.append(
+                    RectangleROI(
+                        array=self.image,
+                        width=roi_size_px,
+                        height=roi_size_px,
+                        center=center,
+                    )
+                )
+
+    @property
+    def mean(self) -> float:
+        """The mean value of the ROIs."""
+        return float(np.mean([roi.mean for roi in self.rois]))
+
+    @property
+    def std_dev(self) -> float:
+        """The std value of the ROIs."""
+        return float(np.std([roi.mean for roi in self.rois]))
+
+    def plot_rois(self, axis: plt.Axes) -> None:
+        """Plot the grid of ROIs on the axis."""
+        for roi in self.rois:
+            roi.plot2axes(axis, edgecolor="orange")
+
+    def plotly_rois(self, fig: go.Figure) -> None:
+        """Plot the grid of ROIs on a Plotly figure."""
+        for roi in self.rois:
+            roi.plotly(fig, line_color="orange")
+
+
+class HeliosLowContrastModuleOutput(BaseModel):
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+
+    Use the following attributes as normal class attributes."""
+
+    offset: float = Field(
+        description="The offset of this module slice from the origin slice in mm."
+    )
+    settings: dict = Field(description="The settings.")
+    mean: float = Field("Mean HU values of the ROIs")
+    std: float = Field("Standard deviation of the ROIs.")
+
+
 class HeliosNoiseUniformityModule(CatPhanModule):
     """Class for analysis of the Noise & Uniformity."""
 
@@ -285,6 +350,9 @@ class GEHeliosResult(ResultBase):
     high_contrast: HeliosHighContrastModuleOutput = Field(
         description="The results of the High Contrast Spatial Resolution test."
     )
+    low_contrast: HeliosLowContrastModuleOutput = Field(
+        description="The results of the Low Contrast Detectability test."
+    )
     noise_uniformity: HeliosNoiseUniformityModuleOutput = Field(
         description="The results of the Noise & Uniformity test."
     )
@@ -299,12 +367,14 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
 
     contrast_scale_module = HeliosContrastScaleModule
     high_contrast_module = HeliosHighContrastModule
+    low_contrast_module = HeliosLowContrastModule
     noise_uniformity_module = HeliosNoiseUniformityModule
 
     def _detected_modules(self) -> list[CatPhanModule]:
         return [
             self.contrast_scale_module,
             self.high_contrast_module,
+            self.low_contrast_module,
             self.noise_uniformity_module,
         ]
 
@@ -352,6 +422,9 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         )
         self.high_contrast_module = self.high_contrast_module(
             self, offset=0, clear_borders=self.clear_borders
+        )
+        self.low_contrast_module = self.low_contrast_module(
+            self, offset=SECTION_3_OFFSET_MM, clear_borders=self.clear_borders
         )
         self.noise_uniformity_module = self.noise_uniformity_module(
             self, offset=SECTION_3_OFFSET_MM, clear_borders=self.clear_borders
@@ -466,6 +539,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         modules: list = [
             self.contrast_scale_module,
             self.high_contrast_module,
+            self.low_contrast_module,
             self.noise_uniformity_module,
         ]
         for module in modules:
@@ -498,6 +572,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         modules: list = [
             self.contrast_scale_module,
             self.high_contrast_module,
+            self.low_contrast_module,
             self.noise_uniformity_module,
         ]
 
@@ -539,6 +614,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         modules: dict = {
             "contrast scale": self.contrast_scale_module,
             "high contrast": self.high_contrast_module,
+            "low contrast": self.low_contrast_module,
             "noise and uniformity": self.noise_uniformity_module,
         }
         for key, module in modules.items():
@@ -609,6 +685,15 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
                 offset=0,
                 rois=self.high_contrast_module.as_dict(),
                 mtf_lp_mm=mtfs,
+            ),
+            low_contrast=HeliosLowContrastModuleOutput(
+                offset=SECTION_3_OFFSET_MM,
+                settings={
+                    "cell_size": self.low_contrast_module.cell_size,
+                    "num_cells": self.low_contrast_module.num_cells,
+                },
+                mean=self.low_contrast_module.mean,
+                std=self.low_contrast_module.std_dev,
             ),
             noise_uniformity=HeliosNoiseUniformityModuleOutput(
                 offset=SECTION_3_OFFSET_MM,

@@ -115,12 +115,13 @@ class HeliosMixin(CloudFileMixin):
     noise_stdev: float
     uniformity_difference: float
     high_contrast_mtf_50: float
+    low_contrast_mean: float
     x_adjustment: float = 0
     y_adjustment: float = 0
     angle_adjustment: float = 0
     roi_size_factor: float = 1
     scaling_factor: float = 1
-    num_figs = 5
+    num_figs = 6
 
     @classmethod
     def setUpClass(cls):
@@ -174,6 +175,13 @@ class HeliosMixin(CloudFileMixin):
             delta=0.1,
         )
 
+    def test_low_contrast_mean(self):
+        self.assertAlmostEqual(
+            self.ct.low_contrast_module.mean,
+            self.low_contrast_mean,
+            delta=0.1,
+        )
+
 
 class Helios_1(HeliosMixin, PlotlyTestMixin, TestCase):
     file_name = "GEHeliosCTDaily1.zip"
@@ -182,9 +190,13 @@ class Helios_1(HeliosMixin, PlotlyTestMixin, TestCase):
     noise_stdev = 4.40
     uniformity_difference = -0.01
     high_contrast_mtf_50 = 0.54
+    low_contrast_mean = 0.83
 
     def setUp(self) -> None:
         self.instance = self.ct
+
+    def test_plotly_analyzed_images(self):
+        self.ct.plotly_analyzed_images()
 
 
 class Helios_2(HeliosMixin, TestCase):
@@ -194,3 +206,7 @@ class Helios_2(HeliosMixin, TestCase):
     noise_stdev = 4.06
     uniformity_difference = -0.18
     high_contrast_mtf_50 = 0.55
+    low_contrast_mean = 0.40
+
+    def test_plotly_analyzed_images(self):
+        self.ct.plotly_analyzed_images()
