@@ -22,7 +22,6 @@
    vmat_docs
    cbct
    acr
-   helios
    cheese
    quart
    log_analyzer
