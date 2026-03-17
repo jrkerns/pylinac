@@ -1,7 +1,7 @@
 import io
 import os
 from pathlib import Path
-from unittest import TestCase, skip
+from unittest import TestCase
 
 from matplotlib import pyplot as plt
 
@@ -93,7 +93,6 @@ class TestPlottingSaving(TestCase):
         self.assertEqual(fig.bbox_inches.width, 8)
 
 
-@skip("TODO once Quaac interface is defined")
 class TestQuaac(QuaacTestBase, CloudFileMixin, TestCase):
     dir_path = TEST_DIR
     file_name = "GEHeliosCTDaily1.zip"

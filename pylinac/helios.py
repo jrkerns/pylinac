@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import io
+import textwrap
+import webbrowser
 from io import BytesIO
 from pathlib import Path
 
@@ -10,10 +12,11 @@ from plotly import graph_objects as go
 from pydantic import BaseModel, Field
 from skimage import draw
 
+from .core import pdf
 from .core.geometry import Point
 from .core.mtf import MTF
 from .core.roi import RectangleROI
-from .core.utilities import ResultBase, ResultsDataMixin
+from .core.utilities import QuaacDatum, ResultBase, ResultsDataMixin
 from .core.warnings import capture_warnings
 from .ct import CatPhanBase, CatPhanModule, Slice
 
@@ -370,14 +373,6 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
     low_contrast_module = HeliosLowContrastModule
     noise_uniformity_module = HeliosNoiseUniformityModule
 
-    def _detected_modules(self) -> list[CatPhanModule]:
-        return [
-            self.contrast_scale_module,
-            self.high_contrast_module,
-            self.low_contrast_module,
-            self.noise_uniformity_module,
-        ]
-
     def plot_analyzed_subimage(self, *args, **kwargs):
         raise NotImplementedError("Use `plot_images`")
 
@@ -635,6 +630,14 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             plt.show()
         return figs
 
+    def _detected_modules(self) -> list[CatPhanModule]:
+        return [
+            self.contrast_scale_module,
+            self.high_contrast_module,
+            self.low_contrast_module,
+            self.noise_uniformity_module,
+        ]
+
     def save_images(
         self,
         directory: Path | str | None = None,
@@ -663,6 +666,116 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             fig.savefig(path)
             paths.append(path)
         return paths
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        results_data = self.results_data(as_dict=True)
+        data = {}
+
+        data["Phantom Roll"] = QuaacDatum(
+            value=results_data["phantom_roll_deg"],
+            unit="degrees",
+            description="The roll of the phantom in the image",
+        )
+        for name, roi in results_data["contrast_scale"]["rois"]["data"][
+            "mean_hu"
+        ].items():
+            data[f"Contrast scale {name} ROI"] = QuaacDatum(
+                value=roi,
+                unit="HU",
+            )
+        for name, roi in results_data["high_contrast"]["rois"].items():
+            data[f"High contrast {name} ROI"] = QuaacDatum(
+                value=roi,
+                unit="lp/mm",
+            )
+        data["Low contrast Mean"] = QuaacDatum(
+            value=results_data["low_contrast"]["mean"],
+            unit="HU",
+        )
+        data["Low contrast Std"] = QuaacDatum(
+            value=results_data["low_contrast"]["std"],
+            unit="HU",
+        )
+        data["Noise"] = QuaacDatum(
+            value=results_data["noise_uniformity"]["noise_center"],
+            unit="HU",
+        )
+        data["uniformity difference"] = QuaacDatum(
+            value=results_data["noise_uniformity"]["means_diff"],
+            unit="HU",
+        )
+        return data
+
+    def publish_pdf(
+        self,
+        filename: str | Path,
+        notes: str | None = None,
+        open_file: bool = False,
+        metadata: dict | None = None,
+        logo: Path | str | None = None,
+    ) -> None:
+        """Publish (print) a PDF containing the analysis and quantitative results.
+
+        Parameters
+        ----------
+        filename : (str, file-like object}
+            The file to write the results to.
+        notes : str, list of strings
+            Text; if str, prints single line.
+            If list of strings, each list item is printed on its own line.
+        open_file : bool
+            Whether to open the file using the default program after creation.
+        metadata : dict
+            Extra data to be passed and shown in the PDF. The key and value will be shown with a colon.
+            E.g. passing {'Author': 'James', 'Unit': 'TrueBeam'} would result in text in the PDF like:
+            --------------
+            Author: James
+            Unit: TrueBeam
+            --------------
+        logo: Path, str
+            A custom logo to use in the PDF report. If nothing is passed, the default pylinac logo is used.
+        """
+        analysis_title = f"{self._model} Analysis"
+        analysis_images = self.save_images(to_stream=True)
+
+        canvas = pdf.PylinacCanvas(
+            filename, page_title=analysis_title, metadata=metadata
+        )
+        if notes is not None:
+            canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)
+            canvas.add_text(text=notes, location=(1, 4))
+
+        shortened_texts = [
+            textwrap.wrap(r, width=110) for r in self.results(as_str=False)
+        ]
+        idx = 0
+        for items in enumerate(shortened_texts):
+            for text in items:
+                canvas.add_text(text=text, location=(1.5, 25 - idx * 0.5))
+                idx += 1
+        for page, img in enumerate(analysis_images):
+            canvas.add_new_page()
+            canvas.add_image(img, location=(1, 5), dimensions=(18, 18))
+        canvas.finish()
+
+        if open_file:
+            webbrowser.open(filename)
+
+    def results(self, as_str: bool = True) -> str | tuple:
+        """Return the results of the analysis as a string. Use with print()."""
+        string = (
+            f" - {self._model} Results - ",
+            f"Contrast Difference: {self.contrast_scale_module.contrast_difference}",
+            f"MTF 50% (lp/mm): {self.high_contrast_module.mtf.relative_resolution(50):2.2f}",
+            f"Low Contrast Mean: {self.low_contrast_module.mean:2.2f}",
+            f"Low Contrast Standard Deviation: {self.low_contrast_module.std:2.2f}",
+            f"Noise Center: {self.noise_uniformity_module.noise_center:2.2f}",
+            f"Uniformity Difference: {self.noise_uniformity_module.uniformity_difference:2.2f}",
+        )
+        if as_str:
+            return "\n".join(string)
+        else:
+            return string
 
     def _generate_results_data(self) -> GEHeliosResult:
         resolutions = range(10, 91, 10)  # 10-90% in 10% increments
