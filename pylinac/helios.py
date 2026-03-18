@@ -21,6 +21,11 @@ from .core.warnings import capture_warnings
 from .ct import CatPhanBase, CatPhanModule, Slice
 
 SECTION_3_OFFSET_MM = 60
+HELIOS_LOW_CONTRAST_SLICE_OFFSETS_INDEX = {
+    "slice_1": 0,
+    "slice_2": -1,
+    "slice_3": -2,
+}
 
 
 class HeliosContrastScaleModule(CatPhanModule):
@@ -178,6 +183,8 @@ class HeliosLowContrastModule(CatPhanModule):
     num_cells: int = 15
 
     def _setup_rois(self) -> None:
+        self.common_name = f"Low Contrast - {self.slice_num + 1}"
+
         roi_size_px = self.cell_size / self.mm_per_pixel
         total_size_px = roi_size_px * self.num_cells
         half_grid = total_size_px / 2
@@ -231,6 +238,58 @@ class HeliosLowContrastModuleOutput(BaseModel):
     settings: dict = Field(description="The settings.")
     mean: float = Field("Mean HU values of the ROIs")
     std: float = Field("Standard deviation of the ROIs.")
+
+
+class HeliosLowContrastMultiSliceModule:
+    """Class for managing Low Contrast analysis across multiple slices."""
+
+    roi_settings = {
+        "slice_1": {"offset": HELIOS_LOW_CONTRAST_SLICE_OFFSETS_INDEX["slice_1"]},
+        "slice_2": {"offset": HELIOS_LOW_CONTRAST_SLICE_OFFSETS_INDEX["slice_2"]},
+        "slice_3": {"offset": HELIOS_LOW_CONTRAST_SLICE_OFFSETS_INDEX["slice_3"]},
+    }
+
+    def __init__(self, catphan) -> None:
+        """Initialize the multi-slice Low Contrast Detectability module.
+
+        Parameters
+        ----------
+        catphan : CatPhanBase
+            The parent phantom instance.
+        """
+        self.slices: dict[str, HeliosLowContrastModule] = {}
+        slice_spacing = catphan.dicom_stack.slice_spacing
+        for key, value in self.roi_settings.items():
+            self.slices[key] = HeliosLowContrastModule(
+                catphan,
+                offset=int(value["offset"] * slice_spacing + SECTION_3_OFFSET_MM),
+            )
+
+    @property
+    def mean(self) -> float:
+        """The mean HU value across all slices."""
+        return float(np.mean([s.mean for s in self.slices.values()]))
+
+    @property
+    def std_dev(self) -> float:
+        """The average standard deviation across all slices."""
+        return float(np.mean([s.std_dev for s in self.slices.values()]))
+
+
+class HeliosLowContrastMultiSliceModuleOutput(BaseModel):
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+
+    Use the following attributes as normal class attributes."""
+
+    slices: dict[str, HeliosLowContrastModuleOutput] = Field(
+        description="Per-slice low contrast results keyed by slice name."
+    )
+    mean: float = Field(
+        description="Mean HU value across all slices.",
+    )
+    std: float = Field(
+        description="Average standard deviation across all slices.",
+    )
 
 
 class HeliosNoiseUniformityModule(CatPhanModule):
@@ -353,8 +412,8 @@ class GEHeliosResult(ResultBase):
     high_contrast: HeliosHighContrastModuleOutput = Field(
         description="The results of the High Contrast Spatial Resolution test."
     )
-    low_contrast: HeliosLowContrastModuleOutput = Field(
-        description="The results of the Low Contrast Detectability test."
+    low_contrast: HeliosLowContrastMultiSliceModuleOutput = Field(
+        description="The results of the Low Contrast Detectability multi-slice test."
     )
     noise_uniformity: HeliosNoiseUniformityModuleOutput = Field(
         description="The results of the Noise & Uniformity test."
@@ -370,7 +429,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
 
     contrast_scale_module = HeliosContrastScaleModule
     high_contrast_module = HeliosHighContrastModule
-    low_contrast_module = HeliosLowContrastModule
+    low_contrast_multi_slice = HeliosLowContrastMultiSliceModule
     noise_uniformity_module = HeliosNoiseUniformityModule
 
     def plot_analyzed_subimage(self, *args, **kwargs):
@@ -418,9 +477,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         self.high_contrast_module = self.high_contrast_module(
             self, offset=0, clear_borders=self.clear_borders
         )
-        self.low_contrast_module = self.low_contrast_module(
-            self, offset=SECTION_3_OFFSET_MM, clear_borders=self.clear_borders
-        )
+        self.low_contrast_multi_slice = self.low_contrast_multi_slice(self)
         self.noise_uniformity_module = self.noise_uniformity_module(
             self, offset=SECTION_3_OFFSET_MM, clear_borders=self.clear_borders
         )
@@ -534,9 +591,9 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         modules: list = [
             self.contrast_scale_module,
             self.high_contrast_module,
-            self.low_contrast_module,
             self.noise_uniformity_module,
         ]
+        modules.extend(list(self.low_contrast_multi_slice.slices.values()))
         for module in modules:
             figs[module.common_name] = module.plotly(
                 show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
@@ -567,12 +624,12 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         modules: list = [
             self.contrast_scale_module,
             self.high_contrast_module,
-            self.low_contrast_module,
             self.noise_uniformity_module,
         ]
+        modules.extend(list(self.low_contrast_multi_slice.slices.values()))
 
         # set up grid and axes
-        fig, axs = plt.subplots(2, 3, **plt_kwargs)
+        fig, axs = plt.subplots(2, 4, **plt_kwargs)
         axes = axs.ravel()
         ax_idx = -1
         for module in modules:
@@ -609,9 +666,9 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         modules: dict = {
             "contrast scale": self.contrast_scale_module,
             "high contrast": self.high_contrast_module,
-            "low contrast": self.low_contrast_module,
             "noise and uniformity": self.noise_uniformity_module,
         }
+        modules |= self.low_contrast_multi_slice.slices
         for key, module in modules.items():
             fig, ax = plt.subplots(**plt_kwargs)
             module.plot(ax)
@@ -631,12 +688,13 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         return figs
 
     def _detected_modules(self) -> list[CatPhanModule]:
-        return [
+        modules = [
             self.contrast_scale_module,
             self.high_contrast_module,
-            self.low_contrast_module,
             self.noise_uniformity_module,
         ]
+        modules.extend(list(self.low_contrast_multi_slice.slices.values()))
+        return modules
 
     def save_images(
         self,
@@ -767,8 +825,8 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             f" - {self._model} Results - ",
             f"Contrast Difference: {self.contrast_scale_module.contrast_difference}",
             f"MTF 50% (lp/mm): {self.high_contrast_module.mtf.relative_resolution(50):2.2f}",
-            f"Low Contrast Mean: {self.low_contrast_module.mean:2.2f}",
-            f"Low Contrast Standard Deviation: {self.low_contrast_module.std:2.2f}",
+            f"Low Contrast Mean: {self.low_contrast_multi_slice.mean:2.2f}",
+            f"Low Contrast Standard Deviation: {self.low_contrast_multi_slice.std_dev:2.2f}",
             f"Noise Center: {self.noise_uniformity_module.noise_center:2.2f}",
             f"Uniformity Difference: {self.noise_uniformity_module.uniformity_difference:2.2f}",
         )
@@ -799,14 +857,21 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
                 rois=self.high_contrast_module.as_dict(),
                 mtf_lp_mm=mtfs,
             ),
-            low_contrast=HeliosLowContrastModuleOutput(
-                offset=SECTION_3_OFFSET_MM,
-                settings={
-                    "cell_size": self.low_contrast_module.cell_size,
-                    "num_cells": self.low_contrast_module.num_cells,
+            low_contrast=HeliosLowContrastMultiSliceModuleOutput(
+                slices={
+                    k: HeliosLowContrastModuleOutput(
+                        offset=self.low_contrast_multi_slice.roi_settings[k]["offset"],
+                        settings={
+                            "cell_size": v.cell_size,
+                            "num_cells": v.num_cells,
+                        },
+                        mean=v.mean,
+                        std=v.std_dev,
+                    )
+                    for k, v in self.low_contrast_multi_slice.slices.items()
                 },
-                mean=self.low_contrast_module.mean,
-                std=self.low_contrast_module.std_dev,
+                mean=self.low_contrast_multi_slice.mean,
+                std=self.low_contrast_multi_slice.std_dev,
             ),
             noise_uniformity=HeliosNoiseUniformityModuleOutput(
                 offset=SECTION_3_OFFSET_MM,
