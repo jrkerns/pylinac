@@ -273,9 +273,9 @@ class HeliosNoiseUniformityModule(CatPhanModule):
             )
 
     @property
-    def noise_center(self) -> float:
+    def noise_center_std(self) -> float:
         """Std of the central ROI."""
-        return self.rois["Center"].std
+        return self.noise_rois["Center"].std
 
     @property
     def mean_outer(self) -> float:
@@ -291,10 +291,8 @@ class HeliosNoiseUniformityModule(CatPhanModule):
     def as_dict(self) -> dict:
         """Dump important data as a dictionary."""
         return {
-            "data": {
-                "mean_hu": {name: roi.mean for name, roi in self.rois.items()},
-                "Std_dev": {name: roi.std for name, roi in self.rois.items()},
-            }
+            "mean_hu": {name: roi.mean for name, roi in self.rois.items()},
+            "std": {name: roi.std for name, roi in self.rois.items()},
         }
 
     def plot_rois(self, axis: plt.Axes) -> None:
@@ -324,8 +322,8 @@ class HeliosNoiseUniformityModuleOutput(BaseModel):
         description="The ROI settings. The keys are the ROI locations."
     )
     rois: dict = Field(description="The analyzed ROIs.")
-    noise_center: float = Field("The noise in the central ROI")
-    mean_outer: float = Field("Mean HU values of the outer ROIs.")
+    noise_center_std: float = Field(description="The noise in the central ROI")
+    mean_outer: float = Field(description="Mean HU values of the outer ROIs.")
     means_diff: float = Field(
         description="Difference between the center ROI mean and the average of the edge ROIs.",
         title="Uniformity Difference (HU)",
