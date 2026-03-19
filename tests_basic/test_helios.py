@@ -120,7 +120,6 @@ class HeliosMixin(CloudFileMixin):
     angle_adjustment: float = 0
     roi_size_factor: float = 1
     scaling_factor: float = 1
-    num_figs = 5
 
     @classmethod
     def setUpClass(cls):
@@ -155,7 +154,7 @@ class HeliosMixin(CloudFileMixin):
 
     def test_noise_stdev(self):
         self.assertAlmostEqual(
-            self.ct.noise_uniformity_module.noise_center,
+            self.ct.noise_uniformity_module.noise_center_std,
             self.noise_stdev,
             delta=0.3,
         )
@@ -182,6 +181,7 @@ class Helios_1(HeliosMixin, PlotlyTestMixin, TestCase):
     noise_stdev = 4.40
     uniformity_difference = -0.01
     high_contrast_mtf_50 = 0.54
+    num_figs = 5
 
     def setUp(self) -> None:
         self.instance = self.ct
