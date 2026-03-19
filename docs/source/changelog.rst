@@ -10,6 +10,11 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.43.0
+--------
+
+* :bdg-success:`Feature` Added support for :ref:`helios`.
+
 v 3.42.0
 --------
 
