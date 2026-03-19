@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 from io import BytesIO
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -269,9 +270,9 @@ class HeliosNoiseUniformityModule(CatPhanModule):
             )
 
     @property
-    def noise_center(self) -> float:
+    def noise_center_std(self) -> float:
         """Std of the central ROI."""
-        return self.rois["Center"].std
+        return self.noise_rois["Center"].std
 
     @property
     def mean_outer(self) -> float:
@@ -287,10 +288,8 @@ class HeliosNoiseUniformityModule(CatPhanModule):
     def as_dict(self) -> dict:
         """Dump important data as a dictionary."""
         return {
-            "data": {
-                "mean_hu": {name: roi.mean for name, roi in self.rois.items()},
-                "Std_dev": {name: roi.std for name, roi in self.rois.items()},
-            }
+            "mean_hu": {name: roi.mean for name, roi in self.rois.items()},
+            "std": {name: roi.std for name, roi in self.rois.items()},
         }
 
     def plot_rois(self, axis: plt.Axes) -> None:
@@ -320,8 +319,8 @@ class HeliosNoiseUniformityModuleOutput(BaseModel):
         description="The ROI settings. The keys are the ROI locations."
     )
     rois: dict = Field(description="The analyzed ROIs.")
-    noise_center: float = Field("The noise in the central ROI")
-    mean_outer: float = Field("Mean HU values of the outer ROIs.")
+    noise_center_std: float = Field(description="The noise in the central ROI")
+    mean_outer: float = Field(description="Mean HU values of the outer ROIs.")
     means_diff: float = Field(
         description="Difference between the center ROI mean and the average of the edge ROIs.",
         title="Uniformity Difference (HU)",
@@ -370,6 +369,10 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
     low_contrast_module = HeliosLowContrastModule
     noise_uniformity_module = HeliosNoiseUniformityModule
 
+    @classmethod
+    def from_demo_image(cls):
+        raise NotImplementedError("There is no demo file for this analysis")
+
     def _detected_modules(self) -> list[CatPhanModule]:
         return [
             self.contrast_scale_module,
@@ -386,11 +389,11 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
 
     def analyze(
         self,
-        x_adjustment: float = 0,
-        y_adjustment: float = 0,
-        angle_adjustment: float = 0,
-        roi_size_factor: float = 1,
-        scaling_factor: float = 1,
+        x_adjustment: float | int = 0,
+        y_adjustment: float | int = 0,
+        angle_adjustment: float | int = 0,
+        roi_size_factor: float | int = 1,
+        scaling_factor: float | int = 1,
         origin_slice: int | None = None,
     ) -> None:
         """Analyze the GE Helios CT Daily phantom.
@@ -496,7 +499,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         best_slice = int(np.mean(np.argwhere(threshold)))
         return best_slice
 
-    def find_phantom_roll(self, func=None) -> float:
+    def find_phantom_roll(self, func: Callable | None = None) -> float:
         """Return the phantom roll angle."""
         return 0.0
 
@@ -658,7 +661,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             if to_stream:
                 path = io.BytesIO()
             else:
-                destination = Path(directory) or Path.cwd()
+                destination = Path(directory) if directory is not None else Path.cwd()
                 path = (destination / name).with_suffix(".png").absolute()
             fig.savefig(path)
             paths.append(path)
@@ -699,7 +702,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
                 offset=SECTION_3_OFFSET_MM,
                 roi_settings=self.noise_uniformity_module.roi_settings,
                 rois=self.noise_uniformity_module.as_dict(),
-                noise_center=self.noise_uniformity_module.noise_center,
+                noise_center_std=self.noise_uniformity_module.noise_center_std,
                 mean_outer=self.noise_uniformity_module.mean_outer,
                 means_diff=self.noise_uniformity_module.uniformity_difference,
             ),
