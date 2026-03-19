@@ -203,3 +203,4 @@ class Helios_2(HeliosMixin, TestCase):
     noise_stdev = 4.06
     uniformity_difference = -0.18
     high_contrast_mtf_50 = 0.55
+    low_contrast_mean = 0.40
