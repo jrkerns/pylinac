@@ -700,7 +700,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             unit="HU",
         )
         data["Noise"] = QuaacDatum(
-            value=results_data["noise_uniformity"]["noise_center"],
+            value=results_data["noise_uniformity"]["noise_center_std"],
             unit="HU",
         )
         data["uniformity difference"] = QuaacDatum(
