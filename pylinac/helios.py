@@ -5,6 +5,7 @@ import textwrap
 import webbrowser
 from io import BytesIO
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -373,6 +374,10 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
     low_contrast_module = HeliosLowContrastModule
     noise_uniformity_module = HeliosNoiseUniformityModule
 
+    @classmethod
+    def from_demo_image(cls):
+        raise NotImplementedError("There is no demo file for this analysis")
+
     def plot_analyzed_subimage(self, *args, **kwargs):
         raise NotImplementedError("Use `plot_images`")
 
@@ -381,11 +386,11 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
 
     def analyze(
         self,
-        x_adjustment: float = 0,
-        y_adjustment: float = 0,
-        angle_adjustment: float = 0,
-        roi_size_factor: float = 1,
-        scaling_factor: float = 1,
+        x_adjustment: float | int = 0,
+        y_adjustment: float | int = 0,
+        angle_adjustment: float | int = 0,
+        roi_size_factor: float | int = 1,
+        scaling_factor: float | int = 1,
         origin_slice: int | None = None,
     ) -> None:
         """Analyze the GE Helios CT Daily phantom.
@@ -491,7 +496,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         best_slice = int(np.mean(np.argwhere(threshold)))
         return best_slice
 
-    def find_phantom_roll(self, func=None) -> float:
+    def find_phantom_roll(self, func: Callable | None = None) -> float:
         """Return the phantom roll angle."""
         return 0.0
 
@@ -661,7 +666,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             if to_stream:
                 path = io.BytesIO()
             else:
-                destination = Path(directory) or Path.cwd()
+                destination = Path(directory) if directory is not None else Path.cwd()
                 path = (destination / name).with_suffix(".png").absolute()
             fig.savefig(path)
             paths.append(path)
@@ -812,7 +817,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
                 offset=SECTION_3_OFFSET_MM,
                 roi_settings=self.noise_uniformity_module.roi_settings,
                 rois=self.noise_uniformity_module.as_dict(),
-                noise_center=self.noise_uniformity_module.noise_center,
+                noise_center_std=self.noise_uniformity_module.noise_center_std,
                 mean_outer=self.noise_uniformity_module.mean_outer,
                 means_diff=self.noise_uniformity_module.uniformity_difference,
             ),
