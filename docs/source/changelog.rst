@@ -10,6 +10,16 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.43.0
+--------
+
+ACR Phantoms
+^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` ``from_demo_image()`` now raises
+  ``NotImplementedError`` instead of an unexpected exception, as no demo dataset is
+  available.
+
 v 3.42.0
 --------
 
