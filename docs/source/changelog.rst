@@ -10,6 +10,15 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.43.0
+--------
+
+ACR Phantoms
+^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` Fixed ``save_images``: it uses the current folder when
+  ``directory=None``
+
 v 3.42.0
 --------
 
