@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import io
 import webbrowser
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 import numpy as np
 from matplotlib import pyplot as plt

@@ -356,8 +356,8 @@ class TopDistanceMetric(ProfileMetric):
 
         # minimize the polynomial function
         min_f = minimize(
-            lambda x: -np.polyval(
-                fit_params, x
+            lambda x: (
+                -np.polyval(fit_params, x)
             ),  # return the negative since we're MINIMIZING and want the top value
             method="Nelder-Mead",
             x0=self.profile.center_idx,

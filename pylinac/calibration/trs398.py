@@ -887,12 +887,12 @@ class TRS398Photon(TRS398Base):
         temp: float,
         voltage_reference: int,
         voltage_reduced: int,
-        m_reference: Union[tuple, float],
-        m_reduced: Union[tuple, float],
-        m_opposite: Union[tuple, float],
+        m_reference: tuple | float,
+        m_reduced: tuple | float,
+        m_opposite: tuple | float,
         k_elec: float,
-        clinical_pdd_zref: Optional[float] = None,
-        clinical_tmr_zref: Optional[float] = None,
+        clinical_pdd_zref: float | None = None,
+        clinical_tmr_zref: float | None = None,
         tissue_correction: float = 1.0,
     ):
         super().__init__(
@@ -946,9 +946,9 @@ class TRS398Photon(TRS398Base):
     def publish_pdf(
         self,
         filename: str,
-        notes: Optional[list] = None,
+        notes: list | None = None,
         open_file: bool = False,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
@@ -1162,9 +1162,9 @@ class TRS398Electron(TRS398Base):
     def publish_pdf(
         self,
         filename: str,
-        notes: Optional[list] = None,
+        notes: list | None = None,
         open_file: bool = False,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
