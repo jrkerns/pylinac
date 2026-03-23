@@ -398,14 +398,6 @@ definitions:
           - uv venv
           - uv pip install nox
           - uv run nox -s update_dev_kraken
-    - step: &run-python-39-tests
-        name: Run against Python 3.9
-        <<: *bb-runner
-        image: ghcr.io/astral-sh/uv:bookworm
-        script:
-          - uv venv
-          - uv pip install nox
-          - uv run nox -s run_basic_test_suite_39
     - step: &run-python-310-tests
         name: Run against Python 3.10
         <<: *bb-runner
@@ -444,7 +436,6 @@ pipelines:
   custom:
     run-python-version-tests:
       - parallel:
-          - step: *run-python-39-tests
           - step: *run-python-310-tests
           - step: *run-python-311-tests
           - step: *run-python-312-tests
