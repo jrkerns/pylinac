@@ -515,7 +515,7 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
             if to_stream:
                 path = io.BytesIO()
             else:
-                destination = Path(directory) or Path.cwd()
+                destination = Path(directory) if directory is not None else Path.cwd()
                 path = (destination / name).with_suffix(".png").absolute()
             fig.savefig(path)
             paths.append(path)

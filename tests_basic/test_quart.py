@@ -2,6 +2,7 @@ import io
 import json
 import os
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest import TestCase
 
 from matplotlib import pyplot as plt
@@ -139,6 +140,20 @@ class TestPlottingSaving(TestCase):
         fig = plt.gcf()
         self.assertEqual(fig.bbox_inches.height, 13)
         self.assertEqual(fig.bbox_inches.width, 8)
+
+    def test_save_images_directory_none_uses_cwd(self):
+        original_cwd = Path.cwd()
+        with TemporaryDirectory() as tmpdir:
+            try:
+                os.chdir(tmpdir)
+                paths = self.mri.save_images(directory=None)
+            finally:
+                os.chdir(original_cwd)
+            self.assertEqual(len(paths), len(self.mri.plot_images(show=False)))
+            for path in paths:
+                self.assertIsInstance(path, Path)
+                self.assertTrue(path.exists())
+                self.assertEqual(path.parent, Path(tmpdir).absolute())
 
 
 class QuartDVTMixin(CloudFileMixin):
