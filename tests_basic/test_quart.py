@@ -146,10 +146,10 @@ class TestPlottingSaving(TestCase):
         with TemporaryDirectory() as tmpdir:
             try:
                 os.chdir(tmpdir)
-                paths = self.mri.save_images(directory=None)
+                paths = self.quart.save_images(directory=None)
             finally:
                 os.chdir(original_cwd)
-            self.assertEqual(len(paths), len(self.mri.plot_images(show=False)))
+            self.assertEqual(len(paths), len(self.quart.plot_images(show=False)))
             for path in paths:
                 self.assertIsInstance(path, Path)
                 self.assertTrue(path.exists())
