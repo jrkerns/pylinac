@@ -1,6 +1,6 @@
 [project]
 name = "pylinac"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 description = "A toolkit for performing TG-142 QA-related tasks on a linear accelerator"
 authors = [
     {name = "James Kerns", email = "jkerns100@gmail.com"}
@@ -41,7 +41,6 @@ dependencies = [
     "matplotlib>=3.0",
     "tabulate~=0.9.0",
     "pydantic>=2.0",
-    "eval-type-backport; python_version<='3.9'",
     "quaac",
     "plotly>=5.0",
     'typing-extensions>=4.14.1',
@@ -109,7 +108,7 @@ exclude = ['playground.py']
 lint.select = ['E', 'F', 'I', 'UP', "W", "NPY", "FLY"]
 lint.ignore = ['E501']
 line-length = 88  # to match black; may change in the future
-target-version = 'py39'
+target-version = 'py310'
 
 [tool.ruff.lint.per-file-ignores]
 "*/__init__.py" = ["F401"]

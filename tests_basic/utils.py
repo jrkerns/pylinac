@@ -10,12 +10,12 @@ import os.path as osp
 import pprint
 import shutil
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from functools import lru_cache
 from io import BytesIO, StringIO
 from pathlib import Path, PurePosixPath
 from tempfile import TemporaryDirectory
-from typing import Callable, TypedDict
+from typing import TypedDict
 from urllib.request import urlopen
 
 from google.cloud import storage
