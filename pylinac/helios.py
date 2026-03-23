@@ -52,7 +52,7 @@ class HeliosContrastScaleModule(CatPhanModule):
         return {
             "data": {
                 "mean_hu": {name: roi.mean for name, roi in self.rois.items()},
-                "Std_dev": {name: roi.std for name, roi in self.rois.items()},
+                "std": {name: roi.std for name, roi in self.rois.items()},
             }
         }
 
