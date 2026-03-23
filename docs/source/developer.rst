@@ -61,7 +61,7 @@ This is extremely helpful to, say, test ``pylinac`` against multiple versions of
     uv python install 3.11
 
     # or install older versions of Python
-    uv python install 3.9 3.10
+    uv python install 3.10
 
 Virtual Environment
 ^^^^^^^^^^^^^^^^^^^

@@ -13,6 +13,12 @@ Legend
 v 3.43.0
 --------
 
+General
+^^^^^^^
+
+* :bdg-danger:`Change` The minimum version of Python supported is now 3.10 as the end-of-life of Python 3.9 is was in 2025.
+
+
 ACR Phantoms
 ^^^^^^^^^^^^
 

@@ -2765,8 +2765,10 @@ class LeedsTOR(ImagePhantomBase):
                 lambda r: math.isclose(r.bbox_area, high_res_block_size, rel_tol=0.75)
             )
             .where(
-                lambda r: bbox_center(r).distance_to(self.phantom_center)
-                < 0.1 * self.phantom_radius
+                lambda r: (
+                    bbox_center(r).distance_to(self.phantom_center)
+                    < 0.1 * self.phantom_radius
+                )
             )
             .order_by_descending(
                 lambda r: bbox_center(r).distance_to(self.phantom_center)
@@ -4721,7 +4723,9 @@ def take_centermost_roi(rprops: list[RegionProperties], image_shape: tuple[int, 
     ]  # drop stray pixel ROIs and line-like ROIs
     center_roi = sorted(
         larger_rois,
-        key=lambda p: abs(p.centroid[0] - image_shape[0] / 2)
-        + abs(p.centroid[1] - image_shape[1] / 2),
+        key=lambda p: (
+            abs(p.centroid[0] - image_shape[0] / 2)
+            + abs(p.centroid[1] - image_shape[1] / 2)
+        ),
     )[0]
     return center_roi

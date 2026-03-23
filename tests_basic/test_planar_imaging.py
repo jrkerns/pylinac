@@ -3,9 +3,8 @@ import json
 import os
 import os.path as osp
 import tempfile
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from pathlib import Path
-from typing import Callable
 from unittest import TestCase, skip
 
 import matplotlib.pyplot as plt
