@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import io
+from collections.abc import Callable
 from io import BytesIO
 from pathlib import Path
-from typing import Callable
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -53,7 +53,7 @@ class HeliosContrastScaleModule(CatPhanModule):
         return {
             "data": {
                 "mean_hu": {name: roi.mean for name, roi in self.rois.items()},
-                "Std_dev": {name: roi.std for name, roi in self.rois.items()},
+                "std": {name: roi.std for name, roi in self.rois.items()},
             }
         }
 
