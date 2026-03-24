@@ -91,6 +91,10 @@ class TestCTGeneral(TestCase):
         ct.analyze(origin_slice=3)  # automatic is 2
         self.assertEqual(ct.origin_slice, 3)
 
+    def test_error_if_from_demo(self):
+        with self.assertRaises(NotImplementedError):
+            ACRMRILarge.from_demo_image()
+
 
 class TestPlottingSaving(TestCase):
     @classmethod
@@ -461,6 +465,10 @@ class TestMRGeneral(TestCase):
         path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "Config rounding.zip"])
         mri = ACRMRILarge.from_zip(path)
         self.assertTrue(mri._ensure_physical_scan_extent())
+
+    def test_error_if_from_demo(self):
+        with self.assertRaises(NotImplementedError):
+            ACRMRILarge.from_demo_image()
 
 
 class TestMRPlottingSaving(TestCase):

@@ -297,6 +297,10 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
     uniformity_module = UniformityModule
     clear_borders = False
 
+    @classmethod
+    def from_demo_image(cls):
+        raise NotImplementedError("There is no demo file for this analysis")
+
     def _detected_modules(self) -> list[CatPhanModule]:
         return [
             self.ct_calibration_module,
@@ -1656,6 +1660,10 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
     has_sagittal_module: bool = False
     clip_in_localization = False
     low_contrast_visibility_sanity_multiplier: float
+
+    @classmethod
+    def from_demo_image(cls):
+        raise NotImplementedError("There is no demo file for this analysis")
 
     def plot_analyzed_subimage(self, *args, **kwargs):
         raise NotImplementedError("Use `plot_images`")
