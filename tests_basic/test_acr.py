@@ -462,6 +462,10 @@ class TestMRGeneral(TestCase):
         mri = ACRMRILarge.from_zip(path)
         self.assertTrue(mri._ensure_physical_scan_extent())
 
+    def test_error_if_from_demo(self):
+        with self.assertRaises(NotImplementedError):
+            ACRMRILarge.from_demo_image()
+
 
 class TestMRPlottingSaving(TestCase):
     @classmethod
