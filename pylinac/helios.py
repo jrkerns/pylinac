@@ -203,7 +203,7 @@ class HeliosLowContrastModule(CatPhanModule):
         return float(np.mean([roi.mean for roi in self.rois]))
 
     @property
-    def std_dev(self) -> float:
+    def std(self) -> float:
         """The std value of the ROIs."""
         return float(np.std([roi.mean for roi in self.rois]))
 
@@ -226,9 +226,9 @@ class HeliosLowContrastModuleOutput(BaseModel):
     offset: float = Field(
         description="The offset of this module slice from the origin slice in mm."
     )
-    settings: dict = Field(description="The settings.")
-    mean: float = Field("Mean HU values of the ROIs")
-    std: float = Field("Standard deviation of the ROIs.")
+    settings: dict = Field()
+    mean: float = Field(description="Mean HU values of the ROIs")
+    std: float = Field(description="Standard deviation of the ROIs.")
 
 
 class HeliosNoiseUniformityModule(CatPhanModule):
@@ -696,7 +696,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
                     "num_cells": self.low_contrast_module.num_cells,
                 },
                 mean=self.low_contrast_module.mean,
-                std=self.low_contrast_module.std_dev,
+                std=self.low_contrast_module.std,
             ),
             noise_uniformity=HeliosNoiseUniformityModuleOutput(
                 offset=SECTION_3_OFFSET_MM,
