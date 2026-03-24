@@ -25,6 +25,14 @@ ACR Phantoms
 * :bdg-warning:`Fixed` ``from_demo_image()`` now raises
   ``NotImplementedError`` instead of an unexpected exception, as no demo dataset is
   available.
+* :bdg-warning:`Fixed` Fixed ``save_images``: it uses the current folder when
+  ``directory=None``
+
+Quart
+^^^^^
+
+* :bdg-warning:`Fixed` Fixed ``save_images``: it uses the current folder when
+  ``directory=None``
 
 v 3.42.0
 --------

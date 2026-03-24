@@ -19,6 +19,7 @@ definitions:
     catphan604: tests_basic/test_files/CBCT/CatPhan_604
     catphan600: tests_basic/test_files/CBCT/CatPhan_600
     acr: tests_basic/test_files/ACR
+    helios: tests_basic/test_files/Helios
     cheese: tests_basic/test_files/Tomo
     vmat: tests_basic/test_files/VMAT
     nuclear: tests_basic/test_files/nuclear
@@ -153,6 +154,29 @@ definitions:
               - "tests_basic/test_acr.py"
               - "pylinac/ct.py"
               - "pylinac/acr.py"
+    - step: &helios-tests
+        name: Run Helios Tests
+        <<: *bb-runner
+        script:
+          - # set up memory monitoring
+          - apt-get update && apt-get install -y --no-install-recommends procps jq
+          - chmod +x memory_monitor.sh
+          - nohup ./memory_monitor.sh &
+          - MONITOR_PID=$!
+          - uv run pytest tests_basic/test_helios.py -n 3 --junitxml=./test-reports/pytest_results.xml
+          # clean up memory monitor
+          - kill $MONITOR_PID
+        artifacts:
+          - memory_usage.log
+        caches:
+          - helios
+        condition:
+          changesets:
+            includePaths:
+              - "pylinac/core/**"
+              - "tests_basic/test_helios.py"
+              - "pylinac/ct.py"
+              - "pylinac/helios.py"
     - step: &cheese-tests
         name: Run Cheese Phantom Tests
         <<: *bb-runner
@@ -459,6 +483,7 @@ pipelines:
           - step: *build-docs
           - step: *cbct-tests
           - step: *acr-tests
+          - step: *helios-tests
           - step: *cheese-tests
           - step: *quart-tests
           - step: *planar-tests
