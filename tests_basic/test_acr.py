@@ -91,6 +91,10 @@ class TestCTGeneral(TestCase):
         ct.analyze(origin_slice=3)  # automatic is 2
         self.assertEqual(ct.origin_slice, 3)
 
+    def test_error_if_from_demo(self):
+        with self.assertRaises(NotImplementedError):
+            ACRMRILarge.from_demo_image()
+
 
 class TestPlottingSaving(TestCase):
     @classmethod

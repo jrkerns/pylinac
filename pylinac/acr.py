@@ -297,6 +297,10 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
     uniformity_module = UniformityModule
     clear_borders = False
 
+    @classmethod
+    def from_demo_image(cls):
+        raise NotImplementedError("There is no demo file for this analysis")
+
     def _detected_modules(self) -> list[CatPhanModule]:
         return [
             self.ct_calibration_module,
