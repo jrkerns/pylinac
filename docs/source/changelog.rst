@@ -19,6 +19,18 @@ General
 * :bdg-danger:`Change` The minimum version of Python supported is now 3.10 as the end-of-life of Python 3.9 is was in 2025.
 
 
+ACR Phantoms
+^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` Fixed ``save_images``: it uses the current folder when
+  ``directory=None``
+
+Quart
+^^^^^
+
+* :bdg-warning:`Fixed` Fixed ``save_images``: it uses the current folder when
+  ``directory=None``
+
 v 3.42.0
 --------
 
