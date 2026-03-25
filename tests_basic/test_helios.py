@@ -1,6 +1,8 @@
 import io
 import os
+import tempfile
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest import TestCase
 
 from matplotlib import pyplot as plt
@@ -58,6 +60,12 @@ class TestGeneral(TestCase):
         data = self.ct.results_data()
         self.assertEqual(len(data.warnings), 0)
 
+    def test_publish_pdf(self):
+        self.ct.analyze()
+        with tempfile.NamedTemporaryFile(delete=False) as t:
+            self.ct.publish_pdf(t.name, notes="stuff", metadata={"Unit": "TB1"})
+        os.remove(t.name)
+
 
 class TestPlottingSaving(TestCase):
     @classmethod
@@ -92,6 +100,19 @@ class TestPlottingSaving(TestCase):
         self.assertEqual(fig.bbox_inches.height, 13)
         self.assertEqual(fig.bbox_inches.width, 8)
 
+    def test_save_images_directory_none_uses_cwd(self):
+        original_cwd = Path.cwd()
+        with TemporaryDirectory() as tmpdir:
+            try:
+                os.chdir(tmpdir)
+                paths = self.ct.save_images(directory=None)
+            finally:
+                os.chdir(original_cwd)
+            self.assertEqual(len(paths), len(self.ct.plot_images(show=False)))
+            for path in paths:
+                self.assertIsInstance(path, Path)
+                self.assertTrue(path.exists())
+
 
 class TestQuaac(QuaacTestBase, CloudFileMixin, TestCase):
     dir_path = TEST_DIR
@@ -115,6 +136,7 @@ class HeliosMixin(CloudFileMixin):
     uniformity_difference: float
     high_contrast_mtf_50: float
     low_contrast_multi_slice_mean: float
+    low_contrast_std: float
     x_adjustment: float = 0
     y_adjustment: float = 0
     angle_adjustment: float = 0
@@ -180,6 +202,13 @@ class HeliosMixin(CloudFileMixin):
             delta=0.1,
         )
 
+    def test_low_contrast_std(self):
+        self.assertAlmostEqual(
+            self.ct.low_contrast_module.std,
+            self.low_contrast_std,
+            delta=0.1,
+        )
+
 
 class Helios_1(HeliosMixin, PlotlyTestMixin, TestCase):
     file_name = "GEHeliosCTDaily1.zip"
@@ -189,6 +218,7 @@ class Helios_1(HeliosMixin, PlotlyTestMixin, TestCase):
     uniformity_difference = -0.01
     high_contrast_mtf_50 = 0.54
     low_contrast_multi_slice_mean = 0.73
+    low_contrast_std = 0.74
     num_figs = 8
 
     def setUp(self) -> None:
@@ -203,3 +233,4 @@ class Helios_2(HeliosMixin, TestCase):
     uniformity_difference = -0.18
     high_contrast_mtf_50 = 0.55
     low_contrast_multi_slice_mean = 0.29
+    low_contrast_std = 0.71
