@@ -297,7 +297,21 @@ class HeliosLowContrastModuleOutput(BaseModel):
 
 
 class HeliosLowContrastMultiSliceModule:
-    """Class for managing Low Contrast analysis across multiple slices."""
+    """Manages Low Contrast Detectability analysis across three adjacent slices.
+
+    The GE Helios phantom Section 3 contains a uniform water region used to
+    assess low-contrast detectability.  Rather than analysing a single slice,
+    this class instantiates three :class:`HeliosLowContrastModule` objects at
+    consecutive slice positions offset from :data:`SECTION_3_OFFSET_MM` by
+    the inter-slice spacing defined in
+    :data:`HELIOS_LOW_CONTRAST_SLICE_OFFSETS_INDEX`.
+
+    Attributes
+    ----------
+    slices : dict[str, HeliosLowContrastModule]
+        Mapping of slice name (``"slice_1"``, ``"slice_2"``, ``"slice_3"``)
+        to the corresponding analysed module instance.
+    """
 
     roi_settings = {
         "slice_1": {"offset": HELIOS_LOW_CONTRAST_SLICE_OFFSETS_INDEX["slice_1"]},
@@ -323,19 +337,53 @@ class HeliosLowContrastMultiSliceModule:
 
     @property
     def mean(self) -> float:
-        """The mean HU value across all slices."""
-        return float(np.mean([s.mean for s in self.slices.values()]))
+        """The mean HU value across all slices.
+
+        Returns
+        -------
+        float
+            Mean of the per-slice mean HU values.
+        """
+        slice_means: list[float] = []
+        for s in self.slices.values():
+            slice_means.append(s.mean)
+        mean = np.mean(slice_means)
+        return float(mean)
 
     @property
     def std(self) -> float:
-        """The average standard deviation across all slices."""
-        return float(np.mean([s.std for s in self.slices.values()]))
+        """The average standard deviation across all slices.
+
+        Returns
+        -------
+        float
+            Mean of the per-slice standard deviations.
+        """
+        slice_stds: list[float] = []
+        for s in self.slices.values():
+            slice_stds.append(s.std)
+        std = np.mean(slice_stds)
+        return float(std)
 
 
 class HeliosLowContrastMultiSliceModuleOutput(BaseModel):
-    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    """Results for the multi-slice Low Contrast Detectability analysis.
 
-    Use the following attributes as normal class attributes."""
+    This class should not be called directly. It is returned by the
+    ``results_data()`` method.  Use the following attributes as normal
+    class attributes.
+
+    Attributes
+    ----------
+    slices : dict[str, HeliosLowContrastModuleOutput]
+        Per-slice results keyed by slice name (``"slice_1"``,
+        ``"slice_2"``, ``"slice_3"``).  Each value contains the
+        ``mean`` and ``std`` HU statistics for that individual slice.
+    mean : float
+        Mean HU value averaged across all three slices.
+    std : float
+        Average standard deviation across all three slices.
+    """
 
     slices: dict[str, HeliosLowContrastModuleOutput] = Field(
         description="Per-slice low contrast results keyed by slice name."
@@ -702,7 +750,8 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             self.high_contrast_module,
             self.noise_uniformity_module,
         ]
-        modules.extend(list(self.low_contrast_multi_slice.slices.values()))
+        for slice_module in self.low_contrast_multi_slice.slices.values():
+            modules.append(slice_module)
         for module in modules:
             figs[module.common_name] = module.plotly(
                 show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
@@ -735,7 +784,8 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             self.high_contrast_module,
             self.noise_uniformity_module,
         ]
-        modules.extend(list(self.low_contrast_multi_slice.slices.values()))
+        for slice_module in self.low_contrast_multi_slice.slices.values():
+            modules.append(slice_module)
 
         # set up grid and axes
         fig, axs = plt.subplots(2, 4, **plt_kwargs)
@@ -777,7 +827,8 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             "high contrast": self.high_contrast_module,
             "noise and uniformity": self.noise_uniformity_module,
         }
-        modules |= self.low_contrast_multi_slice.slices
+        for key, slice_module in self.low_contrast_multi_slice.slices.items():
+            modules[key] = slice_module
         for key, module in modules.items():
             fig, ax = plt.subplots(**plt_kwargs)
             module.plot(ax)
@@ -805,15 +856,25 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         Returns
         -------
         list of CatPhanModule
-            The four analysed modules in display order: Contrast Scale,
-            High Contrast, Low Contrast, and Noise & Uniformity.
+            The six analysed modules in display order:
+
+            * **Contrast Scale** – HU linearity / contrast scale section.
+            * **High Contrast** – Spatial resolution (MTF) section.
+            * **Noise & Uniformity** – Image noise and field uniformity section.
+            * **Low Contrast - 1** – Low-contrast detectability, slice 1
+              (``slice_1``).
+            * **Low Contrast - 2** – Low-contrast detectability, slice 2
+              (``slice_2``).
+            * **Low Contrast - 3** – Low-contrast detectability, slice 3
+              (``slice_3``).
         """
         modules = [
             self.contrast_scale_module,
             self.high_contrast_module,
             self.noise_uniformity_module,
         ]
-        modules.extend(list(self.low_contrast_multi_slice.slices.values()))
+        for slice_module in self.low_contrast_multi_slice.slices.values():
+            modules.append(slice_module)
         return modules
 
     def save_images(
@@ -860,10 +921,12 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             :meth:`_generate_results_data`: phantom roll; per-ROI
             contrast-scale mean HU and standard deviation; per-bar-pattern
             high-contrast ROI standard deviations and MTF at each 10 %
-            resolution step; low-contrast mean and standard deviation;
-            per-position noise/uniformity ROI mean HU and standard
-            deviation; noise center standard deviation; mean outer ROI HU;
-            and uniformity difference.
+            resolution step; per-slice low-contrast mean and standard
+            deviation for each of the three analysis slices; aggregate
+            low-contrast mean and standard deviation; per-position
+            noise/uniformity ROI mean HU and standard deviation; noise
+            center standard deviation; mean outer ROI HU; and uniformity
+            difference.
         """
         results_data = self.results_data(as_dict=True)
 
@@ -907,6 +970,20 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             mtf_datapoints[label] = QuaacDatum(
                 value=lp_mm,
                 unit="lp/mm",
+            )
+
+        low_contrast_slice_means: dict[str, QuaacDatum] = {}
+        low_contrast_slice_stds: dict[str, QuaacDatum] = {}
+        for slice_name, slice_data in results_data["low_contrast"]["slices"].items():
+            mean_label = f"Low contrast {slice_name} mean"
+            low_contrast_slice_means[mean_label] = QuaacDatum(
+                value=slice_data["mean"],
+                unit="HU",
+            )
+            std_label = f"Low contrast {slice_name} std"
+            low_contrast_slice_stds[std_label] = QuaacDatum(
+                value=slice_data["std"],
+                unit="HU",
             )
 
         low_contrast_mean = QuaacDatum(
@@ -955,6 +1032,8 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             **contrast_scale_std,
             **high_contrast_roi_stds,
             **mtf_datapoints,
+            **low_contrast_slice_means,
+            **low_contrast_slice_stds,
             "Low contrast Mean": low_contrast_mean,
             "Low contrast Std": low_contrast_std,
             **noise_uniformity_rois_mean_hu,
@@ -1026,10 +1105,11 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         :meth:`_generate_results_data` are represented: phantom roll,
         contrast-scale per-ROI mean HU and standard deviation, contrast
         difference, high-contrast per-bar-pattern ROI standard deviation,
-        MTF at every 10 % resolution step, low-contrast mean and standard
-        deviation, noise/uniformity per-position mean HU and standard
-        deviation, noise center standard deviation, mean outer HU, and
-        uniformity difference.
+        MTF at every 10 % resolution step, per-slice low-contrast mean and
+        standard deviation for each of the three analysis slices followed by
+        the aggregate low-contrast mean and standard deviation,
+        noise/uniformity per-position mean HU and standard deviation, noise
+        center standard deviation, mean outer HU, and uniformity difference.
 
         Parameters
         ----------
@@ -1068,6 +1148,12 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             lp_mm = self.high_contrast_module.mtf.relative_resolution(resolution)
             mtf_line = f"MTF {resolution}% (lp/mm): {lp_mm:2.2f}"
             lines.append(mtf_line)
+
+        for slice_name, slice_module in self.low_contrast_multi_slice.slices.items():
+            lc_slice_mean = f"Low Contrast {slice_name} Mean: {slice_module.mean:2.2f}"
+            lines.append(lc_slice_mean)
+            lc_slice_std = f"Low Contrast {slice_name} Std: {slice_module.std:2.2f}"
+            lines.append(lc_slice_std)
 
         low_contrast_mean = (
             f"Low Contrast Mean: {self.low_contrast_multi_slice.mean:2.2f}"
@@ -1110,6 +1196,18 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
                 resolution
             )
 
+        slice_outputs: dict[str, HeliosLowContrastModuleOutput] = {}
+        for k, v in self.low_contrast_multi_slice.slices.items():
+            slice_outputs[k] = HeliosLowContrastModuleOutput(
+                offset=self.low_contrast_multi_slice.roi_settings[k]["offset"],
+                settings={
+                    "cell_size": v.cell_size,
+                    "num_cells": v.num_cells,
+                },
+                mean=v.mean,
+                std=v.std,
+            )
+
         return GEHeliosResult(
             phantom_model=self._model,
             phantom_roll_deg=self.catphan_roll,
@@ -1126,18 +1224,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
                 mtf_lp_mm=mtfs,
             ),
             low_contrast=HeliosLowContrastMultiSliceModuleOutput(
-                slices={
-                    k: HeliosLowContrastModuleOutput(
-                        offset=self.low_contrast_multi_slice.roi_settings[k]["offset"],
-                        settings={
-                            "cell_size": v.cell_size,
-                            "num_cells": v.num_cells,
-                        },
-                        mean=v.mean,
-                        std=v.std,
-                    )
-                    for k, v in self.low_contrast_multi_slice.slices.items()
-                },
+                slices=slice_outputs,
                 mean=self.low_contrast_multi_slice.mean,
                 std=self.low_contrast_multi_slice.std,
             ),
