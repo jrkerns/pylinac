@@ -272,9 +272,9 @@ class HeliosLowContrastMultiSliceModule:
         return float(np.mean([s.mean for s in self.slices.values()]))
 
     @property
-    def std_dev(self) -> float:
+    def std(self) -> float:
         """The average standard deviation across all slices."""
-        return float(np.mean([s.std_dev for s in self.slices.values()]))
+        return float(np.mean([s.std for s in self.slices.values()]))
 
 
 class HeliosLowContrastMultiSliceModuleOutput(BaseModel):
@@ -829,7 +829,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             f"Contrast Difference: {self.contrast_scale_module.contrast_difference}",
             f"MTF 50% (lp/mm): {self.high_contrast_module.mtf.relative_resolution(50):2.2f}",
             f"Low Contrast Mean: {self.low_contrast_multi_slice.mean:2.2f}",
-            f"Low Contrast Standard Deviation: {self.low_contrast_multi_slice.std_dev:2.2f}",
+            f"Low Contrast Standard Deviation: {self.low_contrast_multi_slice.std:2.2f}",
             f"Noise Std: {self.noise_uniformity_module.noise_center_std:2.2f}",
             f"Uniformity Difference: {self.noise_uniformity_module.uniformity_difference:2.2f}",
         )
@@ -869,7 +869,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
                             "num_cells": v.num_cells,
                         },
                         mean=v.mean,
-                        std=v.std_dev,
+                        std=v.std,
                     )
                     for k, v in self.low_contrast_multi_slice.slices.items()
                 },

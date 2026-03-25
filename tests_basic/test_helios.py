@@ -204,7 +204,7 @@ class HeliosMixin(CloudFileMixin):
 
     def test_low_contrast_std(self):
         self.assertAlmostEqual(
-            self.ct.low_contrast_module.std,
+            self.ct.low_contrast_multi_slice.std,
             self.low_contrast_std,
             delta=0.1,
         )
