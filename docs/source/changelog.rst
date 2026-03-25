@@ -34,6 +34,9 @@ Quart
 * :bdg-warning:`Fixed` Fixed ``save_images``: it uses the current folder when
   ``directory=None``
 
+GE Helios CT Daily QA Phantoms
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 * :bdg-success:`Feature` Added support for :ref:`helios`.
 
 v 3.42.0
