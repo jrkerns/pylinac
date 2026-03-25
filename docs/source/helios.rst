@@ -14,20 +14,32 @@ analyzing DICOM images of the GE Helios CT Daily QA Phantom.
 It can load a folder or zip file of images, correcting for
 translational offsets.
 
-The phantom is cylindrical with two active sections at fixed scan locations:
+The phantom is cylindrical with two active sections at fixed scan locations.
+All terminology and analysis methodology follow the GE Technical Reference Manual;
+see also the :ref:`helios-algorithm` section.
 
-* Section 1 -- Contains a Plexiglass resolution block embedded in water.
-  Tests performed: Contrast Scale, High Contrast
-  Spatial Resolution (bar patterns).
-* Section 3 -- Uniform water bath. Tests performed: Noise, Uniformity, Low Contrast
+* Section 1 — Plexiglass resolution block embedded in water.
+
+  Tests performed:
+
+  * Contrast Scale
+  * High Contrast Spatial Resolution (bar patterns)
+
+* Section 3 — Uniform water bath.
+
+  Tests performed:
+
+  * Noise
+  * Uniformity
+  * Low Contrast
 
 Typical Use
 -----------
 
 The GE Helios analysis follows a similar pattern of load / analyze / output pattern as the rest of the library.
-Unlike the CatPhan analysis, customization is not a goal, as the phantoms and analyses
-are much more well-defined. I.e. there's less of a use case for custom phantoms in this
-scenario.
+Unlike the CatPhan analysis, the phantoms and analyses are much more well-defined, so creating fully
+custom phantom configurations is not a primary use case. Individual analysis modules can still be subclassed
+to adjust ROI locations or other parameters; see :ref:`helios-customizing-modules`.
 
 To use the Helios analysis, import the class:
 
@@ -75,6 +87,8 @@ And then load, analyze, and view the results:
     # finally, save a PDF
     helios.publish_pdf("helios_report.pdf")
 
+.. _helios-customizing-modules:
+
 Customizing Modules
 -------------------
 
@@ -115,7 +129,7 @@ module can be anything as long as it subclasses the original module:
         contrast_scale_module = HeliosContrastScaleModule
         high_contrast_module = HeliosHighContrastModule
         noise_uniformity_module = HeliosNoiseUniformityModule
-        low_contrast_multi_slice = HeliosLowContrastMultiSlice
+        low_contrast_multi_slice = HeliosLowContrastMultiSliceModule
 
 Customizing module offsets
 --------------------------
@@ -172,7 +186,7 @@ Analysis Parameters
    .. tab-item:: RadMachine
       :sync: radmachine
 
-      To be completed.
+      See the RadMachine documentation for analysis parameter details.
 
 
 Interpreting Results
@@ -201,21 +215,21 @@ Interpreting Results
       * ``contrast_scale``: The results from the Contrast Scale module, with the following items:
 
         * ``offset``: Module offset in mm from origin.
-        * ``rois``: The analyzed ROIs. The key is the name of the material.
+        * ``rois``: The analyzed ROIs. Structure: ``{"data": {"mean_hu": {"Plexiglass": val, "Water": val}, "std": {"Plexiglass": val, "Water": val}}}``.
         * ``roi_settings``: The ROI settings. The keys are the material names.
 
 
       * ``high_contrast``: The results from the High Contrast Spatial Resolution module, with the following items:
 
         * ``offset``: Module offset in mm from origin.
-        * ``rois``: The analyzed ROIs. The key is the name of the material.
+        * ``rois``: The analyzed ROIs. The keys are the bar-pattern sizes (e.g. ``"1.6mm"``, ``"1.3mm"``, ``"1.0mm"``, ``"0.8mm"``); the values are the standard deviation within each ROI.
         * ``mtf_lp_mm``: Relative MTF at each spatial frequency.
 
       * ``noise_uniformity``: The results from the Noise & Uniformity module, with the following items:
 
         * ``offset``: Module offset in mm from origin.
         * ``roi_settings``: The ROI settings. The keys are the ROI locations.
-        * ``rois``: The analyzed ROIs. The keys are the ROI locations.
+        * ``rois``: The analyzed ROIs. Structure: ``{"mean_hu": {"Center": val, ...}, "std": {"Center": val, ...}}``. Top-level keys are ``mean_hu`` and ``std``; nested keys are the ROI location names.
         * ``noise_center_std``: The noise in the central ROI.
         * ``mean_outer``: Mean HU values of the outer ROIs.
         * ``means_diff``: Difference between the center ROI mean and the average of the edge ROIs.
@@ -227,10 +241,12 @@ Interpreting Results
         * ``std``: Average standard deviation across all slices.
 
 
+.. _helios-algorithm:
+
 Algorithm
 ---------
 
-The Helios analysis is based on the Technical Reference Manual.
+The Helios analysis is based on the GE Technical Reference Manual.
 
 Analysis
 ^^^^^^^^
@@ -263,3 +279,5 @@ API Documentation
 .. autopydantic_model:: pylinac.helios.HeliosHighContrastModuleOutput
 
 .. autopydantic_model:: pylinac.helios.HeliosNoiseUniformityModuleOutput
+
+.. autopydantic_model:: pylinac.helios.HeliosLowContrastMultiSliceModuleOutput
