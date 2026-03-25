@@ -57,11 +57,23 @@ class HeliosContrastScaleModule(CatPhanModule):
         return self.rois["Plexiglass"].mean - self.rois["Water"].mean
 
     def as_dict(self) -> dict:
-        """Dump important data as a dictionary."""
+        """Dump important data as a dictionary.
+
+        Returns
+        -------
+        dict
+            A nested dictionary with keys ``"data"`` → ``"mean_hu"`` and
+            ``"std"``, each mapping ROI name to the corresponding value.
+        """
+        mean_hu: dict[str, float] = {}
+        std: dict[str, float] = {}
+        for name, roi in self.rois.items():
+            mean_hu[name] = roi.mean
+            std[name] = roi.std
         return {
             "data": {
-                "mean_hu": {name: roi.mean for name, roi in self.rois.items()},
-                "std": {name: roi.std for name, roi in self.rois.items()},
+                "mean_hu": mean_hu,
+                "std": std,
             }
         }
 
@@ -141,13 +153,38 @@ class HeliosHighContrastModule(CatPhanModule):
 
     @property
     def mtf(self) -> MTF:
+        """Compute the relative Modulation Transfer Function (rMTF) from the bar-pattern ROIs.
+
+        Each ROI targets a specific bar-pattern frequency; the spatial
+        frequency (in lp/mm) is ``1 / (2 * bar_size_mm)``.  The MTF is
+        derived from the standard deviation of pixel values within each ROI
+        via :meth:`~pylinac.core.mtf.MTF.from_high_contrast_diskset`.
+
+        Returns
+        -------
+        MTF
+            The computed rMTF object, which can be queried for relative
+            resolution at any percentage (e.g. ``mtf.relative_resolution(50)``
+            returns the lp/mm at 50 % MTF).
+        """
         spacings = [1 / (2 * roi["bar_size"]) for roi in self.roi_settings.values()]
         diskset = list(self.rois.values())
         return MTF.from_high_contrast_diskset(spacings=spacings, diskset=diskset)
 
     def as_dict(self) -> dict:
-        """Dump important data as a dictionary."""
-        return {name: roi.std for name, roi in self.rois.items()}
+        """Dump important data as a dictionary.
+
+        Returns
+        -------
+        dict
+            A dictionary mapping each ROI name to the standard deviation of
+            pixel values within that ROI, used as a proxy for bar-pattern
+            contrast when computing the MTF.
+        """
+        roi_stds: dict[str, float] = {}
+        for name, roi in self.rois.items():
+            roi_stds[name] = roi.std
+        return roi_stds
 
     def plot_rois(self, axis: plt.Axes) -> None:
         """Plot the ROIs to the axis."""
@@ -209,13 +246,31 @@ class HeliosLowContrastModule(CatPhanModule):
 
     @property
     def mean(self) -> float:
-        """The mean value of the ROIs."""
-        return float(np.mean([roi.mean for roi in self.rois]))
+        """The mean HU value across all low-contrast ROIs.
+
+        Returns
+        -------
+        float
+            Mean of the per-ROI mean HU values.
+        """
+        roi_means: list[float] = []
+        for roi in self.rois:
+            roi_means.append(roi.mean)
+        return float(np.mean(roi_means))
 
     @property
     def std(self) -> float:
-        """The std value of the ROIs."""
-        return float(np.std([roi.mean for roi in self.rois]))
+        """The standard deviation of mean HU values across all low-contrast ROIs.
+
+        Returns
+        -------
+        float
+            Standard deviation of the per-ROI mean HU values.
+        """
+        roi_means: list[float] = []
+        for roi in self.rois:
+            roi_means.append(roi.mean)
+        return float(np.std(roi_means))
 
     def plot_rois(self, axis: plt.Axes) -> None:
         """Plot the grid of ROIs on the axis."""
@@ -242,7 +297,21 @@ class HeliosLowContrastModuleOutput(BaseModel):
 
 
 class HeliosLowContrastMultiSliceModule:
-    """Class for managing Low Contrast analysis across multiple slices."""
+    """Manages Low Contrast Detectability analysis across three adjacent slices.
+
+    The GE Helios phantom Section 3 contains a uniform water region used to
+    assess low-contrast detectability.  Rather than analysing a single slice,
+    this class instantiates three :class:`HeliosLowContrastModule` objects at
+    consecutive slice positions offset from :data:`SECTION_3_OFFSET_MM` by
+    the inter-slice spacing defined in
+    :data:`HELIOS_LOW_CONTRAST_SLICE_OFFSETS_INDEX`.
+
+    Attributes
+    ----------
+    slices : dict[str, HeliosLowContrastModule]
+        Mapping of slice name (``"slice_1"``, ``"slice_2"``, ``"slice_3"``)
+        to the corresponding analysed module instance.
+    """
 
     roi_settings = {
         "slice_1": {"offset": HELIOS_LOW_CONTRAST_SLICE_OFFSETS_INDEX["slice_1"]},
@@ -268,19 +337,53 @@ class HeliosLowContrastMultiSliceModule:
 
     @property
     def mean(self) -> float:
-        """The mean HU value across all slices."""
-        return float(np.mean([s.mean for s in self.slices.values()]))
+        """The mean HU value across all slices.
+
+        Returns
+        -------
+        float
+            Mean of the per-slice mean HU values.
+        """
+        slice_means: list[float] = []
+        for s in self.slices.values():
+            slice_means.append(s.mean)
+        mean = np.mean(slice_means)
+        return float(mean)
 
     @property
     def std(self) -> float:
-        """The average standard deviation across all slices."""
-        return float(np.mean([s.std for s in self.slices.values()]))
+        """The average standard deviation across all slices.
+
+        Returns
+        -------
+        float
+            Mean of the per-slice standard deviations.
+        """
+        slice_stds: list[float] = []
+        for s in self.slices.values():
+            slice_stds.append(s.std)
+        std = np.mean(slice_stds)
+        return float(std)
 
 
 class HeliosLowContrastMultiSliceModuleOutput(BaseModel):
-    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    """Results for the multi-slice Low Contrast Detectability analysis.
 
-    Use the following attributes as normal class attributes."""
+    This class should not be called directly. It is returned by the
+    ``results_data()`` method.  Use the following attributes as normal
+    class attributes.
+
+    Attributes
+    ----------
+    slices : dict[str, HeliosLowContrastModuleOutput]
+        Per-slice results keyed by slice name (``"slice_1"``,
+        ``"slice_2"``, ``"slice_3"``).  Each value contains the
+        ``mean`` and ``std`` HU statistics for that individual slice.
+    mean : float
+        Mean HU value averaged across all three slices.
+    std : float
+        Average standard deviation across all three slices.
+    """
 
     slices: dict[str, HeliosLowContrastModuleOutput] = Field(
         description="Per-slice low contrast results keyed by slice name."
@@ -338,9 +441,19 @@ class HeliosNoiseUniformityModule(CatPhanModule):
 
     @property
     def mean_outer(self) -> float:
-        """Mean HU of the outer ROIs."""
-        roi_keys = ["12 o'clock", "3 o'clock"]
-        return float(np.mean([self.rois[key].mean for key in roi_keys]))
+        """Mean HU of the outer (non-center) ROIs.
+
+        Returns
+        -------
+        float
+            Average mean HU across the ``"12 o'clock"`` and ``"3 o'clock"``
+            ROIs, representing the peripheral image uniformity.
+        """
+        outer_roi_keys = ["12 o'clock", "3 o'clock"]
+        outer_means: list[float] = []
+        for key in outer_roi_keys:
+            outer_means.append(self.rois[key].mean)
+        return float(np.mean(outer_means))
 
     @property
     def uniformity_difference(self) -> float:
@@ -348,10 +461,23 @@ class HeliosNoiseUniformityModule(CatPhanModule):
         return float(self.rois["Center"].mean - self.mean_outer)
 
     def as_dict(self) -> dict:
-        """Dump important data as a dictionary."""
+        """Dump important data as a dictionary.
+
+        Returns
+        -------
+        dict
+            A dictionary with keys ``"mean_hu"`` and ``"std"``, each
+            mapping ROI name (``"Center"``, ``"12 o'clock"``,
+            ``"3 o'clock"``) to its corresponding value.
+        """
+        mean_hu: dict[str, float] = {}
+        std: dict[str, float] = {}
+        for name, roi in self.rois.items():
+            mean_hu[name] = roi.mean
+            std[name] = roi.std
         return {
-            "mean_hu": {name: roi.mean for name, roi in self.rois.items()},
-            "std": {name: roi.std for name, roi in self.rois.items()},
+            "mean_hu": mean_hu,
+            "std": std,
         }
 
     def plot_rois(self, axis: plt.Axes) -> None:
@@ -547,16 +673,44 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             pixels = arr[rr, cc]
             variances[idx] = float(np.var(pixels))
 
-        threshold = variances > variances.max() / 2
-        best_slice = int(np.mean(np.argwhere(threshold)))
+        max_variance = variances.max()
+        threshold = variances > max_variance / 2
+        candidate_indices = np.argwhere(threshold)
+        best_slice = int(np.mean(candidate_indices))
         return best_slice
 
     def find_phantom_roll(self, func: Callable | None = None) -> float:
-        """Return the phantom roll angle."""
+        """Return the phantom roll angle.
+
+        The GE Helios phantom is bracket-mounted and does not rotate; its
+        roll is always zero.  The ``func`` parameter is accepted for
+        interface compatibility with :class:`~pylinac.ct.CatPhanBase` but
+        is not used.
+
+        Parameters
+        ----------
+        func : callable or None
+            Unused.  Present for API compatibility only.
+
+        Returns
+        -------
+        float
+            Always ``0.0``.
+        """
         return 0.0
 
     def _module_offsets(self) -> list[float]:
-        """Return the absolute z-positions of the two active sections."""
+        """Return the absolute z-positions (mm) of the two active phantom sections.
+
+        Section 1 (Contrast Scale and High Contrast) is at the origin slice.
+        Section 3 (Low Contrast and Noise/Uniformity) is offset by
+        :data:`SECTION_3_OFFSET_MM` millimetres in the superior direction.
+
+        Returns
+        -------
+        list of float
+            Two-element list ``[origin_z, origin_z + SECTION_3_OFFSET_MM]``.
+        """
         absolute_origin_position = self.dicom_stack[self.origin_slice].z_position
         return [
             absolute_origin_position,
@@ -596,7 +750,8 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             self.high_contrast_module,
             self.noise_uniformity_module,
         ]
-        modules.extend(list(self.low_contrast_multi_slice.slices.values()))
+        for slice_module in self.low_contrast_multi_slice.slices.values():
+            modules.append(slice_module)
         for module in modules:
             figs[module.common_name] = module.plotly(
                 show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
@@ -629,7 +784,8 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             self.high_contrast_module,
             self.noise_uniformity_module,
         ]
-        modules.extend(list(self.low_contrast_multi_slice.slices.values()))
+        for slice_module in self.low_contrast_multi_slice.slices.values():
+            modules.append(slice_module)
 
         # set up grid and axes
         fig, axs = plt.subplots(2, 4, **plt_kwargs)
@@ -671,7 +827,8 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             "high contrast": self.high_contrast_module,
             "noise and uniformity": self.noise_uniformity_module,
         }
-        modules |= self.low_contrast_multi_slice.slices
+        for key, slice_module in self.low_contrast_multi_slice.slices.items():
+            modules[key] = slice_module
         for key, module in modules.items():
             fig, ax = plt.subplots(**plt_kwargs)
             module.plot(ax)
@@ -691,12 +848,33 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         return figs
 
     def _detected_modules(self) -> list[CatPhanModule]:
+        """Return the list of all analysed phantom modules.
+
+        Used internally by the base class for operations that iterate
+        over every module (e.g. building the side-view plot).
+
+        Returns
+        -------
+        list of CatPhanModule
+            The six analysed modules in display order:
+
+            * **Contrast Scale** – HU linearity / contrast scale section.
+            * **High Contrast** – Spatial resolution (MTF) section.
+            * **Noise & Uniformity** – Image noise and field uniformity section.
+            * **Low Contrast - 1** – Low-contrast detectability, slice 1
+              (``slice_1``).
+            * **Low Contrast - 2** – Low-contrast detectability, slice 2
+              (``slice_2``).
+            * **Low Contrast - 3** – Low-contrast detectability, slice 3
+              (``slice_3``).
+        """
         modules = [
             self.contrast_scale_module,
             self.high_contrast_module,
             self.noise_uniformity_module,
         ]
-        modules.extend(list(self.low_contrast_multi_slice.slices.values()))
+        for slice_module in self.low_contrast_multi_slice.slices.values():
+            modules.append(slice_module)
         return modules
 
     def save_images(
@@ -729,43 +907,141 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         return paths
 
     def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
-        results_data = self.results_data(as_dict=True)
-        data = {}
+        """Build the dictionary of QuAAC data points from the analysis results.
 
-        data["Phantom Roll"] = QuaacDatum(
+        Each entry maps a human-readable label to a
+        :class:`~pylinac.core.utilities.QuaacDatum` containing the numeric
+        value and its physical unit.  This method is called automatically
+        by the QuAAC export machinery.
+
+        Returns
+        -------
+        dict[str, QuaacDatum]
+            QuAAC-compatible data points covering all outputs produced by
+            :meth:`_generate_results_data`: phantom roll; per-ROI
+            contrast-scale mean HU and standard deviation; per-bar-pattern
+            high-contrast ROI standard deviations and MTF at each 10 %
+            resolution step; per-slice low-contrast mean and standard
+            deviation for each of the three analysis slices; aggregate
+            low-contrast mean and standard deviation; per-position
+            noise/uniformity ROI mean HU and standard deviation; noise
+            center standard deviation; mean outer ROI HU; and uniformity
+            difference.
+        """
+        results_data = self.results_data(as_dict=True)
+
+        phantom_roll = QuaacDatum(
             value=results_data["phantom_roll_deg"],
             unit="degrees",
             description="The roll of the phantom in the image",
         )
-        for name, roi in results_data["contrast_scale"]["rois"]["data"][
+
+        contrast_scale_mean_hu_data = results_data["contrast_scale"]["rois"]["data"][
             "mean_hu"
-        ].items():
-            data[f"Contrast scale {name} ROI"] = QuaacDatum(
-                value=roi,
+        ]
+        contrast_scale_mean_hu: dict[str, QuaacDatum] = {}
+        for name, hu_value in contrast_scale_mean_hu_data.items():
+            label = f"Contrast scale {name} mean HU"
+            contrast_scale_mean_hu[label] = QuaacDatum(
+                value=hu_value,
                 unit="HU",
             )
+
+        contrast_scale_std_data = results_data["contrast_scale"]["rois"]["data"]["std"]
+        contrast_scale_std: dict[str, QuaacDatum] = {}
+        for name, std_value in contrast_scale_std_data.items():
+            label = f"Contrast scale {name} std"
+            contrast_scale_std[label] = QuaacDatum(
+                value=std_value,
+                unit="HU",
+            )
+
+        high_contrast_roi_stds: dict[str, QuaacDatum] = {}
+        for name, std_value in results_data["high_contrast"]["rois"].items():
+            label = f"High contrast {name} ROI std"
+            high_contrast_roi_stds[label] = QuaacDatum(
+                value=std_value,
+                unit="HU",
+            )
+
+        mtf_datapoints: dict[str, QuaacDatum] = {}
         for resolution, lp_mm in results_data["high_contrast"]["mtf_lp_mm"].items():
-            data[f"High contrast MTF {resolution}%"] = QuaacDatum(
+            label = f"High contrast MTF {resolution}%"
+            mtf_datapoints[label] = QuaacDatum(
                 value=lp_mm,
                 unit="lp/mm",
             )
-        data["Low contrast Mean"] = QuaacDatum(
+
+        low_contrast_slice_means: dict[str, QuaacDatum] = {}
+        low_contrast_slice_stds: dict[str, QuaacDatum] = {}
+        for slice_name, slice_data in results_data["low_contrast"]["slices"].items():
+            mean_label = f"Low contrast {slice_name} mean"
+            low_contrast_slice_means[mean_label] = QuaacDatum(
+                value=slice_data["mean"],
+                unit="HU",
+            )
+            std_label = f"Low contrast {slice_name} std"
+            low_contrast_slice_stds[std_label] = QuaacDatum(
+                value=slice_data["std"],
+                unit="HU",
+            )
+
+        low_contrast_mean = QuaacDatum(
             value=results_data["low_contrast"]["mean"],
             unit="HU",
         )
-        data["Low contrast Std"] = QuaacDatum(
+        low_contrast_std = QuaacDatum(
             value=results_data["low_contrast"]["std"],
             unit="HU",
         )
-        data["Noise Std"] = QuaacDatum(
+
+        noise_uniformity_rois_mean_hu: dict[str, QuaacDatum] = {}
+        for name, hu_value in results_data["noise_uniformity"]["rois"][
+            "mean_hu"
+        ].items():
+            label = f"Noise uniformity {name} mean HU"
+            noise_uniformity_rois_mean_hu[label] = QuaacDatum(
+                value=hu_value,
+                unit="HU",
+            )
+
+        noise_uniformity_rois_std: dict[str, QuaacDatum] = {}
+        for name, std_value in results_data["noise_uniformity"]["rois"]["std"].items():
+            label = f"Noise uniformity {name} std"
+            noise_uniformity_rois_std[label] = QuaacDatum(
+                value=std_value,
+                unit="HU",
+            )
+
+        noise_center_std = QuaacDatum(
             value=results_data["noise_uniformity"]["noise_center_std"],
             unit="HU",
         )
-        data["Uniformity Difference"] = QuaacDatum(
+        mean_outer = QuaacDatum(
+            value=results_data["noise_uniformity"]["mean_outer"],
+            unit="HU",
+        )
+        uniformity_difference = QuaacDatum(
             value=results_data["noise_uniformity"]["means_diff"],
             unit="HU",
         )
-        return data
+
+        return {
+            "Phantom Roll": phantom_roll,
+            **contrast_scale_mean_hu,
+            **contrast_scale_std,
+            **high_contrast_roi_stds,
+            **mtf_datapoints,
+            **low_contrast_slice_means,
+            **low_contrast_slice_stds,
+            "Low contrast Mean": low_contrast_mean,
+            "Low contrast Std": low_contrast_std,
+            **noise_uniformity_rois_mean_hu,
+            **noise_uniformity_rois_std,
+            "Noise Center Std": noise_center_std,
+            "Mean Outer": mean_outer,
+            "Uniformity Difference": uniformity_difference,
+        }
 
     def publish_pdf(
         self,
@@ -823,16 +1099,90 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             webbrowser.open(filename)
 
     def results(self, as_str: bool = True) -> str | tuple:
-        """Return the results of the analysis as a string. Use with print()."""
-        string = (
-            f" - {self._model} Results - ",
-            f"Contrast Difference: {self.contrast_scale_module.contrast_difference}",
-            f"MTF 50% (lp/mm): {self.high_contrast_module.mtf.relative_resolution(50):2.2f}",
-            f"Low Contrast Mean: {self.low_contrast_multi_slice.mean:2.2f}",
-            f"Low Contrast Standard Deviation: {self.low_contrast_multi_slice.std:2.2f}",
-            f"Noise Std: {self.noise_uniformity_module.noise_center_std:2.2f}",
-            f"Uniformity Difference: {self.noise_uniformity_module.uniformity_difference:2.2f}",
+        """Return the results of the analysis as a string. Use with print().
+
+        All scalar and per-ROI outputs produced by
+        :meth:`_generate_results_data` are represented: phantom roll,
+        contrast-scale per-ROI mean HU and standard deviation, contrast
+        difference, high-contrast per-bar-pattern ROI standard deviation,
+        MTF at every 10 % resolution step, per-slice low-contrast mean and
+        standard deviation for each of the three analysis slices followed by
+        the aggregate low-contrast mean and standard deviation,
+        noise/uniformity per-position mean HU and standard deviation, noise
+        center standard deviation, mean outer HU, and uniformity difference.
+
+        Parameters
+        ----------
+        as_str : bool
+            If ``True`` (default) return a single newline-joined string
+            suitable for ``print()``.  If ``False`` return a tuple of
+            individual result strings.
+
+        Returns
+        -------
+        str or tuple of str
+            The formatted results.
+        """
+        lines: list[str] = []
+
+        title = f" - {self._model} Results - "
+        lines.append(title)
+
+        phantom_roll = f"Phantom Roll: {self.catphan_roll:2.2f} deg"
+        lines.append(phantom_roll)
+
+        for name, roi in self.contrast_scale_module.rois.items():
+            contrast_roi_mean = f"Contrast Scale {name} Mean HU: {roi.mean:2.2f}"
+            lines.append(contrast_roi_mean)
+            contrast_roi_std = f"Contrast Scale {name} Std: {roi.std:2.2f}"
+            lines.append(contrast_roi_std)
+
+        contrast_diff = f"Contrast Difference: {self.contrast_scale_module.contrast_difference:2.2f}"
+        lines.append(contrast_diff)
+
+        for name, roi in self.high_contrast_module.rois.items():
+            hc_roi_std = f"High Contrast {name} ROI Std: {roi.std:2.2f}"
+            lines.append(hc_roi_std)
+
+        for resolution in range(10, 91, 10):
+            lp_mm = self.high_contrast_module.mtf.relative_resolution(resolution)
+            mtf_line = f"MTF {resolution}% (lp/mm): {lp_mm:2.2f}"
+            lines.append(mtf_line)
+
+        for slice_name, slice_module in self.low_contrast_multi_slice.slices.items():
+            lc_slice_mean = f"Low Contrast {slice_name} Mean: {slice_module.mean:2.2f}"
+            lines.append(lc_slice_mean)
+            lc_slice_std = f"Low Contrast {slice_name} Std: {slice_module.std:2.2f}"
+            lines.append(lc_slice_std)
+
+        low_contrast_mean = (
+            f"Low Contrast Mean: {self.low_contrast_multi_slice.mean:2.2f}"
         )
+        lines.append(low_contrast_mean)
+
+        low_contrast_std = (
+            f"Low Contrast Standard Deviation: {self.low_contrast_multi_slice.std:2.2f}"
+        )
+        lines.append(low_contrast_std)
+
+        for name, roi in self.noise_uniformity_module.rois.items():
+            nu_roi_mean = f"Noise Uniformity {name} Mean HU: {roi.mean:2.2f}"
+            lines.append(nu_roi_mean)
+            nu_roi_std = f"Noise Uniformity {name} Std: {roi.std:2.2f}"
+            lines.append(nu_roi_std)
+
+        noise_center_std = (
+            f"Noise Center Std: {self.noise_uniformity_module.noise_center_std:2.2f}"
+        )
+        lines.append(noise_center_std)
+
+        mean_outer = f"Mean Outer HU: {self.noise_uniformity_module.mean_outer:2.2f}"
+        lines.append(mean_outer)
+
+        uniformity_diff = f"Uniformity Difference: {self.noise_uniformity_module.uniformity_difference:2.2f}"
+        lines.append(uniformity_diff)
+
+        string = tuple(lines)
         if as_str:
             return "\n".join(string)
         else:
@@ -840,10 +1190,23 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
 
     def _generate_results_data(self) -> GEHeliosResult:
         resolutions = range(10, 91, 10)  # 10-90% in 10% increments
-        mtfs = {
-            resolution: self.high_contrast_module.mtf.relative_resolution(resolution)
-            for resolution in resolutions
-        }
+        mtfs: dict[int, float] = {}
+        for resolution in resolutions:
+            mtfs[resolution] = self.high_contrast_module.mtf.relative_resolution(
+                resolution
+            )
+
+        slice_outputs: dict[str, HeliosLowContrastModuleOutput] = {}
+        for k, v in self.low_contrast_multi_slice.slices.items():
+            slice_outputs[k] = HeliosLowContrastModuleOutput(
+                offset=self.low_contrast_multi_slice.roi_settings[k]["offset"],
+                settings={
+                    "cell_size": v.cell_size,
+                    "num_cells": v.num_cells,
+                },
+                mean=v.mean,
+                std=v.std,
+            )
 
         return GEHeliosResult(
             phantom_model=self._model,
@@ -861,18 +1224,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
                 mtf_lp_mm=mtfs,
             ),
             low_contrast=HeliosLowContrastMultiSliceModuleOutput(
-                slices={
-                    k: HeliosLowContrastModuleOutput(
-                        offset=self.low_contrast_multi_slice.roi_settings[k]["offset"],
-                        settings={
-                            "cell_size": v.cell_size,
-                            "num_cells": v.num_cells,
-                        },
-                        mean=v.mean,
-                        std=v.std,
-                    )
-                    for k, v in self.low_contrast_multi_slice.slices.items()
-                },
+                slices=slice_outputs,
                 mean=self.low_contrast_multi_slice.mean,
                 std=self.low_contrast_multi_slice.std,
             ),
