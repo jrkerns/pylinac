@@ -1,5 +1,6 @@
 import io
 import os
+import tempfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
@@ -58,6 +59,12 @@ class TestGeneral(TestCase):
         self.ct.analyze()
         data = self.ct.results_data()
         self.assertEqual(len(data.warnings), 0)
+
+    def test_publish_pdf(self):
+        self.ct.analyze()
+        with tempfile.NamedTemporaryFile(delete=False) as t:
+            self.ct.publish_pdf(t.name, notes="stuff", metadata={"Unit": "TB1"})
+        os.remove(t.name)
 
 
 class TestPlottingSaving(TestCase):

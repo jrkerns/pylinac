@@ -686,9 +686,9 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
                 value=roi,
                 unit="HU",
             )
-        for name, roi in results_data["high_contrast"]["rois"].items():
-            data[f"High contrast {name} ROI"] = QuaacDatum(
-                value=roi,
+        for resolution, lp_mm in results_data["high_contrast"]["mtf_lp_mm"].items():
+            data[f"High contrast MTF {resolution}%"] = QuaacDatum(
+                value=lp_mm,
                 unit="lp/mm",
             )
         data["Low contrast Mean"] = QuaacDatum(
@@ -699,11 +699,11 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             value=results_data["low_contrast"]["std"],
             unit="HU",
         )
-        data["Noise"] = QuaacDatum(
+        data["Noise Std"] = QuaacDatum(
             value=results_data["noise_uniformity"]["noise_center_std"],
             unit="HU",
         )
-        data["uniformity difference"] = QuaacDatum(
+        data["Uniformity Difference"] = QuaacDatum(
             value=results_data["noise_uniformity"]["means_diff"],
             unit="HU",
         )
@@ -742,7 +742,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         analysis_images = self.save_images(to_stream=True)
 
         canvas = pdf.PylinacCanvas(
-            filename, page_title=analysis_title, metadata=metadata
+            filename, page_title=analysis_title, metadata=metadata, logo=logo
         )
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)
@@ -752,8 +752,8 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             textwrap.wrap(r, width=110) for r in self.results(as_str=False)
         ]
         idx = 0
-        for items in enumerate(shortened_texts):
-            for text in items:
+        for wrapped_lines in shortened_texts:
+            for text in wrapped_lines:
                 canvas.add_text(text=text, location=(1.5, 25 - idx * 0.5))
                 idx += 1
         for page, img in enumerate(analysis_images):
@@ -772,7 +772,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             f"MTF 50% (lp/mm): {self.high_contrast_module.mtf.relative_resolution(50):2.2f}",
             f"Low Contrast Mean: {self.low_contrast_module.mean:2.2f}",
             f"Low Contrast Standard Deviation: {self.low_contrast_module.std:2.2f}",
-            f"Noise Center: {self.noise_uniformity_module.noise_center:2.2f}",
+            f"Noise Std: {self.noise_uniformity_module.noise_center_std:2.2f}",
             f"Uniformity Difference: {self.noise_uniformity_module.uniformity_difference:2.2f}",
         )
         if as_str:
