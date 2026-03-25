@@ -3,9 +3,9 @@ from __future__ import annotations
 import io
 import textwrap
 import webbrowser
+from collections.abc import Callable
 from io import BytesIO
 from pathlib import Path
-from typing import Callable
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -61,7 +61,7 @@ class HeliosContrastScaleModule(CatPhanModule):
         return {
             "data": {
                 "mean_hu": {name: roi.mean for name, roi in self.rois.items()},
-                "Std_dev": {name: roi.std for name, roi in self.rois.items()},
+                "std": {name: roi.std for name, roi in self.rois.items()},
             }
         }
 
@@ -213,7 +213,7 @@ class HeliosLowContrastModule(CatPhanModule):
         return float(np.mean([roi.mean for roi in self.rois]))
 
     @property
-    def std_dev(self) -> float:
+    def std(self) -> float:
         """The std value of the ROIs."""
         return float(np.std([roi.mean for roi in self.rois]))
 
@@ -236,9 +236,9 @@ class HeliosLowContrastModuleOutput(BaseModel):
     offset: float = Field(
         description="The offset of this module slice from the origin slice in mm."
     )
-    settings: dict = Field(description="The settings.")
-    mean: float = Field("Mean HU values of the ROIs")
-    std: float = Field("Standard deviation of the ROIs.")
+    settings: dict = Field()
+    mean: float = Field(description="Mean HU values of the ROIs")
+    std: float = Field(description="Standard deviation of the ROIs.")
 
 
 class HeliosLowContrastMultiSliceModule:
@@ -272,9 +272,9 @@ class HeliosLowContrastMultiSliceModule:
         return float(np.mean([s.mean for s in self.slices.values()]))
 
     @property
-    def std_dev(self) -> float:
+    def std(self) -> float:
         """The average standard deviation across all slices."""
-        return float(np.mean([s.std_dev for s in self.slices.values()]))
+        return float(np.mean([s.std for s in self.slices.values()]))
 
 
 class HeliosLowContrastMultiSliceModuleOutput(BaseModel):
@@ -744,9 +744,9 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
                 value=roi,
                 unit="HU",
             )
-        for name, roi in results_data["high_contrast"]["rois"].items():
-            data[f"High contrast {name} ROI"] = QuaacDatum(
-                value=roi,
+        for resolution, lp_mm in results_data["high_contrast"]["mtf_lp_mm"].items():
+            data[f"High contrast MTF {resolution}%"] = QuaacDatum(
+                value=lp_mm,
                 unit="lp/mm",
             )
         data["Low contrast Mean"] = QuaacDatum(
@@ -757,11 +757,11 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             value=results_data["low_contrast"]["std"],
             unit="HU",
         )
-        data["Noise"] = QuaacDatum(
+        data["Noise Std"] = QuaacDatum(
             value=results_data["noise_uniformity"]["noise_center_std"],
             unit="HU",
         )
-        data["uniformity difference"] = QuaacDatum(
+        data["Uniformity Difference"] = QuaacDatum(
             value=results_data["noise_uniformity"]["means_diff"],
             unit="HU",
         )
@@ -800,7 +800,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         analysis_images = self.save_images(to_stream=True)
 
         canvas = pdf.PylinacCanvas(
-            filename, page_title=analysis_title, metadata=metadata
+            filename, page_title=analysis_title, metadata=metadata, logo=logo
         )
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)
@@ -810,8 +810,8 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             textwrap.wrap(r, width=110) for r in self.results(as_str=False)
         ]
         idx = 0
-        for items in enumerate(shortened_texts):
-            for text in items:
+        for wrapped_lines in shortened_texts:
+            for text in wrapped_lines:
                 canvas.add_text(text=text, location=(1.5, 25 - idx * 0.5))
                 idx += 1
         for page, img in enumerate(analysis_images):
@@ -829,8 +829,8 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             f"Contrast Difference: {self.contrast_scale_module.contrast_difference}",
             f"MTF 50% (lp/mm): {self.high_contrast_module.mtf.relative_resolution(50):2.2f}",
             f"Low Contrast Mean: {self.low_contrast_multi_slice.mean:2.2f}",
-            f"Low Contrast Standard Deviation: {self.low_contrast_multi_slice.std_dev:2.2f}",
-            f"Noise Center: {self.noise_uniformity_module.noise_center:2.2f}",
+            f"Low Contrast Standard Deviation: {self.low_contrast_multi_slice.std:2.2f}",
+            f"Noise Std: {self.noise_uniformity_module.noise_center_std:2.2f}",
             f"Uniformity Difference: {self.noise_uniformity_module.uniformity_difference:2.2f}",
         )
         if as_str:
@@ -869,12 +869,12 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
                             "num_cells": v.num_cells,
                         },
                         mean=v.mean,
-                        std=v.std_dev,
+                        std=v.std,
                     )
                     for k, v in self.low_contrast_multi_slice.slices.items()
                 },
                 mean=self.low_contrast_multi_slice.mean,
-                std=self.low_contrast_multi_slice.std_dev,
+                std=self.low_contrast_multi_slice.std,
             ),
             noise_uniformity=HeliosNoiseUniformityModuleOutput(
                 offset=SECTION_3_OFFSET_MM,

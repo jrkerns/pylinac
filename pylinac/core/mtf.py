@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import math
 import warnings
-from collections.abc import Sequence
-from typing import Any, Callable, Literal
+from collections.abc import Callable, Sequence
+from typing import Any, Literal
 
 import argue
 import numpy as np

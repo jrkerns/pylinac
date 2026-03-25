@@ -5,25 +5,6 @@ import nox
 from nox import Session
 
 
-@nox.parametrize("numpy", ["1.23.5", "1.24.4", "1.25.2", "1.26.4"])
-@nox.parametrize("scipy", ["1.11.0", "1.12.0", "1.13.1"])
-@nox.session(
-    python="3.9",
-    reuse_venv=True,
-    venv_backend="uv",
-)
-def run_basic_test_suite_39(session: Session, numpy: str, scipy: str):
-    session.install(".[developer]")
-    session.install(f"numpy~={numpy}", f"scipy~={scipy}")
-    session.install("pip")
-    session.run("pip", "freeze")
-    session.run(
-        "pytest",
-        "-n5",
-        "tests_basic/core",
-    )
-
-
 @nox.parametrize(
     "numpy", ["1.23.5", "1.24.4", "1.25.2", "1.26.4", "2.0.0", "2.1.0", "2.2.0"]
 )

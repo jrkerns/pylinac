@@ -13,6 +13,27 @@ Legend
 v 3.43.0
 --------
 
+General
+^^^^^^^
+
+* :bdg-danger:`Change` The minimum version of Python supported is now 3.10 as the end-of-life of Python 3.9 is was in 2025.
+
+
+ACR Phantoms
+^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` ``from_demo_image()`` now raises
+  ``NotImplementedError`` instead of an unexpected exception, as no demo dataset is
+  available.
+* :bdg-warning:`Fixed` Fixed ``save_images``: it uses the current folder when
+  ``directory=None``
+
+Quart
+^^^^^
+
+* :bdg-warning:`Fixed` Fixed ``save_images``: it uses the current folder when
+  ``directory=None``
+
 * :bdg-success:`Feature` Added support for :ref:`helios`.
 
 v 3.42.0

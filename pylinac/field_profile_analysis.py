@@ -5,7 +5,7 @@ import io
 import webbrowser
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Literal, Union
+from typing import Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -84,9 +84,9 @@ PROFILES = {
     Edge.INFLECTION_HILL: HillProfilePhysical,
     Edge.INFLECTION_DERIVATIVE: InflectionDerivativeProfilePhysical,
 }
-PROFILE_TYPE = Union[
-    FWXMProfilePhysical, HillProfilePhysical, InflectionDerivativeProfilePhysical
-]
+PROFILE_TYPE = (
+    FWXMProfilePhysical | HillProfilePhysical | InflectionDerivativeProfilePhysical
+)
 
 
 @capture_warnings
