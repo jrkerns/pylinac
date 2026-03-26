@@ -157,7 +157,7 @@ class HeliosHighContrastModule(CatPhanModule):
 
         Each ROI targets a specific bar-pattern frequency; the spatial
         frequency (in lp/mm) is ``1 / (2 * bar_size_mm)``.  The MTF is
-        derived from the standard deviation of pixel values within each ROI
+        derived from the min/max of the ROI (standard MTF definition)
         via :meth:`~pylinac.core.mtf.MTF.from_high_contrast_diskset`.
 
         Returns
@@ -314,9 +314,15 @@ class HeliosLowContrastMultiSliceModule:
     """
 
     roi_settings = {
-        "slice_1": {"offset": HELIOS_LOW_CONTRAST_SLICE_OFFSETS_INDEX["slice_1"]},
-        "slice_2": {"offset": HELIOS_LOW_CONTRAST_SLICE_OFFSETS_INDEX["slice_2"]},
-        "slice_3": {"offset": HELIOS_LOW_CONTRAST_SLICE_OFFSETS_INDEX["slice_3"]},
+        "slice_1": {
+            "offset": HELIOS_LOW_CONTRAST_SLICE_OFFSETS_INDEX["slice_1"],
+        },
+        "slice_2": {
+            "offset": HELIOS_LOW_CONTRAST_SLICE_OFFSETS_INDEX["slice_2"],
+        },
+        "slice_3": {
+            "offset": HELIOS_LOW_CONTRAST_SLICE_OFFSETS_INDEX["slice_3"],
+        },
     }
 
     def __init__(self, catphan) -> None:
@@ -330,9 +336,11 @@ class HeliosLowContrastMultiSliceModule:
         self.slices: dict[str, HeliosLowContrastModule] = {}
         slice_spacing = catphan.dicom_stack.slice_spacing
         for key, value in self.roi_settings.items():
+            index_offset = value["offset"]
+            offset_mm = int(index_offset * slice_spacing + SECTION_3_OFFSET_MM)
             self.slices[key] = HeliosLowContrastModule(
                 catphan,
-                offset=int(value["offset"] * slice_spacing + SECTION_3_OFFSET_MM),
+                offset=offset_mm,
             )
 
     @property
@@ -973,13 +981,15 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             )
 
         low_contrast_slice_means: dict[str, QuaacDatum] = {}
-        low_contrast_slice_stds: dict[str, QuaacDatum] = {}
         for slice_name, slice_data in results_data["low_contrast"]["slices"].items():
             mean_label = f"Low contrast {slice_name} mean"
             low_contrast_slice_means[mean_label] = QuaacDatum(
                 value=slice_data["mean"],
                 unit="HU",
             )
+
+        low_contrast_slice_stds: dict[str, QuaacDatum] = {}
+        for slice_name, slice_data in results_data["low_contrast"]["slices"].items():
             std_label = f"Low contrast {slice_name} std"
             low_contrast_slice_stds[std_label] = QuaacDatum(
                 value=slice_data["std"],
@@ -1088,7 +1098,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         idx = 0
         for wrapped_lines in shortened_texts:
             for text in wrapped_lines:
-                canvas.add_text(text=text, location=(1.5, 25 - idx * 0.5))
+                canvas.add_text(text=text, location=(2.5, 24 - idx * 0.5))
                 idx += 1
         for page, img in enumerate(analysis_images):
             canvas.add_new_page()
@@ -1152,6 +1162,8 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         for slice_name, slice_module in self.low_contrast_multi_slice.slices.items():
             lc_slice_mean = f"Low Contrast {slice_name} Mean: {slice_module.mean:2.2f}"
             lines.append(lc_slice_mean)
+
+        for slice_name, slice_module in self.low_contrast_multi_slice.slices.items():
             lc_slice_std = f"Low Contrast {slice_name} Std: {slice_module.std:2.2f}"
             lines.append(lc_slice_std)
 
@@ -1198,12 +1210,13 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
 
         slice_outputs: dict[str, HeliosLowContrastModuleOutput] = {}
         for k, v in self.low_contrast_multi_slice.slices.items():
+            slice_settings = {
+                "cell_size": v.cell_size,
+                "num_cells": v.num_cells,
+            }
             slice_outputs[k] = HeliosLowContrastModuleOutput(
                 offset=self.low_contrast_multi_slice.roi_settings[k]["offset"],
-                settings={
-                    "cell_size": v.cell_size,
-                    "num_cells": v.num_cells,
-                },
+                settings=slice_settings,
                 mean=v.mean,
                 std=v.std,
             )
