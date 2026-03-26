@@ -18,6 +18,15 @@ General
 
 * :bdg-danger:`Change` The minimum version of Python supported is now 3.10 as the end-of-life of Python 3.9 is was in 2025.
 
+Core
+^^^^
+
+* :bdg-warning:`Fixed` :meth:`~pylinac.core.image.DicomImage.cax` no longer raises a
+  ``TypeError`` when the ``RTImageSID`` DICOM tag is absent and no ``sid`` was passed
+  to the constructor. The magnification factor calculation is now inside the existing
+  ``try/except`` block and falls back to the image center, consistent with behavior
+  for film and other non-EPID images.
+
 
 ACR Phantoms
 ^^^^^^^^^^^^

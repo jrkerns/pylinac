@@ -623,6 +623,14 @@ class TestDicomImage(TestCase):
             delta=0.01,
         )
 
+    def test_cax_returns_center_when_sid_is_missing(self):
+        # RAM-5787: missing RTImageSID tag causes self.sid to be None,
+        # which previously raised TypeError before the try/except could catch it.
+        ds = pydicom.dcmread(dcm_path)
+        del ds.RTImageSID
+        img = DicomImage.from_dataset(ds)
+        self.assertEqual(img.cax, img.center)
+
     def test_save(self):
         save_file(self.dcm.save)
 
