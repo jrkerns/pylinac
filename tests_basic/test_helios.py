@@ -1,8 +1,9 @@
 import io
 import os
+import tempfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest import TestCase, skip
+from unittest import TestCase
 
 from matplotlib import pyplot as plt
 
@@ -59,6 +60,12 @@ class TestGeneral(TestCase):
         data = self.ct.results_data()
         self.assertEqual(len(data.warnings), 0)
 
+    def test_publish_pdf(self):
+        self.ct.analyze()
+        with tempfile.NamedTemporaryFile(delete=False) as t:
+            self.ct.publish_pdf(t.name, notes="stuff", metadata={"Unit": "TB1"})
+        os.remove(t.name)
+
 
 class TestPlottingSaving(TestCase):
     @classmethod
@@ -107,7 +114,6 @@ class TestPlottingSaving(TestCase):
                 self.assertTrue(path.exists())
 
 
-@skip("TODO once Quaac interface is defined")
 class TestQuaac(QuaacTestBase, CloudFileMixin, TestCase):
     dir_path = TEST_DIR
     file_name = "GEHeliosCTDaily1.zip"
