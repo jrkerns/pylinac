@@ -157,7 +157,7 @@ class HeliosHighContrastModule(CatPhanModule):
 
         Each ROI targets a specific bar-pattern frequency; the spatial
         frequency (in lp/mm) is ``1 / (2 * bar_size_mm)``.  The MTF is
-        derived from the standard deviation of pixel values within each ROI
+        derived from the min/max of the ROI (standard MTF definition)
         via :meth:`~pylinac.core.mtf.MTF.from_high_contrast_diskset`.
 
         Returns
@@ -1088,7 +1088,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         idx = 0
         for wrapped_lines in shortened_texts:
             for text in wrapped_lines:
-                canvas.add_text(text=text, location=(1.5, 25 - idx * 0.5))
+                canvas.add_text(text=text, location=(2.5, 24 - idx * 0.5))
                 idx += 1
         for page, img in enumerate(analysis_images):
             canvas.add_new_page()
