@@ -36,10 +36,12 @@ see also the :ref:`helios-algorithm` section.
 Typical Use
 -----------
 
-The GE Helios analysis follows a similar pattern of load / analyze / output pattern as the rest of the library.
-Unlike the CatPhan analysis, the phantoms and analyses are much more well-defined, so creating fully
-custom phantom configurations is not a primary use case. Individual analysis modules can still be subclassed
-to adjust ROI locations or other parameters; see :ref:`helios-customizing-modules`.
+The GE Helios analysis follows a similar pattern of load / analyze / output
+pattern as the rest of the library.
+Unlike the CatPhan analysis, the phantoms and analyses are much more well-defined,
+so creating fully custom phantom configurations is not a primary use case.
+Individual analysis modules can still be subclassed to adjust ROI locations or
+other parameters; see :ref:`helios-customizing-modules`.
 
 To use the Helios analysis, import the class:
 
@@ -92,8 +94,9 @@ And then load, analyze, and view the results:
 Customizing Modules
 -------------------
 
-To customize aspects of the analysis modules, subclass the relevant module and set the attribute in the
-analysis class. E.g. to customize the "Contrast Scale" module:
+To customize aspects of the analysis modules, subclass the relevant module and
+set the attribute in the analysis class. E.g. to customize the "Contrast Scale"
+module:
 
 .. code-block:: python
 
@@ -170,7 +173,8 @@ Continuing from above:
 Adjusting ROI Locations
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-To adjust ROI locations, see the sister section for CT analysis: :ref:`adjusting-roi-locations`.
+To adjust ROI locations, see the sister section for CT analysis:
+:ref:`adjusting-roi-locations`.
 
 Analysis Parameters
 -------------------
@@ -205,36 +209,50 @@ Interpreting Results
    .. tab-item:: RadMachine
       :sync: radmachine
 
-      The outcome from analyzing the phantom in RadMachine will return an “Entire Result” as follows:
+      The outcome from analyzing the phantom in RadMachine will return an
+      “Entire Result” as follows:
 
 
       * ``phantom_model``: The model of the phantom used.
       * ``phantom_roll_deg``: The roll of the phantom in degrees.
-      * ``origin_slice``: The slice number of the "origin" slice; for helios this is Section 1.
+      * ``origin_slice``: The slice number of the "origin" slice; for
+        helios this is Section 1.
       * ``num_images``: The number of images in the passed dataset.
-      * ``contrast_scale``: The results from the Contrast Scale module, with the following items:
+      * ``contrast_scale``: The results from the Contrast Scale module,
+        with the following items:
 
         * ``offset``: Module offset in mm from origin.
-        * ``rois``: The analyzed ROIs. Structure: ``{"data": {"mean_hu": {"Plexiglass": val, "Water": val}, "std": {"Plexiglass": val, "Water": val}}}``.
+        * ``rois``: The analyzed ROIs. Structure:
+          ``{"data": {"mean_hu": {"Plexiglass": val, "Water": val},
+          "std": {"Plexiglass": val, "Water": val}}}``.
         * ``roi_settings``: The ROI settings. The keys are the material names.
 
 
-      * ``high_contrast``: The results from the High Contrast Spatial Resolution module, with the following items:
+      * ``high_contrast``: The results from the High Contrast Spatial
+        Resolution module, with the following items:
 
         * ``offset``: Module offset in mm from origin.
-        * ``rois``: The analyzed ROIs. The keys are the bar-pattern sizes (e.g. ``"1.6mm"``, ``"1.3mm"``, ``"1.0mm"``, ``"0.8mm"``); the values are the standard deviation within each ROI.
+        * ``rois``: The analyzed ROIs. The keys are the bar-pattern sizes
+          (e.g. ``"1.6mm"``, ``"1.3mm"``, ``"1.0mm"``, ``"0.8mm"``); the
+          values are the standard deviation within each ROI.
         * ``mtf_lp_mm``: Relative MTF at each spatial frequency.
 
-      * ``noise_uniformity``: The results from the Noise & Uniformity module, with the following items:
+      * ``noise_uniformity``: The results from the Noise & Uniformity
+        module, with the following items:
 
         * ``offset``: Module offset in mm from origin.
         * ``roi_settings``: The ROI settings. The keys are the ROI locations.
-        * ``rois``: The analyzed ROIs. Structure: ``{"mean_hu": {"Center": val, ...}, "std": {"Center": val, ...}}``. Top-level keys are ``mean_hu`` and ``std``; nested keys are the ROI location names.
+        * ``rois``: The analyzed ROIs. Structure:
+          ``{"mean_hu": {"Center": val, ...}, "std": {"Center": val, ...}}``.
+          Top-level keys are ``mean_hu`` and ``std``; nested keys are the
+          ROI location names.
         * ``noise_center_std``: The noise in the central ROI.
         * ``mean_outer``: Mean HU values of the outer ROIs.
-        * ``means_diff``: Difference between the center ROI mean and the average of the edge ROIs.
+        * ``means_diff``: Difference between the center ROI mean and
+          the average of the edge ROIs.
 
-      * ``low_contrast``: The results from the Low Contrast Multi Slice with the following items:
+      * ``low_contrast``: The results from the Low Contrast Multi Slice
+        with the following items:
 
         * ``slices``: Per-slice low contrast results keyed by slice name.
         * ``mean``: Mean HU value across all slices.
