@@ -33,6 +33,9 @@ Quart
 
 * :bdg-warning:`Fixed` Fixed ``save_images``: it uses the current folder when
   ``directory=None``
+* :bdg-warning:`Fixed` Corrected the CNR equation in the documentation to include
+  :math:`\sigma_{Acrylic}` in the denominator, matching the actual implementation
+  and the Varian manual.
 
 v 3.42.0
 --------
