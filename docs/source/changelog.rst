@@ -37,6 +37,11 @@ Quart
   :math:`\sigma_{Acrylic}` in the denominator, matching the actual implementation
   and the Varian manual.
 
+GE Helios CT Daily QA Phantoms
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* :bdg-success:`Feature` Added support for :ref:`helios`.
+
 v 3.42.0
 --------
 

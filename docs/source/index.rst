@@ -23,6 +23,7 @@
    cbct
    acr
    cheese
+   helios
    quart
    log_analyzer
    picketfence
