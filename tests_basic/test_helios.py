@@ -135,7 +135,7 @@ class HeliosMixin(CloudFileMixin):
     noise_stdev: float
     uniformity_difference: float
     high_contrast_mtf_50: float
-    low_contrast_mean: float
+    low_contrast_multi_slice_mean: float
     low_contrast_std: float
     x_adjustment: float = 0
     y_adjustment: float = 0
@@ -197,14 +197,14 @@ class HeliosMixin(CloudFileMixin):
 
     def test_low_contrast_mean(self):
         self.assertAlmostEqual(
-            self.ct.low_contrast_module.mean,
-            self.low_contrast_mean,
+            self.ct.low_contrast_multi_slice.mean,
+            self.low_contrast_multi_slice_mean,
             delta=0.1,
         )
 
     def test_low_contrast_std(self):
         self.assertAlmostEqual(
-            self.ct.low_contrast_module.std,
+            self.ct.low_contrast_multi_slice.std,
             self.low_contrast_std,
             delta=0.1,
         )
@@ -217,9 +217,9 @@ class Helios_1(HeliosMixin, PlotlyTestMixin, TestCase):
     noise_stdev = 4.40
     uniformity_difference = -0.01
     high_contrast_mtf_50 = 0.54
-    low_contrast_mean = 0.83
+    low_contrast_multi_slice_mean = 0.73
     low_contrast_std = 0.74
-    num_figs = 6
+    num_figs = 8
 
     def setUp(self) -> None:
         self.instance = self.ct
@@ -232,5 +232,5 @@ class Helios_2(HeliosMixin, TestCase):
     noise_stdev = 4.06
     uniformity_difference = -0.18
     high_contrast_mtf_50 = 0.55
-    low_contrast_mean = 0.40
+    low_contrast_multi_slice_mean = 0.29
     low_contrast_std = 0.71
