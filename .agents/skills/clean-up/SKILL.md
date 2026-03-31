@@ -1,3 +1,9 @@
+---
+name: clean-up
+description: Clean up code with lightweight clarity improvements
+disable-model-invocation: true
+---
+
 # clean-up
 
 When cleaning up, the goal is to make simple modifications that improve clarity
