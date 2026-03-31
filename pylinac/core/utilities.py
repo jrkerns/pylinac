@@ -264,7 +264,7 @@ def decode_binary(
         ssize = struct.calcsize("c") * num_values
         output = struct.unpack("c" * num_values, f.read(ssize))
         if strip_empty:
-            output = "".join(o.decode() for o in output if o != b"\x00")
+            output = "".join(o.decode("utf-8", errors="replace") for o in output if o != b"\x00")
         else:
             output = "".join(o.decode() for o in output)
     elif dtype is int:
