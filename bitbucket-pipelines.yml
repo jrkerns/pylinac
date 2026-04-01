@@ -37,7 +37,7 @@ definitions:
           - apt-get update
           - apt-get -y install git
           - uv venv
-          - uv pip install .[developer]
+          - uv pip install . --group dev
           - uv pip freeze
           - git branch -a
           - git --no-pager diff origin/$BITBUCKET_PR_DESTINATION_BRANCH --name-only
