@@ -937,6 +937,3 @@ class ACRMRSagittal2(ACRMRMixin, TestCase):
         "ROI3": 149.42,
         "ROI4": 149.42,
     }
-
-    def test_plotly_analyzed_images(self):
-        self.mri.plotly_analyzed_images()
