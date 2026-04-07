@@ -36,6 +36,11 @@ ACR Phantoms
   available.
 * :bdg-warning:`Fixed` Fixed ``save_images``: it uses the current folder when
   ``directory=None``
+* :bdg-warning:`Fixed` :class:`~pylinac.acr.ACRMRILarge` sagittal localization now
+  correctly reports the length for ROI1. The outermost measurement column was moved
+  from -75 mm to -60 mm from the phantom centroid, keeping it within the reliable
+  signal region and preventing the profile edge-detector from latching onto dark
+  artifacts.
 
 Quart
 ^^^^^

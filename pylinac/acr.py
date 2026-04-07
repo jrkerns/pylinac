@@ -1525,7 +1525,7 @@ class SagittalLocalizationModule:
 
     common_name = "Sagittal Distortion"
     roi_settings: dict[str, dict[str, float]] = {
-        "ROI1": {"offset": -75},
+        "ROI1": {"offset": -60},
         "ROI2": {"offset": -25},
         "ROI3": {"offset": 25},
         "ROI4": {"offset": 75},

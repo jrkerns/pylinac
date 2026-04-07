@@ -918,3 +918,22 @@ class ACRMRSagittal(ACRMRMixin, TestCase):
     @skip("For visual inspection only")
     def test_plotly_analyzed_images(self):
         self.mri.plotly_analyzed_images()
+
+
+class ACRMRSagittal2(ACRMRMixin, TestCase):
+    # RAM-5749
+    file_name = "RAM-5749 ACR MR Sag.zip"
+    check_uid = False
+    row_mtf_50 = 0.95
+    col_mtf_50 = 1.04
+    slice_thickness = 0.98
+    slice1_shift = -0.49
+    slice11_shift = 0.0
+    psg = 0.01
+    phantom_roll = 2.08
+    localizer_profile_lengths = {
+        "ROI1": 148.44,
+        "ROI2": 149.42,
+        "ROI3": 149.42,
+        "ROI4": 149.42,
+    }
