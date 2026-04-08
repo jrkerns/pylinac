@@ -18,5 +18,9 @@ build:
    tools:
       python: "3.11"
    jobs:
-      post_install:
-         - pip install .[docs]
+      install:
+         - pip install uv
+         - uv sync --group docs
+      build:
+         html:
+            - uv run python -m sphinx -T -b html docs/source $READTHEDOCS_OUTPUT/html

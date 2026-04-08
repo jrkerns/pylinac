@@ -36,9 +36,7 @@ definitions:
         script:
           - apt-get update
           - apt-get -y install git
-          - uv venv
-          - uv pip install .[developer]
-          - uv pip freeze
+          - uv sync
           - git branch -a
           - git --no-pager diff origin/$BITBUCKET_PR_DESTINATION_BRANCH --name-only
           - uv tool run pre-commit run --files $(git --no-pager diff origin/$BITBUCKET_PR_DESTINATION_BRANCH --name-only)
@@ -67,8 +65,6 @@ definitions:
               - "docs/**"
         script:
           - uv run nox -s build_docs
-        caches:
-          - nox-build-docs
     - step: &build-pdf
         # Note this step doesn't work in the pipeline yet and
         # is not referenced, but likely just needs some tweaks.

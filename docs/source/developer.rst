@@ -71,8 +71,7 @@ Set up a virtual environment and install the required dependencies using ``uv``:
 .. code-block:: bash
 
   # in your cloned directory of pylinac
-  uv venv
-  uv pip install -e .[developer]
+  uv sync
 
 Documentation
 ^^^^^^^^^^^^^
