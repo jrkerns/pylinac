@@ -2351,14 +2351,21 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             mtfs[mtf] = mtfval
         print(f"MTFs: {mtfs}")
 
-    def localize(self, origin_slice: int | None) -> None:
+    def localize(
+        self,
+        origin_slice: int | None,
+        phantom_roll: float | None = None,
+    ) -> None:
         """Find the slice number of the catphan's HU linearity module and roll angle"""
         self._phantom_center_func = self.find_phantom_axis()
         if origin_slice is not None:
             self.origin_slice = origin_slice
         else:
             self.origin_slice = self.find_origin_slice()
-        self.catphan_roll = self.find_phantom_roll() + self.angle_adjustment
+        if phantom_roll is not None:
+            self.catphan_roll = phantom_roll
+        else:
+            self.catphan_roll = self.find_phantom_roll() + self.angle_adjustment
         if origin_slice is None:
             self.origin_slice = self.refine_origin_slice(
                 initial_slice_num=self.origin_slice
@@ -2725,6 +2732,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         roi_size_factor: float = 1,
         scaling_factor: float = 1,
         origin_slice: int | None = None,
+        phantom_roll: float | None = None,
         roll_slice_offset: float = 0,
     ):
         """Single-method full analysis of CBCT DICOM files.
@@ -2790,6 +2798,9 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         origin_slice : int, None
             The slice number of the HU linearity module. If None, the slice will be determined automatically. This is
             a fallback method if the automatic localization algorithm fails.
+        phantom_roll : float, None
+            The phantom roll in degrees. If None, the roll will be determined automatically. This is
+            a fallback method if the automatic roll detection algorithm fails.
         roll_slice_offset : float
             The offset in mm from ``origin_slice`` used to select the slice for phantom
             roll detection. The phantom roll is determined based on the two
@@ -2803,7 +2814,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         self.roi_size_factor = roi_size_factor
         self.scaling_factor = scaling_factor
         self.roll_slice_offset = roll_slice_offset
-        self.localize(origin_slice)
+        self.localize(origin_slice=origin_slice, phantom_roll=phantom_roll)
         ctp404, offset = self._get_module(CTP404CP504, raise_empty=True)
         self.ctp404 = ctp404(
             self,
