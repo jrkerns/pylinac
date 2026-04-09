@@ -51,6 +51,16 @@ Quart
   :math:`\sigma_{Acrylic}` in the denominator, matching the actual implementation
   and the Varian manual.
 
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* :bdg-success:`Feature` Added on-image labels for low- and high-contrast
+  ROIs in planar phantom plots.
+  Labels are shown as ``LC0``, ``LC1``, ... and ``HC0``, ``HC1``, ... on both
+  matplotlib and Plotly overlays.
+  The labels are disabled by default for backward compatibility and can be
+  enabled via ``show_roi_labels=True``.
+
 GE Helios CT Daily QA Phantoms
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
