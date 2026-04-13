@@ -671,13 +671,37 @@ The algorithm works like such:
 
 See also :ref:`Interpreting Results <interpreting-planar-results>` for specific results items.
 
-.. figure:: images/doselab-kv-reference.png
+.. plot::
+    :include-source: false
+    :caption: Labeled ROIs of the Doselab MC2 kV phantom analysis. W/L was
+        adjusted for clarify of the labels.
 
-    Labeled ROIs of the Doselab MC2 kV phantom analysis. W/L was adjusted for clarify of the labels.
+    from pylinac import DoselabMC2kV
 
-.. figure:: images/doselab-mv-reference.png
+    dl_kv = DoselabMC2kV.from_demo_image()
+    dl_kv.analyze()
+    dl_kv.plot_analyzed_image(
+        show_roi_labels=True,
+        low_contrast=False,
+        high_contrast=False,
+        figsize=(10, 8),
+    )
 
-    Labeled ROIs of the Doselab MC2 MV phantom analysis. W/L was adjusted for clarify of the labels.
+.. plot::
+    :include-source: false
+    :caption: Labeled ROIs of the Doselab MC2 MV phantom analysis. W/L was
+        adjusted for clarify of the labels.
+
+    from pylinac import DoselabMC2MV
+
+    dl_mv = DoselabMC2MV.from_demo_image()
+    dl_mv.analyze()
+    dl_mv.plot_analyzed_image(
+        show_roi_labels=True,
+        low_contrast=False,
+        high_contrast=False,
+        figsize=(10, 10),
+    )
 
 
 SNC MV & kV
