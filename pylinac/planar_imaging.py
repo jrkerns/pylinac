@@ -683,6 +683,14 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                     name=f"LCR{idx}",
                     showlegend=show_legend,
                 )
+                if show_roi_labels:
+                    image_fig.add_annotation(
+                        x=roi.center.x,
+                        y=roi.center.y,
+                        text="LCR",
+                        showarrow=False,
+                        font={"color": "blue", "size": roi_label_font_size},
+                    )
             # plot the low contrast ROIs
             for idx, roi in enumerate(self.low_contrast_rois):
                 roi.plotly(
@@ -812,8 +820,17 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                 outline_obj = self._create_phantom_outline_object()
                 outline_obj.plot2axes(img_ax, edgecolor="b")
             # plot the low contrast background ROIs
-            for roi in self.low_contrast_background_rois:
+            for idx, roi in enumerate(self.low_contrast_background_rois):
                 roi.plot2axes(img_ax, edgecolor="b")
+                if show_roi_labels:
+                    img_ax.annotate(
+                        text="LCR",
+                        xy=(roi.center.x, roi.center.y),
+                        fontsize=roi_label_font_size,
+                        color="b",
+                        ha="center",
+                        va="center",
+                    )
             # plot the low contrast ROIs
             for idx, roi in enumerate(self.low_contrast_rois):
                 roi.plot2axes(
