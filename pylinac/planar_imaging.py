@@ -625,6 +625,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         show_legend: bool = True,
         show_colorbar: bool = True,
         show_roi_labels: bool = False,
+        roi_label_font_size: float = 8,
         **kwargs,
     ) -> dict[str, go.Figure]:
         """Plot the analyzed set of images to Plotly figures.
@@ -640,6 +641,8 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             Whether to show the legend on the plot.
         show_roi_labels : bool
             Whether to show labels for low- and high-contrast ROIs on the image plot.
+        roi_label_font_size : float
+            Font size of ROI labels in display units.
         kwargs
             Additional keyword arguments to pass to the plot.
 
@@ -694,7 +697,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                         y=roi.center.y,
                         text=f"LC{idx}",
                         showarrow=False,
-                        font={"color": roi.plot_color, "size": 10},
+                        font={"color": roi.plot_color, "size": roi_label_font_size},
                     )
         # plot the high-contrast ROIs along w/ pass/fail coloration
         if self.high_contrast_rois:
@@ -714,7 +717,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                         y=roi.center.y,
                         text=f"HC{idx}",
                         showarrow=False,
-                        font={"color": color, "size": 10},
+                        font={"color": color, "size": roi_label_font_size},
                         xanchor="right",
                     )
 
@@ -743,6 +746,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         show: bool = True,
         split_plots: bool = False,
         show_roi_labels: bool = False,
+        roi_label_font_size: float = 8,
         **plt_kwargs: dict,
     ) -> tuple[list[plt.Figure], list[str]]:
         """Plot the analyzed image.
@@ -761,6 +765,8 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             Whether to split the resulting image into individual plots. Useful for saving images into individual files.
         show_roi_labels : bool
             Whether to show labels for low- and high-contrast ROIs on the image plot.
+        roi_label_font_size : float
+            Font size of ROI labels in display units.
         plt_kwargs : dict
             Keyword args passed to the plt.figure() method. Allows one to set things like figure size.
         """
@@ -818,7 +824,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                     img_ax.annotate(
                         text=f"LC{idx}",
                         xy=(roi.center.x, roi.center.y),
-                        fontsize="medium",
+                        fontsize=roi_label_font_size,
                         color=roi.plot_color,
                         ha="center",
                         va="center",
@@ -837,7 +843,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                         img_ax.annotate(
                             text=f"HC{idx}",
                             xy=(roi.center.x - roi.radius, roi.center.y),
-                            fontsize="small",
+                            fontsize=roi_label_font_size,
                             color=color,
                             ha="right",
                             va="center",
@@ -4053,6 +4059,7 @@ class ACRDigitalMammography(ImagePhantomBase):
         """Plot analyzed images to Plotly with a display-only cropped image window."""
         figs: dict[str, go.Figure] = {}
         kwargs.pop("show_roi_labels", None)
+        kwargs.pop("roi_label_font_size", None)
         kwargs.pop("x", None)
         kwargs.pop("y", None)
         kwargs.pop("z", None)

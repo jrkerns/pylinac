@@ -60,6 +60,7 @@ Planar Imaging
   matplotlib and Plotly overlays.
   The labels are disabled by default for backward compatibility and can be
   enabled via ``show_roi_labels=True``.
+  Label size can be controlled via the ``roi_label_font_size`` parameter.
 
 GE Helios CT Daily QA Phantoms
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
