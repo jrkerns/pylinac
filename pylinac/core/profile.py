@@ -1294,12 +1294,16 @@ class SingleProfile(ProfileMixin):
         start = int(np.searchsorted(self.x_indices, lower, side="left"))
         stop = int(np.searchsorted(self.x_indices, upper, side="right"))
 
+        # If the physical window only covers one or two sampled points, expand to the
+        # nearest sampled endpoints around the requested physical boundaries.
         if stop - start < 3:
             left_idx = int(np.abs(self.x_indices - lower).argmin())
             right_idx = int(np.abs(self.x_indices - upper).argmin())
             start = min(left_idx, right_idx)
             stop = max(left_idx, right_idx) + 1
 
+        # If the endpoints still do not yield three fit points, fall back to a
+        # centered three-sample window around the physical midpoint.
         if stop - start < 3:
             center_sample_idx = int(
                 np.abs(self.x_indices - (lower + upper) / 2).argmin()
