@@ -68,6 +68,18 @@ class TestPercentIntegralUniformity(TestCase):
 
 
 class GeneralTests(TestCase):
+    label_positions = (
+        "center",
+        "center left",
+        "center right",
+        "upper center",
+        "lower center",
+        "upper right",
+        "upper left",
+        "lower right",
+        "lower left",
+    )
+
     def test_from_file_object(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "Leeds", "Leeds_ccw.dcm"])
         with open(path, "rb") as f:
@@ -213,6 +225,34 @@ class GeneralTests(TestCase):
         phan = LeedsTOR.from_demo_image()
         phan.analyze()
         self.assertAlmostEqual(phan.results_data().phantom_area, 17760.9, delta=0.3)
+
+    def test_plot_analyzed_image_label_positions(self):
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        for position in self.label_positions:
+            with self.subTest(position=position):
+                phan.plot_analyzed_image(
+                    show=False,
+                    show_roi_labels=True,
+                    low_contrast_label_font_size=9,
+                    high_contrast_label_font_size=11,
+                    low_contrast_label_position=position,
+                    high_contrast_label_position=position,
+                )
+
+    def test_plotly_analyzed_images_label_positions(self):
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        for position in self.label_positions:
+            with self.subTest(position=position):
+                phan.plotly_analyzed_images(
+                    show=False,
+                    show_roi_labels=True,
+                    low_contrast_label_font_size=9,
+                    high_contrast_label_font_size=11,
+                    low_contrast_label_position=position,
+                    high_contrast_label_position=position,
+                )
 
 
 class PlanarPhantomMixin(QuaacTestBase, CloudFileMixin, PlotlyTestMixin):
@@ -675,6 +715,14 @@ class DoselabkVDemo(PlanarPhantomMixin, TestCase):
 
     def test_demo(self):
         DoselabMC2kV.run_demo()
+
+    def test_plot(self):
+        self.instance.plot_analyzed_image(
+            low_contrast=False, high_contrast=False, show_roi_labels=True
+        )
+
+    def test_plotly(self):
+        self.instance.plotly_analyzed_images(show_roi_labels=True)
 
 
 class DoselabkV70kVp(PlanarPhantomMixin, TestCase):
@@ -1384,6 +1432,17 @@ class ACRDigitalMammographyTestMixin(PlanarPhantomMixin):
             for trace in fig.data:
                 if trace.showlegend is not None:
                     self.assertFalse(trace.showlegend)
+
+    def test_plotly_ignores_label_kwargs(self):
+        figs = self.instance.plotly_analyzed_images(
+            show=False,
+            show_roi_labels=True,
+            low_contrast_label_font_size=9,
+            high_contrast_label_font_size=11,
+            low_contrast_label_position="upper right",
+            high_contrast_label_position="center left",
+        )
+        self.assertTrue(all(isinstance(fig, go.Figure) for fig in figs.values()))
 
     def test_saving_to_stream(self):
         # save as stream
