@@ -619,13 +619,124 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             pius.append(percent_integral_uniformity(max=high, min=low))
         return min(pius)
 
+    @staticmethod
+    def _plotly_roi_label_position(
+        roi: DiskROI, position: str
+    ) -> tuple[float, float, str, str]:
+        """Return (x, y, xanchor, yanchor) for ROI label placement in Plotly."""
+        if position == "center":
+            x = roi.center.x
+            y = roi.center.y
+            xanchor = "center"
+            yanchor = "middle"
+        elif position == "center left":
+            x = roi.center.x - roi.radius
+            y = roi.center.y
+            xanchor = "right"
+            yanchor = "middle"
+        elif position == "center right":
+            x = roi.center.x + roi.radius
+            y = roi.center.y
+            xanchor = "left"
+            yanchor = "middle"
+        elif position == "upper center":
+            x = roi.center.x
+            y = roi.center.y - roi.radius
+            xanchor = "center"
+            yanchor = "bottom"
+        elif position == "lower center":
+            x = roi.center.x
+            y = roi.center.y + roi.radius
+            xanchor = "center"
+            yanchor = "top"
+        elif position == "upper right":
+            x = roi.center.x + roi.radius
+            y = roi.center.y - roi.radius
+            xanchor = "left"
+            yanchor = "bottom"
+        elif position == "upper left":
+            x = roi.center.x - roi.radius
+            y = roi.center.y - roi.radius
+            xanchor = "right"
+            yanchor = "bottom"
+        elif position == "lower right":
+            x = roi.center.x + roi.radius
+            y = roi.center.y + roi.radius
+            xanchor = "left"
+            yanchor = "top"
+        elif position == "lower left":
+            x = roi.center.x - roi.radius
+            y = roi.center.y + roi.radius
+            xanchor = "right"
+            yanchor = "top"
+        else:
+            raise ValueError("Invalid position.")
+        return x, y, xanchor, yanchor
+
+    @staticmethod
+    def _mpl_roi_label_position(
+        roi: DiskROI, position: str
+    ) -> tuple[float, float, str, str]:
+        """Return (x, y, ha, va) for ROI label placement in matplotlib."""
+        if position == "center":
+            x = roi.center.x
+            y = roi.center.y
+            ha = "center"
+            va = "center"
+        elif position == "center left":
+            x = roi.center.x - roi.radius
+            y = roi.center.y
+            ha = "right"
+            va = "center"
+        elif position == "center right":
+            x = roi.center.x + roi.radius
+            y = roi.center.y
+            ha = "left"
+            va = "center"
+        elif position == "upper center":
+            x = roi.center.x
+            y = roi.center.y - roi.radius
+            ha = "center"
+            va = "bottom"
+        elif position == "lower center":
+            x = roi.center.x
+            y = roi.center.y + roi.radius
+            ha = "center"
+            va = "top"
+        elif position == "upper right":
+            x = roi.center.x + roi.radius
+            y = roi.center.y - roi.radius
+            ha = "left"
+            va = "bottom"
+        elif position == "upper left":
+            x = roi.center.x - roi.radius
+            y = roi.center.y - roi.radius
+            ha = "right"
+            va = "bottom"
+        elif position == "lower right":
+            x = roi.center.x + roi.radius
+            y = roi.center.y + roi.radius
+            ha = "left"
+            va = "top"
+        elif position == "lower left":
+            x = roi.center.x - roi.radius
+            y = roi.center.y + roi.radius
+            ha = "right"
+            va = "top"
+        else:
+            raise ValueError("Invalid position.")
+        return x, y, ha, va
+
     def plotly_analyzed_images(
         self,
         show: bool = True,
         show_legend: bool = True,
         show_colorbar: bool = True,
         show_roi_labels: bool = False,
-        roi_label_font_size: float = 8,
+        low_contrast_label_font_size: float = 10,
+        high_contrast_label_font_size: float = 10,
+        low_contrast_label_position: str = "center",
+        high_contrast_label_position: str = "center",
         **kwargs,
     ) -> dict[str, go.Figure]:
         """Plot the analyzed set of images to Plotly figures.
@@ -641,8 +752,16 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             Whether to show the legend on the plot.
         show_roi_labels : bool
             Whether to show labels for low- and high-contrast ROIs on the image plot.
-        roi_label_font_size : float
-            Font size of ROI labels in display units.
+        low_contrast_label_font_size : float
+            Font size of low-contrast ROI labels in display units.
+        high_contrast_label_font_size : float
+            Font size of high-contrast ROI labels in display units.
+        low_contrast_label_position : str
+            Position of low-contrast ROI labels. One of: center, center left, center right,
+            upper center, lower center, upper right, upper left, lower right, lower left.
+        high_contrast_label_position : str
+            Position of high-contrast ROI labels. One of: center, center left, center right,
+            upper center, lower center, upper right, upper left, lower right, lower left.
         kwargs
             Additional keyword arguments to pass to the plot.
 
@@ -684,12 +803,25 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                     showlegend=show_legend,
                 )
                 if show_roi_labels:
+                    x, y, xanchor, yanchor = self._plotly_roi_label_position(
+                        roi,
+                        low_contrast_label_position,
+                    )
                     image_fig.add_annotation(
-                        x=roi.center.x,
-                        y=roi.center.y,
-                        text="LCR",
+                        x=x,
+                        y=y,
+                        text=(
+                            "LCR"
+                            if len(self.low_contrast_background_rois) == 1
+                            else f"LCR{idx}"
+                        ),
                         showarrow=False,
-                        font={"color": "blue", "size": roi_label_font_size},
+                        font={
+                            "color": "blue",
+                            "size": low_contrast_label_font_size,
+                        },
+                        xanchor=xanchor,
+                        yanchor=yanchor,
                     )
             # plot the low contrast ROIs
             for idx, roi in enumerate(self.low_contrast_rois):
@@ -700,12 +832,21 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                     showlegend=show_legend,
                 )
                 if show_roi_labels:
+                    x, y, xanchor, yanchor = self._plotly_roi_label_position(
+                        roi,
+                        low_contrast_label_position,
+                    )
                     image_fig.add_annotation(
-                        x=roi.center.x,
-                        y=roi.center.y,
+                        x=x,
+                        y=y,
                         text=f"LC{idx}",
                         showarrow=False,
-                        font={"color": roi.plot_color, "size": roi_label_font_size},
+                        font={
+                            "color": roi.plot_color,
+                            "size": low_contrast_label_font_size,
+                        },
+                        xanchor=xanchor,
+                        yanchor=yanchor,
                     )
         # plot the high-contrast ROIs along w/ pass/fail coloration
         if self.high_contrast_rois:
@@ -720,13 +861,21 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                     showlegend=show_legend,
                 )
                 if show_roi_labels:
+                    x, y, xanchor, yanchor = self._plotly_roi_label_position(
+                        roi,
+                        high_contrast_label_position,
+                    )
                     image_fig.add_annotation(
-                        x=roi.center.x - roi.radius,
-                        y=roi.center.y,
+                        x=x,
+                        y=y,
                         text=f"HC{idx}",
                         showarrow=False,
-                        font={"color": color, "size": roi_label_font_size},
-                        xanchor="right",
+                        font={
+                            "color": color,
+                            "size": high_contrast_label_font_size,
+                        },
+                        xanchor=xanchor,
+                        yanchor=yanchor,
                     )
 
         # plot the low contrast value graph
@@ -754,7 +903,10 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         show: bool = True,
         split_plots: bool = False,
         show_roi_labels: bool = False,
-        roi_label_font_size: float = 8,
+        low_contrast_label_font_size: float = 10,
+        high_contrast_label_font_size: float = 10,
+        low_contrast_label_position: str = "center",
+        high_contrast_label_position: str = "center",
         **plt_kwargs: dict,
     ) -> tuple[list[plt.Figure], list[str]]:
         """Plot the analyzed image.
@@ -773,8 +925,16 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             Whether to split the resulting image into individual plots. Useful for saving images into individual files.
         show_roi_labels : bool
             Whether to show labels for low- and high-contrast ROIs on the image plot.
-        roi_label_font_size : float
-            Font size of ROI labels in display units.
+        low_contrast_label_font_size : float
+            Font size of low-contrast ROI labels in display units.
+        high_contrast_label_font_size : float
+            Font size of high-contrast ROI labels in display units.
+        low_contrast_label_position : str
+            Position of low-contrast ROI labels. One of: center, center left, center right,
+            upper center, lower center, upper right, upper left, lower right, lower left.
+        high_contrast_label_position : str
+            Position of high-contrast ROI labels. One of: center, center left, center right,
+            upper center, lower center, upper right, upper left, lower right, lower left.
         plt_kwargs : dict
             Keyword args passed to the plt.figure() method. Allows one to set things like figure size.
         """
@@ -823,13 +983,21 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             for idx, roi in enumerate(self.low_contrast_background_rois):
                 roi.plot2axes(img_ax, edgecolor="b")
                 if show_roi_labels:
+                    x, y, ha, va = self._mpl_roi_label_position(
+                        roi,
+                        low_contrast_label_position,
+                    )
                     img_ax.annotate(
-                        text="LCR",
-                        xy=(roi.center.x, roi.center.y),
-                        fontsize=roi_label_font_size,
+                        text=(
+                            "LCR"
+                            if len(self.low_contrast_background_rois) == 1
+                            else f"LCR{idx}"
+                        ),
+                        xy=(x, y),
+                        fontsize=low_contrast_label_font_size,
                         color="b",
-                        ha="center",
-                        va="center",
+                        ha=ha,
+                        va=va,
                     )
             # plot the low contrast ROIs
             for idx, roi in enumerate(self.low_contrast_rois):
@@ -838,13 +1006,17 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                     edgecolor=roi.plot_color,
                 )
                 if show_roi_labels:
+                    x, y, ha, va = self._mpl_roi_label_position(
+                        roi,
+                        low_contrast_label_position,
+                    )
                     img_ax.annotate(
                         text=f"LC{idx}",
-                        xy=(roi.center.x, roi.center.y),
-                        fontsize=roi_label_font_size,
+                        xy=(x, y),
+                        fontsize=low_contrast_label_font_size,
                         color=roi.plot_color,
-                        ha="center",
-                        va="center",
+                        ha=ha,
+                        va=va,
                     )
             # plot the high-contrast ROIs along w/ pass/fail coloration
             if self.high_contrast_rois:
@@ -857,13 +1029,17 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                         edgecolor=color,
                     )
                     if show_roi_labels:
+                        x, y, ha, va = self._mpl_roi_label_position(
+                            roi,
+                            high_contrast_label_position,
+                        )
                         img_ax.annotate(
                             text=f"HC{idx}",
-                            xy=(roi.center.x - roi.radius, roi.center.y),
-                            fontsize=roi_label_font_size,
+                            xy=(x, y),
+                            fontsize=high_contrast_label_font_size,
                             color=color,
-                            ha="right",
-                            va="center",
+                            ha=ha,
+                            va=va,
                         )
             # plot the center of the detected ROI; used for qualitative eval of detection algorithm
             img_ax.scatter(x=self.phantom_center.x, y=self.phantom_center.y, marker="x")
@@ -1497,6 +1673,11 @@ class StandardImagingFC2(ImagePhantomBase):
         show : bool
             Whether to actually show the image when called.
         """
+        kwargs.pop("show_roi_labels", None)
+        kwargs.pop("low_contrast_label_font_size", None)
+        kwargs.pop("high_contrast_label_font_size", None)
+        kwargs.pop("low_contrast_label_position", None)
+        kwargs.pop("high_contrast_label_position", None)
         figs = []
         names = []
         fig, axes = plt.subplots(1)
@@ -4076,7 +4257,10 @@ class ACRDigitalMammography(ImagePhantomBase):
         """Plot analyzed images to Plotly with a display-only cropped image window."""
         figs: dict[str, go.Figure] = {}
         kwargs.pop("show_roi_labels", None)
-        kwargs.pop("roi_label_font_size", None)
+        kwargs.pop("low_contrast_label_font_size", None)
+        kwargs.pop("high_contrast_label_font_size", None)
+        kwargs.pop("low_contrast_label_position", None)
+        kwargs.pop("high_contrast_label_position", None)
         kwargs.pop("x", None)
         kwargs.pop("y", None)
         kwargs.pop("z", None)
@@ -4674,6 +4858,11 @@ class ACRDigitalMammography(ImagePhantomBase):
         """
         figs = []
         names = []
+        plt_kwargs.pop("show_roi_labels", None)
+        plt_kwargs.pop("low_contrast_label_font_size", None)
+        plt_kwargs.pop("high_contrast_label_font_size", None)
+        plt_kwargs.pop("low_contrast_label_position", None)
+        plt_kwargs.pop("high_contrast_label_position", None)
         for fig, name in self._plot_analyzed_image_iter(
             show=show,
             **plt_kwargs,

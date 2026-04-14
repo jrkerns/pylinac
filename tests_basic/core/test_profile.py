@@ -1966,6 +1966,66 @@ class TestProfilePlugins(TestCase):
 
 
 class SingleProfileTests(TestCase):
+    @staticmethod
+    def assert_field_data_matches_affine_transform(
+        test_case,
+        index_data,
+        physical_data,
+        spacing: float,
+        offset: float,
+    ) -> None:
+        coord_keys = (
+            "beam center index (exact)",
+            "cax index (exact)",
+            "left index (exact)",
+            "left inner index (exact)",
+            "right inner index (exact)",
+            "right index (exact)",
+            '"top" index (exact)',
+        )
+
+        for key in coord_keys:
+            test_case.assertAlmostEqual(
+                physical_data[key],
+                index_data[key] * spacing + offset,
+                delta=1e-6,
+            )
+
+        test_case.assertAlmostEqual(
+            physical_data["width (exact)"],
+            index_data["width (exact)"] * spacing,
+            delta=1e-6,
+        )
+        test_case.assertAlmostEqual(
+            physical_data["left slope"],
+            index_data["left slope"] / spacing,
+            delta=1e-6,
+        )
+        test_case.assertAlmostEqual(
+            physical_data["right slope"],
+            index_data["right slope"] / spacing,
+            delta=1e-6,
+        )
+        np.testing.assert_allclose(
+            physical_data["field values"], index_data["field values"]
+        )
+        test_case.assertAlmostEqual(
+            physical_data['"top" value (@exact)'],
+            index_data['"top" value (@exact)'],
+            delta=1e-6,
+        )
+        for key, data in (("index", index_data), ("physical", physical_data)):
+            test_case.assertEqual(
+                data["beam center index (rounded)"],
+                int(round(data["beam center index (exact)"])),
+                msg=f"{key} beam center rounded mismatch",
+            )
+            test_case.assertEqual(
+                data["cax index (rounded)"],
+                int(round(data["cax index (exact)"])),
+                msg=f"{key} cax rounded mismatch",
+            )
+
     def test_normalization_max(self):
         """changed default parameter value to None in 3.10. 'max' should still work"""
         rng = np.random.default_rng()
@@ -2109,6 +2169,72 @@ class SingleProfileTests(TestCase):
         )
         field_data = p.field_data()
         self.assertEqual(field_data["field values"][0], field_data["field values"][-1])
+
+    def test_field_data_with_physical_x_values_uses_coordinate_space(self):
+        """field_data should fit top/slope windows using passed x-values."""
+        x = np.arange(-7.4, 7.4001, 0.05)
+        y = 100 * np.exp(-((x / 3) ** 4))
+        for interpolation in (
+            Interpolation.NONE,
+            Interpolation.LINEAR,
+            Interpolation.SPLINE,
+        ):
+            with self.subTest(interpolation=interpolation):
+                p = SingleProfile(
+                    y,
+                    x_values=x,
+                    normalization_method=Normalization.NONE,
+                    interpolation=interpolation,
+                )
+
+                field_data = p.field_data()
+
+                self.assertGreater(
+                    field_data["right inner index (exact)"],
+                    field_data["left inner index (exact)"],
+                )
+                self.assertTrue(np.isfinite(field_data["left slope"]))
+                self.assertTrue(np.isfinite(field_data["right slope"]))
+                self.assertEqual(len(field_data["top params"]), 3)
+                self.assertTrue(np.all(np.isfinite(field_data["top params"])))
+
+    def test_field_data_with_physical_x_values_matches_index_space(self):
+        """field_data should be affine-consistent for index and physical x-values."""
+        x_index = np.arange(301, dtype=float)
+        spacing = 0.05
+        offset = -7.37977668
+        x_physical = x_index * spacing + offset
+        y = 100 * np.exp(-(((x_index - 150.2) / 47) ** 4)) + 0.02 * x_index
+
+        for interpolation in (
+            Interpolation.NONE,
+            Interpolation.LINEAR,
+            Interpolation.SPLINE,
+        ):
+            with self.subTest(interpolation=interpolation):
+                index_profile = SingleProfile(
+                    y,
+                    x_values=x_index,
+                    normalization_method=Normalization.NONE,
+                    interpolation=interpolation,
+                )
+                physical_profile = SingleProfile(
+                    y,
+                    x_values=x_physical,
+                    normalization_method=Normalization.NONE,
+                    interpolation=interpolation,
+                )
+
+                index_data = index_profile.field_data()
+                physical_data = physical_profile.field_data()
+
+                self.assert_field_data_matches_affine_transform(
+                    self,
+                    index_data=index_data,
+                    physical_data=physical_data,
+                    spacing=spacing,
+                    offset=offset,
+                )
 
     def test_geometric_center(self):
         # centered field
