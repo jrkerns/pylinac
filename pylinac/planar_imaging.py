@@ -619,6 +619,114 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             pius.append(percent_integral_uniformity(max=high, min=low))
         return min(pius)
 
+    @staticmethod
+    def _plotly_roi_label_position(
+        roi: DiskROI, position: str
+    ) -> tuple[float, float, str, str]:
+        """Return (x, y, xanchor, yanchor) for ROI label placement in Plotly."""
+        if position == "center":
+            x = roi.center.x
+            y = roi.center.y
+            xanchor = "center"
+            yanchor = "middle"
+        elif position == "center left":
+            x = roi.center.x - roi.radius
+            y = roi.center.y
+            xanchor = "right"
+            yanchor = "middle"
+        elif position == "center right":
+            x = roi.center.x + roi.radius
+            y = roi.center.y
+            xanchor = "left"
+            yanchor = "middle"
+        elif position == "upper center":
+            x = roi.center.x
+            y = roi.center.y - roi.radius
+            xanchor = "center"
+            yanchor = "bottom"
+        elif position == "lower center":
+            x = roi.center.x
+            y = roi.center.y + roi.radius
+            xanchor = "center"
+            yanchor = "top"
+        elif position == "upper right":
+            x = roi.center.x + roi.radius
+            y = roi.center.y - roi.radius
+            xanchor = "left"
+            yanchor = "bottom"
+        elif position == "upper left":
+            x = roi.center.x - roi.radius
+            y = roi.center.y - roi.radius
+            xanchor = "right"
+            yanchor = "bottom"
+        elif position == "lower right":
+            x = roi.center.x + roi.radius
+            y = roi.center.y + roi.radius
+            xanchor = "left"
+            yanchor = "top"
+        elif position == "lower left":
+            x = roi.center.x - roi.radius
+            y = roi.center.y + roi.radius
+            xanchor = "right"
+            yanchor = "top"
+        else:
+            raise ValueError("Invalid position.")
+        return x, y, xanchor, yanchor
+
+    @staticmethod
+    def _mpl_roi_label_position(
+        roi: DiskROI, position: str
+    ) -> tuple[float, float, str, str]:
+        """Return (x, y, ha, va) for ROI label placement in matplotlib."""
+        if position == "center":
+            x = roi.center.x
+            y = roi.center.y
+            ha = "center"
+            va = "center"
+        elif position == "center left":
+            x = roi.center.x - roi.radius
+            y = roi.center.y
+            ha = "right"
+            va = "center"
+        elif position == "center right":
+            x = roi.center.x + roi.radius
+            y = roi.center.y
+            ha = "left"
+            va = "center"
+        elif position == "upper center":
+            x = roi.center.x
+            y = roi.center.y - roi.radius
+            ha = "center"
+            va = "bottom"
+        elif position == "lower center":
+            x = roi.center.x
+            y = roi.center.y + roi.radius
+            ha = "center"
+            va = "top"
+        elif position == "upper right":
+            x = roi.center.x + roi.radius
+            y = roi.center.y - roi.radius
+            ha = "left"
+            va = "bottom"
+        elif position == "upper left":
+            x = roi.center.x - roi.radius
+            y = roi.center.y - roi.radius
+            ha = "right"
+            va = "bottom"
+        elif position == "lower right":
+            x = roi.center.x + roi.radius
+            y = roi.center.y + roi.radius
+            ha = "left"
+            va = "top"
+        elif position == "lower left":
+            x = roi.center.x - roi.radius
+            y = roi.center.y + roi.radius
+            ha = "right"
+            va = "top"
+        else:
+            raise ValueError("Invalid position.")
+        return x, y, ha, va
+
     def plotly_analyzed_images(
         self,
         show: bool = True,
@@ -695,55 +803,10 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                     showlegend=show_legend,
                 )
                 if show_roi_labels:
-                    if low_contrast_label_position == "center":
-                        x = roi.center.x
-                        y = roi.center.y
-                        xanchor = "center"
-                        yanchor = "middle"
-                    elif low_contrast_label_position == "center left":
-                        x = roi.center.x - roi.radius
-                        y = roi.center.y
-                        xanchor = "right"
-                        yanchor = "middle"
-                    elif low_contrast_label_position == "center right":
-                        x = roi.center.x + roi.radius
-                        y = roi.center.y
-                        xanchor = "left"
-                        yanchor = "middle"
-                    elif low_contrast_label_position == "upper center":
-                        x = roi.center.x
-                        y = roi.center.y - roi.radius
-                        xanchor = "center"
-                        yanchor = "bottom"
-                    elif low_contrast_label_position == "lower center":
-                        x = roi.center.x
-                        y = roi.center.y + roi.radius
-                        xanchor = "center"
-                        yanchor = "top"
-                    elif low_contrast_label_position == "upper right":
-                        x = roi.center.x + roi.radius
-                        y = roi.center.y - roi.radius
-                        xanchor = "left"
-                        yanchor = "bottom"
-                    elif low_contrast_label_position == "upper left":
-                        x = roi.center.x - roi.radius
-                        y = roi.center.y - roi.radius
-                        xanchor = "right"
-                        yanchor = "bottom"
-                    elif low_contrast_label_position == "lower right":
-                        x = roi.center.x + roi.radius
-                        y = roi.center.y + roi.radius
-                        xanchor = "left"
-                        yanchor = "top"
-                    elif low_contrast_label_position == "lower left":
-                        x = roi.center.x - roi.radius
-                        y = roi.center.y + roi.radius
-                        xanchor = "right"
-                        yanchor = "top"
-                    else:
-                        raise ValueError(
-                            f"Invalid low_contrast_label_position: {low_contrast_label_position}"
-                        )
+                    x, y, xanchor, yanchor = self._plotly_roi_label_position(
+                        roi,
+                        low_contrast_label_position,
+                    )
                     image_fig.add_annotation(
                         x=x,
                         y=y,
@@ -769,55 +832,10 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                     showlegend=show_legend,
                 )
                 if show_roi_labels:
-                    if low_contrast_label_position == "center":
-                        x = roi.center.x
-                        y = roi.center.y
-                        xanchor = "center"
-                        yanchor = "middle"
-                    elif low_contrast_label_position == "center left":
-                        x = roi.center.x - roi.radius
-                        y = roi.center.y
-                        xanchor = "right"
-                        yanchor = "middle"
-                    elif low_contrast_label_position == "center right":
-                        x = roi.center.x + roi.radius
-                        y = roi.center.y
-                        xanchor = "left"
-                        yanchor = "middle"
-                    elif low_contrast_label_position == "upper center":
-                        x = roi.center.x
-                        y = roi.center.y - roi.radius
-                        xanchor = "center"
-                        yanchor = "bottom"
-                    elif low_contrast_label_position == "lower center":
-                        x = roi.center.x
-                        y = roi.center.y + roi.radius
-                        xanchor = "center"
-                        yanchor = "top"
-                    elif low_contrast_label_position == "upper right":
-                        x = roi.center.x + roi.radius
-                        y = roi.center.y - roi.radius
-                        xanchor = "left"
-                        yanchor = "bottom"
-                    elif low_contrast_label_position == "upper left":
-                        x = roi.center.x - roi.radius
-                        y = roi.center.y - roi.radius
-                        xanchor = "right"
-                        yanchor = "bottom"
-                    elif low_contrast_label_position == "lower right":
-                        x = roi.center.x + roi.radius
-                        y = roi.center.y + roi.radius
-                        xanchor = "left"
-                        yanchor = "top"
-                    elif low_contrast_label_position == "lower left":
-                        x = roi.center.x - roi.radius
-                        y = roi.center.y + roi.radius
-                        xanchor = "right"
-                        yanchor = "top"
-                    else:
-                        raise ValueError(
-                            f"Invalid low_contrast_label_position: {low_contrast_label_position}"
-                        )
+                    x, y, xanchor, yanchor = self._plotly_roi_label_position(
+                        roi,
+                        low_contrast_label_position,
+                    )
                     image_fig.add_annotation(
                         x=x,
                         y=y,
@@ -843,55 +861,10 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                     showlegend=show_legend,
                 )
                 if show_roi_labels:
-                    if high_contrast_label_position == "center":
-                        x = roi.center.x
-                        y = roi.center.y
-                        xanchor = "center"
-                        yanchor = "middle"
-                    elif high_contrast_label_position == "center left":
-                        x = roi.center.x - roi.radius
-                        y = roi.center.y
-                        xanchor = "right"
-                        yanchor = "middle"
-                    elif high_contrast_label_position == "center right":
-                        x = roi.center.x + roi.radius
-                        y = roi.center.y
-                        xanchor = "left"
-                        yanchor = "middle"
-                    elif high_contrast_label_position == "upper center":
-                        x = roi.center.x
-                        y = roi.center.y - roi.radius
-                        xanchor = "center"
-                        yanchor = "bottom"
-                    elif high_contrast_label_position == "lower center":
-                        x = roi.center.x
-                        y = roi.center.y + roi.radius
-                        xanchor = "center"
-                        yanchor = "top"
-                    elif high_contrast_label_position == "upper right":
-                        x = roi.center.x + roi.radius
-                        y = roi.center.y - roi.radius
-                        xanchor = "left"
-                        yanchor = "bottom"
-                    elif high_contrast_label_position == "upper left":
-                        x = roi.center.x - roi.radius
-                        y = roi.center.y - roi.radius
-                        xanchor = "right"
-                        yanchor = "bottom"
-                    elif high_contrast_label_position == "lower right":
-                        x = roi.center.x + roi.radius
-                        y = roi.center.y + roi.radius
-                        xanchor = "left"
-                        yanchor = "top"
-                    elif high_contrast_label_position == "lower left":
-                        x = roi.center.x - roi.radius
-                        y = roi.center.y + roi.radius
-                        xanchor = "right"
-                        yanchor = "top"
-                    else:
-                        raise ValueError(
-                            f"Invalid high_contrast_label_position: {high_contrast_label_position}"
-                        )
+                    x, y, xanchor, yanchor = self._plotly_roi_label_position(
+                        roi,
+                        high_contrast_label_position,
+                    )
                     image_fig.add_annotation(
                         x=x,
                         y=y,
@@ -1010,55 +983,10 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             for idx, roi in enumerate(self.low_contrast_background_rois):
                 roi.plot2axes(img_ax, edgecolor="b")
                 if show_roi_labels:
-                    if low_contrast_label_position == "center":
-                        x = roi.center.x
-                        y = roi.center.y
-                        ha = "center"
-                        va = "center"
-                    elif low_contrast_label_position == "center left":
-                        x = roi.center.x - roi.radius
-                        y = roi.center.y
-                        ha = "right"
-                        va = "center"
-                    elif low_contrast_label_position == "center right":
-                        x = roi.center.x + roi.radius
-                        y = roi.center.y
-                        ha = "left"
-                        va = "center"
-                    elif low_contrast_label_position == "upper center":
-                        x = roi.center.x
-                        y = roi.center.y - roi.radius
-                        ha = "center"
-                        va = "bottom"
-                    elif low_contrast_label_position == "lower center":
-                        x = roi.center.x
-                        y = roi.center.y + roi.radius
-                        ha = "center"
-                        va = "top"
-                    elif low_contrast_label_position == "upper right":
-                        x = roi.center.x + roi.radius
-                        y = roi.center.y - roi.radius
-                        ha = "left"
-                        va = "bottom"
-                    elif low_contrast_label_position == "upper left":
-                        x = roi.center.x - roi.radius
-                        y = roi.center.y - roi.radius
-                        ha = "right"
-                        va = "bottom"
-                    elif low_contrast_label_position == "lower right":
-                        x = roi.center.x + roi.radius
-                        y = roi.center.y + roi.radius
-                        ha = "left"
-                        va = "top"
-                    elif low_contrast_label_position == "lower left":
-                        x = roi.center.x - roi.radius
-                        y = roi.center.y + roi.radius
-                        ha = "right"
-                        va = "top"
-                    else:
-                        raise ValueError(
-                            f"Invalid low_contrast_label_position: {low_contrast_label_position}"
-                        )
+                    x, y, ha, va = self._mpl_roi_label_position(
+                        roi,
+                        low_contrast_label_position,
+                    )
                     img_ax.annotate(
                         text=(
                             "LCR"
@@ -1078,55 +1006,10 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                     edgecolor=roi.plot_color,
                 )
                 if show_roi_labels:
-                    if low_contrast_label_position == "center":
-                        x = roi.center.x
-                        y = roi.center.y
-                        ha = "center"
-                        va = "center"
-                    elif low_contrast_label_position == "center left":
-                        x = roi.center.x - roi.radius
-                        y = roi.center.y
-                        ha = "right"
-                        va = "center"
-                    elif low_contrast_label_position == "center right":
-                        x = roi.center.x + roi.radius
-                        y = roi.center.y
-                        ha = "left"
-                        va = "center"
-                    elif low_contrast_label_position == "upper center":
-                        x = roi.center.x
-                        y = roi.center.y - roi.radius
-                        ha = "center"
-                        va = "bottom"
-                    elif low_contrast_label_position == "lower center":
-                        x = roi.center.x
-                        y = roi.center.y + roi.radius
-                        ha = "center"
-                        va = "top"
-                    elif low_contrast_label_position == "upper right":
-                        x = roi.center.x + roi.radius
-                        y = roi.center.y - roi.radius
-                        ha = "left"
-                        va = "bottom"
-                    elif low_contrast_label_position == "upper left":
-                        x = roi.center.x - roi.radius
-                        y = roi.center.y - roi.radius
-                        ha = "right"
-                        va = "bottom"
-                    elif low_contrast_label_position == "lower right":
-                        x = roi.center.x + roi.radius
-                        y = roi.center.y + roi.radius
-                        ha = "left"
-                        va = "top"
-                    elif low_contrast_label_position == "lower left":
-                        x = roi.center.x - roi.radius
-                        y = roi.center.y + roi.radius
-                        ha = "right"
-                        va = "top"
-                    else:
-                        raise ValueError(
-                            f"Invalid low_contrast_label_position: {low_contrast_label_position}"
-                        )
+                    x, y, ha, va = self._mpl_roi_label_position(
+                        roi,
+                        low_contrast_label_position,
+                    )
                     img_ax.annotate(
                         text=f"LC{idx}",
                         xy=(x, y),
@@ -1146,55 +1029,10 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                         edgecolor=color,
                     )
                     if show_roi_labels:
-                        if high_contrast_label_position == "center":
-                            x = roi.center.x
-                            y = roi.center.y
-                            ha = "center"
-                            va = "center"
-                        elif high_contrast_label_position == "center left":
-                            x = roi.center.x - roi.radius
-                            y = roi.center.y
-                            ha = "right"
-                            va = "center"
-                        elif high_contrast_label_position == "center right":
-                            x = roi.center.x + roi.radius
-                            y = roi.center.y
-                            ha = "left"
-                            va = "center"
-                        elif high_contrast_label_position == "upper center":
-                            x = roi.center.x
-                            y = roi.center.y - roi.radius
-                            ha = "center"
-                            va = "bottom"
-                        elif high_contrast_label_position == "lower center":
-                            x = roi.center.x
-                            y = roi.center.y + roi.radius
-                            ha = "center"
-                            va = "top"
-                        elif high_contrast_label_position == "upper right":
-                            x = roi.center.x + roi.radius
-                            y = roi.center.y - roi.radius
-                            ha = "left"
-                            va = "bottom"
-                        elif high_contrast_label_position == "upper left":
-                            x = roi.center.x - roi.radius
-                            y = roi.center.y - roi.radius
-                            ha = "right"
-                            va = "bottom"
-                        elif high_contrast_label_position == "lower right":
-                            x = roi.center.x + roi.radius
-                            y = roi.center.y + roi.radius
-                            ha = "left"
-                            va = "top"
-                        elif high_contrast_label_position == "lower left":
-                            x = roi.center.x - roi.radius
-                            y = roi.center.y + roi.radius
-                            ha = "right"
-                            va = "top"
-                        else:
-                            raise ValueError(
-                                f"Invalid high_contrast_label_position: {high_contrast_label_position}"
-                            )
+                        x, y, ha, va = self._mpl_roi_label_position(
+                            roi,
+                            high_contrast_label_position,
+                        )
                         img_ax.annotate(
                             text=f"HC{idx}",
                             xy=(x, y),
@@ -1835,6 +1673,7 @@ class StandardImagingFC2(ImagePhantomBase):
         show : bool
             Whether to actually show the image when called.
         """
+        kwargs.pop("show_roi_labels", None)
         figs = []
         names = []
         fig, axes = plt.subplots(1)
@@ -5015,6 +4854,7 @@ class ACRDigitalMammography(ImagePhantomBase):
         """
         figs = []
         names = []
+        plt_kwargs.pop("show_roi_labels", None)
         for fig, name in self._plot_analyzed_image_iter(
             show=show,
             **plt_kwargs,
