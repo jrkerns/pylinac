@@ -6,6 +6,7 @@ from unittest import TestCase
 
 import numpy as np
 import scipy.signal as sps
+from parameterized import parameterized
 from scipy.ndimage import zoom
 
 from pylinac.core import image
@@ -37,6 +38,9 @@ from pylinac.core.profile import (
 )
 from pylinac.field_analysis import (
     flatness_dose_difference,
+    flatness_dose_ratio,
+    symmetry_area,
+    symmetry_pdq_iec,
     symmetry_point_difference,
 )
 from pylinac.metrics.profile import (
@@ -54,6 +58,8 @@ from pylinac.metrics.profile import (
     TopDistanceMetric,
 )
 from tests_basic.utils import get_file_from_cloud_test_repo
+
+from .profile_regression_fixtures import PROFILE_REGRESSION_FIXTURES
 
 
 def generate_open_field(
@@ -1966,66 +1972,6 @@ class TestProfilePlugins(TestCase):
 
 
 class SingleProfileTests(TestCase):
-    @staticmethod
-    def assert_field_data_matches_affine_transform(
-        test_case,
-        index_data,
-        physical_data,
-        spacing: float,
-        offset: float,
-    ) -> None:
-        coord_keys = (
-            "beam center index (exact)",
-            "cax index (exact)",
-            "left index (exact)",
-            "left inner index (exact)",
-            "right inner index (exact)",
-            "right index (exact)",
-            '"top" index (exact)',
-        )
-
-        for key in coord_keys:
-            test_case.assertAlmostEqual(
-                physical_data[key],
-                index_data[key] * spacing + offset,
-                delta=1e-6,
-            )
-
-        test_case.assertAlmostEqual(
-            physical_data["width (exact)"],
-            index_data["width (exact)"] * spacing,
-            delta=1e-6,
-        )
-        test_case.assertAlmostEqual(
-            physical_data["left slope"],
-            index_data["left slope"] / spacing,
-            delta=1e-6,
-        )
-        test_case.assertAlmostEqual(
-            physical_data["right slope"],
-            index_data["right slope"] / spacing,
-            delta=1e-6,
-        )
-        np.testing.assert_allclose(
-            physical_data["field values"], index_data["field values"]
-        )
-        test_case.assertAlmostEqual(
-            physical_data['"top" value (@exact)'],
-            index_data['"top" value (@exact)'],
-            delta=1e-6,
-        )
-        for key, data in (("index", index_data), ("physical", physical_data)):
-            test_case.assertEqual(
-                data["beam center index (rounded)"],
-                int(round(data["beam center index (exact)"])),
-                msg=f"{key} beam center rounded mismatch",
-            )
-            test_case.assertEqual(
-                data["cax index (rounded)"],
-                int(round(data["cax index (exact)"])),
-                msg=f"{key} cax rounded mismatch",
-            )
-
     def test_normalization_max(self):
         """changed default parameter value to None in 3.10. 'max' should still work"""
         rng = np.random.default_rng()
@@ -2197,44 +2143,6 @@ class SingleProfileTests(TestCase):
                 self.assertTrue(np.isfinite(field_data["right slope"]))
                 self.assertEqual(len(field_data["top params"]), 3)
                 self.assertTrue(np.all(np.isfinite(field_data["top params"])))
-
-    def test_field_data_with_physical_x_values_matches_index_space(self):
-        """field_data should be affine-consistent for index and physical x-values."""
-        x_index = np.arange(301, dtype=float)
-        spacing = 0.05
-        offset = -7.37977668
-        x_physical = x_index * spacing + offset
-        y = 100 * np.exp(-(((x_index - 150.2) / 47) ** 4)) + 0.02 * x_index
-
-        for interpolation in (
-            Interpolation.NONE,
-            Interpolation.LINEAR,
-            Interpolation.SPLINE,
-        ):
-            with self.subTest(interpolation=interpolation):
-                index_profile = SingleProfile(
-                    y,
-                    x_values=x_index,
-                    normalization_method=Normalization.NONE,
-                    interpolation=interpolation,
-                )
-                physical_profile = SingleProfile(
-                    y,
-                    x_values=x_physical,
-                    normalization_method=Normalization.NONE,
-                    interpolation=interpolation,
-                )
-
-                index_data = index_profile.field_data()
-                physical_data = physical_profile.field_data()
-
-                self.assert_field_data_matches_affine_transform(
-                    self,
-                    index_data=index_data,
-                    physical_data=physical_data,
-                    spacing=spacing,
-                    offset=offset,
-                )
 
     def test_geometric_center(self):
         # centered field
@@ -2633,6 +2541,150 @@ class SingleProfileTests(TestCase):
         # Geometric-centered flatness should be much higher (poor flatness)
         self.assertAlmostEqual(flat_beam, 1.1, delta=0.1)
         self.assertAlmostEqual(flat_geo, 33, delta=1)
+
+
+class TestExportedProfileRegressions(TestCase):
+    METRIC_CALCULATORS = {
+        "varian_flatness_difference": flatness_dose_difference,
+        "varian_symmetry_point_difference": symmetry_point_difference,
+        "elekta_flatness_ratio": flatness_dose_ratio,
+        "elekta_symmetry_pdq": symmetry_pdq_iec,
+        "siemens_flatness_difference": flatness_dose_difference,
+        "siemens_symmetry_area": symmetry_area,
+    }
+
+    @staticmethod
+    def _make_profile(
+        fixture,
+        interpolation=Interpolation.NONE,
+        use_x_values: bool = True,
+    ) -> SingleProfile:
+        return SingleProfile(
+            fixture.values,
+            x_values=fixture.x_values if use_x_values else None,
+            interpolation=interpolation,
+        )
+
+    def _assert_metrics(self, fixture, expected: dict, profile: SingleProfile) -> None:
+        for metric_name, expected_value in expected.items():
+            measured_value = self.METRIC_CALCULATORS[metric_name](
+                profile, in_field_ratio=0.8
+            )
+            self.assertAlmostEqual(
+                measured_value,
+                expected_value,
+                delta=1e-9,
+                msg=f"{fixture.name}: {metric_name}",
+            )
+
+    def test_fixture_set_is_mixed_and_uses_physical_spacing(self):
+        self.assertEqual(len(PROFILE_REGRESSION_FIXTURES), 20)
+        self.assertTrue(
+            any("diagonal" in fixture.name for fixture in PROFILE_REGRESSION_FIXTURES)
+        )
+        self.assertTrue(
+            any("mcc" in fixture.name for fixture in PROFILE_REGRESSION_FIXTURES)
+        )
+        self.assertTrue(
+            any("prm" in fixture.name for fixture in PROFILE_REGRESSION_FIXTURES)
+        )
+        self.assertTrue(
+            any(
+                fixture.name.endswith(".snctxt")
+                for fixture in PROFILE_REGRESSION_FIXTURES
+            )
+        )
+        self.assertTrue(
+            any("4A" in fixture.name for fixture in PROFILE_REGRESSION_FIXTURES)
+        )
+        self.assertTrue(
+            any("tomodose" in fixture.name for fixture in PROFILE_REGRESSION_FIXTURES)
+        )
+        self.assertTrue(
+            any(
+                not np.allclose(np.diff(fixture.x_values), np.diff(fixture.x_values)[0])
+                for fixture in PROFILE_REGRESSION_FIXTURES
+            )
+        )
+        self.assertTrue(
+            any(
+                np.isclose(np.diff(fixture.x_values)[0], np.sqrt(2) / 2, atol=1e-12)
+                for fixture in PROFILE_REGRESSION_FIXTURES
+                if len(fixture.x_values) > 1
+            )
+        )
+
+    # --- NONE / with x_values (original test) ---
+
+    @parameterized.expand(
+        [(fixture.name, fixture) for fixture in PROFILE_REGRESSION_FIXTURES]
+    )
+    def test_protocol_metrics_match_frozen_exports(self, _: str, fixture):
+        profile = self._make_profile(fixture)
+        self._assert_metrics(fixture, fixture.expected_metrics, profile)
+
+    @parameterized.expand(
+        [(fixture.name, fixture) for fixture in PROFILE_REGRESSION_FIXTURES]
+    )
+    def test_field_data_geometry_matches_frozen_exports(self, _: str, fixture):
+        profile = self._make_profile(fixture)
+        field_data = profile.field_data(in_field_ratio=0.8, slope_exclusion_ratio=0.2)
+        for key, expected_value in fixture.expected_field_data.items():
+            self.assertAlmostEqual(
+                field_data[key],
+                expected_value,
+                delta=1e-4,
+                msg=f"{fixture.name}: {key}",
+            )
+
+    # --- LINEAR / with x_values ---
+
+    @parameterized.expand(
+        [(fixture.name, fixture) for fixture in PROFILE_REGRESSION_FIXTURES]
+    )
+    def test_protocol_metrics_linear_with_x(self, _: str, fixture):
+        profile = self._make_profile(fixture, interpolation=Interpolation.LINEAR)
+        self._assert_metrics(fixture, fixture.expected_metrics_linear, profile)
+
+    # --- SPLINE / with x_values ---
+
+    @parameterized.expand(
+        [(fixture.name, fixture) for fixture in PROFILE_REGRESSION_FIXTURES]
+    )
+    def test_protocol_metrics_spline_with_x(self, _: str, fixture):
+        profile = self._make_profile(fixture, interpolation=Interpolation.SPLINE)
+        self._assert_metrics(fixture, fixture.expected_metrics_spline, profile)
+
+    # --- NONE / without x_values ---
+
+    @parameterized.expand(
+        [(fixture.name, fixture) for fixture in PROFILE_REGRESSION_FIXTURES]
+    )
+    def test_protocol_metrics_none_without_x(self, _: str, fixture):
+        profile = self._make_profile(fixture, use_x_values=False)
+        self._assert_metrics(fixture, fixture.expected_metrics_no_x, profile)
+
+    # --- LINEAR / without x_values ---
+
+    @parameterized.expand(
+        [(fixture.name, fixture) for fixture in PROFILE_REGRESSION_FIXTURES]
+    )
+    def test_protocol_metrics_linear_without_x(self, _: str, fixture):
+        profile = self._make_profile(
+            fixture, interpolation=Interpolation.LINEAR, use_x_values=False
+        )
+        self._assert_metrics(fixture, fixture.expected_metrics_linear_no_x, profile)
+
+    # --- SPLINE / without x_values ---
+
+    @parameterized.expand(
+        [(fixture.name, fixture) for fixture in PROFILE_REGRESSION_FIXTURES]
+    )
+    def test_protocol_metrics_spline_without_x(self, _: str, fixture):
+        profile = self._make_profile(
+            fixture, interpolation=Interpolation.SPLINE, use_x_values=False
+        )
+        self._assert_metrics(fixture, fixture.expected_metrics_spline_no_x, profile)
 
 
 class MultiProfileTestMixin:
