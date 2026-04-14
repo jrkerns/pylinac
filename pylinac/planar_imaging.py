@@ -1674,6 +1674,10 @@ class StandardImagingFC2(ImagePhantomBase):
             Whether to actually show the image when called.
         """
         kwargs.pop("show_roi_labels", None)
+        kwargs.pop("low_contrast_label_font_size", None)
+        kwargs.pop("high_contrast_label_font_size", None)
+        kwargs.pop("low_contrast_label_position", None)
+        kwargs.pop("high_contrast_label_position", None)
         figs = []
         names = []
         fig, axes = plt.subplots(1)
@@ -4855,6 +4859,10 @@ class ACRDigitalMammography(ImagePhantomBase):
         figs = []
         names = []
         plt_kwargs.pop("show_roi_labels", None)
+        plt_kwargs.pop("low_contrast_label_font_size", None)
+        plt_kwargs.pop("high_contrast_label_font_size", None)
+        plt_kwargs.pop("low_contrast_label_position", None)
+        plt_kwargs.pop("high_contrast_label_position", None)
         for fig, name in self._plot_analyzed_image_iter(
             show=show,
             **plt_kwargs,
