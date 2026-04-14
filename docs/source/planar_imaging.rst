@@ -708,6 +708,7 @@ See also :ref:`Interpreting Results <interpreting-planar-results>` for specific 
         show_roi_labels=True,
         low_contrast=False,
         high_contrast=False,
+        high_contrast_label_position="center left",
         figsize=(10, 8),
     )
 
@@ -724,6 +725,7 @@ See also :ref:`Interpreting Results <interpreting-planar-results>` for specific 
         show_roi_labels=True,
         low_contrast=False,
         high_contrast=False,
+        high_contrast_label_position="center left",
         figsize=(10, 10),
     )
 
