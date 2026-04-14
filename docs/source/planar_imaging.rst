@@ -261,9 +261,23 @@ The algorithm works like such:
 
 See also :ref:`Interpreting Results <interpreting-planar-results>` for specific results items.
 
-.. figure:: images/leeds-reference.png
+.. plot::
+    :include-source: false
+    :caption: Labeled ROIs of the Leeds phantom analysis. W/L was adjusted for
+        clarify of the labels.
 
-    Labeled ROIs of the Leeds phantom analysis. W/L was adjusted for clarify of the labels.
+    from pylinac import LeedsTOR
+
+    lt = LeedsTOR.from_demo_image()
+    lt.analyze()
+    lt.plot_analyzed_image(
+        show_roi_labels=True,
+        low_contrast_label_position="upper left",
+        high_contrast_label_position="upper left",
+        low_contrast=False,
+        high_contrast=False,
+        figsize=(10, 8),
+    )
 
 Troubleshooting
 ^^^^^^^^^^^^^^^
@@ -379,9 +393,23 @@ The algorithm works like such:
 
 See also :ref:`Interpreting Results <interpreting-planar-results>` for specific results items.
 
-.. figure:: images/ptw-epid-qc-reference.png
+.. plot::
+    :include-source: false
+    :caption: Labeled ROIs of the PTW EPID QC phantom analysis. W/L was adjusted
+        for clarify of the labels.
 
-    Labeled ROIs of the PTW EPID QC phantom analysis. W/L was adjusted for clarify of the labels.
+    from pylinac import PTWEPIDQC
+
+    ptw = PTWEPIDQC.from_demo_image()
+    ptw.analyze()
+    ptw.plot_analyzed_image(
+        show_roi_labels=True,
+        low_contrast_label_position="upper left",
+        high_contrast_label_position="upper left",
+        low_contrast=False,
+        high_contrast=False,
+        figsize=(10, 10),
+    )
 
 Standard Imaging QC-3 Phantom
 -----------------------------
@@ -460,9 +488,23 @@ The algorithm works like such:
 
 See also :ref:`Interpreting Results <interpreting-planar-results>` for specific results items.
 
-.. figure:: images/si-qc3-reference.png
+.. plot::
+    :include-source: false
+    :caption: Labeled ROIs of the Standard Imaging QC-3 phantom analysis. W/L
+        was adjusted for clarify of the labels.
 
-    Labeled ROIs of the Standard Imaging QC-3 phantom analysis. W/L was adjusted for clarify of the labels.
+    from pylinac import StandardImagingQC3
+
+    qc3 = StandardImagingQC3.from_demo_image()
+    qc3.analyze()
+    qc3.plot_analyzed_image(
+        show_roi_labels=True,
+        low_contrast_label_position="center",
+        high_contrast_label_position="center",
+        low_contrast=False,
+        high_contrast=False,
+        figsize=(10, 8),
+    )
 
 Troubleshooting
 ^^^^^^^^^^^^^^^
@@ -547,9 +589,22 @@ The algorithm works like such:
 
 See also :ref:`Interpreting Results <interpreting-planar-results>` for specific results items.
 
-.. figure:: images/qckv-reference.png
+.. plot::
+    :include-source: false
+    :caption: Labeled ROIs of the QC-kV phantom analysis.
 
-    Labeled ROIs of the QC-kV phantom analysis.
+    from pylinac import StandardImagingQCkV
+
+    qckv = StandardImagingQCkV.from_demo_image()
+    qckv.analyze()
+    qckv.plot_analyzed_image(
+        show_roi_labels=True,
+        low_contrast_label_position="center",
+        high_contrast_label_position="center",
+        low_contrast=False,
+        high_contrast=False,
+        figsize=(10, 8),
+    )
 
 
 Troubleshooting
@@ -624,9 +679,23 @@ The algorithm works like such:
 
 See also :ref:`Interpreting Results <interpreting-planar-results>` for specific results items.
 
-.. figure:: images/las-vegas-reference.png
+.. plot::
+    :include-source: false
+    :caption: Labeled ROIs of the Las Vegas phantom analysis. W/L was adjusted
+        for clarify of the labels.
 
-    Labeled ROIs of the Las Vegas phantom analysis. W/L was adjusted for clarify of the labels.
+    from pylinac import LasVegas
+
+    lv = LasVegas.from_demo_image()
+    lv.analyze()
+    lv.plot_analyzed_image(
+        show_roi_labels=True,
+        low_contrast_label_position="upper left",
+        high_contrast_label_position="upper left",
+        low_contrast=False,
+        high_contrast=False,
+        figsize=(10, 10),
+    )
 
 Doselab MC2 MV & kV
 -------------------
@@ -706,9 +775,10 @@ See also :ref:`Interpreting Results <interpreting-planar-results>` for specific 
     dl_kv.analyze()
     dl_kv.plot_analyzed_image(
         show_roi_labels=True,
+        low_contrast_label_position="center",
+        high_contrast_label_position="upper left",
         low_contrast=False,
         high_contrast=False,
-        high_contrast_label_position="center left",
         figsize=(10, 8),
     )
 
@@ -723,9 +793,10 @@ See also :ref:`Interpreting Results <interpreting-planar-results>` for specific 
     dl_mv.analyze()
     dl_mv.plot_analyzed_image(
         show_roi_labels=True,
+        low_contrast_label_position="center",
+        high_contrast_label_position="upper left",
         low_contrast=False,
         high_contrast=False,
-        high_contrast_label_position="center left",
         figsize=(10, 10),
     )
 
@@ -798,13 +869,41 @@ The algorithm works like such:
 
 See also :ref:`Interpreting Results <interpreting-planar-results>` for specific results items.
 
-.. figure:: images/snc-kv-reference.png
+.. plot::
+    :include-source: false
+    :caption: Labeled ROIs of the SNC kV phantom analysis. W/L was adjusted for
+        clarify of the labels.
 
-    Labeled ROIs of the SNC kV phantom analysis. W/L was adjusted for clarify of the labels.
+    from pylinac import SNCkV
 
-.. figure:: images/snc-mv-reference.png
+    snc_kv = SNCkV.from_demo_image()
+    snc_kv.analyze()
+    snc_kv.plot_analyzed_image(
+        show_roi_labels=True,
+        low_contrast_label_position="center",
+        high_contrast_label_position="center",
+        low_contrast=False,
+        high_contrast=False,
+        figsize=(10, 8),
+    )
 
-    Labeled ROIs of the SNC MV phantom analysis. W/L was adjusted for clarify of the labels.
+.. plot::
+    :include-source: false
+    :caption: Labeled ROIs of the SNC MV phantom analysis. W/L was adjusted for
+        clarify of the labels.
+
+    from pylinac import SNCMV
+
+    snc_mv = SNCMV.from_demo_image()
+    snc_mv.analyze()
+    snc_mv.plot_analyzed_image(
+        show_roi_labels=True,
+        low_contrast_label_position="center",
+        high_contrast_label_position="center",
+        low_contrast=False,
+        high_contrast=False,
+        figsize=(10, 10),
+    )
 
 
 .. _iba_primus_a:
@@ -881,9 +980,22 @@ The algorithm works like such:
 
 See also :ref:`Interpreting Results <interpreting-planar-results>` for specific results items.
 
-.. figure:: images/iba-primus-a-reference.png
+.. plot::
+    :include-source: false
+    :caption: Labeled ROIs of the IBA Primus A phantom analysis.
 
-    Labeled ROIs of the IBA Primus A phantom analysis.
+    from pylinac import IBAPrimusA
+
+    primus = IBAPrimusA.from_demo_image()
+    primus.analyze(ssd=1395)
+    primus.plot_analyzed_image(
+        show_roi_labels=True,
+        low_contrast_label_position="upper left",
+        high_contrast_label_position="upper left",
+        low_contrast=False,
+        high_contrast=False,
+        figsize=(8, 10),
+    )
 
 
 .. _acr_digital_mammography:
