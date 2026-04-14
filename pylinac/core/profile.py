@@ -1232,6 +1232,54 @@ class SingleProfile(ProfileMixin):
             return float(y)
         return y
 
+    def _sample_points_in_physical_window(
+        self, left_edge: float, right_edge: float
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Return sampled points for a window defined in physical space.
+
+        Parameters
+        ----------
+        left_edge
+            Left boundary of the window in physical space, i.e. the same space
+            as ``x_values`` and ``self.x_indices``.
+        right_edge
+            Right boundary of the window in physical space, i.e. the same space
+            as ``x_values`` and ``self.x_indices``.
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray]
+            The sampled x-positions in physical space and the corresponding
+            y-values.
+
+        Notes
+        -----
+        ``field_data()`` computes exact field boundaries in physical space, but
+        the slope and top fits must be done on actual sampled detector points.
+        This helper performs that move from physical-space boundaries to sampled
+        points taken from ``self.x_indices``.
+        """
+        lower, upper = sorted((left_edge, right_edge))
+        start = int(np.searchsorted(self.x_indices, lower, side="left"))
+        stop = int(np.searchsorted(self.x_indices, upper, side="right"))
+
+        if stop - start < 3:
+            left_idx = int(np.abs(self.x_indices - lower).argmin())
+            right_idx = int(np.abs(self.x_indices - upper).argmin())
+            start = min(left_idx, right_idx)
+            stop = max(left_idx, right_idx) + 1
+
+        if stop - start < 3:
+            center_sample_idx = int(
+                np.abs(self.x_indices - (lower + upper) / 2).argmin()
+            )
+            start = max(0, center_sample_idx - 1)
+            stop = min(len(self.x_indices), start + 3)
+            start = max(0, stop - 3)
+
+        x_samples = self.x_indices[start:stop]
+        y_samples = self._y_original_to_interp(x_samples)
+        return x_samples, y_samples
+
     def resample(
         self, interpolation_factor: int = 10, interpolation_resolution_mm: float = 0.1
     ) -> SingleProfile:
@@ -1461,33 +1509,26 @@ class SingleProfile(ProfileMixin):
         field_right_idx_r = int(round(field_right_idx))
         field_width = field_right_idx - field_left_idx
 
-        # slope calcs
+        # slope calcs; exact edges are in physical space, fits use sampled points
         inner_left_idx = center_idx - slope_exclusion_ratio * field_width / 2
         inner_left_idx_r = int(round(inner_left_idx))
         inner_right_idx = center_idx + slope_exclusion_ratio * field_width / 2
         inner_right_idx_r = int(round(inner_right_idx))
-        left_fit = linregress(
-            range(field_left_idx_r, inner_left_idx_r + 1),
-            self._y_original_to_interp(
-                np.arange(field_left_idx_r, inner_left_idx_r + 1)
-            ),
+        left_slope_x, left_slope_y = self._sample_points_in_physical_window(
+            field_left_idx, inner_left_idx
         )
-        right_fit = linregress(
-            range(inner_right_idx_r, field_right_idx_r + 1),
-            self._y_original_to_interp(
-                np.arange(inner_right_idx_r, field_right_idx_r + 1)
-            ),
+        right_slope_x, right_slope_y = self._sample_points_in_physical_window(
+            inner_right_idx, field_right_idx
         )
+        left_fit = linregress(left_slope_x, left_slope_y)
+        right_fit = linregress(right_slope_x, right_slope_y)
 
-        # top calc
-        fit_params = np.polyfit(
-            range(inner_left_idx_r, inner_right_idx_r + 1),
-            self._y_original_to_interp(
-                np.arange(inner_left_idx_r, inner_right_idx_r + 1)
-            ),
-            deg=2,
+        # top calc over the sampled points in the physical top window
+        top_x, top_y = self._sample_points_in_physical_window(
+            inner_left_idx, inner_right_idx
         )
-        width = abs(inner_right_idx_r - inner_left_idx_r)
+        fit_params = np.polyfit(top_x, top_y, deg=2)
+        width = abs(top_x[-1] - top_x[0])
 
         def poly_func(x):
             # return the negative since we're MINIMIZING and want the top value
@@ -1496,8 +1537,8 @@ class SingleProfile(ProfileMixin):
         # minimize the polynomial function
         min_f = minimize(
             poly_func,
-            x0=(inner_left_idx_r + width / 2,),
-            bounds=((inner_left_idx_r, inner_right_idx_r),),
+            x0=(top_x[0] + width / 2,),
+            bounds=((top_x[0], top_x[-1]),),
         )
         top_idx = min_f.x[0]
         top_val = -min_f.fun

@@ -10,6 +10,18 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.42.1
+--------
+
+Profiles
+^^^^^^^^
+
+* :bdg-warning:`Fixed` :meth:`~pylinac.core.profile.SingleProfile.field_data` now
+  correctly samples the slope and top fit regions when explicit ``x_values`` are
+  passed in physical space. This fixes failures where the inner fit window could
+  collapse after rounding, causing incorrect results or exceptions for field data
+  and downstream analyses.
+
 v 3.42.0
 --------
 
