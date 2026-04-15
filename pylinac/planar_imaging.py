@@ -656,10 +656,14 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             Font size of ROI labels in display units.
         low_contrast_label_position : str
             Where to place low-contrast ROI labels relative to each circle.
-            ``"center"`` (default) and ``"upper left"`` are supported.
+            One of ``"center"`` (default), ``"center left"``,
+            ``"center right"``, ``"upper center"``, ``"lower center"``,
+            ``"upper left"``, ``"upper right"``, ``"lower left"``, or
+            ``"lower right"``.
         high_contrast_label_position : str
             Where to place high-contrast ROI labels relative to each circle.
-            ``"center"`` and ``"upper left"`` (default) are supported.
+            Same options as *low_contrast_label_position*; defaults to
+            ``"upper left"``.
         kwargs
             Additional keyword arguments to pass to the plot.
 
@@ -786,10 +790,14 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             Font size of ROI labels in display units.
         low_contrast_label_position : str
             Where to place low-contrast ROI labels relative to each circle.
-            ``"center"`` (default) and ``"upper left"`` are supported.
+            One of ``"center"`` (default), ``"center left"``,
+            ``"center right"``, ``"upper center"``, ``"lower center"``,
+            ``"upper left"``, ``"upper right"``, ``"lower left"``, or
+            ``"lower right"``.
         high_contrast_label_position : str
             Where to place high-contrast ROI labels relative to each circle.
-            ``"center"`` and ``"upper left"`` (default) are supported.
+            Same options as *low_contrast_label_position*; defaults to
+            ``"upper left"``.
         plt_kwargs : dict
             Keyword args passed to the plt.figure() method. Allows one to set things like figure size.
         """
