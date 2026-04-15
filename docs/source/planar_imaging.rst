@@ -136,6 +136,30 @@ The minimum needed to get going is to:
       # don't show the low contrast plot
       leeds.plot_analyzed_image(low_contrast=False)
 
+  ROI labels can be enabled and customized for low- and high-contrast overlays:
+
+  .. code-block:: python
+
+      leeds.plot_analyzed_image(
+          show_roi_labels=True,
+          low_contrast_label_font_size=10,
+          high_contrast_label_font_size=10,
+          low_contrast_label_position="upper right",
+          high_contrast_label_position="center left",
+      )
+
+  Supported label positions are:
+
+  - ``center``
+  - ``center left``
+  - ``center right``
+  - ``upper center``
+  - ``lower center``
+  - ``upper right``
+  - ``upper left``
+  - ``lower right``
+  - ``lower left``
+
   The figure can also be saved:
 
   .. code-block:: python

@@ -214,6 +214,80 @@ class GeneralTests(TestCase):
         phan.analyze()
         self.assertAlmostEqual(phan.results_data().phantom_area, 17760.9, delta=0.3)
 
+    label_positions = (
+        "center",
+        "center left",
+        "center right",
+        "upper center",
+        "lower center",
+        "upper right",
+        "upper left",
+        "lower right",
+        "lower left",
+    )
+
+    def test_plot_analyzed_image_label_positions(self):
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        for position in self.label_positions:
+            with self.subTest(position=position):
+                phan.plot_analyzed_image(
+                    show=False,
+                    show_roi_labels=True,
+                    low_contrast_label_font_size=9,
+                    high_contrast_label_font_size=11,
+                    low_contrast_label_position=position,
+                    high_contrast_label_position=position,
+                )
+                plt.close("all")
+
+    def test_plotly_analyzed_images_label_positions(self):
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        for position in self.label_positions:
+            with self.subTest(position=position):
+                figs = phan.plotly_analyzed_images(
+                    show=False,
+                    show_roi_labels=True,
+                    low_contrast_label_font_size=9,
+                    high_contrast_label_font_size=11,
+                    low_contrast_label_position=position,
+                    high_contrast_label_position=position,
+                )
+                self.assertIn("Image", figs)
+                self.assertIsInstance(figs["Image"], go.Figure)
+
+    def test_labels_default_off(self):
+        """Without show_roi_labels=True, no annotations should be added."""
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        figs = phan.plotly_analyzed_images(show=False)
+        image_fig = figs["Image"]
+        annotations = image_fig.layout.annotations
+        self.assertEqual(len(annotations), 0)
+
+    def test_labels_present_when_enabled(self):
+        """With show_roi_labels=True, annotations should appear."""
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        figs = phan.plotly_analyzed_images(show=False, show_roi_labels=True)
+        image_fig = figs["Image"]
+        annotations = image_fig.layout.annotations
+        self.assertGreater(len(annotations), 0)
+        texts = {a.text for a in annotations}
+        self.assertTrue(any(t.startswith("LC") for t in texts))
+        self.assertTrue(any(t.startswith("HC") for t in texts))
+
+    def test_invalid_label_position_raises(self):
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        with self.assertRaises(ValueError):
+            phan.plot_analyzed_image(
+                show=False,
+                show_roi_labels=True,
+                low_contrast_label_position="bogus",
+            )
+
 
 class PlanarPhantomMixin(QuaacTestBase, CloudFileMixin, PlotlyTestMixin):
     klass: Callable
@@ -675,6 +749,19 @@ class DoselabkVDemo(PlanarPhantomMixin, TestCase):
 
     def test_demo(self):
         DoselabMC2kV.run_demo()
+
+    def test_plot_with_labels(self):
+        self.instance.plot_analyzed_image(
+            low_contrast=False,
+            high_contrast=False,
+            show=False,
+            show_roi_labels=True,
+        )
+        plt.close("all")
+
+    def test_plotly_with_labels(self):
+        figs = self.instance.plotly_analyzed_images(show=False, show_roi_labels=True)
+        self.assertIsInstance(figs["Image"], go.Figure)
 
 
 class DoselabkV70kVp(PlanarPhantomMixin, TestCase):
@@ -1384,6 +1471,26 @@ class ACRDigitalMammographyTestMixin(PlanarPhantomMixin):
             for trace in fig.data:
                 if trace.showlegend is not None:
                     self.assertFalse(trace.showlegend)
+
+    def test_plotly_ignores_label_kwargs(self):
+        figs = self.instance.plotly_analyzed_images(
+            show=False,
+            show_roi_labels=True,
+            low_contrast_label_font_size=9,
+            high_contrast_label_font_size=11,
+            low_contrast_label_position="upper right",
+            high_contrast_label_position="center left",
+        )
+        self.assertTrue(all(isinstance(fig, go.Figure) for fig in figs.values()))
+
+    def test_plot_ignores_label_kwargs(self):
+        figs, names = self.instance.plot_analyzed_image(
+            show=False,
+            show_roi_labels=True,
+            low_contrast_label_font_size=9,
+            high_contrast_label_font_size=11,
+        )
+        self.assertEqual(len(figs), 22)
 
     def test_saving_to_stream(self):
         # save as stream
