@@ -183,8 +183,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
     _LABEL_KWARGS = frozenset(
         {
             "show_roi_labels",
-            "low_contrast_label_font_size",
-            "high_contrast_label_font_size",
+            "roi_label_font_size",
             "low_contrast_label_position",
             "high_contrast_label_position",
         }
@@ -634,10 +633,9 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         show_legend: bool = True,
         show_colorbar: bool = True,
         show_roi_labels: bool = False,
-        low_contrast_label_font_size: float = 10,
-        high_contrast_label_font_size: float = 10,
+        roi_label_font_size: float = 10,
         low_contrast_label_position: str = "center",
-        high_contrast_label_position: str = "center",
+        high_contrast_label_position: str = "upper left",
         **kwargs,
     ) -> dict[str, go.Figure]:
         """Plot the analyzed set of images to Plotly figures.
@@ -652,20 +650,16 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         show_legend : bool
             Whether to show the legend on the plot.
         show_roi_labels : bool
-            Whether to show labels for low- and high-contrast ROIs on the
-            image plot.
-        low_contrast_label_font_size : float
-            Font size of low-contrast ROI labels in display units.
-        high_contrast_label_font_size : float
-            Font size of high-contrast ROI labels in display units.
+            Whether to show labels (``LC0``, ``HC0``, ...) for low- and
+            high-contrast ROIs on the image plot.
+        roi_label_font_size : float
+            Font size of ROI labels in display units.
         low_contrast_label_position : str
-            Position of low-contrast ROI labels relative to each ROI circle.
-            One of: ``center``, ``center left``, ``center right``,
-            ``upper center``, ``lower center``, ``upper right``,
-            ``upper left``, ``lower right``, ``lower left``.
+            Where to place low-contrast ROI labels relative to each circle.
+            ``"center"`` (default) and ``"upper left"`` are supported.
         high_contrast_label_position : str
-            Position of high-contrast ROI labels relative to each ROI circle.
-            Same options as ``low_contrast_label_position``.
+            Where to place high-contrast ROI labels relative to each circle.
+            ``"center"`` and ``"upper left"`` (default) are supported.
         kwargs
             Additional keyword arguments to pass to the plot.
 
@@ -711,7 +705,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                     name=lcr_label,
                     showlegend=show_legend,
                     text=lcr_label if show_roi_labels else "",
-                    fontsize=low_contrast_label_font_size,
+                    fontsize=roi_label_font_size,
                     label_position=low_contrast_label_position,
                 )
             # plot the low contrast ROIs
@@ -722,7 +716,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                     name=f"LC{idx}",
                     showlegend=show_legend,
                     text=f"LC{idx}" if show_roi_labels else "",
-                    fontsize=low_contrast_label_font_size,
+                    fontsize=roi_label_font_size,
                     label_position=low_contrast_label_position,
                 )
         # plot the high-contrast ROIs along w/ pass/fail coloration
@@ -737,7 +731,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                     name=f"HC{idx}",
                     showlegend=show_legend,
                     text=f"HC{idx}" if show_roi_labels else "",
-                    fontsize=high_contrast_label_font_size,
+                    fontsize=roi_label_font_size,
                     label_position=high_contrast_label_position,
                 )
 
@@ -766,10 +760,9 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         show: bool = True,
         split_plots: bool = False,
         show_roi_labels: bool = False,
-        low_contrast_label_font_size: float = 10,
-        high_contrast_label_font_size: float = 10,
+        roi_label_font_size: float = 10,
         low_contrast_label_position: str = "center",
-        high_contrast_label_position: str = "center",
+        high_contrast_label_position: str = "upper left",
         **plt_kwargs: dict,
     ) -> tuple[list[plt.Figure], list[str]]:
         """Plot the analyzed image.
@@ -787,20 +780,16 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         split_plots : bool
             Whether to split the resulting image into individual plots. Useful for saving images into individual files.
         show_roi_labels : bool
-            Whether to show labels for low- and high-contrast ROIs on the
-            image plot.
-        low_contrast_label_font_size : float
-            Font size of low-contrast ROI labels in display units.
-        high_contrast_label_font_size : float
-            Font size of high-contrast ROI labels in display units.
+            Whether to show labels (``LC0``, ``HC0``, ...) for low- and
+            high-contrast ROIs on the image plot.
+        roi_label_font_size : float
+            Font size of ROI labels in display units.
         low_contrast_label_position : str
-            Position of low-contrast ROI labels relative to each ROI circle.
-            One of: ``center``, ``center left``, ``center right``,
-            ``upper center``, ``lower center``, ``upper right``,
-            ``upper left``, ``lower right``, ``lower left``.
+            Where to place low-contrast ROI labels relative to each circle.
+            ``"center"`` (default) and ``"upper left"`` are supported.
         high_contrast_label_position : str
-            Position of high-contrast ROI labels relative to each ROI circle.
-            Same options as ``low_contrast_label_position``.
+            Where to place high-contrast ROI labels relative to each circle.
+            ``"center"`` and ``"upper left"`` (default) are supported.
         plt_kwargs : dict
             Keyword args passed to the plt.figure() method. Allows one to set things like figure size.
         """
@@ -856,7 +845,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                     img_ax,
                     edgecolor="b",
                     text=lcr_label if show_roi_labels else "",
-                    fontsize=low_contrast_label_font_size,
+                    fontsize=roi_label_font_size,
                     label_position=low_contrast_label_position,
                 )
             # plot the low contrast ROIs
@@ -865,7 +854,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                     img_ax,
                     edgecolor=roi.plot_color,
                     text=f"LC{idx}" if show_roi_labels else "",
-                    fontsize=low_contrast_label_font_size,
+                    fontsize=roi_label_font_size,
                     label_position=low_contrast_label_position,
                 )
             # plot the high-contrast ROIs along w/ pass/fail coloration
@@ -878,7 +867,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
                         img_ax,
                         edgecolor=color,
                         text=f"HC{idx}" if show_roi_labels else "",
-                        fontsize=high_contrast_label_font_size,
+                        fontsize=roi_label_font_size,
                         label_position=high_contrast_label_position,
                     )
             # plot the center of the detected ROI; used for qualitative eval of detection algorithm

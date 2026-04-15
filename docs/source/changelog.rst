@@ -20,23 +20,15 @@ Planar Imaging
   ROIs in planar phantom plots.
   Labels are shown as ``LC0``, ``LC1``, ... and ``HC0``, ``HC1``, ... on
   both matplotlib and Plotly overlays, and can be enabled via
-  ``show_roi_labels=True``.
-  Label size and position are controlled independently per ROI type via
-  ``low_contrast_label_font_size``, ``high_contrast_label_font_size``,
-  ``low_contrast_label_position``, and ``high_contrast_label_position``.
-  Supported positions are ``center``, ``center left``, ``center right``,
-  ``upper center``, ``lower center``, ``upper right``, ``upper left``,
-  ``lower right``, and ``lower left``.
+  ``show_roi_labels=True``.  Label font size can be controlled via
+  ``roi_label_font_size``.
 
 Geometry
 ^^^^^^^^
 
 * :bdg-success:`Feature` :class:`~pylinac.core.geometry.Circle` ``plotly()``
-  now accepts ``text``, ``fontsize``, and ``label_position`` parameters,
-  matching the existing ``plot2axes()`` labeling support.
-* :bdg-success:`Feature` :class:`~pylinac.core.geometry.Circle` ``plot2axes()``
-  now accepts a ``label_position`` parameter to place text labels at the
-  edge of the circle instead of only at the center.
+  now accepts ``text`` and ``fontsize`` parameters, matching the existing
+  ``plot2axes()`` labeling support.
 
 v 3.43.1
 --------
