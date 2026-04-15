@@ -1,3 +1,9 @@
+---
+name: refactor
+description: Refactor code for big-picture architectural improvements
+disable-model-invocation: true
+---
+
 # refactor
 
 The goal of refactoring is:

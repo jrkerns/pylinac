@@ -192,10 +192,12 @@ While normally the :ref:`contrast <contrast>` algorithm is chosen by the user,
 for the Quart phantom it is hardcoded based on the equations in the manual.
 Specifically, contrast to noise is defined as:
 
-.. math:: \frac{|Polystyrene - Acrylic|}{Acrylic}
+.. math:: CNR = \frac{|HU_{Poly} - HU_{Acrylic}|}{\sigma_{Acrylic}}
 
-where the values are the median pixel value of the given ROI. Poly
-was given as a possible recommendations in the Quart user manual.
+where :math:`HU_{Poly}` and :math:`HU_{Acrylic}` are the median pixel values of the
+Polystyrene and Acrylic ROIs respectively, and :math:`\sigma_{Acrylic}` is the
+standard deviation of the Acrylic (background) ROI pixel values.
+Polystyrene was given as a possible recommendation in the Quart user manual.
 Acrylic is the base material of the phantom, i.e. background.
 
 .. note:: The numerator is an absolute value.

@@ -61,7 +61,7 @@ This is extremely helpful to, say, test ``pylinac`` against multiple versions of
     uv python install 3.11
 
     # or install older versions of Python
-    uv python install 3.9 3.10
+    uv python install 3.10
 
 Virtual Environment
 ^^^^^^^^^^^^^^^^^^^
@@ -71,8 +71,7 @@ Set up a virtual environment and install the required dependencies using ``uv``:
 .. code-block:: bash
 
   # in your cloned directory of pylinac
-  uv venv
-  uv pip install -e .[developer]
+  uv sync
 
 Documentation
 ^^^^^^^^^^^^^

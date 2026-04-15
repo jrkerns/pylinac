@@ -3,7 +3,6 @@ import json
 import tempfile
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Union
 from unittest import TestCase
 
 import numpy as np
@@ -35,7 +34,7 @@ TEST_DIR = "VMAT"
 
 class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
     demo_load_method = "from_demo_images"
-    klass: Union[type[DRGS], type[DRMLC], type[DRCS]]
+    klass: type[DRGS] | type[DRMLC] | type[DRCS]
     results_length: int
 
     def test_normal_instantiation(self):
@@ -88,7 +87,7 @@ class TestDRCSLoading(LoadingBase, TestCase):
 
 
 class ResultsBase:
-    klass: Union[type[DRGS], type[DRMLC], type[DRCS]]
+    klass: type[DRGS] | type[DRMLC] | type[DRCS]
     results_length: int
 
     def setUp(self):
@@ -161,7 +160,7 @@ class TestDRCSResults(ResultsBase, TestCase):
 
 
 class QuaacBase(QuaacTestBase):
-    klass: Union[type[DRGS], type[DRMLC], type[DRCS]]
+    klass: type[DRGS] | type[DRMLC] | type[DRCS]
 
     def quaac_instance(self):
         t = self.klass.from_demo_images()

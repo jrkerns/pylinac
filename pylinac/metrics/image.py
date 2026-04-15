@@ -4,7 +4,8 @@ import math
 import typing
 import weakref
 from abc import ABC, abstractmethod
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 from matplotlib import pyplot as plt

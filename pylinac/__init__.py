@@ -1,12 +1,4 @@
-import sys
-
-from .version import __version__
-
-# check python version
-if sys.version_info[0] < 3 or sys.version_info[1] < 9:
-    raise ValueError(
-        "Pylinac is only supported on Python 3.9+. Please update your environment."
-    )
+from .version import __version__  # isort: skip
 
 # alphabetized modules
 from .acr import ACRCT, ACRMRILarge
@@ -29,6 +21,7 @@ from .field_analysis import (
     Protocol,
 )
 from .field_profile_analysis import FieldProfileAnalysis
+from .helios import GEHeliosCTDaily
 from .log_analyzer import Dynalog, MachineLogs, TrajectoryLog, load_log
 from .picketfence import PicketFence  # must be after log analyzer
 from .planar_imaging import (

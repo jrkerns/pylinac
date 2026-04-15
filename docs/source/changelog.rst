@@ -10,6 +10,64 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.43.1
+--------
+
+Profiles
+^^^^^^^^
+
+* :bdg-warning:`Fixed` :meth:`~pylinac.core.profile.SingleProfile.field_data` now
+  correctly samples the slope and top fit regions when explicit ``x_values`` are
+  passed in physical space. This fixes failures where the inner fit window could
+  collapse after rounding, causing incorrect results or exceptions for field data
+  and downstream analyses.
+
+v 3.43.0
+--------
+
+General
+^^^^^^^
+
+* :bdg-danger:`Change` The minimum version of Python supported is now 3.10 as the end-of-life of Python 3.9 is was in 2025.
+
+Core
+^^^^
+
+* :bdg-warning:`Fixed` :meth:`~pylinac.core.image.DicomImage.cax` no longer raises a
+  ``TypeError`` when the ``RTImageSID`` DICOM tag is absent and no ``sid`` was passed
+  to the constructor. The magnification factor calculation is now inside the existing
+  ``try/except`` block and falls back to the image center, consistent with behavior
+  for film and other non-EPID images.
+
+
+ACR Phantoms
+^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` ``from_demo_image()`` now raises
+  ``NotImplementedError`` instead of an unexpected exception, as no demo dataset is
+  available.
+* :bdg-warning:`Fixed` Fixed ``save_images``: it uses the current folder when
+  ``directory=None``
+* :bdg-warning:`Fixed` :class:`~pylinac.acr.ACRMRILarge` sagittal localization now
+  correctly reports the length for ROI1. The outermost measurement column was moved
+  from -75 mm to -60 mm from the phantom centroid, keeping it within the reliable
+  signal region and preventing the profile edge-detector from latching onto dark
+  artifacts.
+
+Quart
+^^^^^
+
+* :bdg-warning:`Fixed` Fixed ``save_images``: it uses the current folder when
+  ``directory=None``
+* :bdg-warning:`Fixed` Corrected the CNR equation in the documentation to include
+  :math:`\sigma_{Acrylic}` in the denominator, matching the actual implementation
+  and the Varian manual.
+
+GE Helios CT Daily QA Phantoms
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* :bdg-success:`Feature` Added support for :ref:`helios`.
+
 v 3.42.0
 --------
 

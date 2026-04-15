@@ -1564,8 +1564,8 @@ class DicomImage(BaseImage):
         * We currently assume that the shift is AT THE PANEL, meaning
           we have to back-correct the shift for the magnification.
         """
-        mag_factor = self.sid / self.sad
         try:
+            mag_factor = self.sid / self.sad
             x = (
                 self.center.x
                 - self.metadata.XRayImageReceptorTranslation[0] * self.dpmm / mag_factor

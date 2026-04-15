@@ -23,12 +23,12 @@ import os
 import textwrap
 import webbrowser
 import zipfile
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from functools import cached_property
 from io import BytesIO
 from os import path as osp
 from pathlib import Path
-from typing import BinaryIO, Callable
+from typing import BinaryIO
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -823,7 +823,7 @@ class CTP404CP504(CatPhanModule):
                 regionprops, key=lambda x: x.filled_area, reverse=True
             )[:4]
         sorted_regions = sorted(
-            regionprops, key=lambda x: (2 * x.centroid[0] + x.centroid[1])
+            regionprops, key=lambda x: 2 * x.centroid[0] + x.centroid[1]
         )
         centers = [
             Point(

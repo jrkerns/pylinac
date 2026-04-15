@@ -297,6 +297,10 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
     uniformity_module = UniformityModule
     clear_borders = False
 
+    @classmethod
+    def from_demo_image(cls):
+        raise NotImplementedError("There is no demo file for this analysis")
+
     def _detected_modules(self) -> list[CatPhanModule]:
         return [
             self.ct_calibration_module,
@@ -515,7 +519,7 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
             if to_stream:
                 path = io.BytesIO()
             else:
-                destination = Path(directory) or Path.cwd()
+                destination = Path(directory) if directory is not None else Path.cwd()
                 path = (destination / name).with_suffix(".png").absolute()
             fig.savefig(path)
             paths.append(path)
@@ -1521,7 +1525,7 @@ class SagittalLocalizationModule:
 
     common_name = "Sagittal Distortion"
     roi_settings: dict[str, dict[str, float]] = {
-        "ROI1": {"offset": -75},
+        "ROI1": {"offset": -60},
         "ROI2": {"offset": -25},
         "ROI3": {"offset": 25},
         "ROI4": {"offset": 75},
@@ -1656,6 +1660,10 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
     has_sagittal_module: bool = False
     clip_in_localization = False
     low_contrast_visibility_sanity_multiplier: float
+
+    @classmethod
+    def from_demo_image(cls):
+        raise NotImplementedError("There is no demo file for this analysis")
 
     def plot_analyzed_subimage(self, *args, **kwargs):
         raise NotImplementedError("Use `plot_images`")
@@ -2027,7 +2035,7 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             if to_stream:
                 path = io.BytesIO()
             else:
-                destination = Path(directory) or Path.cwd()
+                destination = Path(directory) if directory is not None else Path.cwd()
                 path = (destination / name).with_suffix(".png").absolute()
             fig.savefig(path)
             paths.append(path)

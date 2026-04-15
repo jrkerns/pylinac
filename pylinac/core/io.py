@@ -8,9 +8,10 @@ import os.path as osp
 import struct
 import tempfile
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import BinaryIO, Callable
+from typing import BinaryIO
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen, urlretrieve
 

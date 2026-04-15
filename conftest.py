@@ -3,6 +3,7 @@
 import json
 import os
 import threading
+import time
 
 import pytest
 
@@ -18,8 +19,24 @@ def update_active_tests_file():
     """Writes the current active tests to a JSON file."""
     with active_tests_lock:
         data = list(active_tests)
-    with open(ACTIVE_TESTS_FILE, "w") as f:
-        json.dump(data, f)
+
+    temp_file = f"{ACTIVE_TESTS_FILE}.{os.getpid()}.tmp"
+    # This file is best-effort telemetry for memory monitoring; test execution
+    # should never fail due to lock contention from xdist workers.
+    for attempt in range(5):
+        try:
+            with open(temp_file, "w") as f:
+                json.dump(data, f)
+            os.replace(temp_file, ACTIVE_TESTS_FILE)
+            return
+        except PermissionError:
+            time.sleep(0.01 * (2**attempt))
+        finally:
+            if os.path.exists(temp_file):
+                try:
+                    os.remove(temp_file)
+                except OSError:
+                    pass
 
 
 @pytest.hookimpl(hookwrapper=True)
@@ -45,4 +62,7 @@ def ensure_active_tests_file_cleanup():
     """Ensure that the active tests file is removed after the test session."""
     yield
     if os.path.exists(ACTIVE_TESTS_FILE):
-        os.remove(ACTIVE_TESTS_FILE)
+        try:
+            os.remove(ACTIVE_TESTS_FILE)
+        except OSError:
+            pass
