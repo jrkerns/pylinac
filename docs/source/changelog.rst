@@ -10,8 +10,12 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
-v 3.43.1
+v 3.43.2
 --------
+
+.. note::
+
+   The 3.43.1 release was yanked due to the change below not being fully included.
 
 Profiles
 ^^^^^^^^
