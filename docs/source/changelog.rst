@@ -29,8 +29,12 @@ Planar Imaging
   ``upper center``, ``lower center``, ``upper right``, ``upper left``,
   ``lower right``, and ``lower left``.
 
-v 3.43.1
+v 3.43.2
 --------
+
+.. note::
+
+   The 3.43.1 release was yanked due to the change below not being fully included.
 
 Profiles
 ^^^^^^^^
