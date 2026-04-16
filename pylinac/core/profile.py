@@ -1232,38 +1232,6 @@ class SingleProfile(ProfileMixin):
             return float(y)
         return y
 
-    @staticmethod
-    def _nominal_x_spacing(x_values: np.ndarray) -> float:
-        """Return a representative positive spacing between x-values.
-
-        Parameters
-        ----------
-        x_values
-            The profile x-values. These may be simple sample indices
-            (0, 1, 2, ...) or physical coordinates with arbitrary spacing.
-
-        Returns
-        -------
-        float
-            The median positive step between adjacent x-values. This gives a
-            stable estimate of the sample spacing even if floating-point noise
-            is present.
-
-        Notes
-        -----
-        Some interpolation logic computes an offset in units of "samples". When
-        the profile uses physical coordinates instead of unit-spaced indices,
-        that sample-based offset must be converted into the same units as
-        ``x_values``. This helper provides that conversion factor.
-        """
-        if len(x_values) < 2:
-            return 1.0
-        diffs = np.diff(x_values)
-        positive_diffs = diffs[diffs > 0]
-        if positive_diffs.size == 0:
-            return 1.0
-        return float(np.median(positive_diffs))
-
     def _sample_points_in_physical_window(
         self, left_edge: float, right_edge: float
     ) -> tuple[np.ndarray, np.ndarray]:
@@ -1294,16 +1262,12 @@ class SingleProfile(ProfileMixin):
         start = int(np.searchsorted(self.x_indices, lower, side="left"))
         stop = int(np.searchsorted(self.x_indices, upper, side="right"))
 
-        # If the physical window only covers one or two sampled points, expand to the
-        # nearest sampled endpoints around the requested physical boundaries.
         if stop - start < 3:
             left_idx = int(np.abs(self.x_indices - lower).argmin())
             right_idx = int(np.abs(self.x_indices - upper).argmin())
             start = min(left_idx, right_idx)
             stop = max(left_idx, right_idx) + 1
 
-        # If the endpoints still do not yield three fit points, fall back to a
-        # centered three-sample window around the physical midpoint.
         if stop - start < 3:
             center_sample_idx = int(
                 np.abs(self.x_indices - (lower + upper) / 2).argmin()
@@ -1375,17 +1339,9 @@ class SingleProfile(ProfileMixin):
             # We solve this by offsetting the new x-values by a proportion of the sampling ratio.
             # A ratio of 1 (identical sampling) should not have any offset and return the same values
             # As the ratio goes up, we approach the limit of 0.5 pixels. This follows a proportional relationship
-            # with the ratio. For explicit x_values without dpmm, the offset is naturally in
-            # sample units, so convert it to the same units as x_values before applying it.
-            # For the dpmm-driven path, keep the historical offset behavior to avoid shifting
-            # the resampling grid used by existing interpolation/gamma workflows.
+            # with the ratio.
             resampling_factor = samples / len(values)
-            sample_offset = 0.5 - 1 / (2 * resampling_factor)
-            if dpmm is None:
-                nominal_spacing = SingleProfile._nominal_x_spacing(np.asarray(x_values))
-                offset = sample_offset * nominal_spacing
-            else:
-                offset = sample_offset
+            offset = 0.5 - 1 / (2 * resampling_factor)
             if interp_method == Interpolation.LINEAR:
                 kind = "linear"
             elif interp_method == Interpolation.SPLINE:
@@ -1598,13 +1554,8 @@ class SingleProfile(ProfileMixin):
         # This still has the possibility of being incorrect if the sampling is not uniform
         # within the in-field ratio area, but this is a rare case IMO. E.g. water tank
         # scans will scan more densely in the penumbra region, but this is outside the in-field area.
-        sample_positions = np.arange(len(self.x_indices), dtype=float)
-        center_sample_idx = float(
-            np.interp(center_idx, self.x_indices, sample_positions)
-        )
-        pixel_offset = center_sample_idx - round(center_sample_idx)
-        sample_spacing = self._nominal_x_spacing(self.x_indices)
-        x_indices_shifted = self.x_indices + pixel_offset * sample_spacing
+        pixel_offset = center_idx - int(round(center_idx))
+        x_indices_shifted = self.x_indices + pixel_offset
         # field data index range;
         # We use indices because we want to retain the original indices
         # E.g. for IC Profiler, the x indices retain the "skipped" detector positions in the X direction.

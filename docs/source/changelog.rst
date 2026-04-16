@@ -10,7 +10,6 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
-
 v 3.44.0
 --------
 
@@ -21,16 +20,22 @@ Planar Imaging
   ROIs in planar phantom plots.
   Labels are shown as ``LC0``, ``LC1``, ... and ``HC0``, ``HC1``, ... on
   both matplotlib and Plotly overlays, and can be enabled via
-  ``show_roi_labels=True``.
-  Label size and position are controlled independently per ROI type via
-  ``low_contrast_label_font_size``, ``high_contrast_label_font_size``,
-  ``low_contrast_label_position``, and ``high_contrast_label_position``.
-  Supported positions are ``center``, ``center left``, ``center right``,
-  ``upper center``, ``lower center``, ``upper right``, ``upper left``,
-  ``lower right``, and ``lower left``.
+  ``show_roi_labels=True``.  Label font size can be controlled via
+  ``roi_label_font_size``.
 
-v 3.43.1
+Geometry
+^^^^^^^^
+
+* :bdg-success:`Feature` :class:`~pylinac.core.geometry.Circle` ``plotly()``
+  now accepts ``text`` and ``fontsize`` parameters, matching the existing
+  ``plot2axes()`` labeling support.
+
+v 3.43.2
 --------
+
+.. note::
+
+   The 3.43.1 release was yanked due to the change below not being fully included.
 
 Profiles
 ^^^^^^^^
