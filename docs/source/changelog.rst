@@ -30,8 +30,12 @@ Geometry
   now accepts ``text`` and ``fontsize`` parameters, matching the existing
   ``plot2axes()`` labeling support.
 
-v 3.43.1
+v 3.43.2
 --------
+
+.. note::
+
+   The 3.43.1 release was yanked due to the change below not being fully included.
 
 Profiles
 ^^^^^^^^
