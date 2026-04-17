@@ -255,8 +255,6 @@ See also :ref:`Interpreting Results <interpreting-planar-results>` for specific 
     lt.analyze()
     lt.plot_analyzed_image(
         show_roi_labels=True,
-        low_contrast_label_position="upper left",
-        high_contrast_label_position="upper left",
         low_contrast=False,
         high_contrast=False,
         figsize=(10, 8),
@@ -387,8 +385,6 @@ See also :ref:`Interpreting Results <interpreting-planar-results>` for specific 
     ptw.analyze()
     ptw.plot_analyzed_image(
         show_roi_labels=True,
-        low_contrast_label_position="upper left",
-        high_contrast_label_position="upper left",
         low_contrast=False,
         high_contrast=False,
         figsize=(10, 10),
@@ -482,8 +478,6 @@ See also :ref:`Interpreting Results <interpreting-planar-results>` for specific 
     qc3.analyze()
     qc3.plot_analyzed_image(
         show_roi_labels=True,
-        low_contrast_label_position="center",
-        high_contrast_label_position="center",
         low_contrast=False,
         high_contrast=False,
         figsize=(10, 8),
@@ -582,8 +576,6 @@ See also :ref:`Interpreting Results <interpreting-planar-results>` for specific 
     qckv.analyze()
     qckv.plot_analyzed_image(
         show_roi_labels=True,
-        low_contrast_label_position="center",
-        high_contrast_label_position="center",
         low_contrast=False,
         high_contrast=False,
         figsize=(10, 8),
@@ -673,8 +665,6 @@ See also :ref:`Interpreting Results <interpreting-planar-results>` for specific 
     lv.analyze()
     lv.plot_analyzed_image(
         show_roi_labels=True,
-        low_contrast_label_position="upper left",
-        high_contrast_label_position="upper left",
         low_contrast=False,
         high_contrast=False,
         figsize=(10, 10),
@@ -758,8 +748,6 @@ See also :ref:`Interpreting Results <interpreting-planar-results>` for specific 
     dl_kv.analyze()
     dl_kv.plot_analyzed_image(
         show_roi_labels=True,
-        low_contrast_label_position="center",
-        high_contrast_label_position="upper left",
         low_contrast=False,
         high_contrast=False,
         figsize=(10, 8),
@@ -776,8 +764,6 @@ See also :ref:`Interpreting Results <interpreting-planar-results>` for specific 
     dl_mv.analyze()
     dl_mv.plot_analyzed_image(
         show_roi_labels=True,
-        low_contrast_label_position="center",
-        high_contrast_label_position="upper left",
         low_contrast=False,
         high_contrast=False,
         figsize=(10, 10),
@@ -863,8 +849,6 @@ See also :ref:`Interpreting Results <interpreting-planar-results>` for specific 
     snc_kv.analyze()
     snc_kv.plot_analyzed_image(
         show_roi_labels=True,
-        low_contrast_label_position="center",
-        high_contrast_label_position="center",
         low_contrast=False,
         high_contrast=False,
         figsize=(10, 8),
@@ -881,8 +865,6 @@ See also :ref:`Interpreting Results <interpreting-planar-results>` for specific 
     snc_mv.analyze()
     snc_mv.plot_analyzed_image(
         show_roi_labels=True,
-        low_contrast_label_position="center",
-        high_contrast_label_position="center",
         low_contrast=False,
         high_contrast=False,
         figsize=(10, 10),
@@ -973,8 +955,6 @@ See also :ref:`Interpreting Results <interpreting-planar-results>` for specific 
     primus.analyze(ssd=1395)
     primus.plot_analyzed_image(
         show_roi_labels=True,
-        low_contrast_label_position="upper left",
-        high_contrast_label_position="upper left",
         low_contrast=False,
         high_contrast=False,
         figsize=(8, 10),
