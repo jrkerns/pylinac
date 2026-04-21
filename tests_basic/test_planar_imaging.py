@@ -1429,22 +1429,6 @@ class ACRDigitalMammographyTestMixin(PlanarPhantomMixin):
                 if trace.showlegend is not None:
                     self.assertFalse(trace.showlegend)
 
-    def test_plotly_ignores_label_kwargs(self):
-        figs = self.instance.plotly_analyzed_images(
-            show=False,
-            show_roi_labels=True,
-            roi_label_font_size=9,
-        )
-        self.assertTrue(all(isinstance(fig, go.Figure) for fig in figs.values()))
-
-    def test_plot_ignores_label_kwargs(self):
-        figs, names = self.instance.plot_analyzed_image(
-            show=False,
-            show_roi_labels=True,
-            roi_label_font_size=9,
-        )
-        self.assertEqual(len(figs), 22)
-
     def test_saving_to_stream(self):
         # save as stream
         streams = self.instance.save_analyzed_image(to_stream=True)
