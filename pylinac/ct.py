@@ -21,6 +21,7 @@ import io
 import itertools
 import os
 import textwrap
+import warnings
 import webbrowser
 import zipfile
 from collections.abc import Callable, Sequence
@@ -2550,9 +2551,11 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             central_bubbles, key=lambda x: x.centroid[0]
         )  # top, bottom
         if not sorted_bubbles:
-            raise ValueError(
-                "No air bubbles were found in the HU slice. The origin slice algorithm likely failed or the origin slice was passed and is incorrect."
+            warnings.warn(
+                "Could not determine phantom roll. Setting roll to 0.",
+                UserWarning,
             )
+            return 0.0
         y_dist = sorted_bubbles[1].centroid[0] - sorted_bubbles[0].centroid[0]
         x_dist = sorted_bubbles[1].centroid[1] - sorted_bubbles[0].centroid[1]
         phan_roll = np.arctan2(y_dist, x_dist)
