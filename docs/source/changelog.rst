@@ -10,6 +10,22 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.43.2
+--------
+
+.. note::
+
+   The 3.43.1 release was yanked due to the change below not being fully included.
+
+Profiles
+^^^^^^^^
+
+* :bdg-warning:`Fixed` :meth:`~pylinac.core.profile.SingleProfile.field_data` now
+  correctly samples the slope and top fit regions when explicit ``x_values`` are
+  passed in physical space. This fixes failures where the inner fit window could
+  collapse after rounding, causing incorrect results or exceptions for field data
+  and downstream analyses.
+
 v 3.43.0
 --------
 
@@ -36,6 +52,11 @@ ACR Phantoms
   available.
 * :bdg-warning:`Fixed` Fixed ``save_images``: it uses the current folder when
   ``directory=None``
+* :bdg-warning:`Fixed` :class:`~pylinac.acr.ACRMRILarge` sagittal localization now
+  correctly reports the length for ROI1. The outermost measurement column was moved
+  from -75 mm to -60 mm from the phantom centroid, keeping it within the reliable
+  signal region and preventing the profile edge-detector from latching onto dark
+  artifacts.
 
 Quart
 ^^^^^

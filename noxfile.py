@@ -1,8 +1,31 @@
+from __future__ import annotations
+
 import os
 from pathlib import Path
 
 import nox
 from nox import Session
+
+
+def set_uv_project_env(session) -> dict[str, str]:
+    """Set uv environment vars used for uv sync/run against the session virtualenv."""
+    return {
+        "UV_PROJECT_ENVIRONMENT": session.virtualenv.location,
+        "UV_PYTHON": session.virtualenv.location,
+        "UV_NO_SYNC": "true",
+        "UV_NO_DEFAULT_GROUPS": "true",
+    }
+
+
+def sync_uv_groups(session, groups: str | list[str]) -> dict[str, str]:
+    """Run ``uv sync`` for one or more dependency groups using session-local uv env vars."""
+    uv_env = set_uv_project_env(session)
+    group_list = [groups] if isinstance(groups, str) else list(groups)
+    cmd = ["uv", "sync"]
+    for group in group_list:
+        cmd.extend(["--group", group])
+    session.run_install(*cmd, env=uv_env)
+    return uv_env
 
 
 @nox.parametrize(
@@ -15,7 +38,7 @@ from nox import Session
     venv_backend="uv",
 )
 def run_basic_test_suite_310(session: Session, numpy: str, scipy: str):
-    session.install(".[developer]")
+    sync_uv_groups(session, "test")
     session.install(f"numpy~={numpy}", f"scipy~={scipy}")
     session.install("pip")
     session.run("pip", "freeze")
@@ -37,7 +60,7 @@ def run_basic_test_suite_310(session: Session, numpy: str, scipy: str):
     venv_backend="uv",
 )
 def run_basic_test_suite_311(session: Session, numpy: str, scipy: str):
-    session.install(".[developer]")
+    sync_uv_groups(session, "test")
     session.install(f"numpy~={numpy}", f"scipy~={scipy}")
     session.install("pip")
     session.run("pip", "freeze")
@@ -56,7 +79,7 @@ def run_basic_test_suite_311(session: Session, numpy: str, scipy: str):
     venv_backend="uv",
 )
 def run_basic_test_suite_312(session: Session, numpy: str, scipy: str):
-    session.install(".[developer]")
+    sync_uv_groups(session, "test")
     session.install(f"numpy~={numpy}", f"scipy~={scipy}")
     session.install("pip")
     session.run("pip", "freeze")
@@ -75,7 +98,7 @@ def run_basic_test_suite_312(session: Session, numpy: str, scipy: str):
     venv_backend="uv",
 )
 def run_basic_test_suite_313(session: Session, numpy: str, scipy: str):
-    session.install(".[developer]")
+    sync_uv_groups(session, "test")
     session.install(f"numpy~={numpy}", f"scipy~={scipy}")
     session.install("pip")
     session.run("pip", "freeze")
@@ -88,7 +111,7 @@ def run_basic_test_suite_313(session: Session, numpy: str, scipy: str):
 
 @nox.session(reuse_venv=True, venv_backend="uv|virtualenv")
 def serve_docs(session: Session):
-    session.install(".[docs]")
+    sync_uv_groups(session, "docs")
     session.run(
         "sphinx-autobuild",
         "docs/source",
@@ -102,7 +125,7 @@ def serve_docs(session: Session):
 @nox.session(reuse_venv=True, venv_backend="uv|virtualenv")
 def build_docs(session: Session):
     """Build the docs; used in CI pipelines to test the build. Will always rebuild and will always fail if there are any warnings"""
-    session.install(".[docs]")
+    sync_uv_groups(session, "docs")
     session.run(
         "sphinx-build",
         "docs/source",
@@ -121,7 +144,7 @@ def build_docs(session: Session):
 def build_docs_pdf(session: Session):
     """Build the docs as PDF. Sphinx has PDF capabilities but it doesn't like SVGs, GIFs, latex, etc.
     Instead, we build .rst -> HTML via Sphinx and then HTML -> PDF via plutoprint."""
-    session.install(".[docs]")
+    sync_uv_groups(session, "docs")
     session.install("plutoprint")
     session.run("sphinx-build", "docs/source", "docs/build-pdf", "-b", "singlehtml")
     session.log("Single HTML built with Sphinx. Building PDF with plutoprint...")
@@ -139,7 +162,7 @@ def build_docs_pdf(session: Session):
 @nox.session(reuse_venv=True, venv_backend="uv")
 def build_wheel(session: Session):
     """Build the wheel and sdist"""
-    session.install(".[developer]")
+    sync_uv_groups(session, "dev")
     session.run("uv", "build")
 
 
