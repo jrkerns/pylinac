@@ -10,6 +10,16 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.44.0
+--------
+
+CatPhan
+^^^^^^^
+
+* :bdg-warning:`Fixed` CatPhan phantom roll detection no longer raises an error when
+  the roll cannot be determined from the air bubbles. Instead, a ``UserWarning`` is
+  emitted and the roll is set to 0.
+
 v 3.43.2
 --------
 
