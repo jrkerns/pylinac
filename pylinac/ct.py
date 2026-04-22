@@ -2550,7 +2550,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         sorted_bubbles = sorted(
             central_bubbles, key=lambda x: x.centroid[0]
         )  # top, bottom
-        if not sorted_bubbles:
+        if len(sorted_bubbles) < 2:
             warnings.warn(
                 "Could not determine phantom roll. Setting roll to 0.",
                 UserWarning,
