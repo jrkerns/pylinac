@@ -10,6 +10,26 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v 3.44.0
+--------
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* :bdg-success:`Feature` Added on-image labels for low- and high-contrast
+  ROIs in planar phantom plots.
+  Labels are shown as ``LC0``, ``LC1``, ... and ``HC0``, ``HC1``, ... on
+  both matplotlib and Plotly overlays, and can be enabled via
+  ``show_roi_labels=True``.  Label font size can be controlled via
+  ``roi_label_font_size``.
+
+Geometry
+^^^^^^^^
+
+* :bdg-success:`Feature` :class:`~pylinac.core.geometry.Circle` ``plotly()``
+  now accepts ``text`` and ``fontsize`` parameters, matching the existing
+  ``plot2axes()`` labeling support.
+
 v 3.43.2
 --------
 

@@ -136,6 +136,13 @@ The minimum needed to get going is to:
       # don't show the low contrast plot
       leeds.plot_analyzed_image(low_contrast=False)
 
+  ROI labels can be enabled to correlate each circle with the corresponding
+  value in the results:
+
+  .. code-block:: python
+
+      leeds.plot_analyzed_image(show_roi_labels=True)
+
   The figure can also be saved:
 
   .. code-block:: python
