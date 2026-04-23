@@ -247,14 +247,70 @@ class Circle:
         """Get the diameter of the circle."""
         return self.radius * 2
 
+    _LABEL_OFFSETS: dict[str, tuple[int, int]] = {
+        "center": (0, 0),
+        "center left": (-1, 0),
+        "center right": (1, 0),
+        "upper center": (0, -1),
+        "lower center": (0, 1),
+        "upper left": (-1, -1),
+        "upper right": (1, -1),
+        "lower left": (-1, 1),
+        "lower right": (1, 1),
+    }
+    _LABEL_ALIGN: dict[str, tuple[str, str]] = {
+        "center": ("center", "center"),
+        "center left": ("right", "center"),
+        "center right": ("left", "center"),
+        "upper center": ("center", "bottom"),
+        "lower center": ("center", "top"),
+        "upper left": ("right", "bottom"),
+        "upper right": ("left", "bottom"),
+        "lower left": ("right", "top"),
+        "lower right": ("left", "top"),
+    }
+
+    def _label_coords(self, position: str) -> tuple[float, float, str, str]:
+        """Return ``(x, y, ha, va)`` for a text label at *position*."""
+        dx, dy = self._LABEL_OFFSETS[position]
+        ha, va = self._LABEL_ALIGN[position]
+        return (
+            self.center.x + dx * self.radius,
+            self.center.y + dy * self.radius,
+            ha,
+            va,
+        )
+
     def plotly(
         self,
         fig: go.Figure,
         line_color: str = "black",
         fill: bool = False,
+        text: str = "",
+        fontsize: float = 10,
+        label_position: str = "center",
         **kwargs,
     ) -> None:
-        """Draw the circle on a plotly figure."""
+        """Draw the circle on a plotly figure.
+
+        Parameters
+        ----------
+        fig : plotly.graph_objects.Figure
+            The Plotly figure to draw on.
+        line_color : str
+            The color of the circle outline (and label text).
+        fill : bool
+            Whether to fill the circle with color or leave hollow.
+        text : str
+            If provided, adds a text annotation near the circle.
+        fontsize : float
+            Font size of the label in display points.
+        label_position : str
+            Where to place the label relative to the circle. One of
+            ``"center"``, ``"center left"``, ``"center right"``,
+            ``"upper center"``, ``"lower center"``, ``"upper left"``,
+            ``"upper right"``, ``"lower left"``, or ``"lower right"``.
+        """
         # calls to rectangle have this; for duck typing we pop this to avoid plotly errors.
         kwargs.pop("direction", None)
         # we use scatter so we can have hovertext/info, etc. Easier
@@ -269,6 +325,18 @@ class Circle:
             line_color=line_color,
             **kwargs,
         )
+        if text:
+            x, y, ha, va = self._label_coords(label_position)
+            yanchor = "middle" if va == "center" else va
+            fig.add_annotation(
+                x=x,
+                y=y,
+                text=text,
+                showarrow=False,
+                font={"color": line_color, "size": fontsize},
+                xanchor=ha,
+                yanchor=yanchor,
+            )
 
     def plot2axes(
         self,
@@ -279,6 +347,7 @@ class Circle:
         fontsize: str = "medium",
         ha: str = "center",
         va: str = "center",
+        label_position: str = "center",
         **kwargs,
     ) -> None:
         """Plot the Circle on the axes.
@@ -291,11 +360,19 @@ class Circle:
             The color of the circle.
         fill : bool
             Whether to fill the circle with color or leave hollow.
-        text: str
-            If provided, plots the given text at the center. Useful for identifying ROIs on a plotted image apart.
-        fontsize: str
-            The size of the text, if provided. See https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.text.html
+        text : str
+            If provided, plots the given text near the circle.
+            Useful for identifying ROIs on a plotted image.
+        fontsize : str
+            The size of the text, if provided. See
+            https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.text.html
             for options.
+        label_position : str
+            Where to place the label relative to the circle. One of
+            ``"center"``, ``"center left"``, ``"center right"``,
+            ``"upper center"``, ``"lower center"``, ``"upper left"``,
+            ``"upper right"``, ``"lower left"``, or ``"lower right"``.
+            When not ``"center"``, overrides *ha* and *va*.
         """
         axes.add_patch(
             mpl_Circle(
@@ -307,9 +384,12 @@ class Circle:
             )
         )
         if text:
+            x, y, _ha, _va = self._label_coords(label_position)
+            if label_position != "center":
+                ha, va = _ha, _va
             axes.annotate(
                 text=text,
-                xy=(self.center.x, self.center.y),
+                xy=(x, y),
                 fontsize=fontsize,
                 color=edgecolor,
                 ha=ha,
