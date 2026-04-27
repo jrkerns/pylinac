@@ -27,9 +27,23 @@ HELIOS_LOW_CONTRAST_SLICE_OFFSETS_INDEX = {
     "slice_2": -1,
     "slice_3": -2,
 }
+HELIOS_VMIN = -25
+HELIOS_VMAX = 175
 
 
-class HeliosContrastScaleModule(CatPhanModule):
+class _HeliosVisualizationMixin:
+    """Helper mixin to have each figure have the same visual contrast"""
+
+    @property
+    def window_min(self) -> float:
+        return HELIOS_VMIN
+
+    @property
+    def window_max(self) -> float:
+        return HELIOS_VMAX
+
+
+class HeliosContrastScaleModule(_HeliosVisualizationMixin, CatPhanModule):
     """Class for analysis of the Contrast Scale."""
 
     common_name = "Contrast Scale"
@@ -100,9 +114,25 @@ class HeliosContrastScaleModuleOutput(BaseModel):
         description="The ROI settings. The keys are the material names."
     )
     rois: dict = Field(description="The analyzed ROIs.")
+    mean_hu_water: float = Field(
+        description="The mean HU of the water ROI.",
+        title="Mean HU Water",
+    )
+    mean_hu_plastic: float = Field(
+        description="The mean HU of the Plexiglass ROI.",
+        title="Mean HU Plastic",
+    )
+    hu_difference: float = Field(
+        description="The difference in mean HU between Plexiglass and water.",
+        title="HU Difference",
+    )
+    std_dev_water: float = Field(
+        description="The standard deviation of the water ROI.",
+        title="Std Dev Water",
+    )
 
 
-class HeliosHighContrastModule(CatPhanModule):
+class HeliosHighContrastModule(_HeliosVisualizationMixin, CatPhanModule):
     """Class for analysis of the High Contrast Spatial Resolution."""
 
     common_name = "High Contrast"
@@ -210,9 +240,25 @@ class HeliosHighContrastModuleOutput(BaseModel):
         description="A key-value pair of the MTF. The key is the relative resolution in % and the value is the lp/mm at that resolution",
         title="MTF (lp/mm)",
     )
+    std_dev_1_6mm: float = Field(
+        description="The standard deviation of the 1.6mm high-contrast ROI.",
+        title="1.6mm Std Dev",
+    )
+    std_dev_1_3mm: float = Field(
+        description="The standard deviation of the 1.3mm high-contrast ROI.",
+        title="1.3mm Std Dev",
+    )
+    std_dev_1_0mm: float = Field(
+        description="The standard deviation of the 1.0mm high-contrast ROI.",
+        title="1.0mm Std Dev",
+    )
+    std_dev_0_8mm: float = Field(
+        description="The standard deviation of the 0.8mm high-contrast ROI.",
+        title="0.8mm Std Dev",
+    )
 
 
-class HeliosLowContrastModule(CatPhanModule):
+class HeliosLowContrastModule(_HeliosVisualizationMixin, CatPhanModule):
     """Class for analysis of the Low Contrast Detectability."""
 
     common_name = "Low Contrast Detectability"
@@ -402,9 +448,17 @@ class HeliosLowContrastMultiSliceModuleOutput(BaseModel):
     std: float = Field(
         description="Average standard deviation across all slices.",
     )
+    low_contrast_mean: float = Field(
+        description="Mean HU value across all low-contrast slices.",
+        title="Low Contrast Mean (HU)",
+    )
+    low_contrast_std: float = Field(
+        description="Average standard deviation across all low-contrast slices.",
+        title="Low Contrast Std Dev",
+    )
 
 
-class HeliosNoiseUniformityModule(CatPhanModule):
+class HeliosNoiseUniformityModule(_HeliosVisualizationMixin, CatPhanModule):
     """Class for analysis of the Noise & Uniformity."""
 
     common_name = "Noise & Uniformity"
@@ -521,6 +575,30 @@ class HeliosNoiseUniformityModuleOutput(BaseModel):
         description="Difference between the center ROI mean and the average of the edge ROIs.",
         title="Uniformity Difference (HU)",
     )
+    center_mean_hu: float = Field(
+        description="The mean HU of the center ROI.",
+        title="Center Mean HU",
+    )
+    center_noise_std_dev: float = Field(
+        description="The standard deviation of the central noise ROI.",
+        title="Center Noise Std Dev",
+    )
+    three_oclock_mean_hu: float = Field(
+        description="The mean HU of the 3 o'clock ROI.",
+        title="3 O'Clock Mean HU",
+    )
+    twelve_oclock_mean_hu: float = Field(
+        description="The mean HU of the 12 o'clock ROI.",
+        title="12 O'Clock Mean HU",
+    )
+    average_outer_mean_hu: float = Field(
+        description="The average mean HU of the outer ROIs.",
+        title="Average Outer Mean HU",
+    )
+    center_outer_mean_difference: float = Field(
+        description="The difference between the center mean HU and the average outer mean HU.",
+        title="Center-Outer Mean Difference",
+    )
 
 
 class GEHeliosResult(ResultBase):
@@ -540,16 +618,20 @@ class GEHeliosResult(ResultBase):
     )
     num_images: int = Field(description="The number of images in the dataset.")
     contrast_scale: HeliosContrastScaleModuleOutput = Field(
-        description="The results of the Contrast Scale test."
+        description="The results of the Contrast Scale test.",
+        title="Contrast Scale",
     )
     high_contrast: HeliosHighContrastModuleOutput = Field(
-        description="The results of the High Contrast Spatial Resolution test."
+        description="The results of the High Contrast Spatial Resolution test.",
+        title="High Contrast",
     )
     low_contrast: HeliosLowContrastMultiSliceModuleOutput = Field(
-        description="The results of the Low Contrast Detectability multi-slice test."
+        description="The results of the Low Contrast Detectability multi-slice test.",
+        title="Low Contrast",
     )
     noise_uniformity: HeliosNoiseUniformityModuleOutput = Field(
-        description="The results of the Noise & Uniformity test."
+        description="The results of the Noise & Uniformity test.",
+        title="Noise/Uniformity",
     )
 
 
@@ -730,6 +812,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         show: bool = True,
         show_colorbar: bool = True,
         show_legend: bool = True,
+        side_view_kwargs: dict[str, object] | None = None,
         **kwargs,
     ) -> dict[str, go.Figure]:
         """Plot the analyzed set of images to Plotly figures.
@@ -742,8 +825,11 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             Whether to show the colorbar on the plot.
         show_legend : bool
             Whether to show the legend on the plot.
+        side_view_kwargs : dict, optional
+            Keyword arguments passed to the side-view heatmap. If omitted,
+            the Helios default windowing is used.
         kwargs
-            Additional keyword arguments to pass to the plot.
+            Additional keyword arguments to pass to the module plots.
 
         Returns
         -------
@@ -765,7 +851,12 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
                 show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
             )
         # side view
-        figs["Side View"] = self.plotly_side_view(show_legend=show_legend)
+        side_view_plot_kwargs = {"zmin": HELIOS_VMIN, "zmax": HELIOS_VMAX}
+        if side_view_kwargs is not None:
+            side_view_plot_kwargs.update(side_view_kwargs)
+        figs["Side View"] = self.plotly_side_view(
+            show_legend=show_legend, **side_view_plot_kwargs
+        )
         # mtf
         fig = go.Figure()
         figs["MTF"] = self.high_contrast_module.mtf.plotly(
@@ -777,13 +868,21 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
                 fig.show()
         return figs
 
-    def plot_analyzed_image(self, show: bool = True, **plt_kwargs) -> plt.Figure:
+    def plot_analyzed_image(
+        self,
+        show: bool = True,
+        side_view_kwargs: dict[str, object] | None = None,
+        **plt_kwargs,
+    ) -> plt.Figure:
         """Plot the analyzed image
 
         Parameters
         ----------
         show
             Whether to show the image.
+        side_view_kwargs
+            Keywords to pass to the side-view ``imshow`` call. If omitted,
+            the Helios default windowing is used.
         plt_kwargs
             Keywords to pass to matplotlib for figure customization.
         """
@@ -804,7 +903,10 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             module.plot(axes[ax_idx])
 
         ax_idx += 1
-        self.plot_side_view(axes[ax_idx])
+        side_view_plot_kwargs = {"vmin": HELIOS_VMIN, "vmax": HELIOS_VMAX}
+        if side_view_kwargs is not None:
+            side_view_plot_kwargs.update(side_view_kwargs)
+        self.plot_side_view(axes[ax_idx], **side_view_plot_kwargs)
         ax_idx += 1
         self.high_contrast_module.mtf.plot(axes[ax_idx], label="rMTF")
         axes[ax_idx].legend()
@@ -818,13 +920,21 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             plt.show()
         return fig
 
-    def plot_images(self, show: bool = True, **plt_kwargs) -> dict[str, plt.Figure]:
+    def plot_images(
+        self,
+        show: bool = True,
+        side_view_kwargs: dict[str, object] | None = None,
+        **plt_kwargs,
+    ) -> dict[str, plt.Figure]:
         """Plot all the individual images separately
 
         Parameters
         ----------
         show
             Whether to show the images.
+        side_view_kwargs
+            Keywords to pass to the side-view ``imshow`` call. If omitted,
+            the Helios default windowing is used.
         plt_kwargs
             Keywords to pass to matplotlib for figure customization.
         """
@@ -849,7 +959,10 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         # plot the side view
         fig, ax = plt.subplots(**plt_kwargs)
         figs["side"] = fig
-        self.plot_side_view(ax)
+        side_view_plot_kwargs = {"vmin": HELIOS_VMIN, "vmax": HELIOS_VMAX}
+        if side_view_kwargs is not None:
+            side_view_plot_kwargs.update(side_view_kwargs)
+        self.plot_side_view(ax, **side_view_plot_kwargs)
 
         if show:
             plt.show()
@@ -889,6 +1002,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         self,
         directory: Path | str | None = None,
         to_stream: bool = False,
+        side_view_kwargs: dict[str, object] | None = None,
         **plt_kwargs,
     ) -> list[Path | BytesIO]:
         """Save separate images to disk or stream.
@@ -899,10 +1013,15 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
             The directory to write the images to. If None, will use current working directory
         to_stream
             Whether to write to stream or disk. If True, will return streams. Directory is ignored in that scenario.
+        side_view_kwargs
+            Keywords to pass to the side-view ``imshow`` call. If omitted,
+            the Helios default windowing is used.
         plt_kwargs
             Keywords to pass to matplotlib for figure customization.
         """
-        figs = self.plot_images(show=False, **plt_kwargs)
+        figs = self.plot_images(
+            show=False, side_view_kwargs=side_view_kwargs, **plt_kwargs
+        )
         paths = []
         for name, fig in figs.items():
             if to_stream:
@@ -1230,16 +1349,26 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
                 offset=0,
                 roi_settings=self.contrast_scale_module.roi_settings,
                 rois=self.contrast_scale_module.as_dict(),
+                mean_hu_water=self.contrast_scale_module.rois["Water"].mean,
+                mean_hu_plastic=self.contrast_scale_module.rois["Plexiglass"].mean,
+                hu_difference=self.contrast_scale_module.contrast_difference,
+                std_dev_water=self.contrast_scale_module.rois["Water"].std,
             ),
             high_contrast=HeliosHighContrastModuleOutput(
                 offset=0,
                 rois=self.high_contrast_module.as_dict(),
                 mtf_lp_mm=mtfs,
+                std_dev_1_6mm=self.high_contrast_module.rois["1.6mm"].std,
+                std_dev_1_3mm=self.high_contrast_module.rois["1.3mm"].std,
+                std_dev_1_0mm=self.high_contrast_module.rois["1.0mm"].std,
+                std_dev_0_8mm=self.high_contrast_module.rois["0.8mm"].std,
             ),
             low_contrast=HeliosLowContrastMultiSliceModuleOutput(
                 slices=slice_outputs,
                 mean=self.low_contrast_multi_slice.mean,
                 std=self.low_contrast_multi_slice.std,
+                low_contrast_mean=self.low_contrast_multi_slice.mean,
+                low_contrast_std=self.low_contrast_multi_slice.std,
             ),
             noise_uniformity=HeliosNoiseUniformityModuleOutput(
                 offset=SECTION_3_OFFSET_MM,
@@ -1248,5 +1377,15 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
                 noise_center_std=self.noise_uniformity_module.noise_center_std,
                 mean_outer=self.noise_uniformity_module.mean_outer,
                 means_diff=self.noise_uniformity_module.uniformity_difference,
+                center_mean_hu=self.noise_uniformity_module.rois["Center"].mean,
+                center_noise_std_dev=self.noise_uniformity_module.noise_center_std,
+                three_oclock_mean_hu=self.noise_uniformity_module.rois[
+                    "3 o'clock"
+                ].mean,
+                twelve_oclock_mean_hu=self.noise_uniformity_module.rois[
+                    "12 o'clock"
+                ].mean,
+                average_outer_mean_hu=self.noise_uniformity_module.mean_outer,
+                center_outer_mean_difference=self.noise_uniformity_module.uniformity_difference,
             ),
         )
