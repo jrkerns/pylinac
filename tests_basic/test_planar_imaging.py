@@ -214,6 +214,37 @@ class GeneralTests(TestCase):
         phan.analyze()
         self.assertAlmostEqual(phan.results_data().phantom_area, 17760.9, delta=0.3)
 
+    def test_mpl_labels_shown(self):
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        phan.plot_analyzed_image(
+            show=False,
+            show_roi_labels=True,
+            roi_label_font_size=9,
+        )
+        plt.close("all")
+
+    def test_plotly_labels_default_off(self):
+        """Without show_roi_labels=True, no annotations should be added."""
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        figs = phan.plotly_analyzed_images(show=False)
+        image_fig = figs["Image"]
+        annotations = image_fig.layout.annotations
+        self.assertEqual(len(annotations), 0)
+
+    def test_plotly_labels_present_when_enabled(self):
+        """With show_roi_labels=True, annotations should appear."""
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        figs = phan.plotly_analyzed_images(show=False, show_roi_labels=True)
+        image_fig = figs["Image"]
+        annotations = image_fig.layout.annotations
+        self.assertGreater(len(annotations), 0)
+        texts = {a.text for a in annotations}
+        self.assertTrue(any(t.startswith("LC") for t in texts))
+        self.assertTrue(any(t.startswith("HC") for t in texts))
+
 
 class PlanarPhantomMixin(QuaacTestBase, CloudFileMixin, PlotlyTestMixin):
     klass: Callable
@@ -675,6 +706,19 @@ class DoselabkVDemo(PlanarPhantomMixin, TestCase):
 
     def test_demo(self):
         DoselabMC2kV.run_demo()
+
+    def test_plot_with_labels(self):
+        self.instance.plot_analyzed_image(
+            low_contrast=False,
+            high_contrast=False,
+            show=False,
+            show_roi_labels=True,
+        )
+        plt.close("all")
+
+    def test_plotly_with_labels(self):
+        figs = self.instance.plotly_analyzed_images(show=False, show_roi_labels=True)
+        self.assertIsInstance(figs["Image"], go.Figure)
 
 
 class DoselabkV70kVp(PlanarPhantomMixin, TestCase):

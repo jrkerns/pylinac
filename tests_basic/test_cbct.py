@@ -1576,6 +1576,12 @@ class UNC120kV(CatPhan503Mixin, TestCase):
     slice_thickness = 1.5
 
 
+class PhantomRoll(CatPhan503Mixin, TestCase):
+    # See RAM-5814
+    file_name = "phantom_roll_ram-5814.zip"
+    expected_roll = 0
+
+
 class CatPhan600_1(CatPhan600Mixin, TestCase):
     file_name = "zzCAT201601.zip"
     expected_roll = -0.7

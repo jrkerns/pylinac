@@ -54,6 +54,35 @@ class TestGeneral(TestCase):
         data = self.ct.results_data()
         self.assertIsInstance(data, GEHeliosResult)
         self.assertEqual(data.num_images, self.ct.num_images)
+        self.assertEqual(
+            data.contrast_scale.model_fields["mean_hu_water"].title, "Mean HU Water"
+        )
+        self.assertEqual(
+            data.high_contrast.model_fields["std_dev_1_6mm"].title, "1.6mm Std Dev"
+        )
+        self.assertEqual(
+            data.low_contrast.model_fields["low_contrast_mean"].title,
+            "Low Contrast Mean (HU)",
+        )
+        self.assertEqual(
+            data.noise_uniformity.model_fields["center_mean_hu"].title, "Center Mean HU"
+        )
+        self.assertAlmostEqual(
+            data.contrast_scale.mean_hu_water,
+            data.contrast_scale.rois["data"]["mean_hu"]["Water"],
+        )
+        self.assertAlmostEqual(
+            data.contrast_scale.mean_hu_plastic,
+            data.contrast_scale.rois["data"]["mean_hu"]["Plexiglass"],
+        )
+        self.assertAlmostEqual(
+            data.low_contrast.low_contrast_mean,
+            data.low_contrast.mean,
+        )
+        self.assertAlmostEqual(
+            data.noise_uniformity.center_noise_std_dev,
+            data.noise_uniformity.noise_center_std,
+        )
 
     def test_results_warnings(self):
         self.ct.analyze()
@@ -99,6 +128,20 @@ class TestPlottingSaving(TestCase):
         fig = plt.gcf()
         self.assertEqual(fig.bbox_inches.height, 13)
         self.assertEqual(fig.bbox_inches.width, 8)
+
+    def test_plot_analyzed_image_side_view_kwargs_override_defaults(self):
+        fig = self.ct.plot_analyzed_image(
+            show=False, side_view_kwargs={"vmin": -50, "vmax": 250}
+        )
+        side_view_image = fig.axes[6].images[0]
+        self.assertEqual(side_view_image.get_clim(), (-50, 250))
+
+    def test_plot_images_side_view_kwargs_override_defaults(self):
+        figs = self.ct.plot_images(
+            show=False, side_view_kwargs={"vmin": -10, "vmax": 100}
+        )
+        side_view_image = figs["side"].axes[0].images[0]
+        self.assertEqual(side_view_image.get_clim(), (-10, 100))
 
     def test_save_images_directory_none_uses_cwd(self):
         original_cwd = Path.cwd()
@@ -223,6 +266,14 @@ class Helios_1(HeliosMixin, PlotlyTestMixin, TestCase):
 
     def setUp(self) -> None:
         self.instance = self.ct
+
+    def test_plotly_side_view_kwargs_override_defaults(self):
+        figs = self.instance.plotly_analyzed_images(
+            show=False, side_view_kwargs={"zmin": -100, "zmax": 300}
+        )
+        side_view = figs["Side View"]
+        self.assertEqual(side_view.data[0].zmin, -100)
+        self.assertEqual(side_view.data[0].zmax, 300)
 
 
 class Helios_2(HeliosMixin, TestCase):

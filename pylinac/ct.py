@@ -21,6 +21,7 @@ import io
 import itertools
 import os
 import textwrap
+import warnings
 import webbrowser
 import zipfile
 from collections.abc import Callable, Sequence
@@ -2549,10 +2550,12 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         sorted_bubbles = sorted(
             central_bubbles, key=lambda x: x.centroid[0]
         )  # top, bottom
-        if not sorted_bubbles:
-            raise ValueError(
-                "No air bubbles were found in the HU slice. The origin slice algorithm likely failed or the origin slice was passed and is incorrect."
+        if len(sorted_bubbles) < 2:
+            warnings.warn(
+                "Could not determine phantom roll. Setting roll to 0.",
+                UserWarning,
             )
+            return 0.0
         y_dist = sorted_bubbles[1].centroid[0] - sorted_bubbles[0].centroid[0]
         x_dist = sorted_bubbles[1].centroid[1] - sorted_bubbles[0].centroid[1]
         phan_roll = np.arctan2(y_dist, x_dist)
@@ -2670,11 +2673,20 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             except Exception:
                 pass
 
-    def plotly_side_view(self, show_legend: bool) -> go.Figure:
+    def plotly_side_view(self, show_legend: bool, **kwargs) -> go.Figure:
+        """Plot a view of the scan from the side with lines showing detected module positions.
+
+        Parameters
+        ----------
+        show_legend: bool
+            Whether to show the plot legend.
+        kwargs
+            Arguments passed to the axis constructor.
+        """
         fig = go.Figure()
         side_array = self.dicom_stack.side_view(axis=1)
         add_title(fig, "Side View")
-        fig.add_heatmap(z=side_array, colorscale="gray", showscale=False)
+        fig.add_heatmap(z=side_array, colorscale="gray", showscale=False, **kwargs)
 
         for module in self._detected_modules():
             add_vertical_line(
@@ -2687,12 +2699,22 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         fig.update_layout(showlegend=show_legend)
         return fig
 
-    def plot_side_view(self, axis: Axes) -> None:
-        """Plot a view of the scan from the side with lines showing detected module positions"""
+    def plot_side_view(self, axis: Axes, **kwargs) -> None:
+        """Plot a view of the scan from the side with lines showing detected module positions.
+
+        Parameters
+        ----------
+        axis: Axes
+            The axis to plot the scan to
+        kwargs
+            Arguments passed to the axis constructor.
+        """
         side_array = self.dicom_stack.side_view(axis=1)
         axis.set_yticks([])
         axis.set_title("Side View")
-        axis.imshow(side_array, aspect="auto", cmap="gray", interpolation="none")
+        axis.imshow(
+            side_array, aspect="auto", cmap="gray", interpolation="none", **kwargs
+        )
         for module in self._detected_modules():
             axis.axvline(module.slice_num)
 
