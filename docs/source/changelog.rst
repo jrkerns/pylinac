@@ -13,6 +13,13 @@ Legend
 v 3.44.0
 --------
 
+CatPhan
+^^^^^^^
+
+* :bdg-warning:`Fixed` CatPhan phantom roll detection no longer raises an error when
+  the roll cannot be determined from the air bubbles. Instead, a ``UserWarning`` is
+  emitted and the roll is set to 0.
+
 Planar Imaging
 ^^^^^^^^^^^^^^
 
