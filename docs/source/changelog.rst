@@ -27,6 +27,28 @@ Planar Imaging
   constrained Hough line transform on the detected outline edge mask, improving
   robustness compared to region-moment orientation.
 
+Helios
+^^^^^^
+
+* :bdg-success:`Feature` The GE Helios CT Daily results model now includes titled
+  top-level sections and additional summary fields in
+  :meth:`~pylinac.helios.GEHeliosCTDaily.results_data`. This includes explicit
+  keys for the contrast-scale water/plastic means, HU difference, water standard
+  deviation, per-pattern high-contrast standard deviations, aggregate low-contrast
+  mean/standard deviation, and summary noise/uniformity values such as center,
+  outer, and center-to-outer HU metrics.
+* :bdg-primary:`Refactor` The default image visualization contrast for GE Helios CT
+  Daily plots has been updated so the analyzed images and side-view rendering use
+  a consistent display window across sections with a higher level of default contrast.
+  These can be changed by setting ``HELIOS_VMIN`` and ``HELIOS_VMAX`` in ``helios.py``.
+
+General
+^^^^^^^
+
+* :bdg-success:`Feature` CT-like modules that have the ``plotly_side_view`` and ``plot_side_view``
+  methods now accept ``kwargs`` that are passed to the visualization method. This allows for more customization, such as
+  the above change setting the visualization thresholds.
+
 Geometry
 ^^^^^^^^
 
