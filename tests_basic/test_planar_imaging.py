@@ -693,10 +693,20 @@ class Elekta10MU(ElektaLasVegasMixin, TestCase):
 class DoselabMVDemo(PlanarPhantomMixin, TestCase):
     klass = DoselabMC2MV
     mtf_50 = 0.54
-    piu = 51.8
+    piu = 48.7
 
     def test_demo(self):
         DoselabMC2MV.run_demo()
+
+
+class DoseLabMVRotated(PlanarPhantomMixin, TestCase):
+    klass = DoselabMC2MV
+    dir_path = ["planar_imaging", "Doselab MC2"]
+    file_name = "rotated_MV.dcm"
+    phantom_angle = 44.6
+
+    def test_angle(self):
+        self.assertAlmostEqual(self.instance.phantom_angle, self.phantom_angle, delta=1)
 
 
 class DoselabkVDemo(PlanarPhantomMixin, TestCase):
@@ -733,6 +743,16 @@ class DoselabkV70kVp(PlanarPhantomMixin, TestCase):
 
     def test_window_floor(self):
         self.assertAlmostEqual(self.instance.window_floor(), -0.104, delta=0.01)
+
+
+class DoseLabkVRotated(PlanarPhantomMixin, TestCase):
+    klass = DoselabMC2kV
+    dir_path = ["planar_imaging", "Doselab MC2"]
+    file_name = "rotated_kV.dcm"
+    phantom_angle = 44.6
+
+    def test_angle(self):
+        self.assertAlmostEqual(self.instance.phantom_angle, self.phantom_angle, delta=1)
 
 
 class SNCkVDemo(PlanarPhantomMixin, TestCase):

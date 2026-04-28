@@ -22,6 +22,10 @@ Planar Imaging
   both matplotlib and Plotly overlays, and can be enabled via
   ``show_roi_labels=True``.  Label font size can be controlled via
   ``roi_label_font_size``.
+* :bdg-primary:`Fixed` :class:`~pylinac.planar_imaging.DoselabMC2kV` and
+  :class:`~pylinac.planar_imaging.DoselabMC2MV` phantom angle detection now uses a
+  constrained Hough line transform on the detected outline edge mask, improving
+  robustness compared to region-moment orientation.
 
 Geometry
 ^^^^^^^^

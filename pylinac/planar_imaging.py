@@ -3083,12 +3083,100 @@ class DoselabMC2kV(ImagePhantomBase):
         return math.sqrt(self.phantom_ski_region.bbox_area) * 1.214
 
     def _phantom_angle_calc(self) -> float:
+        """Estimate MC2 phantom angle from the outline via a constrained Hough line
+        transform.
+
+        ### Algorithm
+
+        1. **Define a search window** around the expected nominal angle.
+
+           - ``nominal_angle_deg`` is the expected orientation for an MC2 setup (≈ 45°).
+           - ``max_angle_deviation`` defines the full width of the search band
+             around nominal.
+           - ``angle_resolution`` defines the granularity of the Hough search grid.
+
+        2. **Run the Hough line transform** on ``roi.image`` using only that
+           constrained set of angles.
+
+        3. **Select line peaks** using :func:`skimage.transform.hough_line_peaks`
+           and enforce a minimum separation between detected peaks:
+
+           - ``min_distance_mm`` is converted to pixels via the image's dots-per-mm
+             (``dpmm``).
+           - This helps avoid counting multiple near-duplicate peaks for the same
+             physical edge.
+
+        4. **Expect exactly two dominant peaks** corresponding to two principal
+           outline directions visible in the edge mask.
+
+           - If two peaks are not found, a warning is emitted and an angle of
+             ``0.0`` is returned as a safe default (consistent with older behavior
+             that allowed analysis to proceed even when roll/angle detection is
+             inconclusive).
+
+        5. **Compute the final angle** as the mean of the two peak angles (in degrees).
+
+        Returns
+        -------
+        float
+            The estimated phantom angle in degrees.
+
+        Warnings
+        --------
+        UserWarning
+            Emitted when the algorithm cannot find exactly two distinct Hough peaks
+            within the constrained angle search window. In that case the method
+            returns ``0.0``.
+        """
+
+        # Expected MC2 angle (deg).
+        nominal_angle_deg = 45
+        # Total Hough search band width around nominal (deg).
+        max_angle_deviation = 10
+        # Hough theta sampling resolution within the band (deg).
+        angle_resolution = 0.01
+        # Minimum separation between detected peaks (mm).
+        min_distance_mm = 70
+
+        min_distance_px = int(min_distance_mm * self.image.dpmm)
+
+        half_angle_deviation = max_angle_deviation / 2
+
+        start_angle = nominal_angle_deg - half_angle_deviation
+        final_angle = nominal_angle_deg + half_angle_deviation
+
+        num_angles = int(max_angle_deviation / angle_resolution + 1)
+
+        angles_deg = np.linspace(start_angle, final_angle, num=num_angles)
+        angles_rad = np.deg2rad(angles_deg)
+
         roi = self.phantom_ski_region
-        angle = np.degrees(roi.orientation) + 90
-        if not np.isclose(angle, 45, atol=5):
-            raise ValueError(
-                "Angles not close enough to the ideal 45 degrees. Check phantom setup or override angle."
+
+        hspace, angles, dists = transform.hough_line(image=roi.image, theta=angles_rad)
+
+        _, peak_angles, _ = transform.hough_line_peaks(
+            hspace=hspace,
+            angles=angles,
+            dists=dists,
+            min_distance=min_distance_px,
+            num_peaks=2,
+        )
+
+        # cast to avoid lint warning.
+        peak_angles: np.ndarray = peak_angles
+
+        # Warning if the two edges were not detected.
+        if len(peak_angles) != 2:
+            warnings.warn(
+                "Could not determine phantom roll. Setting roll to 0.",
+                UserWarning,
             )
+            return 0.0
+
+        line_angles = np.rad2deg(peak_angles)
+        mean_angle = np.mean(line_angles)
+        angle = float(mean_angle)
+
         return angle
 
 
