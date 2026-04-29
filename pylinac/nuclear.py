@@ -825,12 +825,12 @@ class TomographicResolution(ResultsDataMixin[TomographicResolutionResults], Quaa
 
 def fwhm_from_gaussian(std: float) -> float:
     """Return the FWHM of a gaussian given its standard deviation."""
-    return 2 * math.sqrt(2 * math.log(2)) * std
+    return 2 * math.sqrt(2 * math.log(2)) * abs(std)
 
 
 def fwtm_from_gaussian(std: float) -> float:
     """Return the FWTM of a gaussian given its standard deviation."""
-    return 2 * math.sqrt(2 * math.log(10)) * std
+    return 2 * math.sqrt(2 * math.log(10)) * abs(std)
 
 
 def gaussian_fit(
