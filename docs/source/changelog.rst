@@ -32,7 +32,9 @@ Planar Imaging
 * :bdg-primary:`Fixed` :class:`~pylinac.planar_imaging.DoselabMC2kV` and
   :class:`~pylinac.planar_imaging.DoselabMC2MV` phantom angle detection now uses a
   constrained Hough line transform on the detected outline edge mask, improving
-  robustness compared to region-moment orientation.
+  robustness compared to region-moment orientation. Reported phantom rotation (and
+  any downstream metrics that depend on it) may therefore differ slightly from
+  previous versions.
 
 Helios
 ^^^^^^

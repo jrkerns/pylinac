@@ -704,6 +704,7 @@ class DoseLabMVRotated(PlanarPhantomMixin, TestCase):
     dir_path = ["planar_imaging", "Doselab MC2"]
     file_name = "rotated_MV.dcm"
     phantom_angle = 44.6
+    piu = 97
 
     def test_angle(self):
         self.assertAlmostEqual(self.instance.phantom_angle, self.phantom_angle, delta=1)
@@ -750,6 +751,7 @@ class DoseLabkVRotated(PlanarPhantomMixin, TestCase):
     dir_path = ["planar_imaging", "Doselab MC2"]
     file_name = "rotated_kV.dcm"
     phantom_angle = 44.6
+    piu = 90
 
     def test_angle(self):
         self.assertAlmostEqual(self.instance.phantom_angle, self.phantom_angle, delta=1)

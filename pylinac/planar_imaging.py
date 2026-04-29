@@ -3126,7 +3126,7 @@ class DoselabMC2kV(ImagePhantomBase):
         UserWarning
             Emitted when the algorithm cannot find exactly two distinct Hough peaks
             within the constrained angle search window. In that case the method
-            returns ``0.0``.
+            returns ``45.0``.
         """
 
         # Expected MC2 angle (deg).
@@ -3168,10 +3168,10 @@ class DoselabMC2kV(ImagePhantomBase):
         # Warning if the two edges were not detected.
         if len(peak_angles) != 2:
             warnings.warn(
-                "Could not determine phantom roll. Setting roll to 0.",
+                "Could not determine phantom roll. Setting roll to 45.",
                 UserWarning,
             )
-            return 0.0
+            return 45.0
 
         line_angles = np.rad2deg(peak_angles)
         mean_angle = np.mean(line_angles)
