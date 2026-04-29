@@ -1313,6 +1313,7 @@ class MRLowContrastModuleOutput(BaseModel):
     background_settings: dict = Field(
         description="A dictionary of the background roi settings."
     )
+    score: int = Field(description="The score of the spoke.")
     spokes: dict = Field(description="A dictionary of the spokes.")
 
 
@@ -2204,6 +2205,7 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
                 slice_num=v.slice_num + 1,
                 spoke_settings=v.roi_settings,
                 background_settings=v.background_roi_settings,
+                score=v.score,
                 spokes=v.as_dict(),
             )
 

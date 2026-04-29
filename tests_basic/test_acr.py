@@ -543,6 +543,7 @@ class ACRMRMixin(CloudFileMixin):
     geometric_profile_lengths: None | dict = None
     localizer_profile_lengths: None | dict = None
     low_contrast_score: None | int = None
+    low_contrast_score_per_slice: None | dict = None
     results: list[str] = []
     x_adjustment: float = 0
     y_adjustment: float = 0
@@ -632,6 +633,23 @@ class ACRMRMixin(CloudFileMixin):
         score = results.low_contrast_multi_slice_module.score
         self.assertEqual(score, self.low_contrast_score)
 
+    def test_low_contrast_scores(self):
+        if self.low_contrast_score_per_slice is None:
+            self.skipTest("low_contrast_score_per_slice not available")
+
+        low_contrast_multi_slice_module = (
+            self.mri.results_data().low_contrast_multi_slice_module
+        )
+        low_contrast_rois = low_contrast_multi_slice_module.low_contrast_rois
+
+        for key, value in self.low_contrast_score_per_slice.items():
+            if key not in low_contrast_rois:
+                continue
+
+            expected_score = value
+            actual_score = low_contrast_rois[key].score
+            self.assertEqual(expected_score, actual_score)
+
     def test_results(self):
         results = self.mri.results()
         self.assertIn("ACR MRI Large Results", results)
@@ -710,6 +728,12 @@ class ACRT1Single(ACRMRMixin, PlotlyTestMixin, TestCase):
     slice11_shift = 0
     psg = 0.3
     low_contrast_score = 25
+    low_contrast_score_per_slice = {
+        "slice_8": 2,
+        "slice_9": 8,
+        "slice_10": 8,
+        "slice_11": 7,
+    }
     num_figs = 10
     fig_data = {
         0: {"title": "Slice 1 (Thickness, Offset, Resolution)", "num_traces": 13},
