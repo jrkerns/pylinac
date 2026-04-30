@@ -200,13 +200,18 @@ class CollimatorDeviation:
     angle_nominal: float
     points: tuple[Point, Point]
 
-    @property
-    def angle_measured(self) -> float:
-        dy = self.points[1].y - self.points[0].y
-        dx = self.points[1].x - self.points[0].x
+    @staticmethod
+    def calculate_angle_measured(point1: Point, point2: Point) -> float:
+        """Calculate the measured IEC angle between two points."""
+        dy = point2.y - point1.y
+        dx = point2.x - point1.x
         angle_im = np.arctan2(dy, dx)
         angle_iec = -(np.rad2deg(angle_im) + 90) % 360
-        return angle_iec
+        return float(angle_iec)
+
+    @property
+    def angle_measured(self) -> float:
+        return self.calculate_angle_measured(self.points[0], self.points[1])
 
     @property
     def angle_deviation(self) -> float:
@@ -1014,11 +1019,21 @@ class DRCS(VMATBase):
         collimator_config: dict[str, float],
         collimator_radial_distances: tuple[float, float],
     ):
-        num_angles = len(collimator_config)
+        num_config_angles = len(collimator_config)
+        if num_config_angles < 1:
+            self.collimator_deviations = []
+            return
+
+        # Determine a robust minimum peak spacing based on configured angles.
+        # The config dict may be in any insertion order.
         nominal_angles = np.fromiter(collimator_config.values(), dtype=float)
-        max_diff_angle = max(np.abs(wrap180(np.diff(nominal_angles))))
+        sorted_angles = np.sort(nominal_angles)
+        gaps = np.diff(sorted_angles)
+        wrap_gap = (sorted_angles[0] + 360) - sorted_angles[-1]
+        max_diff_angle = min(np.min(gaps), wrap_gap)
+
         crd_px = np.array(collimator_radial_distances) * self.dmlc_image.dpmm
-        peaks = list()
+        peaks: list[list[Point]] = []
         for crd in crd_px:
             circle_profile = CircleProfile(
                 center=self.dmlc_image.center,
@@ -1027,15 +1042,44 @@ class DRCS(VMATBase):
                 start_angle=math.pi / 2,  # start in the "empty" region and go CCW
             )
             min_distance = 2 * np.pi * crd / 360 * 0.9 * max_diff_angle
-            circle_profile.find_peaks(min_distance=min_distance, max_number=num_angles)
-            if len(circle_profile.peaks) != num_angles:
-                raise ValueError("Could not detect collimator lines.")
+            circle_profile.find_peaks(min_distance=min_distance, threshold=0.8)
             peaks.append(circle_profile.peaks)
 
-        self.collimator_deviations = list[CollimatorDeviation]()
-        for config, points in zip(collimator_config.items(), np.array(peaks).T):
-            cd = CollimatorDeviation(config[0], config[1], (points[0], points[1]))
-            self.collimator_deviations.append(cd)
+        if not peaks:
+            raise ValueError("Could not detect collimator lines.")
+
+        num_detected = len(peaks[0])
+        if any(len(p) != num_detected for p in peaks):
+            raise ValueError(
+                "Could not consistently detect collimator lines across radii. "
+                f"Detected {[len(p) for p in peaks]} peaks across radii."
+            )
+
+        if num_config_angles > num_detected:
+            raise ValueError(
+                f"Configured {num_config_angles} collimator spokes but only detected "
+                f"{num_detected}. Check image quality / analysis settings or reduce "
+                "collimator_config."
+            )
+
+        candidate_points = np.array(peaks).T  # shape: (num_detected, num_radii)
+        measured_angles = np.array(
+            [
+                CollimatorDeviation.calculate_angle_measured(pts[0], pts[1])
+                for pts in candidate_points
+            ],
+            dtype=float,
+        )
+
+        # For each configured spoke, pick the closest measured angle.
+        self.collimator_deviations = []
+        for name, nominal in collimator_config.items():
+            deltas = np.abs(wrap180(measured_angles - float(nominal)))
+            best_idx = int(np.argmin(deltas))
+            pts = candidate_points[best_idx]
+            self.collimator_deviations.append(
+                CollimatorDeviation(name, float(nominal), (pts[0], pts[1]))
+            )
 
     @staticmethod
     def run_demo():

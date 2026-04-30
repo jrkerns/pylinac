@@ -711,6 +711,57 @@ class TestDRCS(VMATMixin, PlotlyTestMixin, TestCase):
         results = self.instance._generate_results_data()
         self.assertEqual(6, len(results.collimator_data))
 
+    def test_spoke_config_reordered(self):
+        old_drcs = DRCS.from_demo_images()
+        old_config = old_drcs.default_collimator_config
+        num_config = len(old_config)
+        old_order = range(num_config)
+        old_drcs.analyze(collimator_config=old_config)
+        old_results = old_drcs._generate_results_data()
+        old_collimator_data = old_results.collimator_data
+        old_angle_deviation = []
+        for v in old_collimator_data.values():
+            angle_deviation = v.angle_deviation
+            old_angle_deviation.append(angle_deviation)
+
+        new_order = old_order[::-1]
+        new_config = dict()
+        keys = list(old_config.keys())
+        values = list(old_config.values())
+        for old, new in zip(old_order, new_order):
+            new_config[keys[old]] = values[new]
+        new_drcs = DRCS.from_demo_images()
+        new_drcs.analyze(collimator_config=new_config)
+        new_results = new_drcs._generate_results_data()
+        new_collimator_data = new_results.collimator_data
+        new_angle_deviation = []
+        for v in new_collimator_data.values():
+            angle_deviation = v.angle_deviation
+            new_angle_deviation.append(angle_deviation)
+
+        for old, new in zip(old_order, new_order):
+            expected_angle_deviation = old_angle_deviation[old]
+            actual_angle_deviation = new_angle_deviation[new]
+            self.assertEqual(expected_angle_deviation, actual_angle_deviation)
+
+    def test_spoke_config_less_than_found(self):
+        drcs = DRCS.from_demo_images()
+        config = dict(drcs.default_collimator_config)
+        config.pop("F")
+        drcs.analyze(collimator_config=config)
+        results = drcs._generate_results_data()
+        collimator_data = results.collimator_data
+        expected_num_spokes = len(config)
+        actual_num_spokes = len(collimator_data)
+        self.assertEqual(expected_num_spokes, actual_num_spokes)
+
+    def test_error_if_too_many_spoke_config(self):
+        drcs = DRCS.from_demo_images()
+        config = dict(drcs.default_collimator_config)
+        config["G"] = 0
+        with self.assertRaises(ValueError):
+            drcs.analyze(collimator_config=config)
+
 
 class TestDRCSReverse(TestDRCS):
     """Test image identification independent of order."""
