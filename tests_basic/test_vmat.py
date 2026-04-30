@@ -690,7 +690,7 @@ class TestDRCS(VMATMixin, PlotlyTestMixin, TestCase):
         1: Point(723.37, 520.09),
         0: Point(723.37, 668.91),
     }
-    collimator_deviations = (-0.163, -0.001, -0.322, -0.162, -0.001, -0.321)
+    collimator_deviations = (-0.321, -0.001, -0.162, -0.322, -0.001, -0.163)
 
     avg_abs_r_deviation = 0.24
     max_r_deviation = 0.38

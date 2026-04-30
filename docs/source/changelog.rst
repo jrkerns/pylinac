@@ -45,6 +45,13 @@ Helios
   a consistent display window across sections with a higher level of default contrast.
   These can be changed by setting ``HELIOS_VMIN`` and ``HELIOS_VMAX`` in ``helios.py``.
 
+VMAT
+^^^^
+
+* :bdg-warning:`Fixed` The :class:`~pylinac.vmat.DRCS` default spoke labeling
+  convention has been modified, i.e, ``A=150°``, ``B=90°``, ``C=30°``, ``D=330°``,
+  ``E=270°``, ``F=210°``.
+
 General
 ^^^^^^^
 

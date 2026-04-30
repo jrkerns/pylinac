@@ -896,7 +896,7 @@ class DRCS(VMATBase):
 
     @property
     def default_collimator_config(self) -> dict[str, float]:
-        return {"A": 210, "B": 270, "C": 330, "D": 30, "E": 90, "F": 150}  # IEC
+        return {"A": 150, "B": 90, "C": 30, "D": 330, "E": 270, "F": 210}  # IEC
 
     @property
     def default_collimator_radial_distances(self) -> tuple[float, float]:
