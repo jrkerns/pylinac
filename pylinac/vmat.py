@@ -912,7 +912,7 @@ class DRCS(VMATBase):
         tolerance: float | int = 1.5,  # Segments, in %
         segment_size_mm: tuple | None = None,
         roi_config: dict | None = None,
-        collimator_radial_distances: dict | None = None,
+        collimator_radial_distances: tuple[float, float] | None = None,
         collimator_config: dict | None = None,
     ):
         super().analyze(tolerance, segment_size_mm, roi_config)
