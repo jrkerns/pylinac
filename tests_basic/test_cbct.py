@@ -240,6 +240,17 @@ class TestGeneral(TestCase):
         ct.analyze(origin_slice=46)  # automatic slice is 45
         self.assertEqual(ct.origin_slice, 46)
 
+    def test_passing_phantom_roll_works(self):
+        ct = CatPhan504.from_demo_images()
+        ct.analyze(phantom_roll=3.5)
+        self.assertEqual(ct.catphan_roll, 3.5)
+
+    def test_passing_phantom_roll_skips_auto_detection(self):
+        ct = CatPhan504.from_demo_images()
+        ct.find_phantom_roll = lambda: self.fail("phantom roll auto-detection ran")
+        ct.analyze(phantom_roll=-2.25)
+        self.assertEqual(ct.catphan_roll, -2.25)
+
 
 class Test503Quaac(QuaacTestBase, TestCase):
     def quaac_instance(self):
