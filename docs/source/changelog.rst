@@ -20,6 +20,13 @@ CatPhan
   the roll cannot be determined from the air bubbles. Instead, a ``UserWarning`` is
   emitted and the roll is set to 0.
 
+ACR Phantoms
+^^^^^^^^^^^^
+
+* :bdg-success:`Feature` :class:`~pylinac.acr.ACRMRILarge` low-contrast detectability
+  results now include per-slice spoke scores in :meth:`~pylinac.acr.ACRMRILarge.results_data`
+  (``low_contrast_multi_slice_module.low_contrast_rois[*].score``).
+
 Planar Imaging
 ^^^^^^^^^^^^^^
 
