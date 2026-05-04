@@ -3589,6 +3589,16 @@ class ACRDigitalMammography(ImagePhantomBase):
 
             img_lab = measure.label(img_clo)
             regions = measure.regionprops(img_lab, intensity_image=img_clo)
+            regions = [region for region in regions if region.axis_minor_length > 0]
+            orientation_candidates = [
+                region
+                for region in regions
+                if abs(np.rad2deg(region.orientation) - fiber_orientation)
+                <= fiber_orientation_tolerance
+                and region.axis_major_length / region.axis_minor_length > 2
+            ]
+            if orientation_candidates:
+                regions = orientation_candidates
             self.region = sorted(regions, key=lambda r: r.axis_major_length)[-1]
 
             self.fiber_length = self.region.axis_major_length * pixel_size
@@ -4778,6 +4788,190 @@ class ACRDigitalMammography(ImagePhantomBase):
         canvas.finish()
         if open_file:
             webbrowser.open(filename)
+
+
+@capture_warnings
+class SmallACRMammography(ACRDigitalMammography):
+    """Small/square ACR Mammography QC phantom."""
+
+    common_name = "Small ACR Mammography"
+    _demo_filename = "SmallACRMammography.dcm"
+    phantom_bbox_size_mm2 = 70 * 70
+    roi_match_condition = "closest"
+    detection_canny_settings = {"sigma": 5, "percentiles": (0.001, 0.01)}
+    detection_conditions = [is_square]
+    phantom_outline_object = {"Rectangle": {"width ratio": 70, "height ratio": 70}}
+    low_contrast_background_roi_settings = {
+        "roi 1": {"x offset": 15, "y offset": -24, "roi radius": 3.00},
+        "roi 2": {"x offset": 15, "y offset": -12, "roi radius": 3.00},
+        "roi 3": {"x offset": 15, "y offset": 0, "roi radius": 3.00},
+        "roi 4": {"x offset": 15, "y offset": 12, "roi radius": 3.00},
+        "roi 5": {"x offset": 15, "y offset": 24, "roi radius": 3.00},
+    }
+    low_contrast_roi_settings = {
+        "roi 1": {"x offset": 27, "y offset": -24, "roi radius": 3.50},
+        "roi 2": {"x offset": 27, "y offset": -12, "roi radius": 2.75},
+        "roi 3": {"x offset": 27, "y offset": 0, "roi radius": 2.25},
+        "roi 4": {"x offset": 27, "y offset": 12, "roi radius": 1.75},
+        "roi 5": {"x offset": 27, "y offset": 24, "roi radius": 1.25},
+    }
+    speck_group_roi_settings = {
+        "roi 1": {
+            "x offset": -10,
+            "y offset": -24,
+            "size": 16.0,
+            "speck_diameter": 0.54,
+        },
+        "roi 2": {
+            "x offset": -10,
+            "y offset": -12,
+            "size": 16.0,
+            "speck_diameter": 0.40,
+        },
+        "roi 3": {"x offset": -10, "y offset": 0, "size": 16.0, "speck_diameter": 0.32},
+        "roi 4": {
+            "x offset": -10,
+            "y offset": 12,
+            "size": 16.0,
+            "speck_diameter": 0.24,
+        },
+        "roi 5": {
+            "x offset": -10,
+            "y offset": 24,
+            "size": 16.0,
+            "speck_diameter": 0.16,
+        },
+    }
+    fibers_roi_settings = {
+        "roi 1": {
+            "x offset": -27,
+            "y offset": 24,
+            "size": 14.0,
+            "fiber_diameter": 1.56,
+            "fiber_orientation": 45,
+        },
+        "roi 2": {
+            "x offset": -24,
+            "y offset": 20,
+            "size": 14.0,
+            "fiber_diameter": 1.12,
+            "fiber_orientation": 45,
+        },
+        "roi 3": {
+            "x offset": -21,
+            "y offset": 16,
+            "size": 14.0,
+            "fiber_diameter": 0.89,
+            "fiber_orientation": 45,
+        },
+        "roi 4": {
+            "x offset": -18,
+            "y offset": 12,
+            "size": 14.0,
+            "fiber_diameter": 0.75,
+            "fiber_orientation": 45,
+        },
+        "roi 5": {
+            "x offset": -15,
+            "y offset": 8,
+            "size": 14.0,
+            "fiber_diameter": 0.54,
+            "fiber_orientation": 45,
+        },
+        "roi 6": {
+            "x offset": -12,
+            "y offset": 4,
+            "size": 14.0,
+            "fiber_diameter": 0.40,
+            "fiber_orientation": 45,
+        },
+    }
+
+    def _sample_low_contrast_rois(self) -> list[LowContrastDiskROI]:
+        """Sample the small ACR mass ROIs."""
+        return [
+            self._sample_low_contrast_roi_from_offsets(
+                stng=stng,
+                background_value=self.low_contrast_background_value,
+            )
+            for stng in self.low_contrast_roi_settings.values()
+        ]
+
+    def _sample_low_contrast_background_rois(
+        self,
+    ) -> tuple[list[LowContrastDiskROI], float]:
+        """Sample the small ACR mass background ROIs."""
+        bg_rois = [
+            self._sample_low_contrast_roi_from_offsets(stng=stng)
+            for stng in self.low_contrast_background_roi_settings.values()
+        ]
+        return bg_rois, np.mean([roi.pixel_value for roi in bg_rois])
+
+    def _sample_low_contrast_roi_from_offsets(
+        self, stng: dict, background_value: float | None = None
+    ) -> LowContrastDiskROI:
+        tform_phan_global = transform.EuclideanTransform(
+            rotation=np.deg2rad(self.phantom_angle),
+            translation=[self.phantom_center.x, self.phantom_center.y],
+        )
+        tform_roi_phan = transform.EuclideanTransform(
+            translation=[
+                self.dpmm * stng["x offset"],
+                self.dpmm * stng["y offset"],
+            ]
+        )
+        tform_roi_global = tform_roi_phan + tform_phan_global
+        return LowContrastDiskROI(
+            self.image,
+            self.dpmm * stng["roi radius"] * self.roi_size_factor,
+            Point(tform_roi_global.translation),
+            self._low_contrast_threshold,
+            background_value,
+            contrast_method=self._low_contrast_method,
+            visibility_threshold=self.visibility_threshold,
+        )
+
+    @staticmethod
+    def run_demo():
+        """Run the Small ACR Mammography QC phantom analysis demonstration."""
+        acr = SmallACRMammography.from_demo_image()
+        acr.analyze()
+        acr.plot_analyzed_image()
+
+    @cached_property
+    def phantom_ski_region(self) -> RegionProperties:
+        """The skimage region of the square phantom outline."""
+        regions = self._get_canny_regions()
+        image_area = self.image.shape[0] * self.image.shape[1]
+        sorted_regions = (
+            Enumerable(regions)
+            .where(lambda region: region.area_bbox > 100)
+            .where(lambda region: region.area_bbox < image_area * 0.85)
+            .order_by_descending(lambda region: region.area_bbox)
+            .to_list()
+        )
+
+        square_regions = [
+            region for region in sorted_regions if is_square(region, self, rtol=0.45)
+        ]
+        if not square_regions:
+            square_regions = [
+                region for region in sorted_regions if is_square(region, self, rtol=0.7)
+            ]
+        if not square_regions:
+            raise ValueError(
+                "Unable to find the small ACR phantom in the image. No square-like "
+                "Canny edge region was detected. Try passing center_override and "
+                "size_override, or adjust the SSD if the DICOM geometry is incorrect."
+            )
+
+        return min(
+            square_regions,
+            key=lambda region: abs(region.area_bbox - self.phantom_bbox_size_px),
+        )
+
+
+smallAcRMammography = SmallACRMammography
 
 
 def take_centermost_roi(rprops: list[RegionProperties], image_shape: tuple[int, int]):

@@ -5,13 +5,14 @@ import os.path as osp
 import tempfile
 from collections.abc import Callable, Generator
 from pathlib import Path
-from unittest import TestCase, skip
+from unittest import SkipTest, TestCase, skip
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.figure import Figure
 from plotly import graph_objects as go
 from scipy.ndimage import rotate
+from skimage import measure
 
 from pylinac import (
     DoselabMC2kV,
@@ -34,10 +35,12 @@ from pylinac.planar_imaging import (
     IsoAlign,
     LeedsTORBlue,
     PlanarResult,
+    SmallACRMammography,
     SNCkV,
     StandardImagingFC2,
     StandardImagingQCkV,
     percent_integral_uniformity,
+    smallAcRMammography,
 )
 from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
 from tests_basic.utils import (
@@ -1296,6 +1299,7 @@ class ACRDigitalMammographyTestMixin(PlanarPhantomMixin):
     klass = ACRDigitalMammography
     dir_path = ["planar_imaging", "ACRMammography"]
     low_contrast_visibility_threshold = 20
+    expected_num_figs: int | None = None
     num_figs = 4
     speck_group_score: float | None = None
     fiber_score: float | None = None
@@ -1334,7 +1338,13 @@ class ACRDigitalMammographyTestMixin(PlanarPhantomMixin):
     def test_plotting(self):
         """Overridden because we pass independent figures and do not have the `split_plots` parameter"""
         figs, names = self.instance.plot_analyzed_image()
-        self.assertEqual(len(figs), 22)
+        expected_num_figs = self.expected_num_figs or (
+            4
+            + len(self.instance.low_contrast_rois)
+            + len(self.instance.speck_groups)
+            + len(self.instance.fibers)
+        )
+        self.assertEqual(len(figs), expected_num_figs)
         self.assertIsInstance(figs[0], Figure)
         self.assertIsInstance(names[0], str)
 
@@ -1442,7 +1452,13 @@ class ACRDigitalMammographyTestMixin(PlanarPhantomMixin):
         os.chdir(tmpdir)
         self.instance.save_analyzed_image(to_stream=False)
         files = list(Path(tmpdir).glob(pattern="ACR_mammography_*.png"))
-        self.assertEqual(len(files), 22)
+        expected_num_figs = self.expected_num_figs or (
+            4
+            + len(self.instance.low_contrast_rois)
+            + len(self.instance.speck_groups)
+            + len(self.instance.fibers)
+        )
+        self.assertEqual(len(files), expected_num_figs)
 
 
 class ACRDigitalMammographyDemo(ACRDigitalMammographyTestMixin, TestCase):
@@ -1488,6 +1504,88 @@ class ACRDigitalMammographySlightlyRotatedLowExposure(
     rois_seen = 3
     speck_group_score = 3.0
     fiber_score = 3.0
+
+
+class SmallACRMammographyConfiguration(TestCase):
+    def test_configuration(self):
+        self.assertTrue(issubclass(SmallACRMammography, ACRDigitalMammography))
+        self.assertIs(smallAcRMammography, SmallACRMammography)
+        self.assertEqual(SmallACRMammography.common_name, "Small ACR Mammography")
+        self.assertEqual(len(SmallACRMammography.low_contrast_roi_settings), 5)
+        self.assertEqual(
+            len(SmallACRMammography.low_contrast_background_roi_settings), 5
+        )
+        self.assertEqual(len(SmallACRMammography.speck_group_roi_settings), 5)
+        self.assertEqual(len(SmallACRMammography.fibers_roi_settings), 6)
+        outline = SmallACRMammography.phantom_outline_object["Rectangle"]
+        self.assertEqual(outline["width ratio"], outline["height ratio"])
+
+    def test_component_geometry_orientation(self):
+        mass_y_offsets = [
+            settings["y offset"]
+            for settings in SmallACRMammography.low_contrast_roi_settings.values()
+        ]
+        speck_y_offsets = [
+            settings["y offset"]
+            for settings in SmallACRMammography.speck_group_roi_settings.values()
+        ]
+        fiber_x_offsets = [
+            settings["x offset"]
+            for settings in SmallACRMammography.fibers_roi_settings.values()
+        ]
+        fiber_y_offsets = [
+            settings["y offset"]
+            for settings in SmallACRMammography.fibers_roi_settings.values()
+        ]
+
+        self.assertEqual(mass_y_offsets, sorted(mass_y_offsets))
+        self.assertEqual(speck_y_offsets, sorted(speck_y_offsets))
+        self.assertEqual(fiber_x_offsets, sorted(fiber_x_offsets))
+        self.assertEqual(fiber_y_offsets, sorted(fiber_y_offsets, reverse=True))
+
+    def test_square_region_detection_does_not_require_exact_size(self):
+        edge_image = np.zeros((300, 300), dtype=bool)
+        edge_image[20:220, 20] = True
+        edge_image[20:220, 70] = True
+        edge_image[20, 20:70] = True
+        edge_image[219, 20:70] = True
+        edge_image[80:180, 100] = True
+        edge_image[80:180, 199] = True
+        edge_image[80, 100:200] = True
+        edge_image[179, 100:200] = True
+        regions = measure.regionprops(
+            measure.label(edge_image), intensity_image=edge_image.astype(float)
+        )
+
+        class FakeImage:
+            shape = (300, 300)
+            dpmm = 2
+            sad = 1000
+
+        instance = SmallACRMammography.__new__(SmallACRMammography)
+        instance.image = FakeImage()
+        instance._ssd = 1000
+        instance._get_canny_regions = lambda: regions
+
+        self.assertEqual(instance.phantom_ski_region.bbox, (80, 100, 180, 200))
+
+
+class SmallACRMammographyTestMixin(ACRDigitalMammographyTestMixin):
+    klass = SmallACRMammography
+    expected_num_figs = 20
+    instance: SmallACRMammography
+
+
+class SmallACRMammographyLocal(SmallACRMammographyTestMixin, TestCase):
+    @classmethod
+    def create_instance(cls):
+        filename = os.environ.get("PYLINAC_SMALL_ACR_MAMMOGRAPHY_FILE")
+        if not filename:
+            raise SkipTest(
+                "Set PYLINAC_SMALL_ACR_MAMMOGRAPHY_FILE to a square ACR "
+                "mammography DICOM path to run the full small ACR test."
+            )
+        return cls.klass(filename)
 
 
 class TestLasVegasResultsData(ResultsDataBase, TestCase):

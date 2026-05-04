@@ -23,6 +23,8 @@ CatPhan
 Planar Imaging
 ^^^^^^^^^^^^^^
 
+* :bdg-success:`Feature` Added :class:`~pylinac.planar_imaging.SmallACRMammography`
+  for analyzing the square Small ACR Mammography phantom.
 * :bdg-success:`Feature` Added on-image labels for low- and high-contrast
   ROIs in planar phantom plots.
   Labels are shown as ``LC0``, ``LC1``, ... and ``HC0``, ``HC1``, ... on

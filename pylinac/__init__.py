@@ -39,10 +39,12 @@ from .planar_imaging import (
     LasVegas,
     LeedsTOR,
     LeedsTORBlue,
+    SmallACRMammography,
     SNCkV,
     StandardImagingFC2,
     StandardImagingQC3,
     StandardImagingQCkV,
+    smallAcRMammography,
 )
 from .quart import HypersightQuartDVT, QuartDVT
 from .starshot import Starshot

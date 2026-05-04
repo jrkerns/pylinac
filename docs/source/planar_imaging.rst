@@ -42,6 +42,8 @@ Feature table
 +-------------------+------------------+-------------+----------------+---------------------------+
 | ACR Digital Mammo | No               | Manual      | Yes            | No (0)                    |
 +-------------------+------------------+-------------+----------------+---------------------------+
+| Small ACR Mammo   | No               | Manual      | Yes            | No (0)                    |
++-------------------+------------------+-------------+----------------+---------------------------+
 
 .. _typical_planar_usage:
 
@@ -1028,6 +1030,25 @@ The ACR Digital Mammography phantom is composed of 3 test objects: Masses, Speck
   #. Regionprops -- detect the blob most likely to be the fiber.
   #. Length -- calculate the length of the fiber as the length of the major axis of the ellipse in regionprops.
 
+Small ACR Mammography
+---------------------
+
+.. warning:: This phantom analysis is still in beta. The parameters may change in future releases.
+
+The Small ACR Mammography phantom is the square ACR mammography phantom. It uses the same mass,
+speck group, and fiber scoring algorithms as :class:`~pylinac.planar_imaging.ACRDigitalMammography`,
+but uses the square phantom outline and small-phantom test object locations.
+
+To test a local image, pass the image path directly:
+
+.. code-block:: python
+
+        from pylinac.planar_imaging import SmallACRMammography
+
+        acr = SmallACRMammography("my_small_acr_mammo.dcm")
+        acr.analyze()
+        print(acr.results())
+
 
 Standard Imaging FC-2
 ---------------------
@@ -1863,6 +1884,9 @@ API Documentation
     :inherited-members:
 
 .. autoclass:: pylinac.planar_imaging.ACRDigitalMammography
+    :inherited-members:
+
+.. autoclass:: pylinac.planar_imaging.SmallACRMammography
     :inherited-members:
 
 .. autopydantic_model:: pylinac.planar_imaging.ACRDigitalMammographyResult
