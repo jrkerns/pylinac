@@ -712,36 +712,26 @@ class TestDRCS(VMATMixin, PlotlyTestMixin, TestCase):
         self.assertEqual(6, len(results.collimator_data))
 
     def test_spoke_config_reordered(self):
-        old_drcs = DRCS.from_demo_images()
-        old_config = old_drcs.default_collimator_config
-        num_config = len(old_config)
-        old_order = range(num_config)
-        old_drcs.analyze(collimator_config=old_config)
-        old_results = old_drcs._generate_results_data()
-        old_collimator_data = old_results.collimator_data
-        old_angle_deviation = []
-        for v in old_collimator_data.values():
-            angle_deviation = v.angle_deviation
-            old_angle_deviation.append(angle_deviation)
+        baseline_drcs = DRCS.from_demo_images()
+        baseline_config = baseline_drcs.default_collimator_config
+        baseline_drcs.analyze(collimator_config=baseline_config)
+        baseline_results = baseline_drcs._generate_results_data()
+        baseline_collimator_data = baseline_results.collimator_data
+        baseline_angle_deviation = {
+            name: result.angle_deviation
+            for name, result in baseline_collimator_data.items()
+        }
 
-        new_order = old_order[::-1]
-        new_config = dict()
-        keys = list(old_config.keys())
-        values = list(old_config.values())
-        for old, new in zip(old_order, new_order):
-            new_config[keys[old]] = values[new]
-        new_drcs = DRCS.from_demo_images()
-        new_drcs.analyze(collimator_config=new_config)
-        new_results = new_drcs._generate_results_data()
-        new_collimator_data = new_results.collimator_data
-        new_angle_deviation = []
-        for v in new_collimator_data.values():
-            angle_deviation = v.angle_deviation
-            new_angle_deviation.append(angle_deviation)
+        reordered_config = {
+            name: angle for name, angle in reversed(list(baseline_config.items()))
+        }
+        reordered_drcs = DRCS.from_demo_images()
+        reordered_drcs.analyze(collimator_config=reordered_config)
+        reordered_results = reordered_drcs._generate_results_data()
+        reordered_collimator_data = reordered_results.collimator_data
 
-        for old, new in zip(old_order, new_order):
-            expected_angle_deviation = old_angle_deviation[old]
-            actual_angle_deviation = new_angle_deviation[new]
+        for name, expected_angle_deviation in baseline_angle_deviation.items():
+            actual_angle_deviation = reordered_collimator_data[name].angle_deviation
             self.assertEqual(expected_angle_deviation, actual_angle_deviation)
 
     def test_spoke_config_less_than_found(self):

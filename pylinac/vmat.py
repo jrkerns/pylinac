@@ -915,6 +915,25 @@ class DRCS(VMATBase):
         collimator_radial_distances: tuple[float, float] | None = None,
         collimator_config: dict | None = None,
     ):
+        """Analyze DRCS images and compute segment and spoke deviations.
+
+        Parameters
+        ----------
+        tolerance
+            Percent tolerance used for segment pass/fail determination.
+        segment_size_mm
+            Segment width/height in mm. If ``None``, uses
+            :attr:`default_segment_size_mm`.
+        roi_config
+            Mapping of ROI names to ROI geometry. If ``None``, uses
+            :attr:`default_roi_config`.
+        collimator_radial_distances
+            Two radii (in mm) used to sample collimator spokes. If ``None``,
+            uses :attr:`default_collimator_radial_distances`.
+        collimator_config
+            Mapping of spoke label to nominal angle in degrees. If ``None``,
+            uses :attr:`default_collimator_config`.
+        """
         super().analyze(tolerance, segment_size_mm, roi_config)
         cc = collimator_config or self.default_collimator_config
         crd = collimator_radial_distances or self.default_collimator_radial_distances
@@ -1030,7 +1049,7 @@ class DRCS(VMATBase):
         sorted_angles = np.sort(nominal_angles)
         gaps = np.diff(sorted_angles)
         wrap_gap = (sorted_angles[0] + 360) - sorted_angles[-1]
-        max_diff_angle = min(np.min(gaps), wrap_gap)
+        min_diff_angle = min(np.min(gaps), wrap_gap)
 
         crd_px = np.array(collimator_radial_distances) * self.dmlc_image.dpmm
         peaks: list[list[Point]] = []
@@ -1041,7 +1060,7 @@ class DRCS(VMATBase):
                 image_array=self.ratio_image,
                 start_angle=math.pi / 2,  # start in the "empty" region and go CCW
             )
-            min_distance = 2 * np.pi * crd / 360 * 0.9 * max_diff_angle
+            min_distance = 2 * np.pi * crd / 360 * 0.9 * min_diff_angle
             circle_profile.find_peaks(min_distance=min_distance, threshold=0.8)
             peaks.append(circle_profile.peaks)
 
