@@ -64,6 +64,15 @@ Nuclear
 * :bdg-warning:`Fixed` Four Bar spatial resolution FWHM/FWTM values no longer become
   negative when the Gaussian curve fit returns a negative standard deviation.
 
+VMAT
+^^^^
+
+* :bdg-warning:`Fixed` The :class:`~pylinac.vmat.DRCS` default spoke labeling
+  convention has been modified, i.e, ``A=150°``, ``B=90°``, ``C=30°``, ``D=330°``,
+  ``E=270°``, ``F=210°``. Because labels are now mapped to the correct nominal
+  spoke angles, users may observe different per-spoke DRCS deviation values than
+  in prior versions.
+
 General
 ^^^^^^^
 
