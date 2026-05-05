@@ -1100,6 +1100,129 @@ class DRCS(VMATBase):
                 CollimatorDeviation(name, float(nominal), (pts[0], pts[1]))
             )
 
+    def _plot_analyzed_subimage(
+        self,
+        subimage: ImageType,
+        show: bool = True,
+        ax: plt.Axes | None = None,
+        show_text: bool = True,
+    ):
+        """Plot one DRCS analysis subimage with DRCS-specific overlays.
+
+        This override keeps the standard VMAT plotting behavior from
+        :class:`~pylinac.vmat.VMATBase` and then adds a DRCS-only visual
+        diagnostic: the detected collimator line segments used for collimator
+        angle deviation calculations. The added lines are drawn only on the
+        DMLC panel because the spoke/line extraction is based on the DRCS DMLC
+        spoke structure and is not intended to annotate the Open image.
+
+        The method is intentionally narrow in scope:
+
+        * It delegates baseline image and ROI plotting to the base
+          implementation.
+        * It overlays line segments corresponding to
+          ``self.collimator_deviations`` when the requested subimage is DMLC.
+        * It preserves existing show/no-show semantics used throughout VMAT
+          plotting and PDF generation.
+
+        Parameters
+        ----------
+        subimage : ImageType
+            Which subimage to render. Supported values are the VMAT image
+            panels (Open, DMLC, and Profile), although DRCS collimator line
+            overlays are applied only when ``subimage`` is
+            :attr:`~pylinac.vmat.ImageType.DMLC`.
+        show : bool
+            Whether to show the matplotlib figure immediately after plotting.
+            If ``False``, the caller can further customize the axes before
+            rendering or saving.
+        ax : matplotlib.axes.Axes, optional
+            Axis to draw on. If not provided, a new figure/axis pair is
+            created.
+        show_text : bool
+            Whether to draw ROI labels/text for the baseline VMAT segment
+            annotations.
+        """
+        plt.ioff()
+        if ax is None:
+            _, ax = plt.subplots()
+
+        super()._plot_analyzed_subimage(
+            subimage=subimage, show=False, ax=ax, show_text=show_text
+        )
+
+        if subimage == ImageType.DMLC:
+            for collimator_line in self.collimator_deviations:
+                p1, p2 = collimator_line.points
+                ax.plot(
+                    [p1.x, p2.x],
+                    [p1.y, p2.y],
+                    color="blue",
+                    linewidth=2.0,
+                )
+        if show:
+            plt.show()
+
+    def plotly_analyzed_images(
+        self,
+        show: bool = True,
+        show_colorbar: bool = True,
+        show_legend: bool = True,
+        **kwargs,
+    ) -> dict[str, go.Figure]:
+        """Plot DRCS analyzed images and append DRCS collimator line overlays.
+
+        This method first calls the VMAT base implementation to build the
+        standard Open, DMLC, and profile Plotly figures (including ROI segment
+        annotations). It then adds DRCS-specific collimator line overlays to
+        the DMLC figure only, using the endpoints stored in
+        ``self.collimator_deviations``.
+
+        Restricting the overlays to the DMLC panel mirrors the DRCS
+        measurement workflow and avoids implying that the lines are derived
+        from the Open image. This behavior also matches the matplotlib DRCS
+        override so users see consistent visual diagnostics across plotting
+        backends.
+
+        Parameters
+        ----------
+        show : bool
+            Whether to display the resulting Plotly figures immediately.
+        show_colorbar : bool
+            Whether the base image traces should display a colorbar.
+        show_legend : bool
+            Whether legends should be shown for base traces.
+        **kwargs
+            Additional keyword arguments forwarded to the base plotting call.
+
+        Returns
+        -------
+        dict[str, plotly.graph_objects.Figure]
+            A mapping of figure names (``"Open"``, ``"DMLC"``, and
+            ``"Profile"``) to Plotly figures containing DRCS analysis
+            annotations.
+        """
+        figs = super().plotly_analyzed_images(
+            show=False, show_colorbar=show_colorbar, show_legend=show_legend, **kwargs
+        )
+
+        for collimator_line in self.collimator_deviations:
+            p1, p2 = collimator_line.points
+            figs["DMLC"].add_trace(
+                go.Scatter(
+                    x=[p1.x, p2.x],
+                    y=[p1.y, p2.y],
+                    mode="lines",
+                    line={"color": "blue", "width": 2},
+                    showlegend=False,
+                )
+            )
+
+        if show:
+            for fig in figs.values():
+                fig.show()
+        return figs
+
     @staticmethod
     def run_demo():
         """Run the demo for the Dose Rate & Collimator Speed test."""
