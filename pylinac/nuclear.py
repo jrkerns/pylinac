@@ -825,12 +825,22 @@ class TomographicResolution(ResultsDataMixin[TomographicResolutionResults], Quaa
 
 def fwhm_from_gaussian(std: float) -> float:
     """Return the FWHM of a gaussian given its standard deviation."""
-    return 2 * math.sqrt(2 * math.log(2)) * std
+    # In this scenario, std is not really derived from the statistical spread.
+    # Instead, it’s derived from a curve fitting process where std is just another
+    # parameter of the fitting. Because the model uses std^2, then a negative value
+    # is just as good fit as a positive value. A way to fix it would have been to
+    # apply bounds during the curve fitting, but per RAM-5863 using abs() was preferred.
+    return 2 * math.sqrt(2 * math.log(2)) * abs(std)
 
 
 def fwtm_from_gaussian(std: float) -> float:
     """Return the FWTM of a gaussian given its standard deviation."""
-    return 2 * math.sqrt(2 * math.log(10)) * std
+    # In this scenario, std is not really derived from the statistical spread.
+    # Instead, it’s derived from a curve fitting process where std is just another
+    # parameter of the fitting. Because the model uses std^2, then a negative value
+    # is just as good fit as a positive value. A way to fix it would have been to
+    # apply bounds during the curve fitting, but per RAM-5863 using abs() was preferred.
+    return 2 * math.sqrt(2 * math.log(10)) * abs(std)
 
 
 def gaussian_fit(

@@ -58,6 +58,12 @@ Helios
   a consistent display window across sections with a higher level of default contrast.
   These can be changed by setting ``HELIOS_VMIN`` and ``HELIOS_VMAX`` in ``helios.py``.
 
+Nuclear
+^^^^^^^
+
+* :bdg-warning:`Fixed` Four Bar spatial resolution FWHM/FWTM values no longer become
+  negative when the Gaussian curve fit returns a negative standard deviation.
+
 General
 ^^^^^^^
 
