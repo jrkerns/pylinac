@@ -1147,7 +1147,7 @@ class CharlestonG0(PFTestMixin, TestCase):
 
 
 class CanberraShortSet(PFTestMixin, TestCase):
-    """This is a small picket set (~10-20 leaves). Should be no problem"""
+    """This is a small picket set (~10-20 leaves). Should be no problem."""
 
     file_name = "canberra.dcm"
     max_error = 0

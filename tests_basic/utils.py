@@ -14,7 +14,7 @@ from collections.abc import Callable, Sequence
 from functools import lru_cache
 from io import BytesIO, StringIO
 from pathlib import Path, PurePosixPath
-from tempfile import TemporaryDirectory
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TypedDict
 from urllib.request import urlopen
 
@@ -113,39 +113,106 @@ def get_folder_from_cloud_repo(
     return osp.join(osp.dirname(__file__), local_dir, *folder)
 
 
+def _local_file_md5(path: str) -> str:
+    hasher = hashlib.md5()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
+def _cloud_md5_to_hex(blob: storage.Blob) -> str | None:
+    if not blob.md5_hash:
+        return None
+    return base64.b64decode(blob.md5_hash).hex()
+
+
+def _validate_local_cloud_file(path: str, blob: storage.Blob) -> str | None:
+    if not osp.isfile(path):
+        return None
+    if blob.size is None:
+        raise ValueError(f"Blob size was unavailable for {blob.name}")
+    if osp.getsize(path) != blob.size:
+        return None
+    local_md5 = _local_file_md5(path)
+    expected_md5 = _cloud_md5_to_hex(blob)
+    if expected_md5 is not None and local_md5 != expected_md5:
+        return None
+    return local_md5
+
+
+def _load_blob_metadata(blob: storage.Blob) -> None:
+    blob.reload()
+
+
 def get_file_from_cloud_test_repo(path: list[str], force: bool = False) -> str:
     """Get a single file from GCP storage. Returns the path to disk it was downloaded to"""
     local_filename = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *path)
-    if osp.isfile(local_filename) and not force:
-        with open(local_filename, "rb") as f:
-            file_hash = hashlib.md5(f.read()).hexdigest()
+    local_path = Path(local_filename)
+    if local_path.is_file() and not force:
+        try:
+            with access_gcp() as client:
+                bucket = client.bucket(GCP_BUCKET_NAME)
+                blob = bucket.blob(
+                    str(PurePosixPath(*path))
+                )  # posix because google storage is on unix and won't find path w/ windows path
+                _load_blob_metadata(blob)
+                existing_hash = _validate_local_cloud_file(local_filename, blob)
+                if existing_hash is not None:
+                    print(f"Local file found: {local_filename}@{existing_hash}")
+                    return local_filename
+            local_path.unlink(missing_ok=True)
+        except Exception:
+            file_hash = _local_file_md5(local_filename)
             print(f"Local file found: {local_filename}@{file_hash}")
-        return local_filename
+            return local_filename
+
     with access_gcp() as client:
         bucket = client.bucket(GCP_BUCKET_NAME)
         blob = bucket.blob(
             str(PurePosixPath(*path))
         )  # posix because google storage is on unix and won't find path w/ windows path
-        # make any necessary subdirs leading up to the file
-        if len(path) > 1:
-            for idx in range(1, len(path)):
-                local_dir = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *path[:idx])
-                os.makedirs(local_dir, exist_ok=True)
-
+        tmp_filename = None
         try:
+            _load_blob_metadata(blob)
+            # make any necessary subdirs leading up to the file
+            if len(path) > 1:
+                for idx in range(1, len(path)):
+                    local_dir = osp.join(
+                        osp.dirname(__file__), LOCAL_TEST_DIR, *path[:idx]
+                    )
+                    os.makedirs(local_dir, exist_ok=True)
+            parent = Path(local_filename).parent
+            parent.mkdir(parents=True, exist_ok=True)
+            with NamedTemporaryFile(
+                dir=parent,
+                prefix=Path(local_filename).name + ".",
+                suffix=".tmp",
+                delete=False,
+            ) as tmp_file:
+                tmp_filename = tmp_file.name
             blob.download_to_filename(
-                local_filename, timeout=120
+                tmp_filename, timeout=120
             )  # longer timeout for large files; in the CI/CD pipeline sometimes we are bandwidth choked.
-        except ReadTimeout as e:
-            # GCP creates a zero-byte file to start; if we timeout or otherwise fail, the 0-size file still exists;
-            # delete it so other tests don't think the file is valid
-            Path(local_filename).unlink(missing_ok=True)
+            file_hash = _validate_local_cloud_file(tmp_filename, blob)
+            if file_hash is None:
+                raise ValueError(
+                    f"Downloaded file failed validation against GCP metadata: {tmp_filename}"
+                )
+            os.replace(tmp_filename, local_filename)
+        except Exception as e:
+            if tmp_filename is not None:
+                Path(tmp_filename).unlink(missing_ok=True)
+            if isinstance(e, ReadTimeout):
+                raise ConnectionError(
+                    f"Could not download the file from GCP. Are you connected to the internet? You could also be bandwidth-limited. Try again later. {e}"
+                ) from e
             raise ConnectionError(
-                f"Could not download the file from GCP. Are you connected to the internet? You could also be bandwidth-limited. Try again later. {e}"
-            )
+                f"Could not download or validate the file from GCP: {e}"
+            ) from e
         time.sleep(2)
         print(
-            f"Downloaded from GCP: {local_filename}@{hashlib.md5(open(local_filename, 'rb').read()).hexdigest()}"
+            f"Downloaded from GCP: {local_filename}@{_local_file_md5(local_filename)}"
         )
         return local_filename
 
