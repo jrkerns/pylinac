@@ -1192,8 +1192,10 @@ class DRCS(VMATBase):
             Whether the base image traces should display a colorbar.
         show_legend : bool
             Whether legends should be shown for base traces.
-        **kwargs
+        kwargs : dict
             Additional keyword arguments forwarded to the base plotting call.
+            These values are passed through to
+            :meth:`~pylinac.vmat.VMATBase.plotly_analyzed_images`.
 
         Returns
         -------
