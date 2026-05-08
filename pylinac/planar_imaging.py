@@ -4796,12 +4796,12 @@ class SmallACRMammography(ACRDigitalMammography):
 
     common_name = "Small ACR Mammography"
     _demo_filename = "SmallACRMammography.dcm"
-    phantom_bbox_size_mm2 = 75 * 75
+    phantom_bbox_size_mm2 = 85 * 85
     roi_match_condition = "closest"
     detection_canny_settings = {"sigma": 5, "percentiles": (0.001, 0.01)}
     detection_conditions = [is_square]
-    phantom_outline_object = {"Rectangle": {"width ratio": 75, "height ratio": 75}}
-    # Four vertical columns inside the 75x75 mm phantom, measured from the
+    phantom_outline_object = {"Rectangle": {"width ratio": 85, "height ratio": 85}}
+    # Four vertical columns inside the 85x85 mm phantom, measured from the
     # demo image (x grows to the right, y grows downward, origin at center):
     #   x = -25 mm: 6 fibers          (alternating -45/45 deg)
     #   x =  -8 mm: 5 speck groups
@@ -4849,46 +4849,46 @@ class SmallACRMammography(ACRDigitalMammography):
         },
     }
     fibers_roi_settings = {
-        "roi 1": {
-            "x offset": -25,
-            "y offset": -22,
-            "size": 9.0,
-            "fiber_diameter": 1.56,
+        "roi 1": { #perfect
+            "x offset": -30,
+            "y offset": -30,
+            "size": 15.0,
+            "fiber_diameter": 0.77,
             "fiber_orientation": -45,
         },
-        "roi 2": {
-            "x offset": -25,
-            "y offset": -13,
-            "size": 9.0,
-            "fiber_diameter": 1.12,
+        "roi 2": { #perfect
+            "x offset": -28,
+            "y offset": -7.5,
+            "size": 14.0,
+            "fiber_diameter": 0.77,
             "fiber_orientation": 45,
         },
-        "roi 3": {
-            "x offset": -25,
-            "y offset": -4,
-            "size": 9.0,
-            "fiber_diameter": 0.89,
+        "roi 3": { #perfect
+            "x offset": -27.5,
+            "y offset":15,
+            "size": 13.0,
+            "fiber_diameter": 0.77,
             "fiber_orientation": -45,
         },
-        "roi 4": {
-            "x offset": -25,
-            "y offset": 5,
-            "size": 9.0,
-            "fiber_diameter": 0.75,
+        "roi 4": {  #perfect
+            "x offset": -30,
+            "y offset":30,
+            "size": 15.0,
+            "fiber_diameter": 0.77,
             "fiber_orientation": 45,
         },
         "roi 5": {
-            "x offset": -25,
-            "y offset": 14,
-            "size": 9.0,
-            "fiber_diameter": 0.54,
+            "x offset": -10,
+            "y offset": 15,
+            "size": 15.0,
+            "fiber_diameter": 0.77,
             "fiber_orientation": -45,
         },
         "roi 6": {
-            "x offset": -25,
-            "y offset": 23,
-            "size": 9.0,
-            "fiber_diameter": 0.40,
+            "x offset": -10,
+            "y offset": 30,
+            "size": 15.0,
+            "fiber_diameter": 0.77,
             "fiber_orientation": 45,
         },
     }
