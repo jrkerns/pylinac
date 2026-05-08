@@ -752,6 +752,50 @@ class TestDRCS(VMATMixin, PlotlyTestMixin, TestCase):
         with self.assertRaises(ValueError):
             drcs.analyze(collimator_config=config)
 
+    def test_collimator_lines_are_plotted_on_dmlc_image(self):
+        self.instance.plot_analyzed_image(show=False, show_text=False)
+        fig = plt.gcf()
+        dmlc_ax = fig.axes[1]
+        self.assertGreaterEqual(
+            len(dmlc_ax.lines), len(self.instance.collimator_deviations)
+        )
+        plt.close(fig)
+
+    def test_collimator_lines_are_not_plotted_on_open_image(self):
+        self.instance.plot_analyzed_image(show=False, show_text=False)
+        fig = plt.gcf()
+        open_ax = fig.axes[0]
+        self.assertEqual(len(open_ax.lines), 0)
+        plt.close(fig)
+
+    def test_plotly_collimator_lines_are_plotted_on_dmlc(self):
+        figs = self.instance.plotly_analyzed_images(show=False)
+        dmlc_collimator_traces = [
+            trace
+            for trace in figs["DMLC"].data
+            if (
+                getattr(trace, "type", None) == "scatter"
+                and getattr(trace, "mode", None) == "lines"
+                and getattr(trace, "name", None) is None
+            )
+        ]
+        self.assertEqual(
+            len(dmlc_collimator_traces), len(self.instance.collimator_deviations)
+        )
+
+    def test_plotly_collimator_lines_are_not_plotted_on_open(self):
+        figs = self.instance.plotly_analyzed_images(show=False)
+        open_collimator_traces = [
+            trace
+            for trace in figs["Open"].data
+            if (
+                getattr(trace, "type", None) == "scatter"
+                and getattr(trace, "mode", None) == "lines"
+                and getattr(trace, "name", None) is None
+            )
+        ]
+        self.assertEqual(len(open_collimator_traces), 0)
+
 
 class TestDRCSReverse(TestDRCS):
     """Test image identification independent of order."""

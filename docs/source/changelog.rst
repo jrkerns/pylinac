@@ -72,6 +72,9 @@ VMAT
   ``E=270°``, ``F=210°``. Because labels are now mapped to the correct nominal
   spoke angles, users may observe different per-spoke DRCS deviation values than
   in prior versions.
+* :bdg-success:`Feature` :class:`~pylinac.vmat.DRCS` analyzed image plots now
+  include detected collimator line overlays on the DMLC image for both matplotlib
+  and Plotly outputs. The overlays are intentionally omitted from the Open image.
 
 General
 ^^^^^^^
