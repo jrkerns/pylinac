@@ -4796,92 +4796,98 @@ class SmallACRMammography(ACRDigitalMammography):
 
     common_name = "Small ACR Mammography"
     _demo_filename = "SmallACRMammography.dcm"
-    phantom_bbox_size_mm2 = 70 * 70
+    phantom_bbox_size_mm2 = 75 * 75
     roi_match_condition = "closest"
     detection_canny_settings = {"sigma": 5, "percentiles": (0.001, 0.01)}
     detection_conditions = [is_square]
-    phantom_outline_object = {"Rectangle": {"width ratio": 70, "height ratio": 70}}
+    phantom_outline_object = {"Rectangle": {"width ratio": 75, "height ratio": 75}}
+    # Four vertical columns inside the 75x75 mm phantom, measured from the
+    # demo image (x grows to the right, y grows downward, origin at center):
+    #   x = -25 mm: 6 fibers          (alternating -45/45 deg)
+    #   x =  -8 mm: 5 speck groups
+    #   x = +10 mm: 5 mass disks      (low-contrast)
+    #   x = +24 mm: 5 background ROIs (level with the masses)
     low_contrast_background_roi_settings = {
-        "roi 1": {"x offset": 15, "y offset": -24, "roi radius": 3.00},
-        "roi 2": {"x offset": 15, "y offset": -12, "roi radius": 3.00},
-        "roi 3": {"x offset": 15, "y offset": 0, "roi radius": 3.00},
-        "roi 4": {"x offset": 15, "y offset": 12, "roi radius": 3.00},
-        "roi 5": {"x offset": 15, "y offset": 24, "roi radius": 3.00},
+        "roi 1": {"x offset": 24, "y offset": -22, "roi radius": 2.50},
+        "roi 2": {"x offset": 24, "y offset": -11, "roi radius": 2.50},
+        "roi 3": {"x offset": 24, "y offset": 0, "roi radius": 2.50},
+        "roi 4": {"x offset": 24, "y offset": 11, "roi radius": 2.50},
+        "roi 5": {"x offset": 24, "y offset": 22, "roi radius": 2.50},
     }
     low_contrast_roi_settings = {
-        "roi 1": {"x offset": 27, "y offset": -24, "roi radius": 3.50},
-        "roi 2": {"x offset": 27, "y offset": -12, "roi radius": 2.75},
-        "roi 3": {"x offset": 27, "y offset": 0, "roi radius": 2.25},
-        "roi 4": {"x offset": 27, "y offset": 12, "roi radius": 1.75},
-        "roi 5": {"x offset": 27, "y offset": 24, "roi radius": 1.25},
+        "roi 1": {"x offset": 10, "y offset": -22, "roi radius": 3.50},
+        "roi 2": {"x offset": 10, "y offset": -11, "roi radius": 2.75},
+        "roi 3": {"x offset": 10, "y offset": 0, "roi radius": 2.25},
+        "roi 4": {"x offset": 10, "y offset": 11, "roi radius": 1.75},
+        "roi 5": {"x offset": 10, "y offset": 22, "roi radius": 1.25},
     }
     speck_group_roi_settings = {
         "roi 1": {
-            "x offset": -10,
-            "y offset": -24,
-            "size": 16.0,
+            "x offset": -8,
+            "y offset": -22,
+            "size": 9.0,
             "speck_diameter": 0.54,
         },
         "roi 2": {
-            "x offset": -10,
-            "y offset": -12,
-            "size": 16.0,
+            "x offset": -8,
+            "y offset": -11,
+            "size": 9.0,
             "speck_diameter": 0.40,
         },
-        "roi 3": {"x offset": -10, "y offset": 0, "size": 16.0, "speck_diameter": 0.32},
+        "roi 3": {"x offset": -8, "y offset": 0, "size": 9.0, "speck_diameter": 0.32},
         "roi 4": {
-            "x offset": -10,
-            "y offset": 12,
-            "size": 16.0,
+            "x offset": -8,
+            "y offset": 11,
+            "size": 9.0,
             "speck_diameter": 0.24,
         },
         "roi 5": {
-            "x offset": -10,
-            "y offset": 24,
-            "size": 16.0,
+            "x offset": -8,
+            "y offset": 22,
+            "size": 9.0,
             "speck_diameter": 0.16,
         },
     }
     fibers_roi_settings = {
         "roi 1": {
-            "x offset": -27,
-            "y offset": 24,
-            "size": 14.0,
+            "x offset": -25,
+            "y offset": -22,
+            "size": 9.0,
             "fiber_diameter": 1.56,
-            "fiber_orientation": 45,
+            "fiber_orientation": -45,
         },
         "roi 2": {
-            "x offset": -24,
-            "y offset": 20,
-            "size": 14.0,
+            "x offset": -25,
+            "y offset": -13,
+            "size": 9.0,
             "fiber_diameter": 1.12,
             "fiber_orientation": 45,
         },
         "roi 3": {
-            "x offset": -21,
-            "y offset": 16,
-            "size": 14.0,
+            "x offset": -25,
+            "y offset": -4,
+            "size": 9.0,
             "fiber_diameter": 0.89,
-            "fiber_orientation": 45,
+            "fiber_orientation": -45,
         },
         "roi 4": {
-            "x offset": -18,
-            "y offset": 12,
-            "size": 14.0,
+            "x offset": -25,
+            "y offset": 5,
+            "size": 9.0,
             "fiber_diameter": 0.75,
             "fiber_orientation": 45,
         },
         "roi 5": {
-            "x offset": -15,
-            "y offset": 8,
-            "size": 14.0,
+            "x offset": -25,
+            "y offset": 14,
+            "size": 9.0,
             "fiber_diameter": 0.54,
-            "fiber_orientation": 45,
+            "fiber_orientation": -45,
         },
         "roi 6": {
-            "x offset": -12,
-            "y offset": 4,
-            "size": 14.0,
+            "x offset": -25,
+            "y offset": 23,
+            "size": 9.0,
             "fiber_diameter": 0.40,
             "fiber_orientation": 45,
         },
