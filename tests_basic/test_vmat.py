@@ -690,7 +690,7 @@ class TestDRCS(VMATMixin, PlotlyTestMixin, TestCase):
         1: Point(723.37, 520.09),
         0: Point(723.37, 668.91),
     }
-    collimator_deviations = (-0.163, -0.001, -0.322, -0.162, -0.001, -0.321)
+    collimator_deviations = (-0.321, -0.001, -0.162, -0.322, -0.001, -0.163)
 
     avg_abs_r_deviation = 0.24
     max_r_deviation = 0.38
@@ -710,6 +710,91 @@ class TestDRCS(VMATMixin, PlotlyTestMixin, TestCase):
     def test_generate_results(self):
         results = self.instance._generate_results_data()
         self.assertEqual(6, len(results.collimator_data))
+
+    def test_spoke_config_reordered(self):
+        baseline_drcs = DRCS.from_demo_images()
+        baseline_config = baseline_drcs.default_collimator_config
+        baseline_drcs.analyze(collimator_config=baseline_config)
+        baseline_results = baseline_drcs._generate_results_data()
+        baseline_collimator_data = baseline_results.collimator_data
+        baseline_angle_deviation = {
+            name: result.angle_deviation
+            for name, result in baseline_collimator_data.items()
+        }
+
+        reordered_config = {
+            name: angle for name, angle in reversed(list(baseline_config.items()))
+        }
+        reordered_drcs = DRCS.from_demo_images()
+        reordered_drcs.analyze(collimator_config=reordered_config)
+        reordered_results = reordered_drcs._generate_results_data()
+        reordered_collimator_data = reordered_results.collimator_data
+
+        for name, expected_angle_deviation in baseline_angle_deviation.items():
+            actual_angle_deviation = reordered_collimator_data[name].angle_deviation
+            self.assertEqual(expected_angle_deviation, actual_angle_deviation)
+
+    def test_spoke_config_less_than_found(self):
+        drcs = DRCS.from_demo_images()
+        config = dict(drcs.default_collimator_config)
+        config.pop("F")
+        drcs.analyze(collimator_config=config)
+        results = drcs._generate_results_data()
+        collimator_data = results.collimator_data
+        expected_num_spokes = len(config)
+        actual_num_spokes = len(collimator_data)
+        self.assertEqual(expected_num_spokes, actual_num_spokes)
+
+    def test_error_if_too_many_spoke_config(self):
+        drcs = DRCS.from_demo_images()
+        config = dict(drcs.default_collimator_config)
+        config["G"] = 0
+        with self.assertRaises(ValueError):
+            drcs.analyze(collimator_config=config)
+
+    def test_collimator_lines_are_plotted_on_dmlc_image(self):
+        self.instance.plot_analyzed_image(show=False, show_text=False)
+        fig = plt.gcf()
+        dmlc_ax = fig.axes[1]
+        self.assertGreaterEqual(
+            len(dmlc_ax.lines), len(self.instance.collimator_deviations)
+        )
+        plt.close(fig)
+
+    def test_collimator_lines_are_not_plotted_on_open_image(self):
+        self.instance.plot_analyzed_image(show=False, show_text=False)
+        fig = plt.gcf()
+        open_ax = fig.axes[0]
+        self.assertEqual(len(open_ax.lines), 0)
+        plt.close(fig)
+
+    def test_plotly_collimator_lines_are_plotted_on_dmlc(self):
+        figs = self.instance.plotly_analyzed_images(show=False)
+        dmlc_collimator_traces = [
+            trace
+            for trace in figs["DMLC"].data
+            if (
+                getattr(trace, "type", None) == "scatter"
+                and getattr(trace, "mode", None) == "lines"
+                and getattr(trace, "name", None) is None
+            )
+        ]
+        self.assertEqual(
+            len(dmlc_collimator_traces), len(self.instance.collimator_deviations)
+        )
+
+    def test_plotly_collimator_lines_are_not_plotted_on_open(self):
+        figs = self.instance.plotly_analyzed_images(show=False)
+        open_collimator_traces = [
+            trace
+            for trace in figs["Open"].data
+            if (
+                getattr(trace, "type", None) == "scatter"
+                and getattr(trace, "mode", None) == "lines"
+                and getattr(trace, "name", None) is None
+            )
+        ]
+        self.assertEqual(len(open_collimator_traces), 0)
 
 
 class TestDRCSReverse(TestDRCS):

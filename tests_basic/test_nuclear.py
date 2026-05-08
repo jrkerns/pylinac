@@ -325,6 +325,35 @@ class TestFourBar(QuaacTestBase, TestCase):
         self.assertAlmostEqual(self.m.y_axis.pixel_size_difference, 0.6899, delta=0.03)
 
 
+class TestFourBar2(QuaacTestBase, TestCase):
+    def setUp(self) -> None:
+        p = get_file_from_cloud_test_repo([TEST_DIR, "FourBar_2.dcm"])
+        self.m = FourBarResolution(p)
+        self.m.analyze(separation_mm=100, roi_width_mm=10)
+
+    # all reference values from NMQC
+    def quaac_instance(self):
+        return self.m
+
+    def test_x_fwhm(self):
+        self.assertAlmostEqual(self.m.x_axis.fwhm, 8.4, delta=0.1)
+
+    def test_y_fwhm(self):
+        self.assertAlmostEqual(self.m.y_axis.fwhm, 8.6, delta=0.1)
+
+    def test_x_measured_pixel_size(self):
+        self.assertAlmostEqual(self.m.x_axis.measured_pixel_size, 1.15, delta=0.01)
+
+    def test_y_measured_pixel_size(self):
+        self.assertAlmostEqual(self.m.y_axis.measured_pixel_size, 1.14, delta=0.01)
+
+    def test_x_measured_difference(self):
+        self.assertAlmostEqual(self.m.x_axis.pixel_size_difference, 1.52, delta=0.02)
+
+    def test_y_measured_difference(self):
+        self.assertAlmostEqual(self.m.y_axis.pixel_size_difference, 0.52, delta=0.03)
+
+
 class TestQuadrantResolution(QuaacTestBase, TestCase):
     def setUp(self) -> None:
         p = get_file_from_cloud_test_repo([TEST_DIR, "QuadrantBar.dcm"])

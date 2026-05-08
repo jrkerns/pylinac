@@ -20,6 +20,13 @@ CatPhan
   the roll cannot be determined from the air bubbles. Instead, a ``UserWarning`` is
   emitted and the roll is set to 0.
 
+ACR Phantoms
+^^^^^^^^^^^^
+
+* :bdg-success:`Feature` :class:`~pylinac.acr.ACRMRILarge` low-contrast detectability
+  results now include per-slice spoke scores in :meth:`~pylinac.acr.ACRMRILarge.results_data`
+  (``low_contrast_multi_slice_module.low_contrast_rois[*].score``).
+
 Planar Imaging
 ^^^^^^^^^^^^^^
 
@@ -29,6 +36,12 @@ Planar Imaging
   both matplotlib and Plotly overlays, and can be enabled via
   ``show_roi_labels=True``.  Label font size can be controlled via
   ``roi_label_font_size``.
+* :bdg-primary:`Fixed` :class:`~pylinac.planar_imaging.DoselabMC2kV` and
+  :class:`~pylinac.planar_imaging.DoselabMC2MV` phantom angle detection now uses a
+  constrained Hough line transform on the detected outline edge mask, improving
+  robustness compared to region-moment orientation. Reported phantom rotation (and
+  any downstream metrics that depend on it) may therefore differ slightly from
+  previous versions.
 
 Helios
 ^^^^^^
@@ -44,6 +57,24 @@ Helios
   Daily plots has been updated so the analyzed images and side-view rendering use
   a consistent display window across sections with a higher level of default contrast.
   These can be changed by setting ``HELIOS_VMIN`` and ``HELIOS_VMAX`` in ``helios.py``.
+
+Nuclear
+^^^^^^^
+
+* :bdg-warning:`Fixed` Four Bar spatial resolution FWHM/FWTM values no longer become
+  negative when the Gaussian curve fit returns a negative standard deviation.
+
+VMAT
+^^^^
+
+* :bdg-warning:`Fixed` The :class:`~pylinac.vmat.DRCS` default spoke labeling
+  convention has been modified, i.e, ``A=150°``, ``B=90°``, ``C=30°``, ``D=330°``,
+  ``E=270°``, ``F=210°``. Because labels are now mapped to the correct nominal
+  spoke angles, users may observe different per-spoke DRCS deviation values than
+  in prior versions.
+* :bdg-success:`Feature` :class:`~pylinac.vmat.DRCS` analyzed image plots now
+  include detected collimator line overlays on the DMLC image for both matplotlib
+  and Plotly outputs. The overlays are intentionally omitted from the Open image.
 
 General
 ^^^^^^^
