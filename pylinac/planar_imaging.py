@@ -4815,37 +4815,42 @@ class SmallACRMammography(ACRDigitalMammography):
         "roi 5": {"x offset": 24, "y offset": 22, "roi radius": 2.50},
     }
     low_contrast_roi_settings = {
-        "roi 1": {"x offset": 10, "y offset": -22, "roi radius": 3.50},
-        "roi 2": {"x offset": 10, "y offset": -11, "roi radius": 2.75},
-        "roi 3": {"x offset": 10, "y offset": 0, "roi radius": 2.25},
-        "roi 4": {"x offset": 10, "y offset": 11, "roi radius": 1.75},
-        "roi 5": {"x offset": 10, "y offset": 22, "roi radius": 1.25},
+        "roi 1": {"x offset": 10, "y offset": -28, "roi radius": 5},
+        "roi 2": {"x offset": 31, "y offset": -28, "roi radius": 2.5},
+        "roi 3": {"x offset": 31, "y offset": -11, "roi radius": 2.5},
+        "roi 4": {"x offset": 31, "y offset": 11, "roi radius": 2.5},
+        "roi 5": {"x offset": 31, "y offset": 30, "roi radius": 4},
     }
     speck_group_roi_settings = {
         "roi 1": {
-            "x offset": -8,
-            "y offset": -22,
-            "size": 9.0,
-            "speck_diameter": 0.54,
+            "x offset": -10,
+            "y offset": -30,
+            "size": 20.0,
+            "speck_diameter": 0.2,
         },
         "roi 2": {
-            "x offset": -8,
-            "y offset": -11,
-            "size": 9.0,
-            "speck_diameter": 0.40,
+            "x offset": -10,
+            "y offset": -10,
+            "size": 20.0,
+            "speck_diameter": 0.2,
         },
-        "roi 3": {"x offset": -8, "y offset": 0, "size": 9.0, "speck_diameter": 0.32},
+        "roi 3": {
+            "x offset": 10,
+            "y offset": -10, 
+            "size": 20.0,
+            "speck_diameter": 0.2
+        },
         "roi 4": {
-            "x offset": -8,
-            "y offset": 11,
-            "size": 9.0,
-            "speck_diameter": 0.24,
+            "x offset": 10,
+            "y offset": 10,
+            "size": 20.0,
+            "speck_diameter": 0.2,
         },
         "roi 5": {
-            "x offset": -8,
-            "y offset": 22,
-            "size": 9.0,
-            "speck_diameter": 0.16,
+            "x offset": 10,
+            "y offset": 30,
+            "size": 20.0,
+            "speck_diameter": 0.2,
         },
     }
     fibers_roi_settings = {
@@ -4877,14 +4882,14 @@ class SmallACRMammography(ACRDigitalMammography):
             "fiber_diameter": 0.77,
             "fiber_orientation": 45,
         },
-        "roi 5": {
+        "roi 5": { #perfect
             "x offset": -10,
             "y offset": 15,
             "size": 15.0,
             "fiber_diameter": 0.77,
             "fiber_orientation": -45,
         },
-        "roi 6": {
+        "roi 6": { #perfect
             "x offset": -10,
             "y offset": 30,
             "size": 15.0,
