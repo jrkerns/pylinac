@@ -108,13 +108,11 @@ Each step listed here is applied to each frame of the image:
 
    .. math::
 
-      \begin{equation}
       \begin{bmatrix}
       1 & 2 & 1 \\
       2 & 4 & 2 \\
       1 & 2 & 1
       \end{bmatrix}
-      \end{equation}
 
    The kernel is normalized by dividing each value by the sum of all values in the kernel.
 
