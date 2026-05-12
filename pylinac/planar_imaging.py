@@ -550,6 +550,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             "low_contrast",
             "high_contrast",
             "show",
+            *self._LABEL_KWARGS,
         ):
             kwargs.pop(key, None)
         if not split_plots:
@@ -1541,6 +1542,8 @@ class StandardImagingFC2(ImagePhantomBase):
         if filename is None and to_streams is False:
             raise ValueError("Must pass in a filename unless saving to streams.")
         figs, names = self.plot_analyzed_image(show=False, **kwargs)
+        for key in self._LABEL_KWARGS:
+            kwargs.pop(key, None)
         if not to_streams:
             plt.savefig(filename, **kwargs)
         else:

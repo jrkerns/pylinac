@@ -224,6 +224,18 @@ class GeneralTests(TestCase):
         )
         plt.close("all")
 
+    def test_save_analyzed_image_with_roi_labels(self):
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        image_stream = io.BytesIO()
+        # shouldn't error
+        phan.save_analyzed_image(
+            filename=image_stream,
+            show_roi_labels=True,
+            roi_label_font_size=9,
+        )
+        plt.close("all")
+
     def test_plotly_labels_default_off(self):
         """Without show_roi_labels=True, no annotations should be added."""
         phan = LeedsTOR.from_demo_image()
@@ -1015,6 +1027,14 @@ class FC2Mixin(PlanarPhantomMixin):
 
     def test_plotting(self):
         self.instance.plot_analyzed_image()
+
+    def test_save_analyzed_image_with_roi_labels(self):
+        image_stream = io.BytesIO()
+        self.instance.save_analyzed_image(
+            filename=image_stream,
+            show_roi_labels=True,
+            roi_label_font_size=9,
+        )
 
     def test_field_size(self):
         results_data = self.instance.results_data()
