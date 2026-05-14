@@ -78,7 +78,10 @@ class TestCTGeneral(TestCase):
     def test_results_warnings(self):
         self.ct.analyze()
         data = self.ct.results_data()
-        self.assertEqual(len(data.warnings), 0)
+        self.assertIsInstance(data.warnings, list)
+        for w in data.warnings:
+            self.assertIn("message", w)
+            self.assertIn("category", w)
 
     def test_lazy_is_same_as_default(self):
         self.ct.analyze()
@@ -433,7 +436,10 @@ class TestMRGeneral(TestCase):
     def test_results_warnings(self):
         self.mri.analyze()
         data = self.mri.results_data()
-        self.assertEqual(len(data.warnings), 0)
+        self.assertIsInstance(data.warnings, list)
+        for w in data.warnings:
+            self.assertIn("message", w)
+            self.assertIn("category", w)
 
     def test_echo_number(self):
         """Test analyzing a specific echo number works"""

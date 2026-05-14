@@ -805,7 +805,10 @@ class GeneralTests(TestCase):
     def test_results_warnings(self):
         self.wl.analyze()
         data = self.wl.results_data()
-        self.assertEqual(len(data.warnings), 0)
+        self.assertIsInstance(data.warnings, list)
+        for w in data.warnings:
+            self.assertIn("message", w)
+            self.assertIn("category", w)
 
     def test_results_data_individual_keys_duplicate(self):
         # lucky for us, the demo set has duplicates already

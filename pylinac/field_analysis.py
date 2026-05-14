@@ -31,6 +31,7 @@ from .core.utilities import (
     ResultsDataMixin,
     convert_to_enum,
 )
+from .core.warnings import WarningCollectorMixin
 
 
 def flatness_dose_difference(
@@ -458,6 +459,7 @@ class FieldAnalysis(ResultsDataMixin[FieldResult], QuaacMixin):
             If None, no filter is applied. If an int, a median filter of size n pixels is applied. Generally, a good idea.
             Default is None for backwards compatibility.
         """
+        super().__init__()
         self._path: str = path
         img_kwargs = image_kwargs or {}
         self.image: image.ImageLike = image.load(path, **img_kwargs)  #:
@@ -1565,6 +1567,7 @@ class DeviceFieldAnalysis(FieldAnalysis):
         device
             The array device. Currently, the Profiler is supported. See :ref:`loading_device_data`.
         """
+        WarningCollectorMixin.__init__(self)
         self.device: Device = device.value["device"](path=path)  #:
         self._path = path
         self._from_device = True

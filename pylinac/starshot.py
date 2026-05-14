@@ -45,7 +45,6 @@ from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
 from .core.warnings import capture_warnings
 
 
-@capture_warnings
 class StarshotResults(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -75,6 +74,7 @@ class StarshotResults(ResultBase):
     passed: bool = Field(description="Whether the analysis passed or failed.")
 
 
+@capture_warnings
 class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
     """Class that can determine the wobble in a "starshot" image, be it gantry, collimator,
     couch or MLC. The image can be a scanned film (TIF, JPG, etc) or a sequence of EPID DICOM images.
@@ -111,6 +111,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         kwargs
             Passed to :func:`~pylinac.core.image.load`.
         """
+        super().__init__()
         self.image = image.load(filepath, **kwargs)
         self.wobble = Wobble()
         self.tolerance = 1

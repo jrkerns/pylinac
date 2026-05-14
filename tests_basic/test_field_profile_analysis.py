@@ -310,9 +310,11 @@ class FieldAnalysisTests(TestCase):
     def test_results_warnings(self):
         fs = create_instance()
         fs.analyze()
-        # shouldn't raise
         data = fs.results_data()
-        self.assertEqual(len(data.warnings), 0)
+        self.assertIsInstance(data.warnings, list)
+        for w in data.warnings:
+            self.assertIn("message", w)
+            self.assertIn("category", w)
 
     def test_results_fails_if_not_analyzed(self):
         fs = FieldProfileAnalysis.from_demo_image()

@@ -191,7 +191,41 @@ class TestAnalyze(TestCase):
 
     def test_results_warnings(self):
         data = self.pf.results_data()
-        self.assertEqual(len(data.warnings), 0)
+        self.assertIsInstance(data.warnings, list)
+        for w in data.warnings:
+            self.assertIn("message", w)
+            self.assertIn("category", w)
+
+    def test_induced_warning_appears_in_results(self):
+        """A warning emitted during analyze() should appear verbatim
+        in results_data().warnings with the correct category."""
+        from unittest import mock
+
+        from pylinac.core.profile import MultiProfile
+
+        expected_msg = (
+            "Some leaves were removed from analysis because they were "
+            "not detected for all pickets. If some valid leaves are "
+            "missing try adjusting height_threshold or edge_threshold"
+        )
+        original_normalize = MultiProfile.normalize
+
+        def normalize_with_warning(self_inner, *args, **kwargs):
+            import warnings
+
+            warnings.warn(expected_msg, UserWarning)
+            return original_normalize(self_inner, *args, **kwargs)
+
+        pf = PicketFence.from_demo_image()
+        with mock.patch.object(MultiProfile, "normalize", normalize_with_warning):
+            pf.analyze()
+
+        data = pf.results_data()
+        messages = [w["message"] for w in data.warnings]
+        categories = [w["category"] for w in data.warnings]
+        self.assertIn(expected_msg, messages)
+        idx = messages.index(expected_msg)
+        self.assertEqual(categories[idx], "UserWarning")
 
     def test_no_measurements_suggests_inversion(self):
         file_loc = get_file_from_cloud_test_repo(

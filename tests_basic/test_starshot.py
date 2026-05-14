@@ -363,7 +363,9 @@ class GeneralTests(Demo, TestCase):
     def test_results_warnings(self):
         data = self.star.results_data()
         self.assertIsInstance(data.warnings, list)
-        self.assertEqual(len(data.warnings), 0)
+        for w in data.warnings:
+            self.assertIn("message", w)
+            self.assertIn("category", w)
 
 
 class Starshot2(StarMixin, TestCase):

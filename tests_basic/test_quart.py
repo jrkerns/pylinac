@@ -83,7 +83,10 @@ class TestQuartDVTGeneral(TestCase):
     def test_results_warnings(self):
         self.quart.analyze()
         data = self.quart.results_data()
-        self.assertEqual(len(data.warnings), 0)
+        self.assertIsInstance(data.warnings, list)
+        for w in data.warnings:
+            self.assertIn("message", w)
+            self.assertIn("category", w)
 
     def test_lazy_same_as_default(self):
         """Test that the results are the same from a lazy load vs default"""

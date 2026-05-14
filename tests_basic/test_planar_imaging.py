@@ -124,7 +124,10 @@ class GeneralTests(TestCase):
         phan = LeedsTOR.from_demo_image()
         phan.analyze()
         data = phan.results_data()
-        self.assertEqual(len(data.warnings), 0)
+        self.assertIsInstance(data.warnings, list)
+        for w in data.warnings:
+            self.assertIn("message", w)
+            self.assertIn("category", w)
 
     def test_results_data_no_mtf(self):
         phan = LasVegas.from_demo_image()

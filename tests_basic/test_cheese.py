@@ -72,7 +72,10 @@ class TestResults(TestCase, ResultsDataBase):
     def test_results_warnings(self):
         self.cheese.analyze()
         data = self.cheese.results_data()
-        self.assertEqual(len(data.warnings), 0)
+        self.assertIsInstance(data.warnings, list)
+        for w in data.warnings:
+            self.assertIn("message", w)
+            self.assertIn("category", w)
 
 
 class TestGeneral(TestCase):

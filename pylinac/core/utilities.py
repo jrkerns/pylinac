@@ -101,6 +101,8 @@ class ResultsDataMixin(Generic[T], WarningCollectorMixin):
         if as_dict and as_json:
             raise ValueError("Cannot return as both dict and JSON. Pick one.")
         data = self._generate_results_data()
+        if hasattr(data, "warnings") and hasattr(self, "get_captured_warnings"):
+            data.warnings = self.get_captured_warnings()
         if as_dict:
             return json.loads(data.model_dump_json(by_alias=by_alias, exclude=exclude))
         if as_json:

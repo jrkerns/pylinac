@@ -212,7 +212,10 @@ class TestGeneral(TestCase):
     def test_results_warnings(self):
         self.cbct.analyze()
         data = self.cbct.results_data()
-        self.assertEqual(len(data.warnings), 0)
+        self.assertIsInstance(data.warnings, list)
+        for w in data.warnings:
+            self.assertIn("message", w)
+            self.assertIn("category", w)
 
     def test_contrast_str(self):
         # shouldn't raise

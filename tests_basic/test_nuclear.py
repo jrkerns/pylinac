@@ -55,6 +55,14 @@ class TestMaxCountRate(QuaacTestBase, TestCase):
         self.m.analyze(frame_duration=0.5)
         self.assertAlmostEqual(self.m.max_countrate, 358437 * 2, delta=1)
 
+    def test_results_warnings(self):
+        self.m.analyze()
+        data = self.m.results_data()
+        self.assertIsInstance(data.warnings, list)
+        for w in data.warnings:
+            self.assertIn("message", w)
+            self.assertIn("category", w)
+
     def test_plot(self):
         # should not raise
         self.m.analyze()
@@ -191,6 +199,13 @@ class TestCenterOfRotation102(QuaacTestBase, TestCase):
         self.assertAlmostEqual(data.x_deviation_mm, 0.138, delta=0.01)
         self.assertAlmostEqual(data.y_deviation_mm, 0.129, delta=0.01)
 
+    def test_results_warnings(self):
+        data = self.m.results_data()
+        self.assertIsInstance(data.warnings, list)
+        for w in data.warnings:
+            self.assertIn("message", w)
+            self.assertIn("category", w)
+
     def test_plot(self):
         # shouldn't raise
         figs, axes = self.m.plot()
@@ -241,6 +256,13 @@ class TestTomographicResolution(QuaacTestBase, TestCase):
     def test_z_fwtm(self):
         self.assertAlmostEqual(self.m.z_axis.fwtm, 40.96, delta=0.01)
 
+    def test_results_warnings(self):
+        data = self.m.results_data()
+        self.assertIsInstance(data.warnings, list)
+        for w in data.warnings:
+            self.assertIn("message", w)
+            self.assertIn("category", w)
+
 
 class TestSimpleSensitivityNoBackground(QuaacTestBase, TestCase):
     def setUp(self) -> None:
@@ -264,6 +286,13 @@ class TestSimpleSensitivityNoBackground(QuaacTestBase, TestCase):
         self.assertAlmostEqual(
             self.m.sensitivity_uci, 545.817, delta=0.05
         )  # value from NMQC
+
+    def test_results_warnings(self):
+        data = self.m.results_data()
+        self.assertIsInstance(data.warnings, list)
+        for w in data.warnings:
+            self.assertIn("message", w)
+            self.assertIn("category", w)
 
     def test_results_data(self):
         data = self.m.results_data()
@@ -323,6 +352,13 @@ class TestFourBar(QuaacTestBase, TestCase):
 
     def test_y_measured_difference(self):
         self.assertAlmostEqual(self.m.y_axis.pixel_size_difference, 0.6899, delta=0.03)
+
+    def test_results_warnings(self):
+        data = self.m.results_data()
+        self.assertIsInstance(data.warnings, list)
+        for w in data.warnings:
+            self.assertIn("message", w)
+            self.assertIn("category", w)
 
 
 class TestFourBar2(QuaacTestBase, TestCase):
@@ -386,6 +422,13 @@ class TestQuadrantResolution(QuaacTestBase, TestCase):
         self.assertEqual(data.quadrants["1"]["spacing"], 4.23)
         self.assertAlmostEqual(data.quadrants["1"]["lpmm"], 0.118, delta=0.001)
 
+    def test_results_warnings(self):
+        data = self.m.results_data()
+        self.assertIsInstance(data.warnings, list)
+        for w in data.warnings:
+            self.assertIn("message", w)
+            self.assertIn("category", w)
+
     def test_plot(self):
         # shouldn't raise
         self.m.plot()
@@ -419,6 +462,14 @@ class TestTomographicUniformity(QuaacTestBase, TestCase):
         self.assertIsInstance(data, dict)
         data = self.m.results_data()
         self.assertIsInstance(data, TomographicUniformityResults)
+
+    def test_results_warnings(self):
+        self.m.analyze()
+        data = self.m.results_data()
+        self.assertIsInstance(data.warnings, list)
+        for w in data.warnings:
+            self.assertIn("message", w)
+            self.assertIn("category", w)
 
     def test_first_frame_lower_than_0_raises(self):
         with self.assertRaises(ValueError):
@@ -468,6 +519,13 @@ class TestTomographicContrast(QuaacTestBase, TestCase):
         results = self.m.results()
         self.assertIsInstance(results, str)
         self.assertIn("Contrast", results)
+
+    def test_results_warnings(self):
+        data = self.m.results_data()
+        self.assertIsInstance(data.warnings, list)
+        for w in data.warnings:
+            self.assertIn("message", w)
+            self.assertIn("category", w)
 
     def test_results_data(self):
         data = self.m.results_data()

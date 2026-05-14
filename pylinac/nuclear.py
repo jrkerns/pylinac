@@ -31,17 +31,19 @@ from pylinac.core.image import DicomImage, NMImageStack
 from pylinac.core.mtf import MomentMTF
 from pylinac.core.profile import find_peaks
 from pylinac.core.roi import DiskROI, HighContrastDiskROI, RectangleROI
-from pylinac.core.utilities import QuaacDatum, QuaacMixin, ResultsDataMixin
+from pylinac.core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
+from pylinac.core.warnings import capture_warnings
 from pylinac.metrics.image import WeightedCentroid
 
 
-class MaxCountRateResults(BaseModel):
+class MaxCountRateResults(ResultBase):
     max_countrate: float  #:
     max_frame: int  #:
     frame_duration: float  #:
     sums: dict[int, float]  #:
 
 
+@capture_warnings
 class MaxCountRate(ResultsDataMixin[MaxCountRateResults], QuaacMixin):
     """Calculate the maximum countrate of a gamma camera.
 
@@ -63,6 +65,7 @@ class MaxCountRate(ResultsDataMixin[MaxCountRateResults], QuaacMixin):
     sums: dict[int, float]
 
     def __init__(self, path: str | Path) -> None:
+        super().__init__()
         self.stack = NMImageStack(path)
 
     def analyze(self, frame_duration: float = 1.0) -> float:
@@ -275,6 +278,7 @@ class PlanarUniformity(QuaacMixin):
     frame_results: dict[str, dict[str, FOV | np.ndarray]]
 
     def __init__(self, path: str | Path) -> None:
+        super().__init__()
         self.stack = NMImageStack(path)
         self.path = Path(path)
 
@@ -496,11 +500,12 @@ def determine_binning(pixel_size: float) -> int:
     return binning
 
 
-class CenterOfRotationResults(BaseModel):
+class CenterOfRotationResults(ResultBase):
     x_deviation_mm: float  #:
     y_deviation_mm: float  #:
 
 
+@capture_warnings
 class CenterOfRotation(ResultsDataMixin[CenterOfRotationResults], QuaacMixin):
     """Analyze the center of rotation deviation of a gamma camera."""
 
@@ -509,6 +514,7 @@ class CenterOfRotation(ResultsDataMixin[CenterOfRotationResults], QuaacMixin):
     cor_y: dict[str, float | np.ndarray]
 
     def __init__(self, path: str | Path):
+        super().__init__()
         self.path = Path(path)
         self.stack = NMImageStack(path)
 
@@ -668,7 +674,7 @@ def weighted_centroid_3d(arr: np.ndarray) -> tuple[float, float, float] | None:
     return centroid_x, centroid_y, centroid_z
 
 
-class TomographicResolutionResults(BaseModel):
+class TomographicResolutionResults(ResultBase):
     x_fwhm: float  #:
     y_fwhm: float  #:
     z_fwhm: float  #:
@@ -725,6 +731,7 @@ class TomographicResolutionAxisData:
         return fig, ax
 
 
+@capture_warnings
 class TomographicResolution(ResultsDataMixin[TomographicResolutionResults], QuaacMixin):
     """Analyze a tomographic resolution image for its x/y/z resolution. Based on IAEA test 4.3.4, pg 169
 
@@ -739,6 +746,7 @@ class TomographicResolution(ResultsDataMixin[TomographicResolutionResults], Quaa
     z_axis: TomographicResolutionAxisData
 
     def __init__(self, path: str | Path) -> None:
+        super().__init__()
         self.stack = NMImageStack(path)
         self.path = Path(path)
 
@@ -882,7 +890,7 @@ class Nuclide:
     }  # 6.647 days https://www.nndc.bnl.gov/nudat3/
 
 
-class SimpleSensitivityResults(BaseModel):
+class SimpleSensitivityResults(ResultBase):
     phantom_cps: float  #:
     background_cps: float  #:
     half_life_s: float  #:
@@ -892,6 +900,7 @@ class SimpleSensitivityResults(BaseModel):
     sensitivity_uci: float  #:
 
 
+@capture_warnings
 class SimpleSensitivity(ResultsDataMixin[SimpleSensitivityResults], QuaacMixin):
     """The 'simple' sensitivity test as defined by IAEA 2.3.9. Equations come from the IAEA NMQC toolkit."""
 
@@ -901,6 +910,7 @@ class SimpleSensitivity(ResultsDataMixin[SimpleSensitivityResults], QuaacMixin):
     def __init__(
         self, phantom_path: str | Path, background_path: str | Path | None = None
     ):
+        super().__init__()
         self.phantom_path = Path(phantom_path)
         self.background_path = (
             Path(background_path) if background_path is not None else None
@@ -1088,7 +1098,7 @@ class DoubleGaussianProfile:
         return fig, ax
 
 
-class FourBarResolutionResults(BaseModel):
+class FourBarResolutionResults(ResultBase):
     x_fwhm: float
     y_fwhm: float
     x_fwtm: float
@@ -1099,6 +1109,7 @@ class FourBarResolutionResults(BaseModel):
     y_pixel_size_difference: float
 
 
+@capture_warnings
 class FourBarResolution(ResultsDataMixin[FourBarResolutionResults], QuaacMixin):
     """Spatial resolution in the X and Y direction as measured by a 'four-bar' phantom.
 
@@ -1114,6 +1125,7 @@ class FourBarResolution(ResultsDataMixin[FourBarResolutionResults], QuaacMixin):
     x_axis: DoubleGaussianProfile
 
     def __init__(self, path: str | Path):
+        super().__init__()
         self.stack = NMImageStack(path)
         self.path = Path(path)
 
@@ -1233,12 +1245,13 @@ class FourBarResolution(ResultsDataMixin[FourBarResolutionResults], QuaacMixin):
         return figs, axes
 
 
-class QuadrantResolutionResults(BaseModel):
+class QuadrantResolutionResults(ResultBase):
     quadrants: dict[
         str, dict[str, float]
     ]  #:  quadrant idx: {'mtf': mtf, 'fwhm': fwhm, 'lpmm': lpmm}
 
 
+@capture_warnings
 class QuadrantResolution(ResultsDataMixin[QuadrantResolutionResults], QuaacMixin):
     """Analyze a 4-quadrant image of high-contrast line pairs to determine MTF and FWHM.
 
@@ -1252,6 +1265,7 @@ class QuadrantResolution(ResultsDataMixin[QuadrantResolutionResults], QuaacMixin
     mtf: MomentMTF
 
     def __init__(self, path: str | Path) -> None:
+        super().__init__()
         self.stack = NMImageStack(path)
         self.path = Path(path)
 
@@ -1353,7 +1367,7 @@ class QuadrantResolution(ResultsDataMixin[QuadrantResolutionResults], QuaacMixin
         return figs, axes
 
 
-class TomographicUniformityResults(BaseModel):
+class TomographicUniformityResults(ResultBase):
     cfov_integral_uniformity: float
     cfov_differential_uniformity: float
     ufov_integral_uniformity: float
@@ -1363,6 +1377,7 @@ class TomographicUniformityResults(BaseModel):
     last_frame: int
 
 
+@capture_warnings
 class TomographicUniformity(
     ResultsDataMixin[TomographicUniformityResults], PlanarUniformity
 ):
@@ -1588,15 +1603,17 @@ class TomgraphicSphere(TypedDict):
     max_contrast: float
 
 
-class TomographicContrastResults(BaseModel):
+class TomographicContrastResults(ResultBase):
     uniformity_baseline: float
     spheres: dict[str, TomgraphicSphere]
 
 
+@capture_warnings
 class TomographicContrast(ResultsDataMixin[TomographicContrastResults], QuaacMixin):
     rois: dict[str, TomographicROI]
 
     def __init__(self, path: str | Path):
+        super().__init__()
         self.stack = NMImageStack(path)
         self.path = Path(path)
 

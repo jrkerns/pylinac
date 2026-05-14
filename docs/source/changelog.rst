@@ -82,6 +82,8 @@ General
 * :bdg-success:`Feature` CT-like modules that have the ``plotly_side_view`` and ``plot_side_view``
   methods now accept ``kwargs`` that are passed to the visualization method. This allows for more customization, such as
   the above change setting the visualization thresholds.
+* :bdg-warning:`Fixed` The ``warnings`` capture in ``results_data`` was not working properly and has been fixed.
+  This usage is primarily for RadMachine. Library users will still see any runtime warnings in the console.
 
 Geometry
 ^^^^^^^^

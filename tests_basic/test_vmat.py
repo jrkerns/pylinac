@@ -124,7 +124,10 @@ class ResultsBase:
 
     def test_results_warnings(self):
         data = self.instance.results_data()
-        self.assertEqual(len(data.warnings), 0)
+        self.assertIsInstance(data.warnings, list)
+        for w in data.warnings:
+            self.assertIn("message", w)
+            self.assertIn("category", w)
 
     def test_results_preprocess(self):
         instance = self.klass.from_demo_images()
