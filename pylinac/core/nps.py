@@ -34,49 +34,76 @@ def radial_average(arr: np.ndarray) -> np.ndarray:
 
 
 def noise_power_spectrum_2d(
-    pixel_size: float, rois: Iterable[np.ndarray]
-) -> np.ndarray:
+    image_array: np.ndarray, pixel_size: float, big_roi_size: int, small_roi_size: int
+) -> tuple[np.ndarray, float]:
     """Calculate the noise power spectrum in 2D and 1D for a set of square ROIs.
 
-    Based on ICRU 87, equation 11.1 and 11.2. Calculates the 2D FFT of each ROI, then averages the FFTs.
+    Based on ICRU 87, equation 11.1 and 11.2, and on IEC 62220-1-1:2015 described method. For a given image,
+    it selects a central big ROI to apply this function, then it creates ROIs of a given size l within the big ROI,
+    moving it l/2 and calculates the 2D FFT of each ROI, then averages the FFTs.
     FFTs are shifted so that the zero frequency is in the center and then radially averaged
 
     Notes
     -----
     The ROIs should be 2D and square (i.e. not a rectangle, circle, etc).
-    The smallest dimension of the ROIs will be used. I.e. the ROIs can
-    vary in size, but only the smallest dimension will be used. In practice,
-    ROIs can sometimes vary depending on how they are extracted from an image (at least in pylinac).
-    Sometimes the ROI may be 32 pixels wide and 30 pixels tall, for instance. In this case, the
-    30x30 subset of the ROI will be used.
-
 
     Parameters
     ----------
+    image_array : ndarray
+        Image to apply NPS to.
     pixel_size : float
         The size of each pixel in mm.
-    rois : list of ndarray
-        A list of the ROIs to calculate the NPS over. Each ROI should be a 2D array.
+    big_roi_size : float
+        Central large ROI size in pixels.
+    small_roi_size: float
+        Small ROIs size in pixels.
 
     Returns
     -------
     nps2d : ndarray
         The 2D noise power spectrum.
+    mean_pv : float
+        The mean pixel value of the large ROI. Used for NNPS calculations.
 
     References
     ----------
     [ICRU 87] https://www.aapm.org/pubs/protected_files/ICRU/ICRU_Report_87_Radiation_Dose_and_Image-Quality_Assessment_in_Computed_Tomography_AAPM.pdf
     """
-    length = min(min(roi.shape) for roi in rois)
-    ffts = np.zeros((length, length, len(rois)))
+
+    def extract_rois_from_image(image_array, big_roi_size, small_roi_size):
+        if image_array.ndim != 2:
+            raise ValueError("Input image must be a 2D array.")
+
+        img_height, img_width = image_array.shape
+
+        # 1. Define the "big central ROI". Calculate the top-left corner for the centered big ROI
+        start_y = (img_height - big_roi_size) // 2
+        start_x = (img_width - big_roi_size) // 2
+
+        # Extract the big ROI from the original image
+        big_roi = image_array[start_y : start_y + big_roi_size, start_x : start_x + big_roi_size]
+
+        # 2. Divide the big ROI into smaller, overlapping ROIs
+        rois_list = []
+
+        for y in range(0, big_roi_size - small_roi_size + 1, int(small_roi_size / 2)):
+            for x in range(0, big_roi_size - small_roi_size + 1, int(small_roi_size / 2)):
+                small_roi = big_roi[y : y + small_roi_size, x : x + small_roi_size]
+                rois_list.append(small_roi)
+
+        return rois_list, big_roi
+
+    rois, big_roi = extract_rois_from_image(image_array, big_roi_size, small_roi_size)
+
+    ffts = np.zeros((small_roi_size, small_roi_size, len(rois)))
     for idx, roi in enumerate(rois):
-        rroi = roi[0:length, 0:length]
-        b = np.abs(np.fft.fft2(rroi - np.mean(rroi))) ** 2
-        s = np.fft.fftshift(b)
-        ffts[:, :, idx] = s
+        power_spectrum = np.abs(np.fft.fft2(roi - np.mean(roi))) ** 2
+        shifted_spectrum = np.fft.fftshift(power_spectrum)
+        ffts[:, :, idx] = shifted_spectrum
     s = np.mean(ffts, axis=-1)
-    nps2d = pixel_size**2 / length**2 * s
-    return nps2d
+    nps2d = pixel_size**2 / small_roi_size**2 * s
+    mean_pv = np.mean(big_roi) # For NNPS calculation
+    return nps2d, mean_pv
 
 
 def noise_power_spectrum_1d(spectrum_2d: np.ndarray) -> np.ndarray:
