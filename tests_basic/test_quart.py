@@ -461,6 +461,43 @@ class TestQuart2(QuartDVTMixin, TestCase):
     }
 
 
+class TestQuartRollSafetyReset(TestCase):
+    """Related to RAM-5972"""
+
+    def test_large_image_rotation_resets_phantom_roll_to_zero(self):
+        filename = get_file_from_cloud_test_repo([*TEST_DIR, "Head_Quart.zip"])
+        quart = QuartDVT.from_zip(filename)
+        for img in quart.dicom_stack:
+            img.array = ndimage.rotate(img.array, angle=15, mode="nearest")
+        with self.assertWarnsRegex(
+            UserWarning, "Phantom roll could not be reliably determined"
+        ):
+            quart.analyze()
+        self.assertEqual(quart.catphan_roll, 0)
+
+
+class TestQuartRAM5972(QuartDVTMixin, TestCase):
+    """This dataset triggered a fix due to incorrect phantom rotation. See RAM-5972"""
+
+    file_name = "Quart_RAM-5972.zip"
+    phantom_roll = 0
+    origin_slice = 62
+    snr = 483.43
+    cnr = 50.86
+    horiz_dist = 159.49
+    vert_dist = 159.58
+    high_contrast_distance = 0.71
+    hu_values = {
+        "Air": -1000,
+        "Poly": -58,
+        "Acrylic": 88,
+        "Teflon": 913,
+        "Water": -26,
+    }
+    unif_values = {"Center": 84, "Left": 82, "Right": 88, "Top": 83, "Bottom": 86}
+    has_water_vial = True
+
+
 class TestHypersightPhantomDepracated(TestCase):
     # This phantom is replaced by the auto-detect of the water vial on the regular Quart phantom.
     def test_hypersight_depracated(self):

@@ -4,6 +4,7 @@ import io
 import textwrap
 import warnings
 import webbrowser
+from collections.abc import Callable
 from io import BytesIO
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from matplotlib import pyplot as plt
 from plotly import graph_objects as go
 from pydantic import BaseModel, Field
 from scipy.interpolate import interp1d
+from skimage.measure._regionprops import RegionProperties
 
 from .core import pdf
 from .core.geometry import Line, Point
@@ -26,7 +28,9 @@ from .ct import (
     WATER,
     CatPhanBase,
     CatPhanModule,
+    Slice,
     ThicknessROI,
+    get_regions,
     rois_to_results,
 )
 
@@ -445,6 +449,50 @@ class QuartDVT(CatPhanBase, ResultsDataMixin[QuartDVTResult]):
         quart.analyze()
         print(quart.results())
         quart.plot_analyzed_image(show)
+
+    def _is_right_area(self, region: RegionProperties) -> bool:
+        """Loosen the area-finding for quart phantoms where the air ROIs can be adjacent to the slice localizer box."""
+        thresh = np.pi * ((self.air_bubble_radius_mm / self.mm_per_pixel) ** 2)
+        return thresh * 2.5 > region.area_filled > thresh / 2
+
+    def find_phantom_roll(self, func: Callable | None = None) -> float:
+        """Determine the roll of the Quart phantom."""
+        if func is not None:
+            return super().find_phantom_roll(func=func)
+
+        slice_offset = round(self.roll_slice_offset / self.dicom_stack.slice_spacing)
+        slice_num = self.origin_slice + slice_offset
+        slice = Slice(self, slice_num, clear_borders=self.clear_borders)
+        _, regions, _ = get_regions(slice)
+        x_tolerance_px = self.air_bubble_radius_mm / self.mm_per_pixel * 2
+        hu_bubbles = [
+            r
+            for r in regions
+            if (
+                self._is_right_area(r)
+                and self._is_right_eccentricity(r)
+                # also check that the ROIs are roughly near the phantom center so we don't detect the poly ROI
+                and abs(r.centroid[1] - slice.phan_center.x) < x_tolerance_px
+            )
+        ]
+        sorted_bubbles = sorted(hu_bubbles, key=lambda x: x.centroid[0])
+        if len(sorted_bubbles) < 2:
+            warnings.warn(
+                "Could not reliably determine Quart phantom roll. Setting roll to 0.",
+                UserWarning,
+            )
+            return 0.0
+        y_dist = sorted_bubbles[-1].centroid[0] - sorted_bubbles[0].centroid[0]
+        x_dist = sorted_bubbles[-1].centroid[1] - sorted_bubbles[0].centroid[1]
+        phan_roll_rad = np.arctan2(y_dist, x_dist)
+        phan_roll = float(np.rad2deg(phan_roll_rad) - 90)
+        if abs(phan_roll) > 10:
+            warnings.warn(
+                "Phantom roll could not be reliably determined. Setting roll to 0.",
+                UserWarning,
+            )
+            phan_roll = 0
+        return phan_roll
 
     def analyze(
         self,

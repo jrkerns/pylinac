@@ -20,6 +20,14 @@ VMAT
   to allow users to swap the automatically-detected open/DMLC image assignment when automatic
   identification fails.
 
+Quart
+^^^^^
+
+* :bdg-warning:`Fixed` :class:`~pylinac.quart.QuartDVT` phantom roll detection now
+  uses a narrower air bubble detection to avoid selecting the lateral HU ROI.
+  Separately, if the detected roll is too large (>10 degrees), a ``UserWarning``
+  is emitted and the roll is reset to 0 to avoid incorrect ROI placement.
+
 v 3.44.0
 --------
 
