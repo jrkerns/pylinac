@@ -59,6 +59,27 @@ class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
             instance = self.klass(image_paths=(s1, s2))
         self.assertIsInstance(instance, self.klass)
 
+    def test_swap_image_order(self):
+        one = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_1.dcm"])
+        two = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_2.dcm"])
+
+        instance = self.klass(image_paths=(one, two))
+        self.assertEqual(instance.open_image.path, two)
+        self.assertEqual(instance.dmlc_image.path, one)
+
+        instance = self.klass(image_paths=(one, two))
+        try:
+            # The DRCS analysis will fail with
+            # such a config, but all we want is to
+            # test the image order, so swallowing
+            # is fine here for the purpose of the test
+            # and the swap is still tested
+            instance.analyze(invert_image_order=True)
+        except Exception:
+            pass
+        self.assertEqual(instance.open_image.path, one)
+        self.assertEqual(instance.dmlc_image.path, two)
+
     def test_passing_3_images_fails(self):
         """Test passing the wrong number of images."""
         with self.assertRaises(ValueError):

@@ -114,7 +114,21 @@ The minimum needed to get going is to:
 Customizing the analysis
 ------------------------
 
-You can alter both the segment size and segment positions as desired.
+Swapping Open/DMLC image assignment
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Pylinac automatically identifies which image is the open field and which is the DMLC field.
+In uncommon cases, automatic identification may be incorrect. Use the
+``invert_image_order`` parameter to swap the assignment:
+
+.. code-block:: python
+
+    from pylinac import DRGS
+
+    my_drgs = DRGS(
+        image_paths=(open_img, dmlc_img),
+    )
+    my_drgs.analyze(invert_image_order=True)
 
 Customizing the segment size
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -127,7 +141,7 @@ To change the segment size:
     drgs.analyze(..., segment_size_mm=(10, 150))
     # ROI segments will now be 10mm wide by 150mm tall
 
-Customizing the ROI posisition on DRGS/DRMLC
+Customizing the ROI position on DRGS/DRMLC
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To change the x-position of the ROI segments or change the number of ROI, use a custom ROI config dictionary and pass it to the ``analyze`` method.
@@ -157,7 +171,7 @@ To change the x-position of the ROI segments or change the number of ROI, use a 
     my_drgs.analyze(roi_config=custom_roi_config)
     my_drgs.plot_analyzed_image()
 
-Customizing the ROI posisition on DRCS
+Customizing the ROI position on DRCS
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To change the position of the ROI segments or change the number of ROI, use a custom ROI config dictionary and pass it to the ``analyze`` method.

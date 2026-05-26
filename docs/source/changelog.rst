@@ -10,6 +10,16 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v3.45.0
+-------
+
+VMAT
+^^^^
+
+* :bdg-success:`Feature` Added ``invert_image_order`` parameter to VMAT classes (DRGS, DRMLC, DRCS)
+  to allow users to swap the automatically-detected open/DMLC image assignment when automatic
+  identification fails.
+
 v 3.44.0
 --------
 

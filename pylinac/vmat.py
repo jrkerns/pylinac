@@ -306,6 +306,7 @@ class VMATBase(ABC, ResultsDataMixin[VMATResult], QuaacMixin):
         tolerance: float | int = 1.5,
         segment_size_mm: tuple | None = None,
         roi_config: dict | None = None,
+        invert_image_order: bool = False,
     ):
         """Analyze the open and DMLC field VMAT images, according to 1 of 2 possible tests.
 
@@ -318,11 +319,17 @@ class VMATBase(ABC, ResultsDataMixin[VMATResult], QuaacMixin):
             The (width, height) of the ROI segments in mm.
         roi_config : dict
             A dict of the ROI settings. The keys are the names of the ROIs and each value is a dict containing the offset in mm 'offset_mm'.
+        invert_image_order : bool, optional
+            If ``True``, swap the automatically-identified open and DMLC images.
+            Use this option when automatic identification fails.
+            Defaults to ``False``.
         """
         if segment_size_mm is None:
             segment_size_mm = self.default_segment_size_mm
         if roi_config is None:
             roi_config = self.default_roi_config
+        if invert_image_order:
+            self.open_image, self.dmlc_image = self.dmlc_image, self.open_image
 
         self._tolerance = tolerance / 100
         self.roi_config = roi_config
@@ -914,6 +921,7 @@ class DRCS(VMATBase):
         roi_config: dict | None = None,
         collimator_radial_distances: tuple[float, float] | None = None,
         collimator_config: dict | None = None,
+        invert_image_order: bool = False,
     ):
         """Analyze DRCS images and compute segment and spoke deviations.
 
@@ -933,8 +941,17 @@ class DRCS(VMATBase):
         collimator_config
             Mapping of spoke label to nominal angle in degrees. If ``None``,
             uses :attr:`default_collimator_config`.
+        invert_image_order : bool, optional
+            If ``True``, swap the automatically-identified open and DMLC images.
+            Use this option when automatic identification fails.
+            Defaults to ``False``.
         """
-        super().analyze(tolerance, segment_size_mm, roi_config)
+        super().analyze(
+            tolerance,
+            segment_size_mm,
+            roi_config,
+            invert_image_order=invert_image_order,
+        )
         cc = collimator_config or self.default_collimator_config
         crd = collimator_radial_distances or self.default_collimator_radial_distances
         self._calculate_collimator_deviations(cc, crd)
