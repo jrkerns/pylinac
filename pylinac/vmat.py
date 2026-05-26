@@ -128,6 +128,10 @@ class VMATResult(ResultBase):
 
 
 class DRCSResult(VMATResult):
+    rotation_offset_deg: float = Field(
+        description="The signed mean of the collimator angle deviations.",
+        title="Rotation Offset (deg)",
+    )
     # this is implicitly a named_collimator_data field
     collimator_data: dict[str, CollimatorResult] = Field(
         description="List of individual collimator deviation data"
@@ -700,6 +704,8 @@ class VMATBase(ABC, ResultsDataMixin[VMATResult], QuaacMixin):
             f"Absolute mean deviation (%): {self.avg_abs_r_deviation:2.2f}",
             f"Maximum deviation (%): {self.max_r_deviation:2.2f}",
         ]
+        if hasattr(self, "rotation_offset_deg"):
+            text.append(f"Rotation offset (deg): {self.rotation_offset_deg:2.2f}")
         canvas.add_text(text=text, location=(10, 25.5))
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
@@ -914,6 +920,11 @@ class DRCS(VMATBase):
     def default_collimator_radial_distances(self) -> tuple[float, float]:
         return 30, 70  # mm
 
+    @property
+    def rotation_offset_deg(self) -> float:
+        """Return the signed average of all collimator angle deviations."""
+        return float(np.mean([cd.angle_deviation for cd in self.collimator_deviations]))
+
     def analyze(
         self,
         tolerance: float | int = 1.5,  # Segments, in %
@@ -1013,8 +1024,19 @@ class DRCS(VMATBase):
             passed=self.passed,
             segment_data=segment_data,
             named_segment_data=named_segment_data,
+            rotation_offset_deg=self.rotation_offset_deg,
             collimator_data=coll_data,
         )
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        """Add rotation offset (DRCS-specific) to Quaac data"""
+        results_data = self.results_data(as_dict=True)
+        data = super()._quaac_datapoints()
+        data["Rotation Offset"] = QuaacDatum(
+            value=results_data["rotation_offset_deg"],
+            unit="deg",
+        )
+        return data
 
     def _calculate_segments(self, segment_size_mm: tuple[float, float]):
         """Calculate the segments based on ROI config.

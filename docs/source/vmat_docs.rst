@@ -310,6 +310,7 @@ section.
 * ``passed`` -- A boolean indicating if the test passed or failed.
 * ``abs_mean_deviation`` -- The average absolute deviation of all segments.
 * ``max_deviation_percent`` -- The maximum deviation of any segment.
+* ``rotation_offset_deg`` -- For DRCS analyses only, the signed mean of the collimator angle deviations in degrees.
 * ``segment_data`` -- A list of :class:`~pylinac.vmat.SegmentResult` instances. Each instance contains the following attributes:
 
   * ``passed`` -- A boolean indicating if the segment passed or failed.

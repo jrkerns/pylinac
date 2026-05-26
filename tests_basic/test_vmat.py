@@ -174,7 +174,11 @@ class TestDRMLCResults(ResultsBase, TestCase):
 
 class TestDRCSResults(ResultsBase, TestCase):
     klass = DRCS
-    results_length = 11
+    results_length = 12
+
+    def test_rotation_offset_in_results_data(self):
+        data_dict = self.instance.results_data(as_dict=True)
+        self.assertIn("rotation_offset_deg", data_dict)
 
 
 # endregion
@@ -734,6 +738,14 @@ class TestDRCS(VMATMixin, PlotlyTestMixin, TestCase):
     def test_generate_results(self):
         results = self.instance._generate_results_data()
         self.assertEqual(6, len(results.collimator_data))
+        expected = np.mean(
+            [
+                collimator.angle_deviation
+                for collimator in results.collimator_data.values()
+            ]
+        )
+        self.assertEqual(results.rotation_offset_deg, expected)
+        self.assertAlmostEqual(results.rotation_offset_deg, -0.16, delta=0.02)
 
     def test_spoke_config_reordered(self):
         baseline_drcs = DRCS.from_demo_images()
