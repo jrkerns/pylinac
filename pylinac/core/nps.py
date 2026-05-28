@@ -83,12 +83,29 @@ def noise_power_spectrum_2d(
         # Extract the big ROI from the original image
         big_roi = image_array[start_y : start_y + big_roi_size, start_x : start_x + big_roi_size]
 
-        # 2. Divide the big ROI into smaller, overlapping ROIs
+        # 2. Fit a 2D second-order polynomial to the big ROI (IEC 62220-1-1 trend removal)
+        #    and subtract it to detrend before FFT computation.
+        ny, nx = big_roi.shape
+        yi, xi = np.indices((ny, nx))
+        # Design matrix for terms: 1, x, y, x², xy, y²
+        A = np.column_stack([
+            np.ones(nx * ny),
+            xi.ravel(),
+            yi.ravel(),
+            xi.ravel() ** 2,
+            (xi * yi).ravel(),
+            yi.ravel() ** 2,
+        ])
+        coeffs, _, _, _ = np.linalg.lstsq(A, big_roi.ravel(), rcond=None)
+        polynomial_surface = (A @ coeffs).reshape(ny, nx)
+        big_roi_detrended = big_roi - polynomial_surface
+
+        # 3. Divide the detrended big ROI into smaller, overlapping ROIs
         rois_list = []
 
         for y in range(0, big_roi_size - small_roi_size + 1, int(small_roi_size / 2)):
             for x in range(0, big_roi_size - small_roi_size + 1, int(small_roi_size / 2)):
-                small_roi = big_roi[y : y + small_roi_size, x : x + small_roi_size]
+                small_roi = big_roi_detrended[y : y + small_roi_size, x : x + small_roi_size]
                 rois_list.append(small_roi)
 
         return rois_list, big_roi
