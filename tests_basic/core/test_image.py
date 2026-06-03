@@ -1,4 +1,5 @@
 import copy
+import functools
 import io
 import json
 import math
@@ -8,6 +9,7 @@ import tempfile
 import unittest
 import zipfile
 from builtins import ValueError
+from functools import lru_cache
 from pathlib import Path
 from unittest import TestCase
 
@@ -47,16 +49,106 @@ from tests_basic.utils import (
     save_file,
 )
 
-bad_tif_path = get_file_from_cloud_test_repo(["Winston-Lutz", "AQA_A_03082023.tif"])
-tif_path = get_file_from_cloud_test_repo(["Starshot", "Starshot-1.tif"])
-png_path = get_file_from_cloud_test_repo(["Starshot", "Starshot-1.png"])
-dcm_path = get_file_from_cloud_test_repo(["VMAT", "DRGSdmlc-105-example.dcm"])
-as500_path = get_file_from_cloud_test_repo(["picket_fence", "AS500#5.dcm"])
-xim_path = get_file_from_cloud_test_repo(["ximdcmtest.xim"])
-xim_dcm_path = get_file_from_cloud_test_repo(["ximdcmtest.dcm"])
+bad_tif_path = ""
+tif_path = ""
+png_path = ""
+dcm_path = ""
+as500_path = ""
+xim_path = ""
+xim_dcm_path = ""
 dcm_url = "https://storage.googleapis.com/pylinac_demo_files/EPID-PF-LR.dcm"
 
 
+@lru_cache(maxsize=1)
+def _resolve_core_image_cloud_paths() -> dict[str, str]:
+    return {
+        "bad_tif_path": get_file_from_cloud_test_repo(
+            ["Winston-Lutz", "AQA_A_03082023.tif"]
+        ),
+        "tif_path": get_file_from_cloud_test_repo(["Starshot", "Starshot-1.tif"]),
+        "png_path": get_file_from_cloud_test_repo(["Starshot", "Starshot-1.png"]),
+        "dcm_path": get_file_from_cloud_test_repo(["VMAT", "DRGSdmlc-105-example.dcm"]),
+        "as500_path": get_file_from_cloud_test_repo(["picket_fence", "AS500#5.dcm"]),
+        "xim_path": get_file_from_cloud_test_repo(["ximdcmtest.xim"]),
+        "xim_dcm_path": get_file_from_cloud_test_repo(["ximdcmtest.dcm"]),
+    }
+
+
+def _ensure_core_image_cloud_paths() -> None:
+    global \
+        as500_path, \
+        bad_tif_path, \
+        dcm_path, \
+        png_path, \
+        tif_path, \
+        xim_dcm_path, \
+        xim_path
+    paths = _resolve_core_image_cloud_paths()
+    bad_tif_path = paths["bad_tif_path"]
+    tif_path = paths["tif_path"]
+    png_path = paths["png_path"]
+    dcm_path = paths["dcm_path"]
+    as500_path = paths["as500_path"]
+    xim_path = paths["xim_path"]
+    xim_dcm_path = paths["xim_dcm_path"]
+
+
+def _decorate_core_cloud_test_class(cls: type[TestCase]) -> type[TestCase]:
+    original_set_up_class = getattr(cls, "setUpClass", None)
+
+    @classmethod
+    def set_up_class(inner_cls):
+        _ensure_core_image_cloud_paths()
+        if original_set_up_class is not None:
+            original_set_up_class()
+
+    cls.setUpClass = set_up_class
+    return cls
+
+
+def requires_core_image_cloud_data(*args, **kwargs):
+    """Decorator for class-level shared cloud paths or test-level specific files.
+
+    Class usage
+    -----------
+    @requires_core_image_cloud_data
+    class TestSomething(TestCase):
+        ...
+
+    Test usage
+    ----------
+    @requires_core_image_cloud_data(ct_path=("CBCT", "CatPhan_504", ...))
+    def test_x(self, ct_path: str):
+        ...
+    """
+    if len(args) == 1 and isinstance(args[0], type):
+        return _decorate_core_cloud_test_class(args[0])
+
+    if args:
+        raise ValueError(
+            "Pass named cloud paths, e.g. @requires_core_image_cloud_data(ct_path=(...))."
+        )
+
+    if not kwargs:
+        raise ValueError("At least one named cloud path must be provided.")
+
+    normalized_paths = {name: list(path) for name, path in kwargs.items()}
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*func_args, **func_kwargs):
+            resolved = {
+                name: get_file_from_cloud_test_repo(path)
+                for name, path in normalized_paths.items()
+            }
+            return func(*func_args, **func_kwargs, **resolved)
+
+        return wrapper
+
+    return decorator
+
+
+@requires_core_image_cloud_data
 class TestFromMultiples(TestCase):
     def test_from_multiples(self):
         """Test that loading multiple images works"""
@@ -128,6 +220,7 @@ class TestFromMultiples(TestCase):
         self.assertEqual(np.max(img_cropped.array), 65535)  # max of uint16
 
 
+@requires_core_image_cloud_data
 class TestDICOMScaling(TestCase):
     def test_scale_raw_pixels_doesnt_change_array(self):
         """Test that loading a dicom with raw_pixels=True doesn't change the array"""
@@ -147,21 +240,21 @@ class TestDICOMScaling(TestCase):
         )
         assert np.array_equal(array, scaled_array)
 
-    def test_scale_mr_image(self):
+    @requires_core_image_cloud_data(mr_dcm=("ACR", "MRI", "GE - 3T", "IM_0001"))
+    def test_scale_mr_image(self, mr_dcm: str):
         """Test loading a dicom with MR storage without rescale slope or intercept tags"""
-        dcm_path = get_file_from_cloud_test_repo(["ACR", "MRI", "GE - 3T", "IM_0001"])
-        ds = pydicom.dcmread(dcm_path)
+        ds = pydicom.dcmread(mr_dcm)
         array = _rescale_dicom_values(
             ds.pixel_array, ds, raw_pixels=False, invert_pixels=None
         )
         assert np.array_equal(ds.pixel_array, array)
 
-    def test_scale_ct_image(self):
+    @requires_core_image_cloud_data(
+        ct_dcm=("CBCT", "CatPhan_504", "Case3_Philips_1mm", "1mm", "EE035381")
+    )
+    def test_scale_ct_image(self, ct_dcm: str):
         """Test loading a CT Image where we are guaranteed to have rescale slope and intercept tags"""
-        dcm_path = get_file_from_cloud_test_repo(
-            ["CBCT", "CatPhan_504", "Case3_Philips_1mm", "1mm", "EE035381"]
-        )
-        ds = pydicom.dcmread(dcm_path)
+        ds = pydicom.dcmread(ct_dcm)
         scaled_array = _rescale_dicom_values(
             ds.pixel_array, ds, raw_pixels=False, invert_pixels=None
         )
@@ -233,6 +326,7 @@ class TestDICOMScaling(TestCase):
         self.assertEqual(inverted_array[1], array[0])
 
 
+@requires_core_image_cloud_data
 class TestDICOMUnscaling(TestCase):
     def test_unscale_raw_pixels_doesnt_change_array(self):
         """Test when we unscale the image that the values are the same"""
@@ -252,20 +346,20 @@ class TestDICOMUnscaling(TestCase):
         )
         assert np.array_equal(original_array, scaled_array)
 
-    def test_unscale_mr_image(self):
-        dcm_path = get_file_from_cloud_test_repo(["ACR", "MRI", "GE - 3T", "IM_0001"])
-        ds = pydicom.dcmread(dcm_path)
+    @requires_core_image_cloud_data(mr_dcm=("ACR", "MRI", "GE - 3T", "IM_0001"))
+    def test_unscale_mr_image(self, mr_dcm: str):
+        ds = pydicom.dcmread(mr_dcm)
         array = _unscale_dicom_values(
             ds.pixel_array, ds, raw_pixels=False, invert_pixels=None
         )
         assert np.array_equal(ds.pixel_array, array)
 
-    def test_unscale_ct_image(self):
+    @requires_core_image_cloud_data(
+        ct_dcm=("CBCT", "CatPhan_504", "Case3_Philips_1mm", "1mm", "EE035381")
+    )
+    def test_unscale_ct_image(self, ct_dcm: str):
         """Test an older CT Image where we are guaranteed to have rescale slope and intercept tags"""
-        dcm_path = get_file_from_cloud_test_repo(
-            ["CBCT", "CatPhan_504", "Case3_Philips_1mm", "1mm", "EE035381"]
-        )
-        ds = pydicom.dcmread(dcm_path)
+        ds = pydicom.dcmread(ct_dcm)
         original_array = ds.pixel_array
         scaled_array = _rescale_dicom_values(
             ds.pixel_array, ds, raw_pixels=False, invert_pixels=None
@@ -322,6 +416,7 @@ class TestEquateImages(TestCase):
         self.assertEqual(img1.shape, img2.shape)
 
 
+@requires_core_image_cloud_data
 class TestLoaders(TestCase):
     """Test the image loading functions."""
 
@@ -413,6 +508,7 @@ class TestLoaders(TestCase):
         )
 
 
+@requires_core_image_cloud_data
 class TestBaseImage(TestCase):
     """Test the basic methods of BaseImage. Since it's a semi-abstract class, its subclasses (DicomImage,
     ArrayImage, and FileImage) are tested."""
@@ -599,6 +695,7 @@ class TestImageWindowHelpers(TestCase):
         plt.close(fig)
 
 
+@requires_core_image_cloud_data
 class TestDicomImage(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -732,6 +829,7 @@ class TestDicomImage(TestCase):
         self.assertAlmostEqual(stack[1].slice_spacing, 2, places=1)
 
 
+@requires_core_image_cloud_data
 class TestXIMImage(TestCase):
     def test_normal_load(self):
         xim = XIM(xim_path)
@@ -807,6 +905,7 @@ class TestXIMImage(TestCase):
         self.assertEqual(xim.array.max(), 38822)
 
 
+@requires_core_image_cloud_data
 class TestLinacDicomImage(TestCase):
     def test_normal_image(self):
         img = LinacDicomImage(as500_path, use_filenames=False)
@@ -868,6 +967,7 @@ class TestLinacDicomImage(TestCase):
         self.assertEqual(img.couch_angle, 0)
 
 
+@requires_core_image_cloud_data
 class TestFileImage(TestCase):
     def test_sid(self):
         # default sid is None
@@ -907,6 +1007,7 @@ class TestFileImage(TestCase):
             fimg.dpi
 
 
+@requires_core_image_cloud_data
 class TestTiff(TestCase):
     """A special case of the FileImage"""
 
@@ -932,8 +1033,13 @@ class TestArrayImage(TestCase):
         self.assertEqual(ai2.dpmm, 20 / 25.4)
 
 
+@requires_core_image_cloud_data
 class TestDicomStack(TestCase):
-    stack_location = get_file_from_cloud_test_repo(["CBCT", "CBCT_4.zip"])
+    stack_location = ""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.stack_location = get_file_from_cloud_test_repo(["CBCT", "CBCT_4.zip"])
 
     def test_loading(self):
         # test normal construction
@@ -1020,6 +1126,7 @@ class TestDicomStack(TestCase):
         self.assertAlmostEqual(dstack.slice_spacing, 10, delta=0.001)
 
 
+@requires_core_image_cloud_data
 class TestRawImages(TestCase):
     def test_3d_shape_fails(self):
         """Test that a 3D array fails to load"""
@@ -1096,6 +1203,7 @@ class TestRawImages(TestCase):
         self.assertEqual(img.dpi, 100)
 
 
+@requires_core_image_cloud_data
 class TestTiffToDicom(TestCase):
     def test_conversion_can_be_loaded_as_dicom(self):
         ds = tiff_to_dicom(
