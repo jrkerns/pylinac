@@ -336,29 +336,119 @@ def can_run_cloud_tests() -> bool:
     return cloud_test_downloader.is_authenticated
 
 
+def _decorate_cloud_test_class(
+    cls: type,
+    file_map: dict[str, Sequence[str]],
+    folder_map: dict[str, Sequence[str]],
+    folder_repo_map: dict[str, str],
+) -> type:
+    """Wrap a ``TestCase`` class so that ``setUpClass`` injects cloud-backed
+    file and folder paths as class attributes before any test method runs.
+
+    Parameters
+    ----------
+    cls
+        The ``TestCase`` subclass to wrap.
+    file_map
+        Mapping of attribute name to cloud file path parts.
+    folder_map
+        Mapping of attribute name to cloud folder path parts.
+    folder_repo_map
+        Optional mapping of folder attribute name to cloud bucket name.
+
+    Returns
+    -------
+    type
+        The same class with a replacement ``setUpClass``.
+    """
+    original_setup_class = cls.__dict__.get("setUpClass")
+
+    @classmethod  # type: ignore[misc]
+    def new_setup_class(inner_cls: type) -> None:
+        if not can_run_cloud_tests():
+            raise unittest.SkipTest(CLOUD_TEST_SKIP_MESSAGE)
+        try:
+            for name, path in file_map.items():
+                setattr(inner_cls, name, get_file_from_cloud_test_repo(list(path)))
+            for name, path in folder_map.items():
+                setattr(
+                    inner_cls,
+                    name,
+                    get_folder_from_cloud_repo(
+                        list(path),
+                        cloud_repo=folder_repo_map.get(name, GCP_BUCKET_NAME),
+                    ),
+                )
+        except unittest.SkipTest:
+            raise
+        except Exception as exc:
+            raise unittest.SkipTest(
+                f"Cloud-backed test data unavailable: {exc}"
+            ) from exc
+        if original_setup_class is not None:
+            original_setup_class.__func__(inner_cls)
+
+    cls.setUpClass = new_setup_class
+    return cls
+
+
 def requires_cloud_data(
     *,
     files: dict[str, Sequence[str]] | None = None,
     folders: dict[str, Sequence[str]] | None = None,
     folder_repos: dict[str, str] | None = None,
 ) -> Callable:
-    """Decorator to inject cloud-backed test paths as function/classmethod kwargs.
+    """Decorator to inject cloud-backed test paths into test classes or methods.
+
+    When applied to a ``TestCase`` *class*, the decorator hooks into
+    ``setUpClass`` and injects the resolved paths as *class attributes* so
+    that every test method can access them via ``self.<name>``.  Any
+    ``setUpClass`` already defined on the class is called **after** the
+    cloud paths have been set, allowing it to use them.
+
+    When applied to a *test method*, the resolved paths are passed as
+    additional keyword arguments to the method.
 
     Parameters
     ----------
     files
-        Mapping of kwarg name to cloud file path parts.
+        Mapping of attribute/kwarg name to cloud file path parts.
     folders
-        Mapping of kwarg name to cloud folder path parts.
+        Mapping of attribute/kwarg name to cloud folder path parts.
     folder_repos
-        Optional mapping of folder kwarg name to cloud bucket name.
+        Optional mapping of folder name to the cloud bucket name to use
+        instead of the default ``GCP_BUCKET_NAME``.
+
+    Examples
+    --------
+    Class usage – shared paths become class attributes:
+
+    .. code-block:: python
+
+        @requires_cloud_data(files={"dcm_path": ["VMAT", "example.dcm"]})
+        class TestFoo(TestCase):
+            def test_something(self):
+                img = image.load(self.dcm_path)
+
+    Method usage – paths are injected as keyword arguments:
+
+    .. code-block:: python
+
+        @requires_cloud_data(files={"ct_dcm": ["CBCT", "slice.dcm"]})
+        def test_ct(self, ct_dcm: str):
+            ds = pydicom.dcmread(ct_dcm)
     """
     file_map = files or {}
     folder_map = folders or {}
     folder_repo_map = folder_repos or {}
 
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
+    def decorator(func_or_cls: Callable) -> Callable:
+        if isinstance(func_or_cls, type):
+            return _decorate_cloud_test_class(
+                func_or_cls, file_map, folder_map, folder_repo_map
+            )
+
+        @functools.wraps(func_or_cls)
         def wrapper(*args: Any, **kwargs: Any):
             if not can_run_cloud_tests():
                 raise unittest.SkipTest(CLOUD_TEST_SKIP_MESSAGE)
@@ -374,13 +464,15 @@ def requires_cloud_data(
                     )
                     for name, path in folder_map.items()
                 }
+            except unittest.SkipTest:
+                raise
             except Exception as exc:
                 raise unittest.SkipTest(
                     f"Cloud-backed test data unavailable: {exc}"
                 ) from exc
             kwargs.update(injected_files)
             kwargs.update(injected_folders)
-            return func(*args, **kwargs)
+            return func_or_cls(*args, **kwargs)
 
         return wrapper
 
