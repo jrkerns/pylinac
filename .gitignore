@@ -244,3 +244,6 @@ $RECYCLE.BIN/
 *.lnk
 
 tests_basic/test_files
+
+# Google Cloud Platform credentials file
+GCP_creds.json

@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import concurrent.futures
 import contextlib
+import functools
 import hashlib
 import multiprocessing
 import os
@@ -10,12 +11,13 @@ import os.path as osp
 import pprint
 import shutil
 import time
+import unittest
 from collections.abc import Callable, Sequence
 from functools import lru_cache
 from io import BytesIO, StringIO
 from pathlib import Path, PurePosixPath
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import TypedDict
+from typing import Any, TypedDict
 from urllib.request import urlopen
 
 from google.cloud import storage
@@ -27,32 +29,82 @@ from tests_basic import DELETE_FILES
 
 GCP_BUCKET_NAME = "pylinac_test_files"
 LOCAL_TEST_DIR = "test_files"
+CLOUD_TEST_SKIP_MESSAGE = (
+    "Cloud-backed tests skipped: no cloud auth detected. "
+    "These tests auto-run when authenticated; set PYLINAC_SKIP_CLOUD_TESTS=0 "
+    "if you previously disabled them."
+)
 
 # make the local test dir if it doesn't exist
 os.makedirs(osp.join(osp.dirname(__file__), LOCAL_TEST_DIR), exist_ok=True)
 
 
+class CloudTestDataDownloader:
+    """Downloader for cloud-backed test data with auth status introspection."""
+
+    def __init__(self, bucket_name: str = GCP_BUCKET_NAME):
+        self.bucket_name = bucket_name
+        self._is_authenticated: bool | None = None
+
+    @property
+    def credentials_file(self) -> Path:
+        return Path(__file__).parent.parent / "GCP_creds.json"
+
+    @contextlib.contextmanager
+    def access_gcp(self) -> storage.Client:
+        credentials_file = self.credentials_file
+        # check if the credentials file is available (local dev)
+        # if not, load from the env var (test pipeline)
+        if not credentials_file.is_file():
+            with open(credentials_file, "wb") as f:
+                creds = base64.b64decode(os.environ.get("GOOGLE_CREDENTIALS", ""))
+                f.write(creds)
+        client = storage.Client.from_service_account_json(str(credentials_file))
+        try:
+            yield client
+        finally:
+            del client
+
+    def _compute_authentication_status(self) -> bool:
+        try:
+            with self.access_gcp() as client:
+                client.bucket(self.bucket_name).reload()
+            return True
+        except Exception:
+            return False
+
+    @property
+    def is_authenticated(self) -> bool:
+        if self._is_authenticated is None:
+            self._is_authenticated = self._compute_authentication_status()
+        return self._is_authenticated
+
+    def reset_auth_cache(self) -> None:
+        self._is_authenticated = None
+
+
+cloud_test_downloader = CloudTestDataDownloader()
+
+
 @contextlib.contextmanager
 def access_gcp() -> storage.Client:
-    # access GCP
-    credentials_file = Path(__file__).parent.parent / "GCP_creds.json"
-    # check if the credentials file is available (local dev)
-    # if not, load from the env var (test pipeline)
-    if not credentials_file.is_file():
-        with open(credentials_file, "wb") as f:
-            creds = base64.b64decode(os.environ.get("GOOGLE_CREDENTIALS", ""))
-            f.write(creds)
-    client = storage.Client.from_service_account_json(str(credentials_file))
-    try:
+    with cloud_test_downloader.access_gcp() as client:
         yield client
-    finally:
-        del client
 
 
 @lru_cache
 def gcp_bucket_object_list(bucket_name: str) -> list:
-    with access_gcp() as storage_client:
-        return list(storage_client.list_blobs(bucket_name))
+    if not can_run_cloud_tests():
+        raise unittest.SkipTest(CLOUD_TEST_SKIP_MESSAGE)
+    try:
+        with access_gcp() as storage_client:
+            return list(storage_client.list_blobs(bucket_name))
+    except unittest.SkipTest:
+        raise
+    except Exception as exc:
+        if os.environ.get("CI"):
+            raise
+        raise unittest.SkipTest(f"Cloud-backed test data unavailable: {exc}") from exc
 
 
 def get_folder_from_cloud_repo(
@@ -75,11 +127,21 @@ def get_folder_from_cloud_repo(
     cloud_repo
         The GCP bucket to download from.
     """
+    if not can_run_cloud_tests():
+        raise unittest.SkipTest(CLOUD_TEST_SKIP_MESSAGE)
+
     dest_folder = Path(local_dir, *folder)
     if skip_exists and dest_folder.exists() and len(list(dest_folder.iterdir())) > 0:
         return str(dest_folder)
     # get the folder data
-    all_blobs = gcp_bucket_object_list(cloud_repo)
+    try:
+        all_blobs = gcp_bucket_object_list(cloud_repo)
+    except unittest.SkipTest:
+        raise
+    except Exception as exc:
+        if os.environ.get("CI"):
+            raise
+        raise unittest.SkipTest(f"Cloud-backed test data unavailable: {exc}") from exc
     blobs = (
         Enumerable(all_blobs)
         .where(lambda b: len(b.name.split("/")) > len(folder))
@@ -145,7 +207,9 @@ def _load_blob_metadata(blob: storage.Blob) -> None:
     blob.reload()
 
 
-def get_file_from_cloud_test_repo(path: list[str], force: bool = False) -> str:
+def _download_file_from_cloud_test_repo(
+    path: tuple[str, ...], force: bool = False
+) -> str:
     """Get a single file from GCP storage. Returns the path to disk it was downloaded to"""
     local_filename = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *path)
     local_path = Path(local_filename)
@@ -217,12 +281,110 @@ def get_file_from_cloud_test_repo(path: list[str], force: bool = False) -> str:
         return local_filename
 
 
+@lru_cache(maxsize=512)
+def _cached_file_from_cloud_test_repo(path: tuple[str, ...]) -> str:
+    return _download_file_from_cloud_test_repo(path=path, force=False)
+
+
+def get_file_from_cloud_test_repo(path: Sequence[str], force: bool = False) -> str:
+    """Get a single file from GCP storage and return the local file path.
+
+    Parameters
+    ----------
+    path
+        Cloud path parts inside the test-data bucket.
+    force
+        If ``True``, skip the in-memory cache and force a fresh validation/download cycle.
+    """
+    if not can_run_cloud_tests():
+        raise unittest.SkipTest(CLOUD_TEST_SKIP_MESSAGE)
+    normalized_path = tuple(path)
+    try:
+        if force:
+            return _download_file_from_cloud_test_repo(path=normalized_path, force=True)
+        return _cached_file_from_cloud_test_repo(normalized_path)
+    except unittest.SkipTest:
+        raise
+    except Exception as exc:
+        if os.environ.get("CI"):
+            raise
+        raise unittest.SkipTest(f"Cloud-backed test data unavailable: {exc}") from exc
+
+
 def has_www_connection():
     try:
         with urlopen("http://www.google.com") as r:
             return r.status == 200
     except Exception:
         return False
+
+
+def can_run_cloud_tests() -> bool:
+    """Return whether cloud-backed tests can be run.
+
+    Set ``PYLINAC_SKIP_CLOUD_TESTS`` to ``1``/``true``/``yes`` to force skipping.
+    """
+    env_skip = os.environ.get("PYLINAC_SKIP_CLOUD_TESTS", "").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    if env_skip:
+        return False
+    if os.environ.get("CI"):
+        return True
+    return cloud_test_downloader.is_authenticated
+
+
+def requires_cloud_data(
+    *,
+    files: dict[str, Sequence[str]] | None = None,
+    folders: dict[str, Sequence[str]] | None = None,
+    folder_repos: dict[str, str] | None = None,
+) -> Callable:
+    """Decorator to inject cloud-backed test paths as function/classmethod kwargs.
+
+    Parameters
+    ----------
+    files
+        Mapping of kwarg name to cloud file path parts.
+    folders
+        Mapping of kwarg name to cloud folder path parts.
+    folder_repos
+        Optional mapping of folder kwarg name to cloud bucket name.
+    """
+    file_map = files or {}
+    folder_map = folders or {}
+    folder_repo_map = folder_repos or {}
+
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any):
+            if not can_run_cloud_tests():
+                raise unittest.SkipTest(CLOUD_TEST_SKIP_MESSAGE)
+            try:
+                injected_files = {
+                    name: get_file_from_cloud_test_repo(path)
+                    for name, path in file_map.items()
+                }
+                injected_folders = {
+                    name: get_folder_from_cloud_repo(
+                        list(path),
+                        cloud_repo=folder_repo_map.get(name, GCP_BUCKET_NAME),
+                    )
+                    for name, path in folder_map.items()
+                }
+            except Exception as exc:
+                raise unittest.SkipTest(
+                    f"Cloud-backed test data unavailable: {exc}"
+                ) from exc
+            kwargs.update(injected_files)
+            kwargs.update(injected_folders)
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 def save_file(method, *args, as_file_object=None, to_single_file=True, **kwargs):
