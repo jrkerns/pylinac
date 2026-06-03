@@ -378,30 +378,34 @@ class TestBBBasedAnalysis(TestCase):
     def test_bb_pf_combo(self):
         wl = create_bb_image(field_size=(50, 50), bb_size=5, offset=(2, 2))
         bb_img = DicomImage.from_dataset(wl)
-        bb_img.save("bb_setup.dcm")
 
-        pf_file = "separated_wide_gap_up_down.dcm"
-        generate_picketfence(
-            simulator=AS1200Image(sid=1000),
-            field_layer=FilteredFieldLayer,
-            # this applies a non-uniform intensity about the CAX, simulating the horn effect
-            file_out=pf_file,
-            final_layers=[
-                GaussianFilterLayer(sigma_mm=1),
-            ],
-            pickets=5,
-            picket_spacing_mm=50,
-            picket_width_mm=20,  # wide-ish gap
-            orientation=Orientation.UP_DOWN,
-        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bb_file = osp.join(tmpdir, "bb_setup.dcm")
+            pf_file = osp.join(tmpdir, "pf.dcm")
+            bb_img.save(bb_file)
+            generate_picketfence(
+                simulator=AS1200Image(sid=1000),
+                field_layer=FilteredFieldLayer,
+                # this applies a non-uniform intensity about the CAX, simulating the horn effect
+                file_out=pf_file,
+                final_layers=[
+                    GaussianFilterLayer(sigma_mm=1),
+                ],
+                pickets=5,
+                picket_spacing_mm=50,
+                picket_width_mm=20,  # wide-ish gap
+                orientation=Orientation.UP_DOWN,
+            )
 
-        pf = PicketFence.from_bb_setup(pf_file, bb_image="bb_setup.dcm", bb_diameter=5)
-        pf.analyze(separate_leaves=False)
-        results = pf.results_data()
-        self.assertAlmostEqual(results.max_error_mm, 0.0, delta=0.005)
-        self.assertAlmostEqual(results.cax.x, 636.5, delta=0.1)
-        # bb is 2mm off in bb setup image above
-        self.assertAlmostEqual(results.mlc_positions_by_leaf["17"][0], 102, delta=0.1)
+            pf = PicketFence.from_bb_setup(pf_file, bb_image=bb_file, bb_diameter=5)
+            pf.analyze(separate_leaves=False)
+            results = pf.results_data()
+            self.assertAlmostEqual(results.max_error_mm, 0.0, delta=0.005)
+            self.assertAlmostEqual(results.cax.x, 636.5, delta=0.1)
+            # bb is 2mm off in bb setup image above
+            self.assertAlmostEqual(
+                results.mlc_positions_by_leaf["17"][0], 102, delta=0.1
+            )
 
     def test_invert_bb_image(self):
         # See RM-5424
