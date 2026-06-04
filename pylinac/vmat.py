@@ -21,6 +21,7 @@ from __future__ import annotations
 import copy
 import enum
 import math
+import warnings
 import webbrowser
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
@@ -815,6 +816,14 @@ class VMATLinearBase(VMATBase, ABC):
         y = self.open_image.center.y
         _, open_prof = self._roi_profiles(self.dmlc_image, self.open_image)
         x_field_center = round(open_prof.center_idx)
+        image_width = self.dmlc_image.shape[1]
+        if not (image_width / 3 <= x_field_center <= image_width * 2 / 3):
+            warnings.warn(
+                "The detected VMAT field center is outside the center third of the "
+                "image; using the image center instead.",
+                UserWarning,
+            )
+            x_field_center = round(self.open_image.center.x)
         dpmm = self.open_image.dpmm
         for roi_data in self.roi_config.values():
             x_offset_mm = roi_data["offset_mm"]

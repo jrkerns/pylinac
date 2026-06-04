@@ -21,6 +21,9 @@ VMAT
   identification fails.
 * :bdg-success:`Feature` The DRCS VMAT analysis now outputs the mean collimator angle deviation from nominal in ``results_data``
   under the ``rotation_offset_deg`` value.
+* :bdg-warning:`Fixed` VMAT data sets that extend to the edge of the EPID Could cause the ROI locations to be far off to the side and
+   erroneous. There is now a fallback that if the center of the open field is not in the center one-third of the image,
+   a warning is emitted and the center of the image is then used. This is yet again for Elekta machines.
 
 Quart
 ^^^^^
