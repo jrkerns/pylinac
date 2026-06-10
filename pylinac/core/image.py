@@ -16,7 +16,7 @@ from datetime import datetime
 from functools import cached_property
 from io import BufferedReader, BytesIO
 from pathlib import Path
-from typing import Any, BinaryIO, Union
+from typing import Any, BinaryIO, Literal, Union
 from zipfile import ZipFile
 
 import argue
@@ -1594,46 +1594,78 @@ class LinacDicomImage(DicomImage):
         path: str | Path | BinaryIO,
         use_filenames: bool = False,
         axes_precision: int | None = None,
+        missing_axis_value: float | Literal["raise"] = 0,
         **kwargs,
     ):
-        self._gantry = kwargs.pop("gantry", None)
-        self._coll = kwargs.pop("coll", None)
-        self._couch = kwargs.pop("couch", None)
+        self._axis_overrides = {}
+        for axis in ("gantry", "coll", "couch"):
+            if axis in kwargs:
+                self._axis_overrides[axis] = kwargs.pop(axis)
         self._axes_precision = axes_precision
+        self._missing_axis_value = self._validate_missing_axis_parameter(
+            missing_axis_value
+        )
         super().__init__(path, **kwargs)
         self._use_filenames = use_filenames
 
     @property
     def gantry_angle(self) -> float:
         """Gantry angle of the irradiation."""
-        if self._gantry is not None:
-            g = self._gantry
-        else:
-            g = self._get_axis_value(self.gantry_keyword, "GantryAngle")
+        g = self._get_axis_value(
+            axis_key="gantry",
+            axis_str=self.gantry_keyword,
+            axis_dcm_attr="GantryAngle",
+        )
         return wrap360(simple_round(g, self._axes_precision))
 
     @property
     def collimator_angle(self) -> float:
         """Collimator angle of the irradiation."""
-        if self._coll is not None:
-            c = self._coll
-        else:
-            c = self._get_axis_value(self.collimator_keyword, "BeamLimitingDeviceAngle")
+        c = self._get_axis_value(
+            axis_key="coll",
+            axis_str=self.collimator_keyword,
+            axis_dcm_attr="BeamLimitingDeviceAngle",
+        )
         return wrap360(simple_round(c, self._axes_precision))
 
     @property
     def couch_angle(self) -> float:
         """Couch angle of the irradiation."""
-        if self._couch is not None:
-            c = self._couch
-        else:
-            c = self._get_axis_value(self.couch_keyword, "PatientSupportAngle")
+        c = self._get_axis_value(
+            axis_key="couch",
+            axis_str=self.couch_keyword,
+            axis_dcm_attr="PatientSupportAngle",
+        )
         return wrap360(simple_round(c, self._axes_precision))
 
-    def _get_axis_value(self, axis_str: str, axis_dcm_attr: str) -> float:
-        """Retrieve the value of the axis. This will first look in the file name for the value.
-        If not in the filename then it will look in the DICOM metadata. If the value can be found in neither
-        then a value of 0 is assumed.
+    @staticmethod
+    def _validate_missing_axis_parameter(
+        missing_axis_value: float | Literal["raise"],
+    ) -> float | Literal["raise"]:
+        """Validate the default axis value for missing axis data."""
+        if missing_axis_value == "raise":
+            return missing_axis_value
+        if isinstance(missing_axis_value, bool):
+            raise ValueError("missing_axis_value must be numeric or 'raise'.")
+        try:
+            return float(missing_axis_value)
+        except (TypeError, ValueError):
+            raise ValueError("missing_axis_value must be numeric or 'raise'.") from None
+
+    def _get_axis_value(
+        self,
+        axis_key: str,
+        axis_str: str,
+        axis_dcm_attr: str,
+    ) -> float:
+        """Retrieve the value of the axis.
+
+        Explicit values are used first. Otherwise, when ``use_filenames`` is True, the filename is checked.
+        If the axis keyword is absent, ``missing_axis_value`` is used; DICOM metadata is not consulted.
+        If the keyword is present, the numeric suffix is parsed.
+
+        When ``use_filenames`` is False, the DICOM attribute is used. If the value cannot be found there,
+        ``missing_axis_value`` is used.
 
         Parameters
         ----------
@@ -1646,6 +1678,22 @@ class LinacDicomImage(DicomImage):
         -------
         float
         """
+        if axis_key in self._axis_overrides:
+            value = self._axis_overrides[axis_key]
+            # might be None or might be falsey, but we also want to avoid 0 as that's a real value.
+            if value is None or (isinstance(value, str) and value.strip() == ""):
+                if self._missing_axis_value == "raise":
+                    raise ValueError(
+                        f"{axis_str} axis value was explicitly set to None and `missing_axis_value` was `raise`. Either provide an axis value or pass a numerical value for `missing_axis_value`."
+                    )
+                return self._missing_axis_value
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                raise ValueError(
+                    f"{axis_str} axis value must be a numeric value. Got {value}"
+                ) from None
+
         axis_found = False
         if self._use_filenames:
             filename = osp.basename(self.path)
@@ -1653,7 +1701,11 @@ class LinacDicomImage(DicomImage):
             keyword_in_filename = axis_str.lower() in filename.lower()
             # if it's not there, then assume it's zero
             if not keyword_in_filename:
-                axis = 0
+                if self._missing_axis_value == "raise":
+                    raise ValueError(
+                        f"{axis_str} axis value was not found in the filename and `missing_axis_value` was `raise`. Either provide an axis value or pass a numerical value for `missing_axis_value`."
+                    )
+                axis = self._missing_axis_value
                 axis_found = True
             # if it is, then make sure it follows the naming convention of <axis###>
             else:
@@ -1669,8 +1721,12 @@ class LinacDicomImage(DicomImage):
         if not axis_found:
             try:
                 axis = float(getattr(self.metadata, axis_dcm_attr))
-            except AttributeError:
-                axis = 0
+            except (AttributeError, TypeError, ValueError):
+                if self._missing_axis_value == "raise":
+                    raise ValueError(
+                        f"{axis_str} axis value was not found in DICOM attribute {axis_dcm_attr} and `missing_axis_value` was `raise`. Either provide an axis value or pass a numerical value for `missing_axis_value`."
+                    ) from None
+                axis = self._missing_axis_value
         return axis
 
 

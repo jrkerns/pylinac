@@ -812,6 +812,22 @@ class TestLinacDicomImage(TestCase):
         img = LinacDicomImage(as500_path, use_filenames=False)
         self.assertEqual(img.gantry_angle, 0)
 
+    @parameterized.expand(
+        [
+            ("gantry", "gantry_angle", "Gantry"),
+            ("collimator", "collimator_angle", "Coll"),
+            ("couch", "couch_angle", "Couch"),
+        ]
+    )
+    def test_strict_missing_dicom_axis_raises(self, _name, property_name, axis_name):
+        img = LinacDicomImage(
+            as500_path,
+            use_filenames=False,
+            missing_axis_value="raise",
+        )
+        with self.assertRaisesRegex(ValueError, axis_name):
+            getattr(img, property_name)
+
     def test_passing_axis_info_through_filename(self):
         new_name = as500_path.replace("AS500#5", "AS500Gantry78Coll13Couch44")
         shutil.copy(as500_path, new_name)
@@ -820,6 +836,20 @@ class TestLinacDicomImage(TestCase):
         self.assertEqual(img.collimator_angle, 13)
         self.assertEqual(img.couch_angle, 44)
 
+    def test_strict_missing_filename_axis_raises(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            new_name = Path(tmp) / "AS500Gantry78Coll13.dcm"
+            shutil.copy(as500_path, new_name)
+            img = LinacDicomImage(
+                new_name,
+                use_filenames=True,
+                missing_axis_value="raise",
+            )
+            self.assertEqual(img.gantry_angle, 78)
+            self.assertEqual(img.collimator_angle, 13)
+            with self.assertRaisesRegex(ValueError, "Couch"):
+                img.couch_angle
+
     def test_passing_axis_info_directly(self):
         img = LinacDicomImage(
             as500_path, use_filenames=False, gantry=24, coll=60, couch=8
@@ -827,6 +857,104 @@ class TestLinacDicomImage(TestCase):
         self.assertEqual(img.gantry_angle, 24)
         self.assertEqual(img.collimator_angle, 60)
         self.assertEqual(img.couch_angle, 8)
+
+    def test_passing_axis_info_directly_with_strict_mode(self):
+        img = LinacDicomImage(
+            as500_path,
+            use_filenames=False,
+            missing_axis_value="raise",
+            gantry=24,
+            coll=60,
+            couch=8,
+        )
+        self.assertEqual(img.gantry_angle, 24)
+        self.assertEqual(img.collimator_angle, 60)
+        self.assertEqual(img.couch_angle, 8)
+
+    @parameterized.expand(
+        [
+            (
+                "gantry",
+                {"gantry": None, "coll": 60, "couch": 8},
+                "gantry_angle",
+                "Gantry",
+            ),
+            (
+                "collimator",
+                {"gantry": 24, "coll": None, "couch": 8},
+                "collimator_angle",
+                "Coll",
+            ),
+            (
+                "couch",
+                {"gantry": 24, "coll": 60, "couch": None},
+                "couch_angle",
+                "Couch",
+            ),
+        ]
+    )
+    def test_strict_none_axis_raises(
+        self, _axis_name, axes, property_name, axis_keyword
+    ):
+        img = LinacDicomImage(
+            as500_path,
+            use_filenames=False,
+            missing_axis_value="raise",
+            **axes,
+        )
+        with self.assertRaisesRegex(ValueError, axis_keyword):
+            getattr(img, property_name)
+
+    def test_missing_dicom_axis_uses_custom_default(self):
+        img = LinacDicomImage(
+            as500_path,
+            use_filenames=False,
+            missing_axis_value=180,
+        )
+        self.assertEqual(img.gantry_angle, 180)
+
+    def test_missing_filename_axis_uses_custom_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            new_name = Path(tmp) / "AS500Gantry78Coll13.dcm"
+            shutil.copy(as500_path, new_name)
+            img = LinacDicomImage(
+                new_name,
+                use_filenames=True,
+                missing_axis_value=180,
+            )
+            self.assertEqual(img.gantry_angle, 78)
+            self.assertEqual(img.collimator_angle, 13)
+            self.assertEqual(img.couch_angle, 180)
+
+    def test_explicit_none_axis_uses_custom_default(self):
+        img = LinacDicomImage(
+            as500_path,
+            use_filenames=False,
+            missing_axis_value=180,
+            gantry=None,
+            coll=60,
+            couch=8,
+        )
+        self.assertEqual(img.gantry_angle, 180)
+
+    def test_explicit_blank_axis_uses_custom_default(self):
+        img = LinacDicomImage(
+            as500_path,
+            use_filenames=False,
+            missing_axis_value=180,
+            gantry="",
+            coll=60,
+            couch=8,
+        )
+        self.assertEqual(img.gantry_angle, 180)
+
+    def test_invalid_missing_axis_value_raises(self):
+        with self.assertRaisesRegex(ValueError, "missing_axis_value"):
+            LinacDicomImage(
+                as500_path,
+                use_filenames=False,
+                missing_axis_value="invalid",
+            )
 
     def test_using_axes_no_precision_doesnt_round(self):
         img = LinacDicomImage(

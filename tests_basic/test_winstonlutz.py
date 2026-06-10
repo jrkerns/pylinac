@@ -11,6 +11,7 @@ from unittest import TestCase
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pydicom
 from scipy.spatial.transform import Rotation
 
 from pylinac import WinstonLutz
@@ -543,6 +544,28 @@ class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
     klass = WinstonLutz
     demo_load_method = "from_demo_images"
     url = "winston_lutz.zip"
+    noisy_wl_files = {
+        "WL G=0, C=0, P=0; Field=(30, 30)mm; BB=5mm @ left=0, in=0, up=0; Gantry tilt=0, Gantry sag=0.dcm": (
+            0,
+            0,
+            0,
+        ),
+        "WL G=90, C=0, P=0; Field=(30, 30)mm; BB=5mm @ left=0, in=0, up=0; Gantry tilt=0, Gantry sag=0.dcm": (
+            90,
+            0,
+            0,
+        ),
+        "WL G=180, C=0, P=0; Field=(30, 30)mm; BB=5mm @ left=0, in=0, up=0; Gantry tilt=0, Gantry sag=0.dcm": (
+            180,
+            0,
+            0,
+        ),
+        "WL G=270, C=0, P=0; Field=(30, 30)mm; BB=5mm @ left=0, in=0, up=0; Gantry tilt=0, Gantry sag=0.dcm": (
+            270,
+            0,
+            0,
+        ),
+    }
 
     def test_loading_from_config_mapping(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "noisy_WL_30x5.zip"])
@@ -574,6 +597,33 @@ class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
         self.assertEqual(wl.images[0].gantry_angle, 11)
         self.assertEqual(wl.images[2].collimator_angle, 32)
         self.assertEqual(wl.images[3].couch_angle, 43)
+
+    def test_axis_mapping_none_raises(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, "noisy_WL_30x5.zip"])
+        with TemporaryZipDirectory(path) as z:
+            config = self.noisy_wl_files.copy()
+            first_file = next(iter(config))
+            config[first_file] = (0, None, 0)
+            with self.assertRaisesRegex(ValueError, "Coll"):
+                WinstonLutz(z, axis_mapping=config)
+
+    def test_axis_mapping_none_uses_custom_default(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, "noisy_WL_30x5.zip"])
+        with TemporaryZipDirectory(path) as z:
+            config = self.noisy_wl_files.copy()
+            first_file = next(iter(config))
+            config[first_file] = (0, None, 0)
+            wl = WinstonLutz(z, axis_mapping=config, missing_axis_value=180)
+        self.assertEqual(wl.images[0].collimator_angle, 180)
+
+    def test_axis_mapping_blank_string_uses_custom_default(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, "noisy_WL_30x5.zip"])
+        with TemporaryZipDirectory(path) as z:
+            config = self.noisy_wl_files.copy()
+            first_file = next(iter(config))
+            config[first_file] = (0, "", 0)
+            wl = WinstonLutz(z, axis_mapping=config, missing_axis_value=180)
+        self.assertEqual(wl.images[0].collimator_angle, 180)
 
     def test_loading_from_config_mapping_from_zip(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "noisy_WL_30x5.zip"])
@@ -637,6 +687,62 @@ class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
         self.assertEqual(wl.images[0].gantry_angle, 13)
         self.assertEqual(wl.images[2].collimator_angle, 88)
         self.assertEqual(wl.images[3].couch_angle, 46)
+
+    def test_strict_missing_axis_in_filename_raises(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, "noisy_WL_30x5.zip"])
+        with self.assertRaisesRegex(ValueError, "Gantry"):
+            WinstonLutz.from_zip(path, use_filenames=True)
+
+    def test_strict_missing_dicom_axis_raises(self):
+        axis_attrs = (
+            ("GantryAngle", "Gantry"),
+            ("BeamLimitingDeviceAngle", "Coll"),
+            ("PatientSupportAngle", "Couch"),
+        )
+        path = get_file_from_cloud_test_repo([TEST_DIR, "noisy_WL_30x5.zip"])
+        for dcm_attr, axis_name in axis_attrs:
+            with self.subTest(dcm_attr=dcm_attr):
+                with TemporaryZipDirectory(path) as z:
+                    dcm_file = next(Path(z).glob("*.dcm"))
+                    ds = pydicom.dcmread(dcm_file)
+                    delattr(ds, dcm_attr)
+                    ds.save_as(dcm_file)
+                    with self.assertRaisesRegex(ValueError, axis_name):
+                        WinstonLutz(z)
+
+    def test_missing_dicom_axis_can_use_custom_default(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, "noisy_WL_30x5.zip"])
+        with TemporaryZipDirectory(path) as z:
+            dcm_file = next(Path(z).glob("*.dcm"))
+            ds = pydicom.dcmread(dcm_file)
+            delattr(ds, "GantryAngle")
+            ds.save_as(dcm_file)
+            wl = WinstonLutz(z, missing_axis_value=0)
+        self.assertEqual(wl.images[0].gantry_angle, 0)
+
+    def test_missing_filename_axis_can_use_custom_default(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, "Naming.zip"])
+        wl = WinstonLutz.from_zip(path, use_filenames=True, missing_axis_value=180)
+        self.assertEqual(wl.images[0].gantry_angle, 180)
+
+    def test_invalid_missing_axis_value_raises(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, "noisy_WL_30x5.zip"])
+        with self.assertRaisesRegex(ValueError, "missing_axis_value"):
+            WinstonLutz.from_zip(path, missing_axis_value="invalid")
+
+    def test_strict_missing_dicom_axis_raises_for_2d_image(self):
+        path = get_file_from_cloud_test_repo(
+            ["Winston-Lutz", "lutz", "1_image", "gantry0.dcm"]
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            dcm_file = Path(tmp) / "gantry0.dcm"
+            shutil.copy(path, dcm_file)
+            ds = pydicom.dcmread(dcm_file, force=True)
+            delattr(ds, "GantryAngle")
+            ds.save_as(dcm_file)
+            img = WinstonLutz2D(dcm_file)
+            with self.assertRaisesRegex(ValueError, "Gantry"):
+                img.gantry_angle
 
     def test_loading_1_image_fails(self):
         with self.assertRaises(ValueError):
@@ -961,7 +1067,7 @@ class TestPlottingSaving(TestCase):
     def test_plot_wo_all_axes(self):
         # test that analyzing images w/o gantry images doesn't fail
         wl_zip = get_file_from_cloud_test_repo([TEST_DIR, "Naming.zip"])
-        wl = WinstonLutz.from_zip(wl_zip, use_filenames=True)
+        wl = WinstonLutz.from_zip(wl_zip, use_filenames=True, missing_axis_value=0)
         wl.analyze()
         wl.plot_summary()  # shouldn't raise
 
@@ -997,6 +1103,7 @@ class WinstonLutzMixin(CloudFileMixin):
     gantry_reference = 0
     collimator_reference = 0
     couch_reference = 0
+    missing_axis_value = "raise"
 
     @classmethod
     def new_instance(cls) -> WinstonLutz:
@@ -1008,6 +1115,7 @@ class WinstonLutzMixin(CloudFileMixin):
                 sid=cls.sid,
                 dpi=cls.dpi,
                 axis_mapping=cls.axis_mapping,
+                missing_axis_value=cls.missing_axis_value,
             )
         else:
             wl = WinstonLutz(
@@ -1016,6 +1124,7 @@ class WinstonLutzMixin(CloudFileMixin):
                 sid=cls.sid,
                 dpi=cls.dpi,
                 axis_mapping=cls.axis_mapping,
+                missing_axis_value=cls.missing_axis_value,
             )
         return wl
 
@@ -1590,6 +1699,7 @@ class WLDontUseFileNames(WinstonLutzMixin, TestCase):
 class WLUseFileNames(WinstonLutzMixin, PlotlyTestMixin, TestCase):
     file_name = "Naming.zip"
     use_filenames = True
+    missing_axis_value = 0
     num_images = 4
     # For below, note that gantry, couch, and epid POV plots are not made due to lack of isolated-axis images. This is on purpose.
     num_figs = 7
@@ -1697,6 +1807,7 @@ class KatyiX3(WinstonLutzMixin, TestCase):
 
 class KatyTB0(WinstonLutzMixin, TestCase):
     file_name = ["Katy TB", "0.zip"]
+    missing_axis_value = 0
     num_images = 17
     gantry_iso_size = 0.9
     collimator_iso_size = 0.8
@@ -1855,6 +1966,7 @@ class DeBr6XElekta(WinstonLutzMixin, TestCase):
     """An Elekta dataset, with the BB centered."""
 
     file_name = ["DeBr", "6X_Elekta_Ball_Bearing.zip"]
+    missing_axis_value = 0
     num_images = 8
     gantry_iso_size = 1.8
     collimator_iso_size = 1.8

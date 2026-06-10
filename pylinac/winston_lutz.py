@@ -33,7 +33,7 @@ from functools import cached_property
 from itertools import zip_longest
 from pathlib import Path
 from textwrap import wrap
-from typing import BinaryIO
+from typing import BinaryIO, Literal
 
 import argue
 import matplotlib.pyplot as plt
@@ -661,6 +661,7 @@ class WLBaseImage(image.LinacDicomImage):
         # override detection conditions if passed
         if conditions := kwargs.pop("detection_conditions", False):
             self.detection_conditions = conditions
+        kwargs.setdefault("missing_axis_value", "raise")
         super().__init__(file, use_filenames=use_filenames, **kwargs)
         self._is_analyzed = False
 
@@ -1253,10 +1254,12 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         self,
         directory: str | list[str] | Path,
         use_filenames: bool = False,
-        axis_mapping: dict[str, tuple[int, int, int]] | None = None,
+        axis_mapping: dict[str, tuple[float | None, float | None, float | None]]
+        | None = None,
         axes_precision: int | None = None,
         dpi: float | None = None,
         sid: float | None = None,
+        missing_axis_value: float | Literal["raise"] = "raise",
     ):
         """
         Parameters
@@ -1269,7 +1272,8 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             This is mutually exclusive to axis_mapping. If True, axis_mapping is ignored.
         axis_mapping: dict
             An optional way of instantiating by passing each file along with the axis values.
-            Structure should be <filename>: (<gantry>, <coll>, <couch>).
+            Structure should be <filename>: (<gantry>, <coll>, <couch>). Each value
+            must be numeric. ``None`` is treated as missing and will raise an error.
         axes_precision: int | None
             How many significant digits to represent the axes values. If None, no precision is set and the input/DICOM values are used raw.
             If set to an integer, rounds the axes values (gantry, coll, couch) to that many values. E.g. gantry=0.1234 => 0.1 with precision=1.
@@ -1279,6 +1283,10 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             An error will raise if dpi is not passed and the TIFF resolution cannot be determined.
         sid
             The Source-to-Image distance in mm. Only needed when using TIFF images.
+        missing_axis_value
+            The value to use if an axis value cannot be determined. If "raise",
+            an error will be raised instead. Use 0 to match the historical
+            behavior.
         """
         super().__init__()
         self.images = []
@@ -1293,6 +1301,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
                         coll=coll,
                         couch=couch,
                         axes_precision=axes_precision,
+                        missing_axis_value=missing_axis_value,
                     )
                 )
         elif isinstance(directory, list):
@@ -1305,6 +1314,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
                             sid=sid,
                             use_filenames=use_filenames,
                             axes_precision=axes_precision,
+                            missing_axis_value=missing_axis_value,
                         )
                     )
         elif not osp.isdir(directory):
@@ -1321,6 +1331,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
                         sid=sid,
                         use_filenames=use_filenames,
                         axes_precision=axes_precision,
+                        missing_axis_value=missing_axis_value,
                     )
                 )
         if len(self.images) < 2:
