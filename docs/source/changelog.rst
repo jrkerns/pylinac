@@ -33,6 +33,23 @@ Quart
   Separately, if the detected roll is too large (>10 degrees), a ``UserWarning``
   is emitted and the roll is reset to 0 to avoid incorrect ROI placement.
 
+Winston-Lutz
+^^^^^^^^^^^^
+
+* :bdg-danger:`Change` Winston-Lutz now raises an error by default when a gantry,
+  collimator, or couch axis value cannot be determined from ``axis_mapping``, from DICOM metadata (when not using
+  filenames), or from the filename (when ``use_filenames=True``). When using filenames, a missing axis keyword does
+  not fall back to DICOM metadata. Previously, missing axis values silently defaulted to 0. This is out an abundance
+  of caution to ensure that 3D WL output metrics are accurate; not due to algorithm differences but silent assumptions
+  about axis values. 2D/individual image metrics such as the maximum 2D distance is not impacted.
+  Typically this happens for Elekta because DICOM values are not present. Varian users should not have any impact.
+  To restore the previous behavior for backwards compatibility, pass
+  ``missing_axis_value=0`` when loading:
+
+  .. code-block:: python
+
+      wl = WinstonLutz("path/to/wl", missing_axis_value=0)
+      wl = WinstonLutz.from_zip("path/to/wl.zip", missing_axis_value=0)
 
 v 3.44.0
 --------

@@ -287,13 +287,32 @@ Passing in Axis values
     When passing in axis values manually, you can also use ``machine_scale`` in conjunction to specify the
     coordinate system you are stating the axes to be in. See :ref:`passing-a-coordinate-system`.
 
+.. versionchanged:: 3.45
+
+    All axis data must be passed by default, either by the images containing the DICOM tags, ``axis_mapping``
+    containing gantry, collimator, and couch values, or the filename parsing also containing all gantry, collimator, couch
+    values. Previously, missing values would default to 0. To restore behavior prior to v3.45, use the
+    ``missing_axis_value`` like so:
+
+    .. code-block:: python
+
+        wl = WinstonLutz(my_directory, missing_axis_value=0)
+
 If your linac EPID images do not include axis information (such as Elekta) there are two ways to pass the data in.
+By default, pylinac will raise an error if an axis value cannot be determined from ``axis_mapping`` or, when not
+using filenames, from DICOM metadata. This avoids silently assuming that a missing angle is 0.
+This differs from :class:`~pylinac.core.image.LinacDicomImage`, which defaults to ``missing_axis_value=0`` for
+historical compatibility with other analysis modules.
 
 via filenames
 ^^^^^^^^^^^^^
 
-First, you can specify it in the file name.
-Any and all of the three axes can be defined. If one is not defined and is not in the DICOM tags, it will default to 0.
+First, you can specify axis values in the file name by passing ``use_filenames=True``.
+Each axis is read from the filename when its keyword (``Gantry``, ``Coll``, or ``Couch``) appears in the name.
+When an axis keyword is **absent** from the filename, pylinac does **not** fall back to DICOM metadata: by default an
+error is raised. If ``missing_axis_value=0`` is passed, the axis defaults to 0.
+When a keyword is present but cannot be parsed (for example ``gantry=0`` instead of ``gantry0``), an error is always
+raised regardless of ``missing_axis_value``.
 The syntax to define the axes: "<*>gantry0<*>coll0<*>couch0<*>". There can be any text before, after, or in between each axis definition.
 However, the axes numerical value **must** immediately follow the axis name. Axis names are also fixed. The following examples
 are valid:
@@ -317,9 +336,6 @@ Using the filenames within the code is done by passing the ``use_filenames=True`
     my_directory = "path/to/wl_images"
     wl = WinstonLutz(my_directory, use_filenames=True)
 
-.. note:: If using filenames any relevant axes must be defined, otherwise they will default to zero. For example,
-          if the acquisition was at gantry=45, coll=15, couch=0 then the filename must include both the gantry and collimator
-          in the name (<...gantry45...coll15....dcm>). For this example, the couch need not be defined since it is 0.
 
 via ``axis_mapping``
 ^^^^^^^^^^^^^^^^^^^^
@@ -341,6 +357,8 @@ dictionary with the filenames as keys and a tuple of ints for the gantry, coll, 
 .. note::
 
     The filenames should be local to the directory. In the above example the full paths would be ``path/to/wl/dir/file1.dcm``, and ``path/to/wl/dir/file2.dcm``.
+    Each tuple value must be numeric containing 3 elements (gantry, coll, couch) unless a numeric ``missing_axis_value`` is passed.
+    Passing ``None`` for any axis value will raise an error by default.
 
 .. _setting-wl-reference-values:
 
