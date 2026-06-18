@@ -2152,6 +2152,73 @@ class CTP515CP700(CTP515CP600):
     pass
 
 
+class CTP730(CTP515):
+    """Low-contrast module for Catphan 604 section 3 (CTP730).
+
+    Contains three contrast groups (0.3%, 0.5%, 1.0%) each with 9 rod diameters
+    (2, 3, 4, 5, 6, 7, 8, 9, 15 mm). The groups are arranged ~120° apart.
+    Rods appear darker than the surrounding background material.
+
+    Angles follow pylinac image convention: 0°=right, -90°=top, +90°=bottom.
+    Values are approximate based on the CTP604 manual diagram (p.24) and may
+    need refinement if the phantom sits in a non-standard rotational orientation.
+    """
+
+    attr_name = "ctp515"
+    common_name = "Low Contrast (CTP730)"
+
+    roi_dist_mm = 55
+    roi_settings = {
+        # 1.0% contrast group — upper-right to right, centred ~2 o'clock
+        "1pct_15mm": {"angle": -70, "distance": 55, "radius": 6.0},
+        "1pct_9mm":  {"angle": -60, "distance": 55, "radius": 3.5},
+        "1pct_8mm":  {"angle": -50, "distance": 55, "radius": 3.0},
+        "1pct_7mm":  {"angle": -40, "distance": 55, "radius": 2.5},
+        "1pct_6mm":  {"angle": -30, "distance": 55, "radius": 2.0},
+        "1pct_5mm":  {"angle": -20, "distance": 55, "radius": 1.5},
+        "1pct_4mm":  {"angle": -10, "distance": 55, "radius": 1.2},
+        "1pct_3mm":  {"angle":   0, "distance": 55, "radius": 1.0},
+        "1pct_2mm":  {"angle":  10, "distance": 55, "radius": 0.8},
+        # 0.5% contrast group — upper-left to left, centred ~10 o'clock
+        "05pct_15mm": {"angle":  170, "distance": 55, "radius": 6.0},
+        "05pct_9mm":  {"angle":  180, "distance": 55, "radius": 3.5},
+        "05pct_8mm":  {"angle": -170, "distance": 55, "radius": 3.0},
+        "05pct_7mm":  {"angle": -160, "distance": 55, "radius": 2.5},
+        "05pct_6mm":  {"angle": -150, "distance": 55, "radius": 2.0},
+        "05pct_5mm":  {"angle": -140, "distance": 55, "radius": 1.5},
+        "05pct_4mm":  {"angle": -130, "distance": 55, "radius": 1.2},
+        "05pct_3mm":  {"angle": -120, "distance": 55, "radius": 1.0},
+        "05pct_2mm":  {"angle": -110, "distance": 55, "radius": 0.8},
+        # 0.3% contrast group — bottom, centred ~6 o'clock
+        "03pct_15mm": {"angle":  50, "distance": 55, "radius": 6.0},
+        "03pct_9mm":  {"angle":  60, "distance": 55, "radius": 3.5},
+        "03pct_8mm":  {"angle":  70, "distance": 55, "radius": 3.0},
+        "03pct_7mm":  {"angle":  80, "distance": 55, "radius": 2.5},
+        "03pct_6mm":  {"angle":  90, "distance": 55, "radius": 2.0},
+        "03pct_5mm":  {"angle": 100, "distance": 55, "radius": 1.5},
+        "03pct_4mm":  {"angle": 110, "distance": 55, "radius": 1.2},
+        "03pct_3mm":  {"angle": 120, "distance": 55, "radius": 1.0},
+        "03pct_2mm":  {"angle": 130, "distance": 55, "radius": 0.8},
+    }
+    background_roi_dist_ratio = 0.75
+    background_roi_radius_mm = 4
+
+    @property
+    def rois_1pct(self) -> dict:
+        """ROIs belonging to the 1.0% contrast group."""
+        return {k: v for k, v in self.rois.items() if k.startswith("1pct_")}
+
+    @property
+    def rois_05pct(self) -> dict:
+        """ROIs belonging to the 0.5% contrast group."""
+        return {k: v for k, v in self.rois.items() if k.startswith("05pct_")}
+
+    @property
+    def rois_03pct(self) -> dict:
+        """ROIs belonging to the 0.3% contrast group."""
+        return {k: v for k, v in self.rois.items() if k.startswith("03pct_")}
+
+
 class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
     """A class for loading and analyzing CT DICOM files of a CatPhan 504 & CatPhan 503. Can be from a CBCT or CT scanner
     Analyzes: Uniformity (CTP486), High-Contrast Spatial Resolution (CTP528), Image Scaling & HU Linearity (CTP404).
@@ -3252,7 +3319,7 @@ class CatPhan604(CatPhanBase):
         CTP404CP604: {"offset": 0},
         CTP486: {"offset": -80},
         CTP528CP604: {"offset": 0},  # bead is on Section 2, same z as CTP404
-        CTP515: {"offset": -40},
+        CTP730: {"offset": -40},  # CTP730 low-contrast section at +40 mm from Section 2
     }
 
     @staticmethod
