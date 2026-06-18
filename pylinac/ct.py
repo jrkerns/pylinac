@@ -47,7 +47,7 @@ from .core.contrast import Contrast
 from .core.geometry import Line, Point
 from .core.image import ArrayImage, DicomImageStack, ImageLike, z_position
 from .core.io import get_url, retrieve_demo_file
-from .core.mtf import MTF
+from .core.mtf import MTF, BeadMTF
 from .core.nps import (
     average_power,
     max_frequency,
@@ -1580,10 +1580,138 @@ class CTP528CP504(CTP528):
         return circle_profile
 
 
-class CTP528CP604(CTP528CP504):
-    """Alias for namespace consistency."""
+class CTP528CP604(CTP528):
+    """Bead PSF MTF for the CatPhan 604.
 
-    pass
+    Section 2 of the 604 phantom contains a 0.18 mm tungsten carbide bead.
+    We locate the bead on the HU linearity slice, extract a background-subtracted
+    2D PSF patch, radially average to 1D, then FFT to obtain the MTF curve.
+    """
+
+    attr_name: str = "ctp528"
+    common_name: str = "Spatial Resolution"
+    combine_method: str = "mean"
+    num_slices: int = 0
+    start_angle = None
+    roi_settings: dict = {}
+
+    PATCH_RADIUS_MM: float = 3.0
+    BACKGROUND_INNER_MM: float = 3.5
+    BACKGROUND_OUTER_MM: float = 6.0
+    HU_PLUG_DIST_MM: float = 58.7
+    HU_PLUG_EXCLUSION_MM: float = 12.0
+
+    def _setup_rois(self) -> None:
+        pass
+
+    def _convert_units_in_settings(self) -> None:
+        pass
+
+    @cached_property
+    def bead_center(self) -> Point:
+        """Sub-pixel location of the tungsten carbide bead."""
+        arr = self.image.array.astype(float)
+        y_idx, x_idx = np.indices(arr.shape)
+        r_mm = (
+            np.sqrt(
+                (x_idx - self.phan_center.x) ** 2
+                + (y_idx - self.phan_center.y) ** 2
+            )
+            * self.mm_per_pixel
+        )
+        phantom_radius_mm = np.sqrt(self.catphan_size / np.pi) * self.mm_per_pixel
+
+        in_plug_annulus = (
+            np.abs(r_mm - self.HU_PLUG_DIST_MM) < self.HU_PLUG_EXCLUSION_MM
+        )
+        outside_phantom = r_mm > phantom_radius_mm * 0.95
+
+        search = arr.copy()
+        search[in_plug_annulus | outside_phantom] = -np.inf
+
+        if np.all(np.isinf(search)):
+            raise ValueError(
+                "Could not locate the bead: the entire search region was masked. "
+                "Verify the phantom model and slice orientation."
+            )
+
+        peak_y, peak_x = np.unravel_index(np.argmax(search), search.shape)
+
+        half_win = max(3, int(np.ceil(self.PATCH_RADIUS_MM / self.mm_per_pixel / 2)))
+        y0 = max(0, peak_y - half_win)
+        y1 = min(arr.shape[0], peak_y + half_win + 1)
+        x0 = max(0, peak_x - half_win)
+        x1 = min(arr.shape[1], peak_x + half_win + 1)
+        win = arr[y0:y1, x0:x1].copy()
+        win_pos = np.clip(win - win.min(), 0.0, None)
+        total = win_pos.sum()
+        if total > 0:
+            ys, xs = np.indices(win.shape)
+            cx = float((xs * win_pos).sum() / total) + x0
+            cy = float((ys * win_pos).sum() / total) + y0
+        else:
+            cx, cy = float(peak_x), float(peak_y)
+
+        return Point(x=cx, y=cy)
+
+    @cached_property
+    def _psf_data(self) -> tuple[np.ndarray, tuple[float, float]]:
+        """Background-subtracted 2D PSF patch and sub-pixel bead position within it."""
+        arr = self.image.array.astype(float)
+        cx, cy = self.bead_center.x, self.bead_center.y
+
+        patch_px = int(np.ceil(self.PATCH_RADIUS_MM / self.mm_per_pixel))
+        iy, ix = int(round(cy)), int(round(cx))
+        y0 = max(0, iy - patch_px)
+        y1 = min(arr.shape[0], iy + patch_px + 1)
+        x0 = max(0, ix - patch_px)
+        x1 = min(arr.shape[1], ix + patch_px + 1)
+
+        patch = arr[y0:y1, x0:x1].copy()
+
+        y_full, x_full = np.indices(arr.shape)
+        r_from_bead = (
+            np.sqrt((x_full - cx) ** 2 + (y_full - cy) ** 2) * self.mm_per_pixel
+        )
+        bg_mask = (r_from_bead >= self.BACKGROUND_INNER_MM) & (
+            r_from_bead <= self.BACKGROUND_OUTER_MM
+        )
+        background = float(arr[bg_mask].mean()) if bg_mask.any() else 0.0
+
+        patch -= background
+        return patch, (cy - y0, cx - x0)
+
+    @property
+    def psf_patch(self) -> np.ndarray:
+        """Background-subtracted 2D PSF patch centred on the bead."""
+        return self._psf_data[0]
+
+    @cached_property
+    def mtf(self) -> BeadMTF:
+        patch, _ = self._psf_data
+        return BeadMTF(patch, self.mm_per_pixel)
+
+    def plot_rois(self, axis: plt.Axes) -> None:
+        circle = plt.Circle(
+            (self.bead_center.x, self.bead_center.y),
+            radius=self.PATCH_RADIUS_MM / self.mm_per_pixel,
+            color="blue",
+            fill=False,
+            linewidth=1.5,
+        )
+        axis.add_patch(circle)
+
+    def plotly_rois(self, fig: go.Figure) -> None:
+        theta = np.linspace(0, 2 * np.pi, 100)
+        r_px = self.PATCH_RADIUS_MM / self.mm_per_pixel
+        fig.add_scatter(
+            x=(self.bead_center.x + r_px * np.cos(theta)).tolist(),
+            y=(self.bead_center.y + r_px * np.sin(theta)).tolist(),
+            mode="lines",
+            line=dict(color="blue"),
+            name="PSF patch",
+            showlegend=False,
+        )
 
 
 class CTP528CP600(CTP528CP504):
@@ -3123,7 +3251,7 @@ class CatPhan604(CatPhanBase):
     modules = {
         CTP404CP604: {"offset": 0},
         CTP486: {"offset": -80},
-        CTP528CP604: {"offset": 40},
+        CTP528CP604: {"offset": 0},  # bead is on Section 2, same z as CTP404
         CTP515: {"offset": -40},
     }
 

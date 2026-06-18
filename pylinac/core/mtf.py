@@ -817,6 +817,144 @@ class EdgeMTF:
         axis.set_title("Line Spread Function")
         axis.legend()
         plt.tight_layout()
-        
+
+        return line
+
+
+class BeadMTF:
+    """PSF-based MTF derived from a sub-millimetre point-source bead.
+
+    The 2D PSF patch (background-subtracted) is radially averaged to a 1D
+    profile, Hanning-windowed, then Fourier-transformed to obtain the MTF.
+    An optional sinc correction removes the blurring contribution of the
+    finite bead diameter.
+    """
+
+    BEAD_DIAMETER_MM: float = 0.18
+
+    def __init__(
+        self,
+        psf_patch: np.ndarray,
+        pixel_size_mm: float,
+        apply_bead_correction: bool = True,
+    ):
+        self.pixel_size = pixel_size_mm
+        self.apply_bead_correction = apply_bead_correction
+        self._calculate(psf_patch)
+
+    def _calculate(self, psf: np.ndarray) -> None:
+        psf_pos = np.clip(psf, 0.0, None)
+        total = psf_pos.sum()
+        if total <= 0:
+            raise ValueError(
+                "PSF patch has no positive values; bead localisation may have failed."
+            )
+        y_idx, x_idx = np.indices(psf.shape)
+        cx = float((x_idx * psf_pos).sum() / total)
+        cy = float((y_idx * psf_pos).sum() / total)
+
+        r_px = np.sqrt((x_idx - cx) ** 2 + (y_idx - cy) ** 2)
+        n_bins = int(np.floor(r_px.max()))
+
+        radial_psf = np.zeros(n_bins)
+        for i in range(n_bins):
+            mask = (r_px >= i) & (r_px < i + 1)
+            if mask.any():
+                radial_psf[i] = psf[mask].mean()
+
+        if radial_psf.max() > 0:
+            radial_psf /= radial_psf.max()
+
+        # Mirror the radial PSF to build a symmetric 1D signal so that the peak
+        # sits at the centre of the Hanning window (weight = 1.0) rather than at
+        # the edge (weight = 0.0), which would otherwise destroy the main signal.
+        symmetric = np.concatenate([radial_psf[1:][::-1], radial_psf])
+        window = np.hanning(len(symmetric))
+        lsf_w = symmetric * window
+
+        n = len(lsf_w)
+        n_fft = 2 ** int(np.ceil(np.log2(max(n * 8, 128))))
+        lsf_padded = np.zeros(n_fft)
+        lsf_padded[:n] = lsf_w
+
+        spectrum = np.fft.rfft(lsf_padded)
+        mtf = np.abs(spectrum)
+        freqs = np.fft.rfftfreq(n_fft, d=self.pixel_size)
+
+        if mtf[0] > 0:
+            mtf /= mtf[0]
+
+        if self.apply_bead_correction:
+            sinc_vals = np.sinc(self.BEAD_DIAMETER_MM * freqs)
+            valid = np.abs(sinc_vals) > 0.05
+            mtf[valid] /= sinc_vals[valid]
+            mtf[~valid] = 0.0
+            if mtf[0] > 0:
+                mtf /= mtf[0]
+
+        mtf = np.clip(mtf, 0.0, 1.0)
+
+        if np.any(np.diff(mtf) > 0.01):
+            warnings.warn(
+                "Bead MTF is not monotonically decreasing; bead localisation "
+                "or PSF extraction may be imprecise.",
+                UserWarning,
+            )
+
+        self.frequencies = freqs
+        self.mtf_values = mtf
+
+    def relative_resolution(self, x: float) -> float:
+        """Spatial frequency (lp/mm) where the MTF equals x% of its zero-frequency value."""
+        target = x / 100.0
+        f = interp1d(
+            self.mtf_values[::-1],
+            self.frequencies[::-1],
+            kind="linear",
+            bounds_error=False,
+            fill_value=(self.frequencies[-1], self.frequencies[0]),
+        )
+        return float(f(target))
+
+    def plotly(
+        self,
+        fig: go.Figure | None = None,
+        x_label: str = "Spatial Frequency (lp/mm)",
+        y_label: str = "MTF",
+        title: str = "Bead PSF MTF",
+        name: str = "MTF",
+        **kwargs,
+    ) -> go.Figure:
+        fig = fig or go.Figure()
+        fig.update_layout(showlegend=kwargs.pop("show_legend", True))
+        fig.add_scatter(
+            x=self.frequencies.tolist(),
+            y=self.mtf_values.tolist(),
+            mode="lines",
+            name=name,
+        )
+        fig.update_layout(xaxis_title=x_label, yaxis_title=y_label)
+        add_title(fig, title)
+        return fig
+
+    def plot(
+        self,
+        axis: plt.Axes | None = None,
+        grid: bool = True,
+        x_label: str = "Spatial Frequency (lp/mm)",
+        y_label: str = "MTF",
+        title: str = "Bead PSF MTF",
+        label: str = "MTF",
+    ) -> plt.Line2D:
+        if axis is None:
+            _, axis = plt.subplots()
+        (line,) = axis.plot(self.frequencies, self.mtf_values, label=label)
+        axis.grid(grid)
+        axis.set_xlabel(x_label)
+        axis.set_ylabel(y_label)
+        axis.set_title(title)
+        axis.set_ylim([0, 1.05])
+        axis.legend()
+        plt.tight_layout()
         return line
 
