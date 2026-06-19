@@ -272,6 +272,8 @@ class FilteredFieldLayer(PerfectFieldLayer):
             horn effect.
         rotation: float
             The amount of rotation in degrees. This acts like a collimator rotation.
+        horns_center_offset_mm: (float, float)
+            The offset of the center of the horns (CAX dip) from the center of the field. (out, right)
         """
         super().__init__(
             field_size_mm=field_size_mm,
