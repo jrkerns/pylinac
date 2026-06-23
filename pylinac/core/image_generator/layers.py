@@ -394,15 +394,22 @@ class GaussianFilterLayer(Layer):
 
 
 class RandomNoiseLayer(Layer):
-    """A salt and pepper noise, simulating dark current"""
+    """A salt and pepper noise, simulating dark current
 
-    def __init__(self, mean: float = 0.0, sigma: float = 0.001):
+    Parameters
+    ----------
+    seed : int or None
+        The seed for NumPy's random number generator. Using the same seed will produce the same noise pattern.
+    """
+
+    def __init__(self, mean: float = 0.0, sigma: float = 0.001, seed: int | None = None):
         self.mean = mean
         self.sigma = sigma
+        self.seed = seed
 
     def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         normalized_sigma = self.sigma * np.iinfo(image.dtype).max
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(self.seed)
         noise = rng.normal(self.mean, normalized_sigma, size=image.shape)
         return clip_add(image, noise, dtype=image.dtype)
 
