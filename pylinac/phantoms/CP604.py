@@ -292,51 +292,55 @@ class CTP730(CP504.CTP515):
     """Low-contrast module for CatPhan 604 (CTP730).
 
     Contains three contrast groups (0.3 %, 0.5 %, 1.0 %) each with 9 rod
-    diameters (2, 3, 4, 5, 6, 7, 8, 9, 15 mm).  The groups are arranged
-    ~120° apart.  Rods appear darker than the surrounding background material.
+    diameters (2, 3, 4, 5, 6, 7, 8, 9, 15 mm).  Rods are darker than the
+    surrounding background material.
 
     Angles follow pylinac image convention: 0°=right, −90°=top, +90°=bottom.
-    Values are approximate based on the CTP604 manual diagram (p.24) and may
-    need refinement if the phantom sits in a non-standard rotational orientation.
+    Group positions are calibrated from a 64-slice average of a real CatPhan
+    604 scan (0.625 mm/slice).  The 0.3 % group position is approximate — its
+    15 mm rod was not reliably detected at this scan quality level.
     """
 
     attr_name = "ctp515"
     common_name = "Low Contrast (CTP730)"
-    roi_dist_mm = 55
+    roi_dist_mm = 58   # empirically measured from multi-slice average (was 55)
+    num_slices = 20    # average ±20 slices for ~25 mm SNR improvement
     roi_settings = {
-        # 1.0 % contrast group — upper-right to right (~2 o'clock)
-        "1pct_15mm": {"angle": -70, "distance": 55, "radius": 6.0},
-        "1pct_9mm":  {"angle": -60, "distance": 55, "radius": 3.5},
-        "1pct_8mm":  {"angle": -50, "distance": 55, "radius": 3.0},
-        "1pct_7mm":  {"angle": -40, "distance": 55, "radius": 2.5},
-        "1pct_6mm":  {"angle": -30, "distance": 55, "radius": 2.0},
-        "1pct_5mm":  {"angle": -20, "distance": 55, "radius": 1.5},
-        "1pct_4mm":  {"angle": -10, "distance": 55, "radius": 1.2},
-        "1pct_3mm":  {"angle":   0, "distance": 55, "radius": 1.0},
-        "1pct_2mm":  {"angle":  10, "distance": 55, "radius": 0.8},
-        # 0.5 % contrast group — upper-left to left (~10 o'clock)
-        "05pct_15mm": {"angle":  170, "distance": 55, "radius": 6.0},
-        "05pct_9mm":  {"angle":  180, "distance": 55, "radius": 3.5},
-        "05pct_8mm":  {"angle": -170, "distance": 55, "radius": 3.0},
-        "05pct_7mm":  {"angle": -160, "distance": 55, "radius": 2.5},
-        "05pct_6mm":  {"angle": -150, "distance": 55, "radius": 2.0},
-        "05pct_5mm":  {"angle": -140, "distance": 55, "radius": 1.5},
-        "05pct_4mm":  {"angle": -130, "distance": 55, "radius": 1.2},
-        "05pct_3mm":  {"angle": -120, "distance": 55, "radius": 1.0},
-        "05pct_2mm":  {"angle": -110, "distance": 55, "radius": 0.8},
-        # 0.3 % contrast group — bottom (~6 o'clock)
-        "03pct_15mm": {"angle":  50, "distance": 55, "radius": 6.0},
-        "03pct_9mm":  {"angle":  60, "distance": 55, "radius": 3.5},
-        "03pct_8mm":  {"angle":  70, "distance": 55, "radius": 3.0},
-        "03pct_7mm":  {"angle":  80, "distance": 55, "radius": 2.5},
-        "03pct_6mm":  {"angle":  90, "distance": 55, "radius": 2.0},
-        "03pct_5mm":  {"angle": 100, "distance": 55, "radius": 1.5},
-        "03pct_4mm":  {"angle": 110, "distance": 55, "radius": 1.2},
-        "03pct_3mm":  {"angle": 120, "distance": 55, "radius": 1.0},
-        "03pct_2mm":  {"angle": 130, "distance": 55, "radius": 0.8},
+        # 1.0 % contrast group — spans 107°→171° (detected 15 mm peak at 106.7°)
+        "1pct_15mm": {"angle":  107, "distance": 58, "radius": 6.0},
+        "1pct_9mm":  {"angle":  115, "distance": 58, "radius": 3.5},
+        "1pct_8mm":  {"angle":  123, "distance": 58, "radius": 3.0},
+        "1pct_7mm":  {"angle":  131, "distance": 58, "radius": 2.5},
+        "1pct_6mm":  {"angle":  139, "distance": 58, "radius": 2.0},
+        "1pct_5mm":  {"angle":  147, "distance": 58, "radius": 1.5},
+        "1pct_4mm":  {"angle":  155, "distance": 58, "radius": 1.2},
+        "1pct_3mm":  {"angle":  163, "distance": 58, "radius": 1.0},
+        "1pct_2mm":  {"angle":  171, "distance": 58, "radius": 0.8},
+        # 0.5 % contrast group — spans −110°→−174° (detected 15 mm peak at −110°)
+        "05pct_15mm": {"angle": -110, "distance": 58, "radius": 6.0},
+        "05pct_9mm":  {"angle": -118, "distance": 58, "radius": 3.5},
+        "05pct_8mm":  {"angle": -126, "distance": 58, "radius": 3.0},
+        "05pct_7mm":  {"angle": -134, "distance": 58, "radius": 2.5},
+        "05pct_6mm":  {"angle": -142, "distance": 58, "radius": 2.0},
+        "05pct_5mm":  {"angle": -150, "distance": 58, "radius": 1.5},
+        "05pct_4mm":  {"angle": -158, "distance": 58, "radius": 1.2},
+        "05pct_3mm":  {"angle": -166, "distance": 58, "radius": 1.0},
+        "05pct_2mm":  {"angle": -174, "distance": 58, "radius": 0.8},
+        # 0.3 % contrast group — spans 21°→−43° (detected 15 mm peak at 20.6°)
+        "03pct_15mm": {"angle":   21, "distance": 58, "radius": 6.0},
+        "03pct_9mm":  {"angle":   13, "distance": 58, "radius": 3.5},
+        "03pct_8mm":  {"angle":    5, "distance": 58, "radius": 3.0},
+        "03pct_7mm":  {"angle":   -3, "distance": 58, "radius": 2.5},
+        "03pct_6mm":  {"angle":  -11, "distance": 58, "radius": 2.0},
+        "03pct_5mm":  {"angle":  -19, "distance": 58, "radius": 1.5},
+        "03pct_4mm":  {"angle":  -27, "distance": 58, "radius": 1.2},
+        "03pct_3mm":  {"angle":  -35, "distance": 58, "radius": 1.0},
+        "03pct_2mm":  {"angle":  -43, "distance": 58, "radius": 0.8},
     }
     background_roi_dist_ratio = 0.75
     background_roi_radius_mm = 4
+
+    # ------------------------------------------------------------------ helpers
 
     @property
     def rois_1pct(self) -> dict:
@@ -352,6 +356,274 @@ class CTP730(CP504.CTP515):
     def rois_03pct(self) -> dict:
         """ROIs belonging to the 0.3 % contrast group."""
         return {k: v for k, v in self.rois.items() if k.startswith("03pct_")}
+
+    def _bg_stats(self, roi_name: str) -> tuple[float, float]:
+        """Return (bg_mean_HU, bg_std_HU) from the inner+outer background ROIs."""
+        inner = self.background_rois.get(roi_name + "-inner")
+        outer = self.background_rois.get(roi_name + "-outer")
+        present = [r for r in (inner, outer) if r is not None]
+        if not present:
+            return float("nan"), float("nan")
+        bg_mean = float(np.mean([r.pixel_value for r in present]))
+        bg_std  = float(np.mean([r.std for r in present]))
+        return bg_mean, bg_std
+
+    def _scoring_table(self) -> list[dict]:
+        """Per-rod metrics: contrast_pct, CNR, detectability."""
+        rows: list[dict] = []
+        for name, roi in self.rois.items():
+            group, size_str = name.split("_", 1)
+            diam_mm = int(size_str.replace("mm", ""))
+            bg_mean, bg_std = self._bg_stats(name)
+            delta_hu    = float(roi.pixel_value) - bg_mean
+            contrast_pct = abs(delta_hu) / (abs(bg_mean) + 1000.0) * 100.0
+            cnr = abs(delta_hu) / bg_std if bg_std > 0 else 0.0
+            rows.append({
+                "group":        group,
+                "diameter_mm":  diam_mm,
+                "rod_hu":       float(roi.pixel_value),
+                "bg_hu":        bg_mean,
+                "delta_hu":     delta_hu,
+                "contrast_pct": contrast_pct,
+                "cnr":          cnr,
+                "detectability": contrast_pct * diam_mm,
+            })
+        return rows
+
+    # ------------------------------------------------------------------ results
+
+    _GROUP_LABELS: dict[str, str] = {
+        "1pct":  "1.0 %",
+        "05pct": "0.5 %",
+        "03pct": "0.3 %",
+    }
+
+    def results(self) -> str:
+        """Text summary table of low-contrast metrics per rod group."""
+        rows = self._scoring_table()
+        hdr = f"{'Diam':>6}  {'Rod HU':>8}  {'Bg HU':>8}  {'Delta':>7}  {'Ctr%':>7}  {'CNR':>6}  {'Detect':>7}"
+        sep = "-" * len(hdr)
+        lines: list[str] = [
+            f"CTP730 Low-Contrast Results  (slice {self.slice_num}, "
+            f"roll {self.catphan_roll:.2f} deg)",
+            "=" * len(hdr),
+        ]
+        for gkey in ("1pct", "05pct", "03pct"):
+            glabel = self._GROUP_LABELS[gkey]
+            group_rows = sorted(
+                [r for r in rows if r["group"] == gkey],
+                key=lambda r: -r["diameter_mm"],
+            )
+            lines += [f"\n{glabel} contrast group:", hdr, sep]
+            for r in group_rows:
+                lines.append(
+                    f"{r['diameter_mm']:>6}  {r['rod_hu']:>8.1f}  {r['bg_hu']:>8.1f}  "
+                    f"{r['delta_hu']:>7.2f}  {r['contrast_pct']:>7.3f}  "
+                    f"{r['cnr']:>6.2f}  {r['detectability']:>7.2f}"
+                )
+            visible = [r for r in group_rows if r["cnr"] >= self.cnr_threshold]
+            if visible:
+                sv = min(visible, key=lambda r: r["diameter_mm"])
+                lines.append(
+                    f"  => Smallest visible: {sv['diameter_mm']} mm  "
+                    f"(CNR >= {self.cnr_threshold})"
+                )
+            else:
+                lines.append(f"  => No rods detected  (CNR threshold {self.cnr_threshold})")
+        return "\n".join(lines)
+
+    def results_data(self) -> dict:
+        """Dict export of low-contrast results."""
+        return {
+            "module": "CTP730",
+            "slice_number": self.slice_num,
+            "catphan_roll_deg": round(self.catphan_roll, 3),
+            "rois": self._scoring_table(),
+        }
+
+    # ------------------------------------------------------------------ plots
+
+    def plotly_analyzed_image(self) -> go.Figure:
+        """Interactive Plotly figure: ROI overlay + contrast-detail curve.
+
+        Returns a ``plotly.graph_objects.Figure`` with two panels:
+        * Left (65 %): phantom slice with ROI circles, coloured by group.
+        * Right (35 %): contrast-detail scatter (diameter vs contrast %).
+        """
+        from plotly.subplots import make_subplots
+
+        rows   = self._scoring_table()
+        arr    = self.image.array.astype(float)
+        wl, ww = 50.0, 40.0
+
+        _GROUP_COLORS = {"1pct": "#00ff00", "05pct": "#00ffff", "03pct": "#ffff00"}
+
+        fig = make_subplots(
+            rows=1, cols=2,
+            column_widths=[0.65, 0.35],
+            subplot_titles=[
+                f"CTP730 ROI overlay — slice {self.slice_num}",
+                "Contrast-detail curve",
+            ],
+        )
+
+        # Phantom image
+        fig.add_trace(
+            go.Heatmap(
+                z=arr,
+                colorscale="gray",
+                zmin=wl - ww / 2,
+                zmax=wl + ww / 2,
+                showscale=False,
+                hoverinfo="skip",
+            ),
+            row=1, col=1,
+        )
+
+        # ROI circles as layout shapes
+        shapes: list[dict] = []
+        for name, roi in self.rois.items():
+            group = name.split("_")[0]
+            c = _GROUP_COLORS.get(group, "#ffffff")
+            diam_label = name.split("_")[1]
+            r = roi.radius
+            shapes.append(
+                dict(
+                    type="circle",
+                    xref="x", yref="y",
+                    x0=roi.center.x - r, x1=roi.center.x + r,
+                    y0=roi.center.y - r, y1=roi.center.y + r,
+                    line=dict(color=c, width=1.5),
+                    name=name,
+                )
+            )
+            # diameter label annotation
+            fig.add_annotation(
+                x=roi.center.x, y=roi.center.y,
+                text=diam_label.replace("mm", ""),
+                showarrow=False,
+                font=dict(size=7, color=c),
+                xref="x", yref="y",
+                row=1, col=1,
+            )
+        fig.update_layout(shapes=shapes)
+
+        # Contrast-detail scatter traces
+        for gkey in ("1pct", "05pct", "03pct"):
+            glabel = self._GROUP_LABELS[gkey]
+            c      = _GROUP_COLORS[gkey]
+            gdata  = sorted(
+                [r for r in rows if r["group"] == gkey],
+                key=lambda r: r["diameter_mm"],
+            )
+            if not gdata:
+                continue
+            diams     = [r["diameter_mm"]  for r in gdata]
+            contrasts = [r["contrast_pct"] for r in gdata]
+            hover     = [
+                (
+                    f"<b>{glabel} — {r['diameter_mm']} mm</b><br>"
+                    f"Contrast: {r['contrast_pct']:.3f} %<br>"
+                    f"CNR: {r['cnr']:.2f}<br>"
+                    f"Detectability: {r['detectability']:.2f}<br>"
+                    f"Rod HU: {r['rod_hu']:.1f}  Bg HU: {r['bg_hu']:.1f}"
+                )
+                for r in gdata
+            ]
+            fig.add_trace(
+                go.Scatter(
+                    x=diams,
+                    y=contrasts,
+                    mode="lines+markers",
+                    name=glabel,
+                    line=dict(color=c, width=2),
+                    marker=dict(size=8, color=c),
+                    hovertext=hover,
+                    hoverinfo="text",
+                ),
+                row=1, col=2,
+            )
+
+        fig.update_xaxes(title_text="Diameter (mm)", row=1, col=2)
+        fig.update_yaxes(title_text="Contrast (%)", row=1, col=2)
+        fig.update_layout(
+            title=dict(
+                text=(
+                    f"CTP730 Low-Contrast Analysis — "
+                    f"slice {self.slice_num}, "
+                    f"roll {self.catphan_roll:.2f} °"
+                ),
+                font=dict(size=14),
+            ),
+            height=620,
+            plot_bgcolor="#111111",
+            paper_bgcolor="#1a1a1a",
+            font=dict(color="#eeeeee"),
+            legend=dict(
+                yanchor="top", y=0.99,
+                xanchor="right", x=0.99,
+                bgcolor="rgba(30,30,30,0.7)",
+            ),
+        )
+        return fig
+
+    def save_analyzed_image(self, filename: str, **kwargs) -> None:
+        """Save a static matplotlib figure: ROI overlay + contrast-detail chart."""
+        rows = self._scoring_table()
+        arr  = self.image.array.astype(float)
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 7))
+        fig.patch.set_facecolor("#111111")
+        for ax in (ax1, ax2):
+            ax.set_facecolor("#1a1a1a")
+
+        _GROUP_COLORS_MPL = {"1pct": "lime", "05pct": "cyan", "03pct": "yellow"}
+
+        # Panel 1 — ROI overlay
+        ax1.imshow(arr, cmap="gray", vmin=30.0, vmax=70.0, origin="upper")
+        for name, roi in self.rois.items():
+            group = name.split("_")[0]
+            c = _GROUP_COLORS_MPL.get(group, "white")
+            ax1.add_patch(
+                plt.Circle((roi.center.x, roi.center.y), roi.radius,
+                            color=c, fill=False, lw=1.2)
+            )
+            ax1.text(
+                roi.center.x, roi.center.y,
+                name.split("_")[1].replace("mm", ""),
+                color=c, fontsize=5, ha="center", va="center",
+            )
+        ax1.set_title("CTP730 ROI overlay", color="white", fontsize=11)
+        ax1.axis("off")
+
+        # Panel 2 — contrast-detail
+        for gkey in ("1pct", "05pct", "03pct"):
+            glabel = self._GROUP_LABELS[gkey]
+            c      = _GROUP_COLORS_MPL[gkey]
+            gdata  = sorted(
+                [r for r in rows if r["group"] == gkey],
+                key=lambda r: r["diameter_mm"],
+            )
+            if gdata:
+                ax2.plot(
+                    [r["diameter_mm"]  for r in gdata],
+                    [r["contrast_pct"] for r in gdata],
+                    "o-", color=c, label=glabel, lw=2, markersize=6,
+                )
+        ax2.set_xlabel("Diameter (mm)", color="white")
+        ax2.set_ylabel("Contrast (%)", color="white")
+        ax2.set_title("Contrast-detail curve", color="white", fontsize=11)
+        ax2.tick_params(colors="white")
+        ax2.spines[:].set_color("#555555")
+        ax2.grid(alpha=0.25, color="#444444")
+        ax2.legend(facecolor="#2a2a2a", labelcolor="white")
+
+        fig.suptitle(
+            f"CTP730 — slice {self.slice_num}, roll {self.catphan_roll:.2f}°",
+            color="white", fontsize=12,
+        )
+        fig.savefig(filename, dpi=150, bbox_inches="tight", facecolor=fig.get_facecolor())
+        plt.close(fig)
 
 
 # ---------------------------------------------------------------------------
@@ -371,9 +643,9 @@ class CatPhan604(CatPhanBase):
     catphan_radius_mm = 101
     modules = {
         CTP732: {"offset": 0},
-        CTP729: {"offset": -80},
-        CTP528CP604: {"offset": 0},   # bead co-located with HU plug slice
-        CTP730: {"offset": -40},
+        CTP729: {"offset": 80},
+        CTP528CP604: {"offset": 0},   # co-located with HU plug slice (Section 2)
+        CTP730: {"offset": 40},       # Section 3 is at +40 mm from Section 2
     }
 
     @staticmethod
