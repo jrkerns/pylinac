@@ -23,6 +23,7 @@ from tests_basic.utils import (
     FromURLTesterMixin,
     PlotlyTestMixin,
     get_file_from_cloud_test_repo,
+    requires_cloud_data,
     save_file,
 )
 
@@ -37,31 +38,47 @@ class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
     klass: type[DRGS] | type[DRMLC] | type[DRCS]
     results_length: int
 
-    def test_normal_instantiation(self):
-        one = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_1.dcm"])
-        two = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_2.dcm"])
+    @requires_cloud_data(
+        files={
+            "one": [TEST_DIR, "no_test_or_image_type_1.dcm"],
+            "two": [TEST_DIR, "no_test_or_image_type_2.dcm"],
+        }
+    )
+    def test_normal_instantiation(self, one: str, two: str):
         instance = self.klass(image_paths=(one, two))
         self.assertIsInstance(instance, self.klass)
 
-    def test_from_stream(self):
-        one = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_1.dcm"])
-        two = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_2.dcm"])
+    @requires_cloud_data(
+        files={
+            "one": [TEST_DIR, "no_test_or_image_type_1.dcm"],
+            "two": [TEST_DIR, "no_test_or_image_type_2.dcm"],
+        }
+    )
+    def test_from_stream(self, one: str, two: str):
         with open(one, "rb") as s1, open(two, "rb") as s2:
             s11 = io.BytesIO(s1.read())
             s22 = io.BytesIO(s2.read())
             instance = self.klass(image_paths=(s11, s22))
         self.assertIsInstance(instance, self.klass)
 
-    def test_from_file_object(self):
-        one = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_1.dcm"])
-        two = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_2.dcm"])
+    @requires_cloud_data(
+        files={
+            "one": [TEST_DIR, "no_test_or_image_type_1.dcm"],
+            "two": [TEST_DIR, "no_test_or_image_type_2.dcm"],
+        }
+    )
+    def test_from_file_object(self, one: str, two: str):
         with open(one, "rb") as s1, open(two, "rb") as s2:
             instance = self.klass(image_paths=(s1, s2))
         self.assertIsInstance(instance, self.klass)
 
-    def test_swap_image_order(self):
-        one = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_1.dcm"])
-        two = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_2.dcm"])
+    @requires_cloud_data(
+        files={
+            "one": [TEST_DIR, "no_test_or_image_type_1.dcm"],
+            "two": [TEST_DIR, "no_test_or_image_type_2.dcm"],
+        }
+    )
+    def test_swap_image_order(self, one: str, two: str):
 
         instance = self.klass(image_paths=(one, two))
         self.assertEqual(instance.open_image.path, two)

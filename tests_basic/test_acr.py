@@ -18,16 +18,12 @@ from tests_basic.utils import (
     FromZipTesterMixin,
     InitTesterMixin,
     PlotlyTestMixin,
-    get_file_from_cloud_test_repo,
-    get_folder_from_cloud_repo,
+    requires_cloud_data,
     save_file,
 )
 
 TEST_DIR_CT = ["ACR", "CT"]
 TEST_DIR_MR = ["ACR", "MRI"]
-
-get_folder_from_cloud_repo(TEST_DIR_CT)
-get_folder_from_cloud_repo(TEST_DIR_MR)
 
 
 class TestACRCT(TestCase, FromZipTesterMixin, InitTesterMixin):
@@ -36,23 +32,26 @@ class TestACRCT(TestCase, FromZipTesterMixin, InitTesterMixin):
     init_file = [*TEST_DIR_CT, "Philips_CT"]
     is_folder = True
 
-    def test_load_from_list_of_paths(self):
+    @requires_cloud_data(files={"ct_zip": [*TEST_DIR_CT, "Philips.zip"]})
+    def test_load_from_list_of_paths(self, ct_zip: str):
         # shouldn't raise
-        with TemporaryZipDirectory(get_file_from_cloud_test_repo(self.zip)) as zfolder:
+        with TemporaryZipDirectory(ct_zip) as zfolder:
             paths = [Path(zfolder) / f for f in os.listdir(zfolder)]
             ACRCT(paths)
 
-    def test_load_from_list_of_streams(self):
+    @requires_cloud_data(files={"ct_zip": [*TEST_DIR_CT, "Philips.zip"]})
+    def test_load_from_list_of_streams(self, ct_zip: str):
         # shouldn't raise
-        with TemporaryZipDirectory(get_file_from_cloud_test_repo(self.zip)) as zfolder:
+        with TemporaryZipDirectory(ct_zip) as zfolder:
             paths = [Path(zfolder, f) for f in os.listdir(zfolder)]
             paths = [io.BytesIO(open(p, "rb").read()) for p in paths]
             ACRCT(paths)
 
 
 class TestCTGeneral(TestCase):
-    def setUp(self):
-        self.path = get_file_from_cloud_test_repo([*TEST_DIR_CT, "Philips.zip"])
+    @requires_cloud_data(files={"ct_zip": [*TEST_DIR_CT, "Philips.zip"]})
+    def setUp(self, ct_zip: str):
+        self.path = ct_zip
         self.ct = ACRCT.from_zip(self.path)
 
     def test_phan_center(self):
@@ -101,9 +100,9 @@ class TestCTGeneral(TestCase):
 
 class TestPlottingSaving(TestCase):
     @classmethod
-    def setUpClass(cls):
-        path = get_file_from_cloud_test_repo([*TEST_DIR_CT, "Philips.zip"])
-        cls.ct = ACRCT.from_zip(path)
+    @requires_cloud_data(files={"ct_zip": [*TEST_DIR_CT, "Philips.zip"]})
+    def setUpClass(cls, ct_zip: str):
+        cls.ct = ACRCT.from_zip(ct_zip)
         cls.ct.analyze()
 
     @classmethod
@@ -344,22 +343,24 @@ class TestACRMRI(TestCase, FromZipTesterMixin, InitTesterMixin):
     init_file = [*TEST_DIR_MR, "GE - 3T"]
     is_folder = True
 
-    def test_load_from_list_of_paths(self):
+    @requires_cloud_data(files={"mr_zip": [*TEST_DIR_MR, "GE 3T.zip"]})
+    def test_load_from_list_of_paths(self, mr_zip: str):
         # shouldn't raise
-        with TemporaryZipDirectory(get_file_from_cloud_test_repo(self.zip)) as zfolder:
+        with TemporaryZipDirectory(mr_zip) as zfolder:
             paths = [Path(zfolder) / f for f in os.listdir(zfolder)]
             ACRMRILarge(paths)
 
-    def test_load_from_list_of_streams(self):
+    @requires_cloud_data(files={"mr_zip": [*TEST_DIR_MR, "GE 3T.zip"]})
+    def test_load_from_list_of_streams(self, mr_zip: str):
         # shouldn't raise
-        with TemporaryZipDirectory(get_file_from_cloud_test_repo(self.zip)) as zfolder:
+        with TemporaryZipDirectory(mr_zip) as zfolder:
             paths = [Path(zfolder, f) for f in os.listdir(zfolder)]
             paths = [io.BytesIO(open(p, "rb").read()) for p in paths]
             ACRMRILarge(paths)
 
-    def test_geometric_distortion_profile_lengths(self):
-        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "GE 3T.zip"])
-        mri = ACRMRILarge.from_zip(path)
+    @requires_cloud_data(files={"mr_zip": [*TEST_DIR_MR, "GE 3T.zip"]})
+    def test_geometric_distortion_profile_lengths(self, mr_zip: str):
+        mri = ACRMRILarge.from_zip(mr_zip)
         mri.analyze()
         data = mri.results_data()
         self.assertAlmostEqual(
@@ -389,9 +390,9 @@ class TestACRMRI(TestCase, FromZipTesterMixin, InitTesterMixin):
 
 
 class TestACRMRIResultData(TestCase, ResultsDataBase):
-    def construct_analyzed_instance(self):
-        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "GE 3T.zip"])
-        mri = ACRMRILarge.from_zip(path)
+    @requires_cloud_data(files={"mr_zip": [*TEST_DIR_MR, "GE 3T.zip"]})
+    def construct_analyzed_instance(self, mr_zip: str):
+        mri = ACRMRILarge.from_zip(mr_zip)
         mri.analyze()
         return mri
 
@@ -409,9 +410,9 @@ class TestACRMRIResultData(TestCase, ResultsDataBase):
 
 
 class TestMRGeneral(TestCase):
-    def setUp(self):
-        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "GE 3T.zip"])
-        self.mri = ACRMRILarge.from_zip(path)
+    @requires_cloud_data(files={"mr_zip": [*TEST_DIR_MR, "GE 3T.zip"]})
+    def setUp(self, mr_zip: str):
+        self.mri = ACRMRILarge.from_zip(mr_zip)
 
     def test_phan_center(self):
         """Test locations of the phantom center."""
@@ -441,35 +442,36 @@ class TestMRGeneral(TestCase):
             self.assertIn("message", w)
             self.assertIn("category", w)
 
-    def test_echo_number(self):
+    @requires_cloud_data(files={"dual_echo_zip": [*TEST_DIR_MR, "AXIAL_DUAL_ECHO.zip"]})
+    def test_echo_number(self, dual_echo_zip: str):
         """Test analyzing a specific echo number works"""
-        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "AXIAL_DUAL_ECHO.zip"])
-        mri1 = ACRMRILarge.from_zip(path)
+        mri1 = ACRMRILarge.from_zip(dual_echo_zip)
         mri1.analyze(echo_number=1)
         echo_number_1 = mri1.dicom_stack[0].metadata.EchoNumbers
-        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "AXIAL_DUAL_ECHO.zip"])
-        mri2 = ACRMRILarge.from_zip(path)
+        mri2 = ACRMRILarge.from_zip(dual_echo_zip)
         mri2.analyze(echo_number=2)
         echo_number_2 = mri2.dicom_stack[0].metadata.EchoNumbers
         self.assertNotEqual(echo_number_1, echo_number_2)
 
-    def test_echo_number_invalid(self):
-        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "AXIAL_DUAL_ECHO.zip"])
-        mri = ACRMRILarge.from_zip(path)
+    @requires_cloud_data(files={"dual_echo_zip": [*TEST_DIR_MR, "AXIAL_DUAL_ECHO.zip"]})
+    def test_echo_number_invalid(self, dual_echo_zip: str):
+        mri = ACRMRILarge.from_zip(dual_echo_zip)
         with self.assertRaises(ValueError):
             mri.analyze(echo_number=3)  # only 2 echoes
 
-    def test_echo_number_defaults_to_first(self):
-        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "AXIAL_DUAL_ECHO.zip"])
-        mri = ACRMRILarge.from_zip(path)
+    @requires_cloud_data(files={"dual_echo_zip": [*TEST_DIR_MR, "AXIAL_DUAL_ECHO.zip"]})
+    def test_echo_number_defaults_to_first(self, dual_echo_zip: str):
+        mri = ACRMRILarge.from_zip(dual_echo_zip)
         self.assertEqual(len({s.metadata.EchoNumbers for s in mri.dicom_stack}), 2)
         mri.analyze(echo_number=None)
         self.assertEqual(mri.dicom_stack[0].metadata.EchoNumbers, "1")
 
-    def test_config_extent_rounds(self):
+    @requires_cloud_data(
+        files={"config_rounding_zip": [*TEST_DIR_MR, "Config rounding.zip"]}
+    )
+    def test_config_extent_rounds(self, config_rounding_zip: str):
         """Test that the extent check rounds the config extent to the nearest slice"""
-        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "Config rounding.zip"])
-        mri = ACRMRILarge.from_zip(path)
+        mri = ACRMRILarge.from_zip(config_rounding_zip)
         self.assertTrue(mri._ensure_physical_scan_extent())
 
     def test_error_if_from_demo(self):
@@ -479,9 +481,9 @@ class TestMRGeneral(TestCase):
 
 class TestMRPlottingSaving(TestCase):
     @classmethod
-    def setUpClass(cls):
-        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "GE 3T.zip"])
-        cls.mri = ACRMRILarge.from_zip(path)
+    @requires_cloud_data(files={"mr_zip": [*TEST_DIR_MR, "GE 3T.zip"]})
+    def setUpClass(cls, mr_zip: str):
+        cls.mri = ACRMRILarge.from_zip(mr_zip)
         cls.mri.analyze()
 
     @classmethod

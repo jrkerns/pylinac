@@ -2,13 +2,14 @@ from pathlib import Path
 from unittest import TestCase
 
 from pylinac.contrib.quasar import QuasarLightRadScaling
-from tests_basic.utils import get_folder_from_cloud_repo
+from tests_basic.utils import requires_cloud_data
 
 
 class TestQuasar(TestCase):
     @classmethod
-    def setUpClass(cls) -> None:
-        cls.dir = Path(get_folder_from_cloud_repo(["planar_imaging", "Quasar"]))
+    @requires_cloud_data(folders={"cloud_dir": ["planar_imaging", "Quasar"]})
+    def setUpClass(cls, cloud_dir: str) -> None:
+        cls.dir = Path(cloud_dir)
 
     def test_analyze(self):
         for file in self.dir.iterdir():
