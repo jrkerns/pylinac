@@ -821,33 +821,36 @@ class EdgeMTF:
         return line
 
 
-class BeadMTF:
-    """PSF-based MTF derived from a sub-millimetre point-source bead.
+class PointSourceMTF:
+    """MTF from a point-source or line-source target (bead or wire cross-section).
 
     The 2D PSF patch (background-subtracted) is radially averaged to a 1D
     profile, Hanning-windowed, then Fourier-transformed to obtain the MTF.
     An optional sinc correction removes the blurring contribution of the
-    finite bead diameter.
+    finite source diameter (bead size, wire cross-section diameter, etc.).
+
+    Subclasses set ``SOURCE_DIAMETER_MM`` and may override ``__init__``
+    for a more specific API while delegating the shared pipeline here.
     """
 
-    BEAD_DIAMETER_MM: float = 0.18
+    SOURCE_DIAMETER_MM: float = 0.0
 
     def __init__(
         self,
         psf_patch: np.ndarray,
         pixel_size_mm: float,
-        apply_bead_correction: bool = True,
+        source_diameter_mm: float | None = None,
     ):
         self.pixel_size = pixel_size_mm
-        self.apply_bead_correction = apply_bead_correction
-        self._calculate(psf_patch)
+        d = source_diameter_mm if source_diameter_mm is not None else self.SOURCE_DIAMETER_MM
+        self._calculate(psf_patch, d)
 
-    def _calculate(self, psf: np.ndarray) -> None:
+    def _calculate(self, psf: np.ndarray, source_diameter_mm: float) -> None:
         psf_pos = np.clip(psf, 0.0, None)
         total = psf_pos.sum()
         if total <= 0:
             raise ValueError(
-                "PSF patch has no positive values; bead localisation may have failed."
+                "PSF patch has no positive values; source localisation may have failed."
             )
         y_idx, x_idx = np.indices(psf.shape)
         cx = float((x_idx * psf_pos).sum() / total)
@@ -866,8 +869,7 @@ class BeadMTF:
             radial_psf /= radial_psf.max()
 
         # Mirror the radial PSF to build a symmetric 1D signal so that the peak
-        # sits at the centre of the Hanning window (weight = 1.0) rather than at
-        # the edge (weight = 0.0), which would otherwise destroy the main signal.
+        # sits at the centre of the Hanning window rather than at the edge.
         symmetric = np.concatenate([radial_psf[1:][::-1], radial_psf])
         window = np.hanning(len(symmetric))
         lsf_w = symmetric * window
@@ -884,8 +886,8 @@ class BeadMTF:
         if mtf[0] > 0:
             mtf /= mtf[0]
 
-        if self.apply_bead_correction:
-            sinc_vals = np.sinc(self.BEAD_DIAMETER_MM * freqs)
+        if source_diameter_mm > 0:
+            sinc_vals = np.sinc(source_diameter_mm * freqs)
             valid = np.abs(sinc_vals) > 0.05
             mtf[valid] /= sinc_vals[valid]
             mtf[~valid] = 0.0
@@ -896,7 +898,7 @@ class BeadMTF:
 
         if np.any(np.diff(mtf) > 0.01):
             warnings.warn(
-                "Bead MTF is not monotonically decreasing; bead localisation "
+                "MTF is not monotonically decreasing; source localisation "
                 "or PSF extraction may be imprecise.",
                 UserWarning,
             )
@@ -921,7 +923,7 @@ class BeadMTF:
         fig: go.Figure | None = None,
         x_label: str = "Spatial Frequency (lp/mm)",
         y_label: str = "MTF",
-        title: str = "Bead PSF MTF",
+        title: str = "Point Source MTF",
         name: str = "MTF",
         **kwargs,
     ) -> go.Figure:
@@ -943,7 +945,7 @@ class BeadMTF:
         grid: bool = True,
         x_label: str = "Spatial Frequency (lp/mm)",
         y_label: str = "MTF",
-        title: str = "Bead PSF MTF",
+        title: str = "Point Source MTF",
         label: str = "MTF",
     ) -> plt.Line2D:
         if axis is None:
@@ -957,4 +959,120 @@ class BeadMTF:
         axis.legend()
         plt.tight_layout()
         return line
+
+
+class BeadMTF(PointSourceMTF):
+    """PSF-based MTF derived from a sub-millimetre point-source bead.
+
+    Subclass of :class:`PointSourceMTF` that sets the sinc correction
+    for a spherical bead of ``BEAD_DIAMETER_MM``.
+
+    Backward-compatible API::
+
+        BeadMTF(psf_patch, pixel_size_mm, apply_bead_correction=True)
+    """
+
+    BEAD_DIAMETER_MM: float = 0.18
+    SOURCE_DIAMETER_MM: float = BEAD_DIAMETER_MM
+
+    def __init__(
+        self,
+        psf_patch: np.ndarray,
+        pixel_size_mm: float,
+        apply_bead_correction: bool = True,
+    ):
+        super().__init__(
+            psf_patch,
+            pixel_size_mm,
+            source_diameter_mm=self.BEAD_DIAMETER_MM if apply_bead_correction else 0.0,
+        )
+
+
+class SlantedWireMTF(PointSourceMTF):
+    """MTF from a tungsten wire tilted at a small angle to the z-axis.
+
+    Collects wire cross-section patches across N slices, registers them
+    at sub-pixel precision using the known lateral drift due to the wire tilt
+    angle, averages them into a high-SNR 2D PSF, then delegates to
+    :class:`PointSourceMTF` for the radial-average → Hanning → FFT pipeline.
+
+    The 50 µm wire diameter is negligible at CT resolution so no sinc
+    correction is applied.
+
+    Parameters
+    ----------
+    image_stack : list of ndarray
+        Axial CT slices centred near the wire (2D float arrays), ordered
+        by increasing z-position.
+    wire_center : tuple[float, float]
+        (x, y) sub-pixel centre of the wire in the middle slice.
+    pixel_size_mm : float
+        In-plane pixel size in mm.
+    slice_spacing_mm : float
+        Centre-to-centre spacing between consecutive slices in mm.
+    tilt_angle_deg : float
+        Wire tilt relative to the z-axis (default 5° for CatPhan 604).
+    patch_radius_px : int
+        Half-width of the square patch extracted from each slice.
+    """
+
+    WIRE_DIAMETER_MM: float = 0.05
+
+    def __init__(
+        self,
+        image_stack: list[np.ndarray],
+        wire_center: tuple[float, float],
+        pixel_size_mm: float,
+        slice_spacing_mm: float,
+        tilt_angle_deg: float = 5.0,
+        patch_radius_px: int = 8,
+    ):
+        psf_patch = self._build_psf(
+            image_stack,
+            wire_center,
+            pixel_size_mm,
+            slice_spacing_mm,
+            tilt_angle_deg,
+            patch_radius_px,
+        )
+        super().__init__(psf_patch, pixel_size_mm, source_diameter_mm=0.0)
+
+    @staticmethod
+    def _build_psf(
+        stack: list[np.ndarray],
+        wire_center: tuple[float, float],
+        pixel_size_mm: float,
+        slice_spacing_mm: float,
+        tilt_angle_deg: float,
+        patch_radius_px: int,
+    ) -> np.ndarray:
+        """Register per-slice wire patches via tilt-angle shift and average."""
+        theta = np.deg2rad(tilt_angle_deg)
+        # pixels the wire drifts laterally between adjacent slices
+        lateral_shift_px = np.tan(theta) * slice_spacing_mm / pixel_size_mm
+        cx0, cy0 = wire_center
+        mid = len(stack) // 2
+        r = patch_radius_px
+        size = 2 * r + 1
+
+        accum = np.zeros((size, size), dtype=float)
+        count = 0
+
+        for i, arr in enumerate(stack):
+            x_c = cx0 + (i - mid) * lateral_shift_px
+            y_c = cy0
+            ix, iy = int(round(x_c)), int(round(y_c))
+            x0, x1 = ix - r, ix + r + 1
+            y0, y1 = iy - r, iy + r + 1
+            if x0 < 0 or y0 < 0 or x1 > arr.shape[1] or y1 > arr.shape[0]:
+                continue
+            accum += arr[y0:y1, x0:x1].astype(float)
+            count += 1
+
+        if count == 0:
+            raise ValueError("No valid slices found for wire PSF extraction.")
+
+        patch = accum / count
+        bg = float(np.percentile(patch, 10))
+        return patch - bg
 

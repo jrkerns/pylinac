@@ -16,7 +16,7 @@ import numpy as np
 from plotly import graph_objects as go
 from py_linq import Enumerable
 
-from ..core.mtf import MTF
+from ..core.mtf import MTF, BeadMTF
 from ..core.nps import (
     average_power,
     max_frequency,
@@ -539,12 +539,19 @@ class CTP486(CatPhanModule):
 # ---------------------------------------------------------------------------
 
 class CTP528CP504(_CTP528Base):
-    """21 lp/cm high-resolution spatial resolution module for CatPhan 504."""
+    """21 lp/cm high-resolution spatial resolution module for CatPhan 504.
+
+    MTF is computed from the point-source bead embedded in the module insert,
+    using a background-subtracted 2D PSF → radial average → Hanning → FFT
+    pipeline (see :class:`~pylinac.core.mtf.BeadMTF`).  The line-pair gauge
+    is retained for visual reference (``circle_profile``), but is no longer
+    used for the MTF value.
+    """
 
     attr_name: str = "ctp528"
     common_name: str = "Spatial Resolution"
     radius2linepairs_mm = 47
-    combine_method: str = "max"
+    combine_method: str = "mean"
     num_slices: int = 3
     boundaries: tuple[float, ...] = (
         0,
@@ -559,6 +566,15 @@ class CTP528CP504(_CTP528Base):
     )
     start_angle: float = np.pi
     ccw: bool = True
+
+    # --- Bead PSF settings ---
+    BEAD_DIAMETER_MM: float = 0.18
+    PATCH_RADIUS_MM: float = 3.0
+    BACKGROUND_INNER_MM: float = 3.5
+    BACKGROUND_OUTER_MM: float = 6.0
+    # Exclude the line-pair gauge ring and the outer shell; bead sits inside.
+    BEAD_SEARCH_MAX_RADIUS_MM: float = 40.0
+
     roi_settings = {
         "region 1": {
             "start": boundaries[0],
@@ -641,45 +657,116 @@ class CTP528CP504(_CTP528Base):
         pass
 
     @cached_property
-    def mtf(self) -> MTF:
-        """The Relative MTF of the line pairs, normalized to the first region."""
-        maxs = list()
-        mins = list()
-        for key, value in self.roi_settings.items():
-            max_indices, max_values = self.circle_profile.find_peaks(
-                min_distance=value["peak spacing"],
-                max_number=value["num peaks"],
-                search_region=(value["start"], value["end"]),
+    def bead_center(self) -> Point:
+        """Sub-pixel location of the PSF bead inside the CTP528 insert.
+
+        Searches the inner region of the module image (radius <
+        ``BEAD_SEARCH_MAX_RADIUS_MM``) to avoid the line-pair gauge ring
+        at ~47 mm from the phantom centre.
+        """
+        arr = self.image.array.astype(float)
+        y_idx, x_idx = np.indices(arr.shape)
+        r_mm = (
+            np.sqrt(
+                (x_idx - self.phan_center.x) ** 2
+                + (y_idx - self.phan_center.y) ** 2
             )
-            if len(max_values) != value["num peaks"]:
-                break
-            maxs.append(max_values.mean())
-            _, min_values = self.circle_profile.find_valleys(
-                min_distance=value["peak spacing"],
-                max_number=value["num valleys"],
-                search_region=(min(max_indices), max(max_indices)),
-            )
-            mins.append(min_values.mean())
-        if not maxs:
+            * self.mm_per_pixel
+        )
+        search = arr.copy()
+        search[r_mm > self.BEAD_SEARCH_MAX_RADIUS_MM] = -np.inf
+
+        if np.all(np.isinf(search)):
             raise ValueError(
-                "Did not find any spatial resolution pairs to analyze. File an issue on github (https://github.com/jrkerns/pylinac/issues) if this is a valid dataset."
+                "Could not locate the PSF bead: search region is fully masked. "
+                "Check BEAD_SEARCH_MAX_RADIUS_MM or phantom alignment."
             )
-        spacings = [roi["lp/mm"] for roi in self.roi_settings.values()]
-        return MTF(lp_spacings=spacings, lp_maximums=maxs, lp_minimums=mins)
+
+        peak_y, peak_x = np.unravel_index(np.argmax(search), search.shape)
+
+        half_win = max(3, int(np.ceil(self.PATCH_RADIUS_MM / self.mm_per_pixel / 2)))
+        y0 = max(0, peak_y - half_win)
+        y1 = min(arr.shape[0], peak_y + half_win + 1)
+        x0 = max(0, peak_x - half_win)
+        x1 = min(arr.shape[1], peak_x + half_win + 1)
+        win = arr[y0:y1, x0:x1].copy()
+        win_pos = np.clip(win - win.min(), 0.0, None)
+        total = win_pos.sum()
+        if total > 0:
+            ys, xs = np.indices(win.shape)
+            cx = float((xs * win_pos).sum() / total) + x0
+            cy = float((ys * win_pos).sum() / total) + y0
+        else:
+            cx, cy = float(peak_x), float(peak_y)
+
+        return Point(x=cx, y=cy)
+
+    @cached_property
+    def _psf_data(self) -> tuple[np.ndarray, tuple[float, float]]:
+        """Background-subtracted 2D PSF patch and sub-pixel bead position."""
+        arr = self.image.array.astype(float)
+        cx, cy = self.bead_center.x, self.bead_center.y
+
+        patch_px = int(np.ceil(self.PATCH_RADIUS_MM / self.mm_per_pixel))
+        iy, ix = int(round(cy)), int(round(cx))
+        y0 = max(0, iy - patch_px)
+        y1 = min(arr.shape[0], iy + patch_px + 1)
+        x0 = max(0, ix - patch_px)
+        x1 = min(arr.shape[1], ix + patch_px + 1)
+
+        patch = arr[y0:y1, x0:x1].copy()
+
+        y_full, x_full = np.indices(arr.shape)
+        r_from_bead = (
+            np.sqrt((x_full - cx) ** 2 + (y_full - cy) ** 2) * self.mm_per_pixel
+        )
+        bg_mask = (r_from_bead >= self.BACKGROUND_INNER_MM) & (
+            r_from_bead <= self.BACKGROUND_OUTER_MM
+        )
+        background = float(arr[bg_mask].mean()) if bg_mask.any() else 0.0
+        patch -= background
+        return patch, (cy - y0, cx - x0)
+
+    @property
+    def psf_patch(self) -> np.ndarray:
+        """Background-subtracted 2D PSF patch centred on the bead."""
+        return self._psf_data[0]
+
+    @cached_property
+    def mtf(self) -> BeadMTF:
+        """Bead PSF MTF."""
+        patch, _ = self._psf_data
+        return BeadMTF(patch, self.mm_per_pixel)
 
     @property
     def radius2linepairs(self) -> float:
         return self.radius2linepairs_mm * self.scaling_factor / self.mm_per_pixel
 
     def plotly_rois(self, fig: go.Figure) -> None:
-        self.circle_profile.plotly(fig, color="blue", plot_peaks=False)
-        fig.update_layout(showlegend=False)
+        theta = np.linspace(0, 2 * np.pi, 100)
+        r_px = self.PATCH_RADIUS_MM / self.mm_per_pixel
+        fig.add_scatter(
+            x=(self.bead_center.x + r_px * np.cos(theta)).tolist(),
+            y=(self.bead_center.y + r_px * np.sin(theta)).tolist(),
+            mode="lines",
+            line=dict(color="blue"),
+            name="PSF patch",
+            showlegend=False,
+        )
 
     def plot_rois(self, axis: plt.Axes) -> None:
-        self.circle_profile.plot2axes(axis, edgecolor="blue", plot_peaks=False)
+        circle = plt.Circle(
+            (self.bead_center.x, self.bead_center.y),
+            radius=self.PATCH_RADIUS_MM / self.mm_per_pixel,
+            color="blue",
+            fill=False,
+            linewidth=1.5,
+        )
+        axis.add_patch(circle)
 
     @cached_property
     def circle_profile(self) -> CollapsedCircleProfile:
+        """Collapsed circle profile through the line-pair gauge (for visual reference)."""
         circle_profile = CollapsedCircleProfile(
             self.phan_center,
             self.radius2linepairs,

@@ -14,7 +14,7 @@ from functools import cached_property
 import numpy as np
 from skimage.transform import EuclideanTransform
 
-from ..core.mtf import MTF
+from ..core.mtf import MTF, PointSourceMTF
 from ..core.roi import RectangleROI
 from ..core.warnings import capture_warnings
 from ..ct import (
@@ -190,17 +190,32 @@ class CTP712(CP504.CTP486):
 class CTP714(_CTP528Base):
     """Spatial resolution module for CatPhan 700 (CTP714).
 
-    Unlike the other CTP528-family modules, this uses rectangular ROIs placed
-    with a Euclidean transform rather than a collapsed circle profile.  The
-    8 rectangular regions are arranged in a non-radial pattern.
+    MTF is derived from the non-tilted tungsten wire embedded in the insert.
+    The wire runs parallel to the z-axis, so its cross-section occupies the
+    same pixel position in every slice; ``num_slices`` adjacent slices are
+    averaged (via ``combine_method="mean"``) to improve SNR before the PSF is
+    extracted.  The wire cross-section is treated as a point source and fed to
+    :class:`~pylinac.core.mtf.PointSourceMTF` (no sinc correction needed for a
+    50 µm wire at CT resolution).
+
+    The rectangular line-pair gauge ROIs are retained for visual reference
+    (``_setup_rois`` / ``plot_rois``), but are no longer used for the MTF value.
     """
 
     rois: dict[str, RectangleROI]
     attr_name: str = "ctp528"
     common_name: str = "Spatial Resolution"
-    combine_method: str = "max"
+    combine_method: str = "mean"
     num_slices: int = 3
     start_angle = None  # not applicable; kept for serialisation compatibility
+
+    # --- Wire PSF settings ---
+    PATCH_RADIUS_MM: float = 3.0
+    BACKGROUND_INNER_MM: float = 3.5
+    BACKGROUND_OUTER_MM: float = 6.0
+    # Wire sits inside the line-pair gauge ring; exclude outer region.
+    WIRE_SEARCH_MAX_RADIUS_MM: float = 40.0
+
     roi_settings = {
         # Regions listed clockwise from top-left on CT image
         "region 1": {
@@ -291,12 +306,73 @@ class CTP714(_CTP528Base):
             )
 
     @cached_property
-    def mtf(self) -> MTF:
-        """Relative MTF of the line pairs, normalised to the first region."""
-        return MTF.from_high_contrast_diskset(
-            spacings=[r["lp/mm"] for r in self.roi_settings.values()],
-            diskset=self.rois.values(),
+    def wire_center(self) -> tuple[float, float]:
+        """Sub-pixel (x, y) centre of the tungsten wire in the combined image.
+
+        Searches within ``WIRE_SEARCH_MAX_RADIUS_MM`` of the phantom centre to
+        avoid the line-pair gauge patterns at the periphery.
+        """
+        arr = self.image.array.astype(float)
+        y_idx, x_idx = np.indices(arr.shape)
+        r_mm = (
+            np.sqrt(
+                (x_idx - self.phan_center.x) ** 2
+                + (y_idx - self.phan_center.y) ** 2
+            )
+            * self.mm_per_pixel
         )
+        search = arr.copy()
+        search[r_mm > self.WIRE_SEARCH_MAX_RADIUS_MM] = -np.inf
+
+        if np.all(np.isinf(search)):
+            raise ValueError(
+                "Could not locate the wire: search region fully masked. "
+                "Check WIRE_SEARCH_MAX_RADIUS_MM or phantom alignment."
+            )
+
+        peak_y, peak_x = np.unravel_index(np.argmax(search), search.shape)
+
+        half_win = max(3, int(np.ceil(self.PATCH_RADIUS_MM / self.mm_per_pixel / 2)))
+        y0 = max(0, peak_y - half_win)
+        y1 = min(arr.shape[0], peak_y + half_win + 1)
+        x0 = max(0, peak_x - half_win)
+        x1 = min(arr.shape[1], peak_x + half_win + 1)
+        win = arr[y0:y1, x0:x1].copy()
+        win_pos = np.clip(win - win.min(), 0.0, None)
+        total = win_pos.sum()
+        if total > 0:
+            ys, xs = np.indices(win.shape)
+            cx = float((xs * win_pos).sum() / total) + x0
+            cy = float((ys * win_pos).sum() / total) + y0
+        else:
+            cx, cy = float(peak_x), float(peak_y)
+        return cx, cy
+
+    @cached_property
+    def mtf(self) -> PointSourceMTF:
+        """Wire cross-section PSF MTF (non-tilted wire, parallel to z)."""
+        arr = self.image.array.astype(float)
+        cx, cy = self.wire_center
+
+        patch_px = int(np.ceil(self.PATCH_RADIUS_MM / self.mm_per_pixel))
+        iy, ix = int(round(cy)), int(round(cx))
+        y0 = max(0, iy - patch_px)
+        y1 = min(arr.shape[0], iy + patch_px + 1)
+        x0 = max(0, ix - patch_px)
+        x1 = min(arr.shape[1], ix + patch_px + 1)
+        patch = arr[y0:y1, x0:x1].copy()
+
+        y_full, x_full = np.indices(arr.shape)
+        r_from_wire = (
+            np.sqrt((x_full - cx) ** 2 + (y_full - cy) ** 2) * self.mm_per_pixel
+        )
+        bg_mask = (r_from_wire >= self.BACKGROUND_INNER_MM) & (
+            r_from_wire <= self.BACKGROUND_OUTER_MM
+        )
+        background = float(arr[bg_mask].mean()) if bg_mask.any() else 0.0
+        patch -= background
+
+        return PointSourceMTF(patch, self.mm_per_pixel, source_diameter_mm=0.0)
 
 
 # ---------------------------------------------------------------------------
