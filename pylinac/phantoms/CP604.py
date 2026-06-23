@@ -3,7 +3,7 @@
 Physical modules:
   CTP732 — HU linearity (adds 50%/20% Bone inserts vs CTP404)
   CTP729 — Image uniformity (identical to CTP486)
-  CTP528CP604 — PSF bead MTF (replaces line-pair gauge)
+  CTP528CP604 — Slanted-wire MTF (tilted tungsten wire, 5° to z-axis)
   CTP730 — Low contrast (27 rods, 3 contrast groups)
 """
 
@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from plotly import graph_objects as go
 
-from ..core.mtf import BeadMTF
+from ..core.mtf import BeadMTF, SlantedWireMTF
 from ..core.warnings import capture_warnings
 from ..ct import (
     BONE_20,
@@ -125,15 +125,19 @@ class CTP729(CP504.CTP486):
 
 
 # ---------------------------------------------------------------------------
-# CTP528CP604 — PSF bead MTF
+# CTP528CP604 — Slanted-wire MTF
 # ---------------------------------------------------------------------------
 
 class CTP528CP604(_CTP528Base):
-    """Bead PSF MTF for the CatPhan 604.
+    """Slanted-wire MTF for the CatPhan 604.
 
-    Section 2 of the 604 phantom contains a 0.18 mm tungsten carbide bead.
-    We locate the bead on the HU linearity slice, extract a background-subtracted
-    2D PSF patch, radially average to 1D, then FFT to obtain the MTF curve.
+    Section 2 of the 604 phantom contains a 50 µm tungsten wire tilted ~5°
+    to the z-axis.  The wire's cross-section drifts laterally by
+    ``tan(5°) × slice_spacing`` per slice, providing sub-pixel oversampling
+    of the PSF.  This class collects ``WIRE_SLICES`` slices on each side of
+    the reference slice, registers patches at sub-pixel precision using the
+    known tilt-angle shift, averages them into a high-SNR 2D PSF, then
+    computes the MTF via :class:`~pylinac.core.mtf.SlantedWireMTF`.
     """
 
     attr_name: str = "ctp528"
@@ -148,6 +152,11 @@ class CTP528CP604(_CTP528Base):
     BACKGROUND_OUTER_MM: float = 6.0
     HU_PLUG_DIST_MM: float = 58.7
     HU_PLUG_EXCLUSION_MM: float = 12.0
+    TILT_ANGLE_DEG: float = 5.0
+    WIRE_SLICES: int = 7  # slices on each side of the reference slice
+
+    def preprocess(self, catphan) -> None:
+        self._dicom_stack = catphan.dicom_stack
 
     def _setup_rois(self) -> None:
         pass
@@ -156,8 +165,12 @@ class CTP528CP604(_CTP528Base):
         pass
 
     @cached_property
-    def bead_center(self) -> Point:
-        """Sub-pixel location of the tungsten carbide bead."""
+    def wire_center(self) -> Point:
+        """Sub-pixel location of the tungsten wire in the reference slice.
+
+        Searches the interior of the phantom, excluding the HU plug annulus
+        at ~58.7 mm from centre.
+        """
         arr = self.image.array.astype(float)
         y_idx, x_idx = np.indices(arr.shape)
         r_mm = (
@@ -169,9 +182,7 @@ class CTP528CP604(_CTP528Base):
         )
         phantom_radius_mm = np.sqrt(self.catphan_size / np.pi) * self.mm_per_pixel
 
-        in_plug_annulus = (
-            np.abs(r_mm - self.HU_PLUG_DIST_MM) < self.HU_PLUG_EXCLUSION_MM
-        )
+        in_plug_annulus = np.abs(r_mm - self.HU_PLUG_DIST_MM) < self.HU_PLUG_EXCLUSION_MM
         outside_phantom = r_mm > phantom_radius_mm * 0.95
 
         search = arr.copy()
@@ -179,7 +190,7 @@ class CTP528CP604(_CTP528Base):
 
         if np.all(np.isinf(search)):
             raise ValueError(
-                "Could not locate the bead: the entire search region was masked. "
+                "Could not locate the wire: the entire search region was masked. "
                 "Verify the phantom model and slice orientation."
             )
 
@@ -204,9 +215,9 @@ class CTP528CP604(_CTP528Base):
 
     @cached_property
     def _psf_data(self) -> tuple[np.ndarray, tuple[float, float]]:
-        """Background-subtracted 2D PSF patch and sub-pixel bead position within it."""
+        """Single-slice background-subtracted PSF patch (for display / diagnostics)."""
         arr = self.image.array.astype(float)
-        cx, cy = self.bead_center.x, self.bead_center.y
+        cx, cy = self.wire_center.x, self.wire_center.y
 
         patch_px = int(np.ceil(self.PATCH_RADIUS_MM / self.mm_per_pixel))
         iy, ix = int(round(cy)), int(round(cx))
@@ -218,30 +229,41 @@ class CTP528CP604(_CTP528Base):
         patch = arr[y0:y1, x0:x1].copy()
 
         y_full, x_full = np.indices(arr.shape)
-        r_from_bead = (
+        r_from_wire = (
             np.sqrt((x_full - cx) ** 2 + (y_full - cy) ** 2) * self.mm_per_pixel
         )
-        bg_mask = (r_from_bead >= self.BACKGROUND_INNER_MM) & (
-            r_from_bead <= self.BACKGROUND_OUTER_MM
+        bg_mask = (r_from_wire >= self.BACKGROUND_INNER_MM) & (
+            r_from_wire <= self.BACKGROUND_OUTER_MM
         )
         background = float(arr[bg_mask].mean()) if bg_mask.any() else 0.0
-
         patch -= background
         return patch, (cy - y0, cx - x0)
 
     @property
     def psf_patch(self) -> np.ndarray:
-        """Background-subtracted 2D PSF patch centred on the bead."""
+        """Single-slice background-subtracted PSF patch centred on the wire."""
         return self._psf_data[0]
 
     @cached_property
-    def mtf(self) -> BeadMTF:
-        patch, _ = self._psf_data
-        return BeadMTF(patch, self.mm_per_pixel)
+    def mtf(self) -> SlantedWireMTF:
+        """Slanted-wire MTF built from a multi-slice PSF stack."""
+        stack = [
+            self._dicom_stack[self.slice_num + i].array.astype(float)
+            for i in range(-self.WIRE_SLICES, self.WIRE_SLICES + 1)
+            if 0 <= self.slice_num + i < len(self._dicom_stack)
+        ]
+        return SlantedWireMTF(
+            image_stack=stack,
+            wire_center=(self.wire_center.x, self.wire_center.y),
+            pixel_size_mm=self.mm_per_pixel,
+            slice_spacing_mm=self.slice_spacing,
+            tilt_angle_deg=self.TILT_ANGLE_DEG,
+            patch_radius_px=int(np.ceil(self.PATCH_RADIUS_MM / self.mm_per_pixel)),
+        )
 
     def plot_rois(self, axis: plt.Axes) -> None:
         circle = plt.Circle(
-            (self.bead_center.x, self.bead_center.y),
+            (self.wire_center.x, self.wire_center.y),
             radius=self.PATCH_RADIUS_MM / self.mm_per_pixel,
             color="blue",
             fill=False,
@@ -253,11 +275,11 @@ class CTP528CP604(_CTP528Base):
         theta = np.linspace(0, 2 * np.pi, 100)
         r_px = self.PATCH_RADIUS_MM / self.mm_per_pixel
         fig.add_scatter(
-            x=(self.bead_center.x + r_px * np.cos(theta)).tolist(),
-            y=(self.bead_center.y + r_px * np.sin(theta)).tolist(),
+            x=(self.wire_center.x + r_px * np.cos(theta)).tolist(),
+            y=(self.wire_center.y + r_px * np.sin(theta)).tolist(),
             mode="lines",
             line=dict(color="blue"),
-            name="PSF patch",
+            name="Wire PSF patch",
             showlegend=False,
         )
 

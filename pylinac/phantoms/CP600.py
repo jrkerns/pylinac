@@ -114,6 +114,10 @@ class CTP764(CP504.CTP528CP504):
 
     Functionally identical to CTP528 but cast in urethane.  Different boundary
     positions and direction compared with the 504 module.
+
+    MTF is computed from the embedded point-source bead via
+    :class:`~pylinac.core.mtf.BeadMTF` (inherited from
+    :class:`~pylinac.phantoms.CP504.CTP528CP504`).
     """
 
     start_angle = np.pi - 0.1
