@@ -300,10 +300,10 @@ class CTP730(CP504.CTP515):
     (0.625 mm/slice, 0.78 mm/pixel).  Group 3 smaller rods (≤9 mm) are near
     the noise floor; positions are estimated from fine radial scans.
 
-    Two large alignment rods (r≈59 mm, ±90°) are structural features excluded
-    from contrast scoring.  The outer background ROI (at 1.25× rod distance
-    ≈59 mm) falls inside these alignment rods for angles near ±90°; _bg_stats
-    therefore uses the inner ROI only to avoid contamination.
+    Background reference: two annular crowns centred on the phantom — inner at
+    r≈35 mm and outer at r≈59 mm (0.75× and 1.25× the 47 mm rod radius), each
+    8 mm wide — mirror the standard CTP515 approach and sample LDPE on both
+    sides of the rod ring.
     """
 
     attr_name = "ctp515"
@@ -312,15 +312,15 @@ class CTP730(CP504.CTP515):
     num_slices = 20    # average ±20 slices for SNR improvement
     roi_settings = {
         # 1.0 % contrast group — positive contrast, arc CW from −93°
-        "1pct_15mm": {"angle":  -93, "distance": 47, "radius": 6.0},
-        "1pct_9mm":  {"angle": -112, "distance": 47, "radius": 3.5},
-        "1pct_8mm":  {"angle": -128, "distance": 47, "radius": 3.0},
-        "1pct_7mm":  {"angle": -142, "distance": 47, "radius": 2.5},
-        "1pct_6mm":  {"angle": -156, "distance": 47, "radius": 2.0},
-        "1pct_5mm":  {"angle": -168, "distance": 47, "radius": 1.5},
-        "1pct_4mm":  {"angle": -177, "distance": 49, "radius": 1.2},  # scan peak r=49 mm, −177°
-        "1pct_3mm":  {"angle":  163, "distance": 47, "radius": 1.0},  # estimated; near noise floor
-        "1pct_2mm":  {"angle":  152, "distance": 47, "radius": 0.8},  # estimated; near noise floor
+        "1pct_15mm": {"angle":  -90, "distance": 47, "radius": 6.0},
+        "1pct_9mm":  {"angle":  -71, "distance": 47, "radius": 3.5},
+        "1pct_8mm":  {"angle":  -55, "distance": 47, "radius": 3.0},
+        "1pct_7mm":  {"angle":-41.4, "distance": 47, "radius": 2.5},
+        "1pct_6mm":  {"angle":-28.2, "distance": 47, "radius": 2.0},
+        "1pct_5mm":  {"angle":-15.6, "distance": 47, "radius": 1.5},
+        "1pct_4mm":  {"angle":   -7, "distance": 47, "radius": 1.2},
+        "1pct_3mm":  {"angle":    0, "distance": 47, "radius": 1.0},  # estimated; near noise floor
+        "1pct_2mm":  {"angle":    6, "distance": 47, "radius": 0.8},  # estimated; near noise floor
         # 0.5 % contrast group — positive contrast, arc CW from +27°
         # 15 mm–6 mm confirmed empirically; 5 mm–3 mm estimated; 2 mm masked by G1 15 mm rod
         "05pct_15mm": {"angle":  27, "distance": 47, "radius": 6.0},
@@ -334,7 +334,7 @@ class CTP730(CP504.CTP515):
         "05pct_2mm":  {"angle": -82, "distance": 47, "radius": 0.8},  # shifted from −92° (G1 15 mm overlap)
         # 0.3 % contrast group — positive contrast, arc CW from +147°
         # All rods at r≈47 mm; 15 mm–8 mm confirmed by ring scan; 7 mm–2 mm near noise floor
-        "03pct_15mm": {"angle":  147, "distance": 47, "radius": 6.0},  # broad peak +141°–+152°
+        "03pct_15mm": {"angle":  30, "distance": 47, "radius": 6.0},  # broad peak +141°–+152°
         "03pct_9mm":  {"angle":  142, "distance": 47, "radius": 3.5},  # ring-scan peak +142°
         "03pct_8mm":  {"angle":  131, "distance": 47, "radius": 3.0},  # ring-scan peak +131°
         "03pct_7mm":  {"angle":  125, "distance": 47, "radius": 2.5},  # ring-scan peak +125–126°
@@ -344,9 +344,6 @@ class CTP730(CP504.CTP515):
         "03pct_3mm":  {"angle":   76, "distance": 47, "radius": 1.0},  # ring-scan +3–4 HU at +72–75°
         "03pct_2mm":  {"angle":   64, "distance": 47, "radius": 0.8},  # ring-scan +3.2 HU at +64°
     }
-    background_roi_dist_ratio = 0.75
-    background_roi_radius_mm = 4
-
     def __init__(
         self,
         catphan,
@@ -388,18 +385,13 @@ class CTP730(CP504.CTP515):
         """ROIs belonging to the 0.3 % contrast group."""
         return {k: v for k, v in self.rois.items() if k.startswith("03pct_")}
 
-    def _bg_stats(self, roi_name: str) -> tuple[float, float]:
-        """Return (bg_mean_HU, bg_std_HU) from the inner background ROI only.
-
-        The outer ROI (at 1.25× rod distance ≈59 mm) coincides with the
-        alignment rods at ±90° for Group 3 rods near those angles, biasing
-        bg_mean low and inflating apparent contrast.  The inner ROI at
-        0.75× rod distance (≈35 mm) sits in clean phantom interior.
-        """
-        inner = self.background_rois.get(roi_name + "-inner")
-        if inner is None:
-            return float("nan"), float("nan")
-        return float(inner.pixel_value), float(inner.std)
+    def _bg_stats(self, _: str) -> tuple[float, float]:
+        """Return (bg_median_HU, bg_std_HU) from the two annular background crowns."""
+        inner = self.background_rois["inner"]
+        outer = self.background_rois["outer"]
+        bg_median = float(np.mean([inner.pixel_value, outer.pixel_value]))
+        bg_std = float(np.mean([inner.std, outer.std]))
+        return bg_median, bg_std
 
     def _scoring_table(self) -> list[dict]:
         """Per-rod metrics: contrast_pct, CNR, detectability."""
@@ -407,15 +399,15 @@ class CTP730(CP504.CTP515):
         for name, roi in self.rois.items():
             group, size_str = name.split("_", 1)
             diam_mm = int(size_str.replace("mm", ""))
-            bg_mean, bg_std = self._bg_stats(name)
-            delta_hu    = float(roi.pixel_value) - bg_mean
-            contrast_pct = abs(delta_hu) / (abs(bg_mean) + 1000.0) * 100.0
+            bg_median, bg_std = self._bg_stats(name)
+            delta_hu    = float(roi.pixel_value) - bg_median
+            contrast_pct = abs(delta_hu) / (abs(bg_median) + 1000.0) * 100.0
             cnr = abs(delta_hu) / bg_std if bg_std > 0 else 0.0
             rows.append({
                 "group":        group,
                 "diameter_mm":  diam_mm,
                 "rod_hu":       float(roi.pixel_value),
-                "bg_hu":        bg_mean,
+                "bg_hu":        bg_median,
                 "delta_hu":     delta_hu,
                 "contrast_pct": contrast_pct,
                 "cnr":          cnr,

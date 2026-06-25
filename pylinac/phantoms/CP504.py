@@ -25,7 +25,7 @@ from ..core.nps import (
 )
 from ..core.plotly_utils import add_title
 from ..core.profile import CollapsedCircleProfile
-from ..core.roi import LowContrastDiskROI, RectangleROI
+from ..core.roi import AnnularROI, LowContrastDiskROI, RectangleROI
 from ..core.warnings import capture_warnings
 from ..ct import (
     AIR,
@@ -859,34 +859,35 @@ class CTP515(CatPhanModule):
             catphan, tolerance=tolerance, offset=offset, clear_borders=clear_borders
         )
 
-    def _setup_rois(self):
+    def _setup_rois(self) -> None:
+        # Two annular background crowns at the same radii as the former per-rod
+        # disk pairs (ratio 0.75 × and 1.25 × rod distance), with radial width
+        # equal to the former disk diameter.
+        dist_px = next(iter(self.roi_settings.values()))["distance_pixels"]
+        half_width_px = self.background_roi_radius_mm / self.mm_per_pixel
+
+        inner_r = dist_px * self.background_roi_dist_ratio
+        outer_r = dist_px * (2 - self.background_roi_dist_ratio)
+
+        self.background_rois["inner"] = AnnularROI(
+            array=self.image,
+            center=self.phan_center,
+            inner_radius=inner_r - half_width_px,
+            outer_radius=inner_r + half_width_px,
+        )
+        self.background_rois["outer"] = AnnularROI(
+            array=self.image,
+            center=self.phan_center,
+            inner_radius=outer_r - half_width_px,
+            outer_radius=outer_r + half_width_px,
+        )
+
+        background_val = float(np.mean([
+            self.background_rois["inner"].pixel_value,
+            self.background_rois["outer"].pixel_value,
+        ]))
+
         for name, setting in self.roi_settings.items():
-            self.background_rois[name + "-outer"] = (
-                LowContrastDiskROI.from_phantom_center(
-                    self.image,
-                    setting["angle_corrected"],
-                    self.background_roi_radius_mm / self.mm_per_pixel,
-                    setting["distance_pixels"] * (2 - self.background_roi_dist_ratio),
-                    self.phan_center,
-                )
-            )
-            self.background_rois[name + "-inner"] = (
-                LowContrastDiskROI.from_phantom_center(
-                    self.image,
-                    setting["angle_corrected"],
-                    self.background_roi_radius_mm / self.mm_per_pixel,
-                    setting["distance_pixels"] * self.background_roi_dist_ratio,
-                    self.phan_center,
-                )
-            )
-            background_val = float(
-                np.mean(
-                    [
-                        self.background_rois[name + "-outer"].pixel_value,
-                        self.background_rois[name + "-inner"].pixel_value,
-                    ]
-                )
-            )
             self.rois[name] = LowContrastDiskROI.from_phantom_center(
                 self.image,
                 setting["angle_corrected"],
