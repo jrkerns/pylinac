@@ -510,7 +510,9 @@ Example script:
 CatPhan, Quart, ACR, Cheese Phantom Analysis
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`CatPhan, Quart, ACR phantom QA <http://pylinac.readthedocs.org/en/latest/cbct_docs.html>`_ -
+`CatPhan <https://pylinac.readthedocs.io/en/latest/cbct.html>`__,
+`Quart <https://pylinac.readthedocs.io/en/latest/quart.html>`__,
+`ACR phantom QA <https://pylinac.readthedocs.io/en/latest/acr.html>`__ -
 The CBCT module automatically analyzes DICOM images of a CatPhan 504, 503, 600, 604, Quart DVT, and ACR CT/MR acquired when doing CT, CBCT, or MR quality assurance. It can load a folder or zip file that
 the images are in and automatically correct for phantom setup in 6 axes.
 CatPhans analyze the HU regions and image scaling (CTP404), the high-contrast line pairs (CTP528) to calculate the modulation transfer function (MTF), and the HU
