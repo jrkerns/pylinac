@@ -311,38 +311,36 @@ class CTP730(CP504.CTP515):
     roi_dist_mm = 47   # all rods sit at r≈47 mm from centre
     num_slices = 20    # average ±20 slices for SNR improvement
     roi_settings = {
-        # 1.0 % contrast group — positive contrast, arc CW from −93°
-        "1pct_15mm": {"angle":  -90, "distance": 47, "radius": 6.0},
-        "1pct_9mm":  {"angle":  -71, "distance": 47, "radius": 3.5},
-        "1pct_8mm":  {"angle":  -55, "distance": 47, "radius": 3.0},
-        "1pct_7mm":  {"angle":-41.4, "distance": 47, "radius": 2.5},
-        "1pct_6mm":  {"angle":-28.2, "distance": 47, "radius": 2.0},
-        "1pct_5mm":  {"angle":-15.6, "distance": 47, "radius": 1.5},
-        "1pct_4mm":  {"angle":   -7, "distance": 47, "radius": 1.2},
-        "1pct_3mm":  {"angle":    0, "distance": 47, "radius": 1.0},  # estimated; near noise floor
-        "1pct_2mm":  {"angle":    6, "distance": 47, "radius": 0.8},  # estimated; near noise floor
-        # 0.5 % contrast group — positive contrast, arc CW from +27°
-        # 15 mm–6 mm confirmed empirically; 5 mm–3 mm estimated; 2 mm masked by G1 15 mm rod
-        "05pct_15mm": {"angle":  27, "distance": 47, "radius": 6.0},
-        "05pct_9mm":  {"angle":   8, "distance": 47, "radius": 3.5},
-        "05pct_8mm":  {"angle":  -8, "distance": 47, "radius": 3.0},
-        "05pct_7mm":  {"angle": -22, "distance": 47, "radius": 2.5},
-        "05pct_6mm":  {"angle": -36, "distance": 47, "radius": 2.0},
-        "05pct_5mm":  {"angle": -50, "distance": 47, "radius": 1.5},
-        "05pct_4mm":  {"angle": -64, "distance": 47, "radius": 1.2},
-        "05pct_3mm":  {"angle": -78, "distance": 47, "radius": 1.0},
-        "05pct_2mm":  {"angle": -82, "distance": 47, "radius": 0.8},  # shifted from −92° (G1 15 mm overlap)
-        # 0.3 % contrast group — positive contrast, arc CW from +147°
-        # All rods at r≈47 mm; 15 mm–8 mm confirmed by ring scan; 7 mm–2 mm near noise floor
-        "03pct_15mm": {"angle":  30, "distance": 47, "radius": 6.0},  # broad peak +141°–+152°
-        "03pct_9mm":  {"angle":  142, "distance": 47, "radius": 3.5},  # ring-scan peak +142°
-        "03pct_8mm":  {"angle":  131, "distance": 47, "radius": 3.0},  # ring-scan peak +131°
-        "03pct_7mm":  {"angle":  125, "distance": 47, "radius": 2.5},  # ring-scan peak +125–126°
-        "03pct_6mm":  {"angle":  116, "distance": 47, "radius": 2.0},  # ring-scan peak +115–116°
-        "03pct_5mm":  {"angle":  105, "distance": 47, "radius": 1.5},  # ring-scan +3.7 HU at +105°
-        "03pct_4mm":  {"angle":   93, "distance": 47, "radius": 1.2},  # ring-scan +4.0 HU at +93°
-        "03pct_3mm":  {"angle":   76, "distance": 47, "radius": 1.0},  # ring-scan +3–4 HU at +72–75°
-        "03pct_2mm":  {"angle":   64, "distance": 47, "radius": 0.8},  # ring-scan +3.2 HU at +64°
+        # 1.0 % contrast group — positive contrast
+        "1pct_15mm": {"angle":  -90.00, "distance": 47, "radius": 6.0},
+        "1pct_9mm":  {"angle":  -72.00, "distance": 47, "radius": 3.5},
+        "1pct_8mm":  {"angle":  -55.71, "distance": 47, "radius": 3.0},
+        "1pct_7mm":  {"angle":  -41.14, "distance": 47, "radius": 2.5},
+        "1pct_6mm":  {"angle":  -28.29, "distance": 47, "radius": 2.0},
+        "1pct_5mm":  {"angle":  -17.14, "distance": 47, "radius": 1.5},
+        "1pct_4mm":  {"angle":   -7.71, "distance": 47, "radius": 1.2},
+        "1pct_3mm":  {"angle":    0.00, "distance": 47, "radius": 1.0},
+        "1pct_2mm":  {"angle":    6.00, "distance": 47, "radius": 0.8},
+        # 0.5 % contrast group — positive contrast
+        "05pct_15mm": {"angle": 150.00, "distance": 47, "radius": 6.0},
+        "05pct_9mm":  {"angle": 168.00, "distance": 47, "radius": 3.5},
+        "05pct_8mm":  {"angle":-175.71, "distance": 47, "radius": 3.0},
+        "05pct_7mm":  {"angle":-161.14, "distance": 47, "radius": 2.5},
+        "05pct_6mm":  {"angle":-148.29, "distance": 47, "radius": 2.0},
+        "05pct_5mm":  {"angle":-137.14, "distance": 47, "radius": 1.5},
+        "05pct_4mm":  {"angle":-127.71, "distance": 47, "radius": 1.2},
+        "05pct_3mm":  {"angle":-120.00, "distance": 47, "radius": 1.0},
+        "05pct_2mm":  {"angle":-114.00, "distance": 47, "radius": 0.8},
+        # 0.3 % contrast group — positive contrast
+        "03pct_15mm": {"angle":  30.00, "distance": 47, "radius": 6.0},
+        "03pct_9mm":  {"angle":  48.00, "distance": 47, "radius": 3.5},
+        "03pct_8mm":  {"angle":  64.29, "distance": 47, "radius": 3.0},
+        "03pct_7mm":  {"angle":  78.86, "distance": 47, "radius": 2.5},
+        "03pct_6mm":  {"angle":  91.71, "distance": 47, "radius": 2.0},
+        "03pct_5mm":  {"angle": 102.86, "distance": 47, "radius": 1.5},
+        "03pct_4mm":  {"angle": 112.29, "distance": 47, "radius": 1.2},
+        "03pct_3mm":  {"angle": 120.00, "distance": 47, "radius": 1.0},
+        "03pct_2mm":  {"angle": 126.00, "distance": 47, "radius": 0.8},
     }
     def __init__(
         self,
