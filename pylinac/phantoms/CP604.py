@@ -311,37 +311,39 @@ class CTP730(CP504.CTP515):
     roi_dist_mm = 47   # all rods sit at r≈47 mm from centre
     num_slices = 20    # average ±20 slices for SNR improvement
     roi_settings = {
-        # 1.0 % contrast group — positive contrast
+        # 1.0 % contrast group — positive contrast (Anchor: -90.00)
         "1pct_15mm": {"angle":  -90.00, "distance": 47, "radius": 6.0},
-        "1pct_9mm":  {"angle":  -72.00, "distance": 47, "radius": 3.5},
-        "1pct_8mm":  {"angle":  -55.71, "distance": 47, "radius": 3.0},
-        "1pct_7mm":  {"angle":  -41.14, "distance": 47, "radius": 2.5},
-        "1pct_6mm":  {"angle":  -28.29, "distance": 47, "radius": 2.0},
-        "1pct_5mm":  {"angle":  -17.14, "distance": 47, "radius": 1.5},
-        "1pct_4mm":  {"angle":   -7.71, "distance": 47, "radius": 1.2},
-        "1pct_3mm":  {"angle":    0.00, "distance": 47, "radius": 1.0},
-        "1pct_2mm":  {"angle":    6.00, "distance": 47, "radius": 0.8},
-        # 0.5 % contrast group — positive contrast
+        "1pct_9mm":  {"angle": -108.00, "distance": 47, "radius": 3.5},
+        "1pct_8mm":  {"angle": -124.29, "distance": 47, "radius": 3.0},
+        "1pct_7mm":  {"angle": -138.86, "distance": 47, "radius": 2.5},
+        "1pct_6mm":  {"angle": -151.71, "distance": 47, "radius": 2.0},
+        "1pct_5mm":  {"angle": -162.86, "distance": 47, "radius": 1.5},
+        "1pct_4mm":  {"angle": -172.29, "distance": 47, "radius": 1.2},
+        "1pct_3mm":  {"angle": -180.00, "distance": 47, "radius": 1.0},
+        "1pct_2mm":  {"angle":  174.00, "distance": 47, "radius": 0.8}, # Wrapped from -186.00
+
+        # 0.5 % contrast group — positive contrast (Anchor: 150.00)
         "05pct_15mm": {"angle": 150.00, "distance": 47, "radius": 6.0},
-        "05pct_9mm":  {"angle": 168.00, "distance": 47, "radius": 3.5},
-        "05pct_8mm":  {"angle":-175.71, "distance": 47, "radius": 3.0},
-        "05pct_7mm":  {"angle":-161.14, "distance": 47, "radius": 2.5},
-        "05pct_6mm":  {"angle":-148.29, "distance": 47, "radius": 2.0},
-        "05pct_5mm":  {"angle":-137.14, "distance": 47, "radius": 1.5},
-        "05pct_4mm":  {"angle":-127.71, "distance": 47, "radius": 1.2},
-        "05pct_3mm":  {"angle":-120.00, "distance": 47, "radius": 1.0},
-        "05pct_2mm":  {"angle":-114.00, "distance": 47, "radius": 0.8},
-        # 0.3 % contrast group — positive contrast
+        "05pct_9mm":  {"angle": 132.00, "distance": 47, "radius": 3.5},
+        "05pct_8mm":  {"angle": 115.71, "distance": 47, "radius": 3.0},
+        "05pct_7mm":  {"angle": 101.14, "distance": 47, "radius": 2.5},
+        "05pct_6mm":  {"angle":  88.29, "distance": 47, "radius": 2.0},
+        "05pct_5mm":  {"angle":  77.14, "distance": 47, "radius": 1.5},
+        "05pct_4mm":  {"angle":  67.71, "distance": 47, "radius": 1.2},
+        "05pct_3mm":  {"angle":  60.00, "distance": 47, "radius": 1.0},
+        "05pct_2mm":  {"angle":  54.00, "distance": 47, "radius": 0.8},
+
+        # 0.3 % contrast group — positive contrast (Anchor: 30.00)
         "03pct_15mm": {"angle":  30.00, "distance": 47, "radius": 6.0},
-        "03pct_9mm":  {"angle":  48.00, "distance": 47, "radius": 3.5},
-        "03pct_8mm":  {"angle":  64.29, "distance": 47, "radius": 3.0},
-        "03pct_7mm":  {"angle":  78.86, "distance": 47, "radius": 2.5},
-        "03pct_6mm":  {"angle":  91.71, "distance": 47, "radius": 2.0},
-        "03pct_5mm":  {"angle": 102.86, "distance": 47, "radius": 1.5},
-        "03pct_4mm":  {"angle": 112.29, "distance": 47, "radius": 1.2},
-        "03pct_3mm":  {"angle": 120.00, "distance": 47, "radius": 1.0},
-        "03pct_2mm":  {"angle": 126.00, "distance": 47, "radius": 0.8},
-    }
+        "03pct_9mm":  {"angle":  12.00, "distance": 47, "radius": 3.5},
+        "03pct_8mm":  {"angle":  -4.29, "distance": 47, "radius": 3.0},
+        "03pct_7mm":  {"angle": -18.86, "distance": 47, "radius": 2.5},
+        "03pct_6mm":  {"angle": -31.71, "distance": 47, "radius": 2.0},
+        "03pct_5mm":  {"angle": -42.86, "distance": 47, "radius": 1.5},
+        "03pct_4mm":  {"angle": -52.29, "distance": 47, "radius": 1.2},
+        "03pct_3mm":  {"angle": -60.00, "distance": 47, "radius": 1.0},
+        "03pct_2mm":  {"angle": -66.00, "distance": 47, "radius": 0.8},
+}
     def __init__(
         self,
         catphan,
