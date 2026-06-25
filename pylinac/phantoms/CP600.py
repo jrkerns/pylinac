@@ -43,6 +43,9 @@ class CTP763(CP504.CTP404):
 
     Angles are mirrored vs CTP404/504.  The top slot is an optional water vial;
     it is removed from analysis if air is detected there instead of water.
+
+    References:
+        `CP500-600 Manual, p.12 <CP500-600Manual.pdf#page=12>`_
     """
 
     roi_dist_mm = 58.7
@@ -118,6 +121,9 @@ class CTP764(CP504.CTP528CP504):
     MTF is computed from the embedded point-source bead via
     :class:`~pylinac.core.mtf.BeadMTF` (inherited from
     :class:`~pylinac.phantoms.CP504.CTP528CP504`).
+
+    References:
+        `CP500-600 Manual, p.23 <CP500-600Manual.pdf#page=23>`_
     """
 
     start_angle = np.pi - 0.1
@@ -208,6 +214,9 @@ class CTP515CP600(CP504.CTP515):
 
     Same physical targets as CTP515 but the angular positions are rotated 180°
     relative to the 504 layout.
+
+    References:
+        `CP500-600 Manual, p.27 <CP500-600Manual.pdf#page=27>`_
     """
 
     roi_angles = [
@@ -290,6 +299,9 @@ class CTP591(CatPhanModule):
       the ESF/LSF along the wire axis.  The wire sits at ``WIRE_DIST_MM`` from
       the phantom centre and can be distinguished from beads by its elongated
       shape across slices.
+
+      References:
+        `CP500-600 Manual, p.19 <CP500-600Manual.pdf#page=19>`_
     """
 
     attr_name = "ctp591"

@@ -45,6 +45,9 @@ class CTP732(CP504.CTP404):
 
     Adds 50% Bone (at −150°) and 20% Bone (at +30°) inserts compared with the
     standard CTP404.  Only two background ROIs instead of four.
+
+    References:
+        `CP604 Manual, p.10 <CP604Manual.pdf#page=10>`_
     """
 
     roi_dist_mm = 58.7
@@ -119,6 +122,9 @@ class CTP729(CP504.CTP486):
     """Image uniformity module for CatPhan 604 (CTP729).
 
     Functionally and geometrically identical to CTP486.
+
+    References:
+        `CP604 Manual, p.26 <CP604Manual.pdf#page=26>`_
     """
 
     pass
@@ -138,6 +144,9 @@ class CTP528CP604(_CTP528Base):
     the reference slice, registers patches at sub-pixel precision using the
     known tilt-angle shift, averages them into a high-SNR 2D PSF, then
     computes the MTF via :class:`~pylinac.core.mtf.SlantedWireMTF`.
+
+    References:
+        `CP604 Manual, p.10 <CP604Manual.pdf#page=10>`_
     """
 
     attr_name: str = "ctp528"
@@ -304,6 +313,9 @@ class CTP730(CP504.CTP515):
     r≈37.5 mm and outer at r≈62.5 mm (0.75× and 1.25× the 50 mm rod radius), each
     8 mm wide — mirror the standard CTP515 approach and sample LDPE on both
     sides of the rod ring.
+
+    References:
+        `CP604 Manual, p.24 <CP604Manual.pdf#page=24>`_
     """
 
     attr_name = "ctp515"
@@ -320,7 +332,7 @@ class CTP730(CP504.CTP515):
         "1pct_5mm":  {"angle": -162.86, "distance": roi_dist_mm, "radius": 1.5},
         "1pct_4mm":  {"angle": -172.29, "distance": roi_dist_mm, "radius": 1.2},
         "1pct_3mm":  {"angle": -180.00, "distance": roi_dist_mm, "radius": 1.0},
-        "1pct_2mm":  {"angle":  174.00, "distance": roi_dist_mm, "radius": 0.8}, # Wrapped from -186.00
+        "1pct_2mm":  {"angle":  174.00, "distance": roi_dist_mm, "radius": 0.8},
 
         # 0.5 % contrast group — positive contrast (Anchor: 150.00)
         "05pct_15mm": {"angle": 150.00, "distance": roi_dist_mm, "radius": 6.0},

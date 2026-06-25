@@ -53,7 +53,11 @@ from ..ct import (
 # ---------------------------------------------------------------------------
 
 class CTP404(CatPhanModule):
-    """HU linearity, geometry, and slice thickness for the CTP404 module (CatPhan 503/504)."""
+    """HU linearity, geometry, and slice thickness for the CTP404 module (CatPhan 503/504).
+
+    References:
+        `CP504 Manual, p.9 <CP504Manual.pdf#page=9>`_
+    """
 
     attr_name = "ctp404"
     common_name = "HU Linearity"
@@ -397,7 +401,11 @@ class CTP404CP503(CTP404):
 # ---------------------------------------------------------------------------
 
 class CTP486(CatPhanModule):
-    """Image uniformity module (CTP486), shared across CatPhan 503/504/600/604/700."""
+    """Image uniformity module (CTP486), shared across CatPhan 503/504/600/604/700.
+    
+    References:
+        `CP504 Manual, p.23 <CP504Manual.pdf#page=23>`_
+    """
 
     attr_name = "ctp486"
     common_name = "HU Uniformity"
@@ -546,6 +554,9 @@ class CTP528CP504(_CTP528Base):
     pipeline (see :class:`~pylinac.core.mtf.BeadMTF`).  The line-pair gauge
     is retained for visual reference (``circle_profile``), but is no longer
     used for the MTF value.
+
+    References:
+        `CP504 Manual, p.17 <CP504Manual.pdf#page=17>`_
     """
 
     attr_name: str = "ctp528"
@@ -798,6 +809,9 @@ class CTP515(CatPhanModule):
 
     Measures supra-slice and sub-slice contrast targets. Contrast is multiplied
     by the target diameter to approximate human detectability (Rose model).
+
+    References:
+        `CP504 Manual, p.21 <CP504Manual.pdf#page=21>`_
     """
 
     attr_name = "ctp515"
