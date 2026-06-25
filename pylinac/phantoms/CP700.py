@@ -48,6 +48,9 @@ class CTP682(CP504.CTP404):
     positions hold bead ramps).  No geometry nodes (empty dict).
 
     Angles use the 180-x formula compared with the standard CTP404 layout.
+
+    References:
+        `CP700 Manual, p.12 <CP700Manual.pdf#page=12>`_
     """
 
     roi_dist_mm = 58.7
@@ -178,6 +181,9 @@ class CTP712(CP504.CTP486):
     """Image uniformity module for CatPhan 700 (CTP712).
 
     Functionally and geometrically identical to CTP486.
+
+    References:
+        `CP700 Manual, p.34 <CP700Manual.pdf#page=34>`_
     """
 
     pass
@@ -200,6 +206,9 @@ class CTP714(_CTP528Base):
 
     The rectangular line-pair gauge ROIs are retained for visual reference
     (``_setup_rois`` / ``plot_rois``), but are no longer used for the MTF value.
+
+    References:
+        `CP700 Manual, p.30 <CP700Manual.pdf#page=30>`_
     """
 
     rois: dict[str, RectangleROI]
@@ -383,6 +392,9 @@ class CTP515CP700(CP600.CTP515CP600):
     """Low contrast module for CatPhan 700 (CTP515CP700).
 
     Identical to the CatPhan 600 layout.
+
+    References:
+        `CP700 Manual, p.31 <CP700Manual.pdf#page=31>`_
     """
 
     pass
