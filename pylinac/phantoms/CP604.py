@@ -292,53 +292,84 @@ class CTP730(CP504.CTP515):
     """Low-contrast module for CatPhan 604 (CTP730).
 
     Contains three contrast groups (0.3 %, 0.5 %, 1.0 %) each with 9 rod
-    diameters (2, 3, 4, 5, 6, 7, 8, 9, 15 mm).  Rods are darker than the
-    surrounding background material.
+    diameters (2, 3, 4, 5, 6, 7, 8, 9, 15 mm).  All rods are POSITIVE
+    contrast (denser than the LDPE background — they appear brighter in CT).
 
     Angles follow pylinac image convention: 0°=right, −90°=top, +90°=bottom.
-    Group positions are calibrated from a 64-slice average of a real CatPhan
-    604 scan (0.625 mm/slice).  The 0.3 % group position is approximate — its
-    15 mm rod was not reliably detected at this scan quality level.
+    Positions calibrated from a 41-slice average of a real CatPhan 604 scan
+    (0.625 mm/slice, 0.78 mm/pixel).  Group 3 smaller rods (≤9 mm) are near
+    the noise floor; positions are estimated from fine radial scans.
+
+    Two large alignment rods (r≈59 mm, ±90°) are structural features excluded
+    from contrast scoring.  The outer background ROI (at 1.25× rod distance
+    ≈59 mm) falls inside these alignment rods for angles near ±90°; _bg_stats
+    therefore uses the inner ROI only to avoid contamination.
     """
 
     attr_name = "ctp515"
     common_name = "Low Contrast (CTP730)"
-    roi_dist_mm = 58   # empirically measured from multi-slice average (was 55)
-    num_slices = 20    # average ±20 slices for ~25 mm SNR improvement
+    roi_dist_mm = 47   # all rods sit at r≈47 mm from centre
+    num_slices = 20    # average ±20 slices for SNR improvement
     roi_settings = {
-        # 1.0 % contrast group — spans 107°→171° (detected 15 mm peak at 106.7°)
-        "1pct_15mm": {"angle":  107, "distance": 58, "radius": 6.0},
-        "1pct_9mm":  {"angle":  115, "distance": 58, "radius": 3.5},
-        "1pct_8mm":  {"angle":  123, "distance": 58, "radius": 3.0},
-        "1pct_7mm":  {"angle":  131, "distance": 58, "radius": 2.5},
-        "1pct_6mm":  {"angle":  139, "distance": 58, "radius": 2.0},
-        "1pct_5mm":  {"angle":  147, "distance": 58, "radius": 1.5},
-        "1pct_4mm":  {"angle":  155, "distance": 58, "radius": 1.2},
-        "1pct_3mm":  {"angle":  163, "distance": 58, "radius": 1.0},
-        "1pct_2mm":  {"angle":  171, "distance": 58, "radius": 0.8},
-        # 0.5 % contrast group — spans −110°→−174° (detected 15 mm peak at −110°)
-        "05pct_15mm": {"angle": -110, "distance": 58, "radius": 6.0},
-        "05pct_9mm":  {"angle": -118, "distance": 58, "radius": 3.5},
-        "05pct_8mm":  {"angle": -126, "distance": 58, "radius": 3.0},
-        "05pct_7mm":  {"angle": -134, "distance": 58, "radius": 2.5},
-        "05pct_6mm":  {"angle": -142, "distance": 58, "radius": 2.0},
-        "05pct_5mm":  {"angle": -150, "distance": 58, "radius": 1.5},
-        "05pct_4mm":  {"angle": -158, "distance": 58, "radius": 1.2},
-        "05pct_3mm":  {"angle": -166, "distance": 58, "radius": 1.0},
-        "05pct_2mm":  {"angle": -174, "distance": 58, "radius": 0.8},
-        # 0.3 % contrast group — spans 21°→−43° (detected 15 mm peak at 20.6°)
-        "03pct_15mm": {"angle":   21, "distance": 58, "radius": 6.0},
-        "03pct_9mm":  {"angle":   13, "distance": 58, "radius": 3.5},
-        "03pct_8mm":  {"angle":    5, "distance": 58, "radius": 3.0},
-        "03pct_7mm":  {"angle":   -3, "distance": 58, "radius": 2.5},
-        "03pct_6mm":  {"angle":  -11, "distance": 58, "radius": 2.0},
-        "03pct_5mm":  {"angle":  -19, "distance": 58, "radius": 1.5},
-        "03pct_4mm":  {"angle":  -27, "distance": 58, "radius": 1.2},
-        "03pct_3mm":  {"angle":  -35, "distance": 58, "radius": 1.0},
-        "03pct_2mm":  {"angle":  -43, "distance": 58, "radius": 0.8},
+        # 1.0 % contrast group — positive contrast, arc CW from −93°
+        "1pct_15mm": {"angle":  -93, "distance": 47, "radius": 6.0},
+        "1pct_9mm":  {"angle": -112, "distance": 47, "radius": 3.5},
+        "1pct_8mm":  {"angle": -128, "distance": 47, "radius": 3.0},
+        "1pct_7mm":  {"angle": -142, "distance": 47, "radius": 2.5},
+        "1pct_6mm":  {"angle": -156, "distance": 47, "radius": 2.0},
+        "1pct_5mm":  {"angle": -168, "distance": 47, "radius": 1.5},
+        "1pct_4mm":  {"angle": -177, "distance": 49, "radius": 1.2},  # scan peak r=49 mm, −177°
+        "1pct_3mm":  {"angle":  163, "distance": 47, "radius": 1.0},  # estimated; near noise floor
+        "1pct_2mm":  {"angle":  152, "distance": 47, "radius": 0.8},  # estimated; near noise floor
+        # 0.5 % contrast group — positive contrast, arc CW from +27°
+        # 15 mm–6 mm confirmed empirically; 5 mm–3 mm estimated; 2 mm masked by G1 15 mm rod
+        "05pct_15mm": {"angle":  27, "distance": 47, "radius": 6.0},
+        "05pct_9mm":  {"angle":   8, "distance": 47, "radius": 3.5},
+        "05pct_8mm":  {"angle":  -8, "distance": 47, "radius": 3.0},
+        "05pct_7mm":  {"angle": -22, "distance": 47, "radius": 2.5},
+        "05pct_6mm":  {"angle": -36, "distance": 47, "radius": 2.0},
+        "05pct_5mm":  {"angle": -50, "distance": 47, "radius": 1.5},
+        "05pct_4mm":  {"angle": -64, "distance": 47, "radius": 1.2},
+        "05pct_3mm":  {"angle": -78, "distance": 47, "radius": 1.0},
+        "05pct_2mm":  {"angle": -82, "distance": 47, "radius": 0.8},  # shifted from −92° (G1 15 mm overlap)
+        # 0.3 % contrast group — positive contrast, arc CW from +147°
+        # All rods at r≈47 mm; 15 mm–8 mm confirmed by ring scan; 7 mm–2 mm near noise floor
+        "03pct_15mm": {"angle":  147, "distance": 47, "radius": 6.0},  # broad peak +141°–+152°
+        "03pct_9mm":  {"angle":  142, "distance": 47, "radius": 3.5},  # ring-scan peak +142°
+        "03pct_8mm":  {"angle":  131, "distance": 47, "radius": 3.0},  # ring-scan peak +131°
+        "03pct_7mm":  {"angle":  125, "distance": 47, "radius": 2.5},  # ring-scan peak +125–126°
+        "03pct_6mm":  {"angle":  116, "distance": 47, "radius": 2.0},  # ring-scan peak +115–116°
+        "03pct_5mm":  {"angle":  105, "distance": 47, "radius": 1.5},  # ring-scan +3.7 HU at +105°
+        "03pct_4mm":  {"angle":   93, "distance": 47, "radius": 1.2},  # ring-scan +4.0 HU at +93°
+        "03pct_3mm":  {"angle":   76, "distance": 47, "radius": 1.0},  # ring-scan +3–4 HU at +72–75°
+        "03pct_2mm":  {"angle":   64, "distance": 47, "radius": 0.8},  # ring-scan +3.2 HU at +64°
     }
     background_roi_dist_ratio = 0.75
     background_roi_radius_mm = 4
+
+    def __init__(
+        self,
+        catphan,
+        tolerance: float,
+        cnr_threshold: float,
+        offset: int,
+        contrast_method: str,
+        visibility_threshold: float,
+        clear_borders: bool = True,
+    ):
+        # Replace the global default (15) with the Rose-criterion value for CTP730.
+        # Callers who pass an explicit threshold other than 15 keep their override.
+        if cnr_threshold == 15:
+            cnr_threshold = 1.0
+        super().__init__(
+            catphan,
+            tolerance=tolerance,
+            cnr_threshold=cnr_threshold,
+            offset=offset,
+            contrast_method=contrast_method,
+            visibility_threshold=visibility_threshold,
+            clear_borders=clear_borders,
+        )
 
     # ------------------------------------------------------------------ helpers
 
@@ -358,15 +389,17 @@ class CTP730(CP504.CTP515):
         return {k: v for k, v in self.rois.items() if k.startswith("03pct_")}
 
     def _bg_stats(self, roi_name: str) -> tuple[float, float]:
-        """Return (bg_mean_HU, bg_std_HU) from the inner+outer background ROIs."""
+        """Return (bg_mean_HU, bg_std_HU) from the inner background ROI only.
+
+        The outer ROI (at 1.25× rod distance ≈59 mm) coincides with the
+        alignment rods at ±90° for Group 3 rods near those angles, biasing
+        bg_mean low and inflating apparent contrast.  The inner ROI at
+        0.75× rod distance (≈35 mm) sits in clean phantom interior.
+        """
         inner = self.background_rois.get(roi_name + "-inner")
-        outer = self.background_rois.get(roi_name + "-outer")
-        present = [r for r in (inner, outer) if r is not None]
-        if not present:
+        if inner is None:
             return float("nan"), float("nan")
-        bg_mean = float(np.mean([r.pixel_value for r in present]))
-        bg_std  = float(np.mean([r.std for r in present]))
-        return bg_mean, bg_std
+        return float(inner.pixel_value), float(inner.std)
 
     def _scoring_table(self) -> list[dict]:
         """Per-rod metrics: contrast_pct, CNR, detectability."""
