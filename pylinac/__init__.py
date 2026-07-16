@@ -1,7 +1,7 @@
 from .version import __version__  # isort: skip
 
 # alphabetized modules
-from .acr import ACRCT, ACRMRILarge
+from .acr import ACRCT, ACRMRILarge, ACRMRIMedium
 from .calibration import tg51, trs398
 from .cheese import CIRS062M, TomoCheese
 

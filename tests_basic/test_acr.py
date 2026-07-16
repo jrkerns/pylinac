@@ -1,5 +1,6 @@
 import io
 import os
+import zipfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase, skip
@@ -8,7 +9,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy import ndimage
 
-from pylinac import ACRMRILarge
+from pylinac import ACRMRILarge, ACRMRIMedium
 from pylinac.acr import ACRCT, ACRCTResult, ACRMRIResult
 from pylinac.core.geometry import Point
 from pylinac.core.io import TemporaryZipDirectory
@@ -537,6 +538,7 @@ class TestACRMRIQuaac(QuaacTestBase, CloudFileMixin, TestCase):
 
 
 class ACRMRMixin(CloudFileMixin):
+    klass = ACRMRILarge
     dir_path = ["ACR", "MRI"]
     check_uid: bool = True
     phantom_roll: float = 0
@@ -560,7 +562,7 @@ class ACRMRMixin(CloudFileMixin):
     @classmethod
     def setUpClass(cls):
         filename = cls.get_filename()
-        cls.mri = ACRMRILarge.from_zip(
+        cls.mri = cls.klass.from_zip(
             filename, memory_efficient_mode=True, check_uid=cls.check_uid
         )
         cls.mri.analyze(
@@ -658,7 +660,10 @@ class ACRMRMixin(CloudFileMixin):
 
     def test_results(self):
         results = self.mri.results()
-        self.assertIn("ACR MRI Large Results", results)
+        txt = "ACR MRI "
+        txt += "Large" if self.klass == ACRMRILarge else "Medium"
+        txt += " Results"
+        self.assertIn(txt, results)
 
     @skip("For debugging purposes")
     def test_plotly_analyzed_images(self):
@@ -937,17 +942,58 @@ class ACRMRSagittal(ACRMRMixin, TestCase):
         "ROI4": 148.44,
     }
 
-    @skip("For visual inspection only")
-    def test_plot(self):
-        self.mri.plot_images()
 
-    @skip("For visual inspection only")
-    def test_plot_analyzed_image(self):
-        self.mri.plot_analyzed_image()
+#########################
+# ACR MR Medium,  see RAM-5603
+# Only centered datasets are in scope.
 
-    @skip("For visual inspection only")
-    def test_plotly_analyzed_images(self):
-        self.mri.plotly_analyzed_images()
+
+class ACRMRMediumT1(ACRMRMixin, TestCase):
+    klass = ACRMRIMedium
+    file_name = "ACR_MR_Medium_2_AX_T1.zip"
+    slice1_shift = 1.46
+    slice11_shift = 1.95
+    row_mtf_50 = 0.96
+    col_mtf_50 = 0.96
+    slice_thickness = 4.74
+    psg = 0.055
+    phantom_roll = 0.38
+    low_contrast_score = 18
+
+
+class ACRMRMediumT2(ACRMRMixin, TestCase):
+    klass = ACRMRIMedium
+    file_name = "ACR_MR_Medium_2_AX_T2.zip"
+    slice1_shift = 1.46
+    slice11_shift = 1.95
+    row_mtf_50 = 0.95
+    col_mtf_50 = 0.97
+    slice_thickness = 4.76
+    psg = 0.065
+    phantom_roll = 0.41
+    low_contrast_score = 20
+
+
+class TestACRMRMediumSagittal(CloudFileMixin, TestCase):
+    dir_path = ["ACR", "MRI"]
+
+    def test_separate_sagittal_series(self):
+        axial_file = get_file_from_cloud_test_repo(
+            [*self.dir_path, "ACR_MR_Medium_2_AX_T2.zip"]
+        )
+        sagittal_file = get_file_from_cloud_test_repo(
+            [*self.dir_path, "ACR_MR_Medium_2_SAG_T1.zip"]
+        )
+        with TemporaryDirectory() as tmpdir:
+            for zip_file in (axial_file, sagittal_file):
+                destination = Path(tmpdir) / Path(zip_file).stem
+                with zipfile.ZipFile(zip_file) as zf:
+                    zf.extractall(destination)
+            mri = ACRMRIMedium(tmpdir, memory_efficient_mode=True, check_uid=False)
+            mri.analyze()
+
+        self.assertTrue(mri.has_sagittal_module)
+        self.assertIn("ACR MRI Medium Results", mri.results())
 
 
 class ACRMRSagittal2(ACRMRMixin, TestCase):

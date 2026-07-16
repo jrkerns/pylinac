@@ -10,6 +10,16 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v3.47.0
+-------
+
+ACR Phantoms
+^^^^^^^^^^^^
+
+* :bdg-success:`Feature` Added support for the ACR MRI Medium phantom via :class:`~pylinac.acr.ACRMRIMedium`.
+  The Medium model reuses the ACR MRI Large analysis workflow while adapting module definitions for the Medium phantom geometry.
+
+
 v3.45.0
 -------
 

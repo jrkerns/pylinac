@@ -747,6 +747,13 @@ class MRSlice11PositionModule(CatPhanModule):
             roi.plotly(fig, line_color="blue", name=name)
 
 
+class MRMediumSlice11PositionModule(MRSlice11PositionModule):
+    roi_settings = {
+        "Left": {"width": 2, "height": 25, "distance": 60, "angle": 2.5},
+        "Right": {"width": 2, "height": 25, "distance": 60, "angle": -2.5},
+    }
+
+
 class MRSlice11ModuleOutput(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
 
@@ -889,6 +896,26 @@ class MRSlice1Module(CatPhanModule):
         )
 
 
+class MRMediumSlice1Module(MRSlice1Module):
+    spacings = [0, 1 / 1.1, 1, 1 / 0.9, 1 / 0.8]
+    roi_settings = {
+        "Row Reference": {"radius": 9, "distance": 55, "angle": 138.3, "lp/mm": 0},
+        "Col Reference": {"radius": 9, "distance": 55, "angle": 138.3, "lp/mm": 0},
+        "Row 1.1": {"radius": 3, "distance": 39.0, "angle": 121.0, "lp/mm": 1 / 1.1},
+        "Col 1.1": {"radius": 3, "distance": 42.4, "angle": 108.0, "lp/mm": 1 / 1.1},
+        "Row 1.0": {"radius": 3, "distance": 33.3, "angle": 89.2, "lp/mm": 1.0},
+        "Col 1.0": {"radius": 3, "distance": 41.0, "angle": 78.8, "lp/mm": 1.0},
+        "Row 0.9": {"radius": 2, "distance": 40.1, "angle": 58.5, "lp/mm": 1 / 0.9},
+        "Col 0.9": {"radius": 2, "distance": 48.3, "angle": 56.1, "lp/mm": 1 / 0.9},
+        "Row 0.8": {"radius": 2, "distance": 52, "angle": 40.4, "lp/mm": 1 / 0.8},
+        "Col 0.8": {"radius": 2, "distance": 59.6, "angle": 41, "lp/mm": 1 / 0.8},
+    }
+    position_roi_settings = {
+        "Left": {"width": 2, "height": 25, "distance": 58, "angle": 2.5},
+        "Right": {"width": 2, "height": 25, "distance": 58, "angle": -2.5},
+    }
+
+
 class MRSlice1ModuleOutput(BaseModel):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
 
@@ -1016,6 +1043,16 @@ class MRUniformityModule(CatPhanModule):
     def psg_passed(self) -> bool:
         """Whether the PSG is within tolerance"""
         return self.psg < 3.0
+
+
+class MRMediumUniformityModule(MRUniformityModule):
+    roi_settings = {
+        "Center": {
+            "angle": 90,
+            "distance": 5,
+            "radius": 60,
+        }
+    }
 
 
 class MRUniformityModuleOutput(BaseModel):
@@ -2258,3 +2295,11 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
                 low_contrast_rois=low_contrast_rois,
             ),
         )
+
+
+class ACRMRIMedium(ACRMRILarge):
+    _model = "ACR MRI Medium"
+    catphan_radius_mm = 82.5
+    slice1 = MRMediumSlice1Module
+    slice11 = MRMediumSlice11PositionModule
+    uniformity_module = MRMediumUniformityModule

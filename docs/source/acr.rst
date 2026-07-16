@@ -16,9 +16,14 @@ Overview
     If you'd like to submit data, enter it `here <https://forms.gle/RBR5ubFvjogE9iC67>`_.
 
 The ACR module provides routines for automatically
-analyzing DICOM images of the ACR CT 464 phantom and Large MR phantom.
+analyzing DICOM images of the ACR CT 464 phantom and Large and Medium MR phantoms.
 It can load a folder or zip file of images, correcting for
 translational and rotational offsets.
+
+.. important::
+
+    For the ACR MRI medium phantom, there appear to be two configurations of the low-contrast insert: one where
+    it is centered and another that is offset. We only support the centered version currently.
 
 Phantom reference information is drawn from the
 `ACR CT solution article <https://accreditationsupport.acr.org/support/solutions/articles/11000053945-overview-of-the-ct-phantom>`__
@@ -44,7 +49,7 @@ To use the ACR analysis, import the class:
 
 .. code-block:: python
 
-    from pylinac import ACRCT, ACRMRILarge
+    from pylinac import ACRCT, ACRMRILarge, ACRMRIMedium
 
 And then load, analyze, and view the results:
 
@@ -56,6 +61,7 @@ And then load, analyze, and view the results:
     ct = ACRCT(acr_ct_folder)
     acr_mri_folder = r"C:/MRI/ACR/Sept 2021"
     mri = ACRMRILarge(acr_mri_folder)
+    # use ACRMRIMedium for Medium phantom datasets
 
   or load from zip:
 
@@ -419,7 +425,7 @@ Section 0.4 specifies the 8 tests to perform. Pylinac can perform 7 of these 8. 
 
   .. math:: PSG = ghosting_{ratio} * 100
 
-* **Low Contrast Detectability** - The low contrast detectability test analyzes slices 8, 9, 10, and 11 of the ACR MRI Large phantom.
+* **Low Contrast Detectability** - The low contrast detectability test analyzes slices 8, 9, 10, and 11 of the ACR MRI phantom.
   Each slice contains 10 spokes arranged in a circular pattern, with spoke diameters decreasing clockwise from 7.0 mm (spoke 1) to 1.5 mm (spoke 10).
   Each spoke contains 3 disks (objects) at different radial distances from the phantom center.
 
@@ -617,6 +623,10 @@ API Documentation
 .. autopydantic_model:: pylinac.acr.LowContrastModuleOutput
 
 .. autoclass:: pylinac.acr.ACRMRILarge
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.acr.ACRMRIMedium
     :inherited-members:
     :members:
 
