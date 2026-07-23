@@ -54,14 +54,19 @@ def run_basic_test_suite_310(session: Session, numpy: str, scipy: str):
     ["1.23.5", "1.24.4", "1.25.2", "1.26.4", "2.0.0", "2.1.0", "2.2.0"],
 )
 @nox.parametrize("scipy", ["1.13.1", "1.14.1", "1.15.0"])
+@nox.parametrize("matplotlib", ["3.10.9"])
 @nox.session(
     python="3.11",
     reuse_venv=True,
     venv_backend="uv",
 )
-def run_basic_test_suite_311(session: Session, numpy: str, scipy: str):
+def run_basic_test_suite_311(session: Session, numpy: str, scipy: str, matplotlib: str):
     sync_uv_groups(session, "test")
-    session.install(f"numpy~={numpy}", f"scipy~={scipy}")
+    session.install(
+        f"numpy~={numpy}",
+        f"scipy~={scipy}",
+        f"matplotlib~={matplotlib}",
+    )
     session.install("pip")
     session.run("pip", "freeze")
     session.run(
