@@ -5,25 +5,40 @@ and listed on the Pylinac docs site for use by the public.
 
 import os
 import re
+import unittest
 from pathlib import Path
 from unittest import TestCase
 
 import pydicom
 
-from tests_basic.utils import get_folder_from_cloud_repo
+from tests_basic.utils import cloud_test_downloader, requires_cloud_data
 
 
 class TestGeneratedPlans(TestCase):
     @classmethod
+    @requires_cloud_data(
+        folders={"cloud_folder": ["rtplans"]},
+        folder_repos={"cloud_folder": "pylinac_demo_files"},
+    )
+    def _set_cloud_folder(cls, cloud_folder: str) -> None:
+        cls.cloud_folder = Path(cloud_folder)
+
+    @classmethod
     def setUpClass(cls) -> None:
         # if we're in CI/CD, download from the GCP bucket
         if os.environ.get("CI"):
-            cls.cloud_folder = get_folder_from_cloud_repo(
-                folder=["rtplans"], cloud_repo="pylinac_demo_files"
-            )
+            cls._set_cloud_folder()
         # if we're local, use the locally generated plans
         else:
-            cls.cloud_folder = Path(__file__).parent.parent / "scripts"
+            local_folder = Path(__file__).parent.parent / "scripts"
+            if len(list(local_folder.glob("R2*"))) > 0:
+                cls.cloud_folder = local_folder
+            elif cloud_test_downloader.is_authenticated:
+                cls._set_cloud_folder()
+            else:
+                raise unittest.SkipTest(
+                    "No local generated plans found and cloud test data is unavailable."
+                )
 
     def test_num_rev2_plans(self):
         self.assertEqual(len(list(Path(self.cloud_folder).glob("R2*"))), 12)

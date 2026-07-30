@@ -18,7 +18,7 @@ from tests_basic.utils import (
     FromZipTesterMixin,
     InitTesterMixin,
     PlotlyTestMixin,
-    get_file_from_cloud_test_repo,
+    requires_cloud_data,
     save_file,
 )
 
@@ -32,23 +32,26 @@ class TestQuartDVT(TestCase, FromZipTesterMixin, InitTesterMixin, ResultsDataBas
     init_file = [*TEST_DIR, "Head"]
     is_folder = True
 
-    def test_load_from_list_of_paths(self):
+    @requires_cloud_data(files={"quart_zip": [*TEST_DIR, "Head_Quart.zip"]})
+    def test_load_from_list_of_paths(self, quart_zip: str):
         # shouldn't raise
-        with TemporaryZipDirectory(get_file_from_cloud_test_repo(self.zip)) as zfolder:
+        with TemporaryZipDirectory(quart_zip) as zfolder:
             paths = [Path(zfolder) / f for f in os.listdir(zfolder)]
             QuartDVT(paths)
 
-    def test_load_from_list_of_streams(self):
+    @requires_cloud_data(files={"quart_zip": [*TEST_DIR, "Head_Quart.zip"]})
+    def test_load_from_list_of_streams(self, quart_zip: str):
         # shouldn't raise
-        with TemporaryZipDirectory(get_file_from_cloud_test_repo(self.zip)) as zfolder:
+        with TemporaryZipDirectory(quart_zip) as zfolder:
             paths = [Path(zfolder, f) for f in os.listdir(zfolder)]
             paths = [io.BytesIO(open(p, "rb").read()) for p in paths]
             QuartDVT(paths)
 
 
 class TestQuartDVTGeneral(TestCase):
-    def setUp(self):
-        self.path = get_file_from_cloud_test_repo([*TEST_DIR, "Head_Quart.zip"])
+    @requires_cloud_data(files={"quart_zip": [*TEST_DIR, "Head_Quart.zip"]})
+    def setUp(self, quart_zip: str):
+        self.path = quart_zip
         self.quart = QuartDVT.from_zip(self.path)
 
     def test_phan_center(self):
@@ -104,9 +107,9 @@ class TestQuartDVTGeneral(TestCase):
 
 class TestPlottingSaving(TestCase):
     @classmethod
-    def setUpClass(cls):
-        path = get_file_from_cloud_test_repo([*TEST_DIR, "Head_Quart.zip"])
-        cls.quart = QuartDVT.from_zip(path)
+    @requires_cloud_data(files={"quart_zip": [*TEST_DIR, "Head_Quart.zip"]})
+    def setUpClass(cls, quart_zip: str):
+        cls.quart = QuartDVT.from_zip(quart_zip)
         cls.quart.analyze()
 
     @classmethod
@@ -464,9 +467,9 @@ class TestQuart2(QuartDVTMixin, TestCase):
 class TestQuartRollSafetyReset(TestCase):
     """Related to RAM-5972"""
 
-    def test_large_image_rotation_resets_phantom_roll_to_zero(self):
-        filename = get_file_from_cloud_test_repo([*TEST_DIR, "Head_Quart.zip"])
-        quart = QuartDVT.from_zip(filename)
+    @requires_cloud_data(files={"quart_zip": [*TEST_DIR, "Head_Quart.zip"]})
+    def test_large_image_rotation_resets_phantom_roll_to_zero(self, quart_zip: str):
+        quart = QuartDVT.from_zip(quart_zip)
         for img in quart.dicom_stack:
             img.array = ndimage.rotate(img.array, angle=15, mode="nearest")
         with self.assertWarnsRegex(
@@ -500,7 +503,7 @@ class TestQuartRAM5972(QuartDVTMixin, TestCase):
 
 class TestHypersightPhantomDepracated(TestCase):
     # This phantom is replaced by the auto-detect of the water vial on the regular Quart phantom.
-    def test_hypersight_depracated(self):
-        path = get_file_from_cloud_test_repo([*TEST_DIR, "Head_Quart.zip"])
+    @requires_cloud_data(files={"quart_zip": [*TEST_DIR, "Head_Quart.zip"]})
+    def test_hypersight_depracated(self, quart_zip: str):
         with self.assertWarns(DeprecationWarning):
-            HypersightQuartDVT.from_zip(path)
+            HypersightQuartDVT.from_zip(quart_zip)

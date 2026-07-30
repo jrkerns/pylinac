@@ -1,9 +1,11 @@
 import json
+import os
 import tempfile
 import unittest
 from builtins import AttributeError
 from pathlib import Path
 from unittest import TestCase
+from unittest.mock import patch
 
 import numpy as np
 import quaac
@@ -20,6 +22,7 @@ from pylinac.core.utilities import (
     simple_round,
     uniquify,
 )
+from tests_basic import utils as test_utils
 
 performer = User(name="James Kerns", email="j@j.com")
 linac = Equipment(
@@ -284,3 +287,42 @@ class TestUniquifyFunction(unittest.TestCase):
     def test_uniquify(self, name, existing, input_name, expected):
         result = uniquify(existing, input_name)
         self.assertEqual(result, expected)
+
+
+class TestCloudDataHelpers(unittest.TestCase):
+    def test_can_run_cloud_tests_false_when_env_is_set(self):
+        old_value = os.environ.get("PYLINAC_SKIP_CLOUD_TESTS")
+        try:
+            os.environ["PYLINAC_SKIP_CLOUD_TESTS"] = "1"
+            self.assertFalse(test_utils.can_run_cloud_tests())
+        finally:
+            if old_value is None:
+                os.environ.pop("PYLINAC_SKIP_CLOUD_TESTS", None)
+            else:
+                os.environ["PYLINAC_SKIP_CLOUD_TESTS"] = old_value
+
+    def test_get_file_from_cloud_test_repo_uses_cache(self):
+        path = ["folder", "file.dcm"]
+        test_utils._cached_file_from_cloud_test_repo.cache_clear()
+        with (
+            patch(
+                "tests_basic.utils._download_file_from_cloud_test_repo",
+                return_value="x",
+            ) as mocked_download,
+            patch("tests_basic.utils.can_run_cloud_tests", return_value=True),
+        ):
+            first = test_utils.get_file_from_cloud_test_repo(path)
+            second = test_utils.get_file_from_cloud_test_repo(path)
+            self.assertEqual(first, second)
+            mocked_download.assert_called_once_with(
+                path=("folder", "file.dcm"), force=False
+            )
+
+    def test_cloud_downloader_auth_property_is_cached(self):
+        downloader = test_utils.CloudTestDataDownloader()
+        with patch.object(
+            downloader, "_compute_authentication_status", return_value=True
+        ) as mocked_compute:
+            self.assertTrue(downloader.is_authenticated)
+            self.assertTrue(downloader.is_authenticated)
+            mocked_compute.assert_called_once()

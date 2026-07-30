@@ -29,8 +29,8 @@ from pylinac.field_analysis import (
 from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
-    get_file_from_cloud_test_repo,
     has_www_connection,
+    requires_cloud_data,
     save_file,
 )
 
@@ -51,8 +51,8 @@ class FieldAnalysisTests(QuaacTestBase, TestCase):
     def quaac_instance(self):
         return create_instance()
 
-    def test_load_from_file_object(self):
-        path = get_file_from_cloud_test_repo([TEST_DIR, "6x-auto-bulb-2.dcm"])
+    @requires_cloud_data(files={"path": [TEST_DIR, "6x-auto-bulb-2.dcm"]})
+    def test_load_from_file_object(self, path: str):
         ref_fa = FieldAnalysis(path)
         ref_fa.analyze()
         with open(path, "rb") as f:
@@ -61,8 +61,8 @@ class FieldAnalysisTests(QuaacTestBase, TestCase):
         self.assertIsInstance(fa, FieldAnalysis)
         self.assertEqual(fa.image.shape, ref_fa.image.shape)
 
-    def test_load_from_stream(self):
-        path = get_file_from_cloud_test_repo([TEST_DIR, "6x-auto-bulb-2.dcm"])
+    @requires_cloud_data(files={"path": [TEST_DIR, "6x-auto-bulb-2.dcm"]})
+    def test_load_from_stream(self, path: str):
         ref_fa = FieldAnalysis(path)
         ref_fa.analyze()
         with open(path, "rb") as f:
@@ -229,8 +229,8 @@ class FieldAnalysisTests(QuaacTestBase, TestCase):
         with self.assertRaises(ValueError):
             fa.analyze(interpolation="limmerick")
 
-    def test_image_kwargs(self):
-        path = get_file_from_cloud_test_repo([TEST_DIR, "6x-auto-bulb-2.dcm"])
+    @requires_cloud_data(files={"path": [TEST_DIR, "6x-auto-bulb-2.dcm"]})
+    def test_image_kwargs(self, path: str):
 
         ref_fa = FieldAnalysis(path)
         ref_fa.analyze()
