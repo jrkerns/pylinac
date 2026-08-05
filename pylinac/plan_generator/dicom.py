@@ -356,7 +356,7 @@ class TrueBeamBeam(_Beam):
         jaw_asymx.RTBeamLimitingDeviceType = "ASYMX"
         jaw_asymx.NumberOfLeafJawPairs = 1
         jaw_asymy = Dataset()
-        jaw_asymy.RTBeamLimitingDeviceType = "ASYMX"
+        jaw_asymy.RTBeamLimitingDeviceType = "ASYMY"
         jaw_asymy.NumberOfLeafJawPairs = 1
         mlc = Dataset()
         mlc.RTBeamLimitingDeviceType = "MLCX"
