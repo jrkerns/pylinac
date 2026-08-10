@@ -13,6 +13,13 @@ Legend
 v3.47.0
 -------
 
+Winston-Lutz
+^^^^^^^^^^^^
+
+* :bdg-success:`Feature` Winston-Lutz ``results_data`` now includes the
+  virtual shift values as ``virtual_shift_applied`` when analyzing with
+  ``apply_virtual_shift=True``.
+
 ACR Phantoms
 ^^^^^^^^^^^^
 

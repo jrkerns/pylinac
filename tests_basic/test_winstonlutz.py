@@ -878,6 +878,7 @@ class GeneralTests(TestCase):
     def test_results_data(self):
         data = self.wl.results_data()
         self.assertIsInstance(data, WinstonLutzResult)
+        self.assertIsNone(data.virtual_shift_applied)
         self.assertEqual(
             data.num_couch_images,
             self.wl._get_images(axis=(Axis.COUCH, Axis.REFERENCE))[0],
@@ -1324,6 +1325,33 @@ class SyntheticWLMixin(WinstonLutzMixin):
             apply_virtual_shift=True,
         )
         self.assertAlmostEqual(wl.bb_shift_vector.as_scalar(), 0, delta=0.05)
+        applied_shift = copy.copy(self.wl.bb_shift_vector)
+        result = wl.results_data()
+        self.assertTrue(
+            vector_is_close(result.virtual_shift_applied, applied_shift, delta=0.05)
+        )
+
+    def test_virtual_shift_is_cleared_on_reanalysis(self):
+        """A subsequent analysis should not retain a previously applied shift."""
+        wl = self.new_instance()
+        self.assertIsNone(wl._virtual_shift)
+        wl.analyze(
+            bb_size_mm=self.bb_size,
+            machine_scale=self.machine_scale,
+            low_density_bb=self.low_density_bb,
+            open_field=self.open_field,
+            apply_virtual_shift=True,
+        )
+        self.assertIsNotNone(wl.results_data().virtual_shift_applied)
+
+        wl.analyze(
+            bb_size_mm=self.bb_size,
+            machine_scale=self.machine_scale,
+            low_density_bb=self.low_density_bb,
+            open_field=self.open_field,
+            apply_virtual_shift=False,
+        )
+        self.assertIsNone(wl.results_data().virtual_shift_applied)
 
     def test_bb3d_measured_position(self):
         self.assertAlmostEqual(

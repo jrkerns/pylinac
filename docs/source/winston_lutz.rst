@@ -643,6 +643,7 @@ This is also what is given in RadMachine image analysis results and is explained
 
 * ``couch_2d_iso_diameter_mm``: The 2D isocenter diameter **of the couch axis only** as determined by the couch images in mm.
 * ``bb_shift_vector``: The Cartesian vector that would move the BB to the radiation isocenter. Each value is in mm. See also :ref:`wl_virtual_shift`, :ref:`winston-lutz-couch-shift-algorithm`
+* ``virtual_shift_applied``: The virtual shift applied to the BB when ``apply_virtual_shift=True``. The ``x``, ``y``, and ``z`` values are the lateral, longitudinal, and vertical shifts in mm, respectively. This is ``None`` when a virtual shift was not applied.
 * ``image_details``: A list of the individual image results. Each item has the following:
 
   * ``variable_axis``: The axis that varied in the image. See :ref:`wl_image_types`.

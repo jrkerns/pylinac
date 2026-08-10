@@ -533,6 +533,11 @@ class WinstonLutzResult(ResultBase):
     bb_shift_vector: VectorSerialized = Field(
         description="The Cartesian vector that would move the BB to the radiation isocenter. Each value is in mm."
     )
+    virtual_shift_applied: VectorSerialized | None = Field(
+        default=None,
+        title="Virtual shift applied (mm)",
+        description="The virtual shift applied to the BB to place it at isocenter in mm. The x, y, and z values represent the lateral, longitudinal, and vertical shifts, respectively.",
+    )
     image_details: list[WinstonLutz2DResult] = Field(
         description="A list of the individual image results.",
     )
@@ -1241,7 +1246,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
     bb: BB3D  # 3D representation of the BB; there is a .bb object for 2D images but is a 2D representation
     is_from_cbct: bool = False
     _bb_diameter: float
-    _virtual_shift: str | None = None
+    _virtual_shift: Vector | None = None
     detection_conditions: list[callable] = [
         is_right_size_bb,
         is_round,
@@ -1584,9 +1589,10 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             bb_matches=[img.arrangement_matches["Iso"] for img in self.images],
             scale=self.machine_scale,
         )
+        self._virtual_shift = None
         if apply_virtual_shift:
             shift = self.bb_shift_vector
-            self._virtual_shift = self.bb_shift_instructions()
+            self._virtual_shift = shift
             for img in self.images:
                 img.analyze(
                     bb_size_mm=bb_size_mm,
@@ -1729,7 +1735,22 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         couch_lat : float
             The current couch lateral position in cm.
         """
-        sv = self.bb_shift_vector
+        return self._format_bb_shift_instructions(
+            self.bb_shift_vector,
+            couch_vrt=couch_vrt,
+            couch_lng=couch_lng,
+            couch_lat=couch_lat,
+        )
+
+    @staticmethod
+    def _format_bb_shift_instructions(
+        shift_vector: Vector,
+        couch_vrt: float | None = None,
+        couch_lng: float | None = None,
+        couch_lat: float | None = None,
+    ) -> str:
+        """Format a shift vector as human-readable couch instructions."""
+        sv = shift_vector
         x_dir = "LEFT" if sv.x < 0 else "RIGHT"
         y_dir = "IN" if sv.y > 0 else "OUT"
         z_dir = "UP" if sv.z > 0 else "DOWN"
@@ -2525,7 +2546,8 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         ]
         if self._virtual_shift:
             result.append(
-                f"Virtual shift applied to BB to place at isocenter: {self._virtual_shift}"
+                "Virtual shift applied to BB to place at isocenter: "
+                f"{self._format_bb_shift_instructions(self._virtual_shift)}"
             )
         else:
             result.append(
@@ -2586,6 +2608,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             ),
             max_epid_rms_deviation_mm=max(self.axis_rms_deviation(axis=Axis.EPID)),
             bb_shift_vector=self.bb_shift_vector,
+            virtual_shift_applied=self._virtual_shift,
             image_details=individual_image_data,
             keyed_image_details=self._generate_keyed_images(individual_image_data),
         )
