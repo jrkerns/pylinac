@@ -504,3 +504,25 @@ class TestHypersightPhantomDepracated(TestCase):
         path = get_file_from_cloud_test_repo([*TEST_DIR, "Head_Quart.zip"])
         with self.assertWarns(DeprecationWarning):
             HypersightQuartDVT.from_zip(path)
+
+
+class TestQuartRAM6088(QuartDVTMixin, TestCase):
+    """A minimum below -1000 would trigger an error."""
+
+    file_name = "Quart-RAM-6088.zip"
+    phantom_roll = 0.68
+    origin_slice = 33
+    snr = 244.67
+    cnr = 32.967
+    horiz_dist = 160.09
+    vert_dist = 160.2
+    high_contrast_distance = 0.647
+    hu_values = {
+        "Air": -957,
+        "Poly": -23,
+        "Acrylic": 120,
+        "Teflon": 949,
+        "Water": 9,
+    }
+    unif_values = {"Center": 121, "Left": 121, "Right": 120, "Top": 119, "Bottom": 122}
+    has_water_vial = True

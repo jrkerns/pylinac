@@ -20,6 +20,11 @@ Winston-Lutz
   virtual shift values as ``virtual_shift_applied`` when analyzing with
   ``apply_virtual_shift=True``.
 
+Quart
+^^^^^
+
+* :bdg-warning:`Fixed` Quart phantoms with minimum HU values below -1000 would error out on analysis.
+
 ACR Phantoms
 ^^^^^^^^^^^^
 
