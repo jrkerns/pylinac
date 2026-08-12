@@ -778,7 +778,7 @@ The SNC MV and kV phantoms are for kV & MV image quality testing and includes lo
 Image Acquisition
 ^^^^^^^^^^^^^^^^^
 
-The SNC phantoms typically use the angled setup jig. Best practices for the Doselab phantom:
+The SNC phantoms typically use the angled setup jig. Best practices for the SNC phantoms:
 
 * Keep the phantom away from a couch edge or any rails.
 * Center the phantom along the CAX.
