@@ -114,7 +114,7 @@ def noise_power_spectrum_2d(
 
     ffts = np.zeros((small_roi_size, small_roi_size, len(rois)))
     for idx, roi in enumerate(rois):
-        power_spectrum = np.abs(np.fft.fft2(roi)) ** 2
+        power_spectrum = np.abs(np.fft.fft2(roi - roi.mean())) ** 2
         shifted_spectrum = np.fft.fftshift(power_spectrum)
         ffts[:, :, idx] = shifted_spectrum
     s = np.mean(ffts, axis=-1)
