@@ -546,6 +546,22 @@ class WinstonLutzResult(ResultBase):
     )
 
 
+class WinstonLutzMultiTargetMultiFieldImageResult(BaseModel):
+    """Structured results for one multi-target, multi-field image."""
+
+    image_name: str = Field(description="The image basename or identifier.")
+    gantry_angle: float = Field(description="The gantry angle in degrees.")
+    collimator_angle: float = Field(description="The collimator angle in degrees.")
+    couch_angle: float = Field(description="The couch angle in degrees.")
+    bb_distances: dict[str, float | None] = Field(
+        description="The 2D distance from each expected BB to its matched field center in mm. The key is the BB name and the value is None when the BB was not matched."
+    )
+    couch_yaw_error: float | None = Field(
+        default=None,
+        description="The couch yaw error in degrees for couch and reference images. This is None for other image types.",
+    )
+
+
 class WinstonLutzMultiTargetMultiFieldResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -585,6 +601,9 @@ class WinstonLutzMultiTargetMultiFieldResult(ResultBase):
     )
     bb_shift_roll: float = Field(
         description="The roll rotation needed in degrees to align the phantom with the radiation isocenter."
+    )
+    image_details: list[WinstonLutzMultiTargetMultiFieldImageResult] = Field(
+        description="A list of the individual image results in analyzed-image order."
     )
 
 
@@ -3230,6 +3249,30 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             bb_maxes[bb.name] = max_d
 
         translation, yaw, pitch, roll = self.bb_shift_vector
+        # build individual image details
+        couch_rotation_errors = self._couch_rotation_error()
+        image_details = []
+        for img in self.images:
+            couch_result = couch_rotation_errors.get(img.base_path)
+            image_details.append(
+                WinstonLutzMultiTargetMultiFieldImageResult(
+                    image_name=img.base_path,
+                    gantry_angle=img.gantry_angle,
+                    collimator_angle=img.collimator_angle,
+                    couch_angle=img.couch_angle,
+                    bb_distances={
+                        bb.name: (
+                            img.arrangement_matches[bb.name].bb_field_distance_mm
+                            if bb.name in img.arrangement_matches
+                            else None
+                        )
+                        for bb in self.bb_arrangement
+                    },
+                    couch_yaw_error=(
+                        couch_result["yaw error"] if couch_result is not None else None
+                    ),
+                )
+            )
         return WinstonLutzMultiTargetMultiFieldResult(
             num_total_images=len(self.images),
             max_2d_field_to_bb_mm=self.max_bb_deviation_2d,
@@ -3241,6 +3284,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             bb_shift_yaw=yaw,
             bb_shift_pitch=pitch,
             bb_shift_roll=roll,
+            image_details=image_details,
         )
 
     def plot_summary(self, show: bool = True, fig_size: tuple | None = None):
