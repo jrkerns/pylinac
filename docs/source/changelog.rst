@@ -19,6 +19,9 @@ Winston-Lutz
 * :bdg-success:`Feature` Winston-Lutz ``results_data`` now includes the
   virtual shift values as ``virtual_shift_applied`` when analyzing with
   ``apply_virtual_shift=True``.
+* :bdg-success:`Feature` Multi-target, multi-field Winston-Lutz ``results_data``
+  now includes per-image axis angles, BB-to-field distances, and couch yaw errors
+  under the key ``image_details``.
 
 Quart
 ^^^^^

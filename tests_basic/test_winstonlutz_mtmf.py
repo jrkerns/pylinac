@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import shutil
 import tempfile
 from collections.abc import Sequence
@@ -69,6 +70,56 @@ class TestWLMultiImageDemo(TestCase):
         self.assertAlmostEqual(results.max_2d_field_to_bb_mm, 0.94, delta=0.005)
         self.assertAlmostEqual(results.bb_maxes["Iso"], 0.443, delta=0.005)
         self.assertEqual(results.num_total_images, 19)
+
+    def test_results_data_image_details(self):
+        results = self.wl.results_data()
+        couch_rotation_errors = self.wl._couch_rotation_error()
+        bb_names = [bb.name for bb in self.wl.bb_arrangement]
+
+        self.assertEqual(len(results.image_details), len(self.wl.images))
+        for image, detail in zip(self.wl.images, results.image_details):
+            self.assertEqual(detail.image_name, image.base_path)
+            self.assertEqual(detail.gantry_angle, image.gantry_angle)
+            self.assertEqual(detail.collimator_angle, image.collimator_angle)
+            self.assertEqual(detail.couch_angle, image.couch_angle)
+            self.assertEqual(list(detail.bb_distances), bb_names)
+
+            for bb_name in bb_names:
+                match = image.arrangement_matches.get(bb_name)
+                if match is None:
+                    self.assertIsNone(detail.bb_distances[bb_name])
+                else:
+                    self.assertEqual(
+                        detail.bb_distances[bb_name], match.bb_field_distance_mm
+                    )
+
+            couch_result = couch_rotation_errors.get(image.base_path)
+            if couch_result is None:
+                self.assertIsNone(detail.couch_yaw_error)
+            else:
+                self.assertEqual(detail.couch_yaw_error, couch_result["yaw error"])
+
+    def test_results_data_image_details_serialize(self):
+        data = self.wl.results_data(as_dict=True)
+        json_data = json.loads(self.wl.results_data(as_json=True))
+
+        self.assertEqual(data["image_details"], json_data["image_details"])
+        self.assertTrue(
+            any(
+                distance is None
+                for detail in data["image_details"]
+                for distance in detail["bb_distances"].values()
+            )
+        )
+        self.assertTrue(
+            any(detail["couch_yaw_error"] is None for detail in data["image_details"])
+        )
+        self.assertTrue(
+            any(
+                detail["couch_yaw_error"] is not None
+                for detail in data["image_details"]
+            )
+        )
 
     def test_results_warnings(self):
         self.wl.analyze(bb_arrangement=BBArrangement.DEMO)
