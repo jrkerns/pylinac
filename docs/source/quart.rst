@@ -251,6 +251,10 @@ The outcome from analyzing the phantom available in RadMachine or from
   items:
 
   * ``offset``: The offset of the module slice in mm from the origin slice.
+  * ``uniformity_index``: The uniformity index as defined in Equation 2 of Elstrom et al.
+  * ``integral_non_uniformity``: The integral non-uniformity as defined in Equation 1 of Elstrom et al.
+  * ``nps_avg_power``: The average power of the noise power spectrum.
+  * ``nps_max_freq``: The most populous frequency of the noise power spectrum.
   * ``passed``: A boolean indicating if the module passed.
   * ``rois``: A dictionary of ROI results where the key is the name of the material. Each material
     has the following items:
