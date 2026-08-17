@@ -71,14 +71,63 @@ class TestQuartDVTGeneral(TestCase):
         # check the additional modules got added
         self.assertIsInstance(data.hu_module.rois, dict)
         self.assertIsInstance(data.geometric_module.mean_high_contrast_distance, float)
+        self.assertEqual(
+            data.uniformity_module.uniformity_index,
+            self.quart.uniformity_module.uniformity_index,
+        )
+        self.assertEqual(
+            data.uniformity_module.integral_non_uniformity,
+            self.quart.uniformity_module.integral_non_uniformity,
+        )
+        self.assertEqual(
+            data.uniformity_module.nps_avg_power,
+            self.quart.uniformity_module.avg_noise_power,
+        )
+        self.assertEqual(
+            data.uniformity_module.nps_max_freq,
+            self.quart.uniformity_module.max_noise_power_frequency,
+        )
 
         data_dict = self.quart.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
+        for metric in (
+            "uniformity_index",
+            "integral_non_uniformity",
+            "nps_avg_power",
+            "nps_max_freq",
+        ):
+            self.assertIsInstance(data_dict["uniformity_module"][metric], float)
 
         data_str = self.quart.results_data(as_json=True)
         self.assertIsInstance(data_str, str)
-        # shouldn't raise
-        json.loads(data_str)
+        data_json = json.loads(data_str)
+        for metric in (
+            "uniformity_index",
+            "integral_non_uniformity",
+            "nps_avg_power",
+            "nps_max_freq",
+        ):
+            self.assertIsInstance(data_json["uniformity_module"][metric], float)
+
+    def test_text_results_include_uniformity_metrics(self):
+        self.quart.analyze()
+        results = self.quart.results()
+        self.assertIn(
+            f"Uniformity index: {self.quart.uniformity_module.uniformity_index:2.3f}",
+            results,
+        )
+        self.assertIn(
+            f"Integral non-uniformity: {self.quart.uniformity_module.integral_non_uniformity:2.4f}",
+            results,
+        )
+        self.assertIn(
+            f"Max Noise Power frequency: {self.quart.uniformity_module.max_noise_power_frequency}",
+            results,
+        )
+        self.assertIn(
+            f"Average Noise Power: {self.quart.uniformity_module.avg_noise_power}",
+            results,
+        )
 
     def test_results_warnings(self):
         self.quart.analyze()

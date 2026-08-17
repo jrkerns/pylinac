@@ -98,6 +98,20 @@ class QuartUniformityModuleOutput(BaseModel):
     )
     roi_settings: dict = Field(description="A dictionary of the ROI settings.")
     rois: dict = Field(description="A dictionary of ROI results.")
+    uniformity_index: float = Field(
+        description="The uniformity index as defined in Equation 2 of Elstrom et al.",
+        title="Uniformity Index",
+    )
+    integral_non_uniformity: float = Field(
+        description="The integral non-uniformity as defined in Equation 1 of Elstrom et al.",
+        title="Integral Non-Uniformity",
+    )
+    nps_avg_power: float = Field(
+        description="The average power of the noise power spectrum."
+    )
+    nps_max_freq: float = Field(
+        description="The most populous frequency of the noise power spectrum."
+    )
     passed: bool = Field(description="A boolean indicating if the module passed.")
 
 
@@ -665,7 +679,11 @@ class QuartDVT(CatPhanBase, ResultsDataMixin[QuartDVTResult]):
             f"Measured Slice Thickness (mm): {self.hu_module.meas_slice_thickness:2.3f}\n",
             f"Slice Thickness Passed? {self.hu_module.passed_thickness}\n",
             f"Uniformity ROIs: {self.uniformity_module.roi_vals_as_str}\n",
+            f"Uniformity index: {self.uniformity_module.uniformity_index:2.3f}\n",
+            f"Integral non-uniformity: {self.uniformity_module.integral_non_uniformity:2.4f}\n",
             f"Uniformity Passed?: {self.uniformity_module.overall_passed}\n",
+            f"Max Noise Power frequency: {self.uniformity_module.max_noise_power_frequency}\n",
+            f"Average Noise Power: {self.uniformity_module.avg_noise_power}\n",
             f"Geometric width: {self.geometry_module.distances()}",
             f"High-Contrast distance (mm): {self.geometry_module.mean_high_contrast_resolution():2.3f}",
         )
@@ -685,6 +703,10 @@ class QuartDVT(CatPhanBase, ResultsDataMixin[QuartDVTResult]):
                 offset=UNIFORMITY_OFFSET_MM,
                 roi_settings=self.uniformity_module.roi_settings,
                 rois=rois_to_results(self.uniformity_module.rois),
+                uniformity_index=self.uniformity_module.uniformity_index,
+                integral_non_uniformity=self.uniformity_module.integral_non_uniformity,
+                nps_avg_power=self.uniformity_module.avg_noise_power,
+                nps_max_freq=self.uniformity_module.max_noise_power_frequency,
                 passed=self.uniformity_module.overall_passed,
             ),
             geometric_module=QuartGeometryModuleOutput(

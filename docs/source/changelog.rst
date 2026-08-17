@@ -26,6 +26,9 @@ Winston-Lutz
 Quart
 ^^^^^
 
+* :bdg-success:`Feature` Quart ``results_data`` now include
+  the ``uniformity_index``, ``integral_non_uniformity``, ``nps_avg_power``, and
+  ``nps_max_freq`` under the ``uniformity_module`` to provide more uniformity metrics for evaluation.
 * :bdg-warning:`Fixed` Quart phantoms with minimum HU values below -1000 would error out on analysis.
 
 ACR Phantoms
