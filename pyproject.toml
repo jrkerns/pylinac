@@ -81,7 +81,15 @@ directory = "dist"
 
 [tool.hatch.version]
 # https://hatch.pypa.io/latest/version/
-path = "pylinac/version.py"  # hatch will automatically set the version to the value in this file.
+path = "pylinac/version.py"
+
+[tool.hatch.metadata.hooks.custom]
+
+[[tool.uv.index]]
+name = "pylinac-gcp"
+url = "https://us-central1-python.pkg.dev/radmachine/pypi/simple/"
+publish-url = "https://us-central1-python.pkg.dev/radmachine/pypi/"
+explicit = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["pylinac"]

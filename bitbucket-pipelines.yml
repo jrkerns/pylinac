@@ -55,6 +55,24 @@ definitions:
           - apt update
           - apt install git -y
           - git push git@github.com:jrkerns/pylinac.git $BITBUCKET_BRANCH
+    - step: &publish-gcp-wheel
+        name: Publish GCP Development Wheel
+        <<: *bb-runner
+        image:
+           # bitbucket doesn't like variables in the image name
+           name: jkerns100/radmachine-bb-pipe:2.0
+           username: $DOCKER_HUB_USER
+           password: $DOCKER_HUB_PASSWORD
+        script:
+          - export PYLINAC_BUILD_VERSION="3.48.0.dev${BITBUCKET_BUILD_NUMBER}+g${BITBUCKET_COMMIT:0:8}"
+          - uv build --wheel
+          - printf '%s' "$GCP_BUILD_CREDS" > service_key.json
+          - gcloud auth activate-service-account --key-file service_key.json
+          # unset the PyPI env var; mutually exclusive usage
+          - unset UV_PUBLISH_TOKEN
+          - export UV_PUBLISH_USERNAME=oauth2accesstoken
+          - export UV_PUBLISH_PASSWORD="$(gcloud auth print-access-token)"
+          - uv publish --index pylinac-gcp dist/*.whl
     - step: &build-docs
         name: Build Docs
         <<: *bb-runner
@@ -463,6 +481,9 @@ pipelines:
     update-kraken:
       - step: *pre-commit-checks-and-setup
       - step: *update-dev-kraken
+    publish-dev-gcp-package:
+      - step: *publish-gcp-wheel
+
     publish-package:
       - step:
           name: Build & Push to PYPI
@@ -500,5 +521,7 @@ pipelines:
     release*:
       - step: *push-to-github
     master:
-      - step: *push-to-github
+      - parallel:
+          - step: *publish-gcp-wheel
+          - step: *push-to-github
       - step: *update-dev-kraken
