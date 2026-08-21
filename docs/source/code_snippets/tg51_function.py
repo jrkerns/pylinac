@@ -5,7 +5,7 @@ from pylinac.calibration import tg51
 ENERGY = 6
 TEMP = 22.1
 PRESS = tg51.mmHg2kPa(755.0)
-CHAMBER = "30013"  # PTW
+CHAMBER = tg51.IonChambers.PTW_30013
 P_ELEC = 1.000
 ND_w = 5.443  # Gy/nC
 MU = 200
@@ -13,7 +13,7 @@ CLINICAL_PDD = 66.5
 
 # Section 4 (beam quality)
 # since energy is 6MV, PDDx == PDD, but we'll run it through anyway just for show
-pdd10x = tg51.pddx(pdd=66.4, energy=ENERGY)
+pdd10x = tg51.pddx(pdd=66.4, energy=ENERGY, lead_foil=tg51.LeadFoil.NONE)
 
 # Section 5 (kQ)
 kq = tg51.kq_photon_pddx(chamber=CHAMBER, pddx=pdd10x)

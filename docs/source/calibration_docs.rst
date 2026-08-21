@@ -177,6 +177,51 @@ If you want something a little more complete, you can use the :class:`~pylinac.t
 :class:`~pylinac.tg51.TG51ElectronLegacy` and :class:`~pylinac.tg51.TG51ElectronModern` classes which will calculate all necessary corrections and
 values.
 
+TG-51 chambers can be selected from :class:`~pylinac.calibration.tg51.IonChambers`,
+which provides discoverable, manufacturer-prefixed definitions such as
+``IonChambers.PTW_30013``. Each :class:`~pylinac.calibration.tg51.IonChamber`
+contains its available photon and electron coefficients.
+
+.. versionchanged:: 3.47
+
+    Existing chamber strings
+    such as ``"30013"`` remain fully supported for historical compatibility.
+    Scripts that update ``KQ_PHOTONS`` or ``KQ_ELECTRONS`` (e.g. to add a chamber)
+    are also still supported.
+
+.. versionchanged:: 3.47
+
+    Lead foil positions can similarly be selected with
+    :class:`~pylinac.calibration.tg51.LeadFoil`. The legacy values ``None``, ``"30cm"``,
+    and ``"50cm"`` remain supported.
+
+Defining a Custom Chamber
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A custom chamber can be passed directly to the TG-51 functions and classes. Define
+the coefficient set appropriate for the beam type, then use it to build an
+:class:`~pylinac.calibration.tg51.IonChamber`. Use ``None`` when the chamber does
+not have coefficients for a beam type:
+
+.. code-block:: python
+
+    photon_coefficients = tg51.PhotonChamberCoefficients(
+        a=1.0146,
+        b=0.000777,
+        c=-0.00001666,
+        a_prime=2.6402,
+        b_prime=-7.2304,
+        c_prime=10.7573,
+        d_prime=-5.4294,
+    )
+    custom_chamber = tg51.IonChamber(
+        name="My custom chamber",
+        photon_coefficients=photon_coefficients,
+        electron_coefficients=None,
+    )
+
+    kq = tg51.kq_photon_pddx(chamber=custom_chamber, pddx=66.4)
+
 .. note::
     The Photon class uses kQ values from the TG-51 addendum.
     The Legacy Electron class will make the user specify a kecal value and measure Pgradient.
@@ -298,6 +343,21 @@ TG-51 API Documentation
 .. autofunction:: pylinac.calibration.tg51.kq_photon_tpr
 
 .. autofunction:: pylinac.calibration.tg51.kq_electron
+
+.. autoclass:: pylinac.calibration.tg51.LeadFoil
+    :members:
+
+.. autoclass:: pylinac.calibration.tg51.PhotonChamberCoefficients
+    :members:
+
+.. autoclass:: pylinac.calibration.tg51.ElectronChamberCoefficients
+    :members:
+
+.. autoclass:: pylinac.calibration.tg51.IonChamber
+    :members:
+
+.. autoclass:: pylinac.calibration.tg51.IonChambers
+    :members:
 
 .. autoclass:: pylinac.calibration.tg51.TG51Photon
 

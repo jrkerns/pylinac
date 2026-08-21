@@ -10,6 +10,21 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v3.48.0
+-------
+
+Calibration
+^^^^^^^^^^^
+
+* :bdg-success:`Feature` TG-51 chamber models can now be selected with
+  :class:`~pylinac.calibration.tg51.IonChambers`. Each frozen
+  :class:`~pylinac.calibration.tg51.IonChamber` contains its available photon and
+  electron coefficients, and custom chambers can be constructed directly. Existing
+  string chamber names remain fully supported. This is to make IDE discovery easier
+  and clearer to read.
+* :bdg-success:`Feature` TG-51 lead foil positions can now be selected with
+  :class:`~pylinac.calibration.tg51.LeadFoil`; legacy string values remain supported.
+
 v3.47.0
 -------
 

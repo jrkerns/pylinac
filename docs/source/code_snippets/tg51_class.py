@@ -5,7 +5,7 @@ from pylinac.calibration import tg51
 ENERGY = 6
 TEMP = 22.1
 PRESS = tg51.mmHg2kPa(755.0)
-CHAMBER = "30013"  # PTW
+CHAMBER = tg51.IonChambers.PTW_30013
 P_ELEC = 1.000
 ND_w = 5.443  # Gy/nC
 MU = 200
@@ -19,7 +19,7 @@ tg51_6x = tg51.TG51Photon(
     n_dw=ND_w,
     p_elec=P_ELEC,
     measured_pdd10=66.4,
-    lead_foil=None,
+    lead_foil=tg51.LeadFoil.NONE,
     clinical_pdd10=66.5,
     energy=ENERGY,
     voltage_reference=-300,

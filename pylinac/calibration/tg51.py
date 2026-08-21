@@ -13,14 +13,18 @@ from __future__ import annotations
 
 import webbrowser
 from abc import abstractmethod
+from collections.abc import Iterator
+from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
+from typing import cast
 
 import argue
 import numpy as np
 
 from ..core.pdf import PylinacCanvas
 from ..core.typing import NumberOrArray
-from ..core.utilities import Structure
+from ..core.utilities import Structure, convert_to_enum
 
 MIN_TEMP = 15
 MAX_TEMP = 35
@@ -36,327 +40,668 @@ MIN_PPOL = 0.98
 MAX_PPOL = 1.02
 
 
-KQ_PHOTONS = {
+class LeadFoil(Enum):
+    """Lead foil positions supported by the TG-51 photon calculations."""
+
+    NONE = None
+    CM30 = "30cm"
+    CM50 = "50cm"
+
+    @classmethod
+    def options(cls) -> tuple[LeadFoil | str | None, ...]:
+        """Return enum and legacy values for argument validation."""
+        return *tuple(cls), *(option.value for option in cls)
+
+    def __str__(self) -> str:
+        """Return the historical lead foil value."""
+        return "None" if self.value is None else self.value
+
+
+@dataclass(frozen=True)
+class PhotonChamberCoefficients:
+    """Photon beam-quality correction coefficients for an ion chamber."""
+
+    a: float
+    b: float
+    c: float
+    a_prime: float
+    b_prime: float
+    c_prime: float
+    d_prime: float
+
+    def as_dict(self) -> dict[str, float]:
+        """Return the coefficients using the historical dictionary keys."""
+        return {
+            "a": self.a,
+            "b": self.b,
+            "c": self.c,
+            "a'": self.a_prime,
+            "b'": self.b_prime,
+            "c'": self.c_prime,
+            "d'": self.d_prime,
+        }
+
+
+@dataclass(frozen=True)
+class ElectronChamberCoefficients:
+    """Electron beam-quality correction coefficients for an ion chamber."""
+
+    kq_ecal: float
+    a: float
+    b: float
+    c: float
+
+    def as_dict(self) -> dict[str, float]:
+        """Return the coefficients using the historical dictionary keys."""
+        return {
+            "kQ,ecal": self.kq_ecal,
+            "a": self.a,
+            "b": self.b,
+            "c": self.c,
+        }
+
+
+@dataclass(frozen=True)
+class IonChamber:
+    """An ion chamber and its available TG-51 correction coefficients."""
+
+    name: str
+    photon_coefficients: PhotonChamberCoefficients | None
+    electron_coefficients: ElectronChamberCoefficients | None
+
+    def __str__(self) -> str:
+        """Return the historical chamber model name."""
+        return self.name
+
+
+class IonChambers:
+    """Predefined ion chambers supported by the TG-51 calculations."""
+
+    def __iter__(self) -> Iterator[IonChamber]:
+        """Iterate over the predefined ion chambers."""
+        for chamber in vars(type(self)).values():
+            if isinstance(chamber, IonChamber):
+                yield chamber
+
+    @classmethod
+    def from_name(cls, name: str) -> IonChamber:
+        """Retrieve a chamber by its historical model name.
+
+        Predefined chambers are returned directly. Chambers added dynamically to
+        :data:`KQ_PHOTONS` or :data:`KQ_ELECTRONS` are converted to an
+        :class:`IonChamber` with frozen coefficient objects. This is for historical compatibility
+        for users who appended to ``KQ_PHOTONS`` or ``KQ_ELECTRONS`` on the fly in previous versions.
+
+        Parameters
+        ----------
+        name
+            The chamber model name, such as ``"30013"`` or ``"A12"``.
+
+        Raises
+        ------
+        ValueError
+            If no ion chamber has the given name or a custom coefficient table is
+            missing a required key.
+        """
+        # predefined list
+        for chamber in cls():
+            if chamber.name == name:
+                return chamber
+
+        # for historical compatibility, construct any chamber that was added to
+        # KQ_PHOTONS/ELECTRONS on the fly and check them.
+        photon_coefficients = cls._photon_coefficients_from_table(name)
+        electron_coefficients = cls._electron_coefficients_from_table(name)
+        if photon_coefficients is not None or electron_coefficients is not None:
+            return IonChamber(
+                name=name,
+                photon_coefficients=photon_coefficients,
+                electron_coefficients=electron_coefficients,
+            )
+
+        valid_names = ", ".join(
+            sorted(
+                {chamber.name for chamber in cls()}
+                | KQ_PHOTONS.keys()
+                | KQ_ELECTRONS.keys()
+            )
+        )
+        raise ValueError(
+            f"No matching ion chamber exists for the name {name!r}. "
+            f"Valid ion chamber names are: {valid_names}"
+        )
+
+    @staticmethod
+    def _photon_coefficients_from_table(
+        name: str,
+    ) -> PhotonChamberCoefficients | None:
+        """Historical compatibility shim."""
+        coefficients = KQ_PHOTONS.get(name)
+        if coefficients is None:
+            return None
+        try:
+            return PhotonChamberCoefficients(
+                a=coefficients["a"],
+                b=coefficients["b"],
+                c=coefficients["c"],
+                a_prime=coefficients["a'"],
+                b_prime=coefficients["b'"],
+                c_prime=coefficients["c'"],
+                d_prime=coefficients["d'"],
+            )
+        except KeyError as error:
+            raise ValueError(
+                f"Photon coefficients for ion chamber {name!r} are missing "
+                f"required key {error.args[0]!r}"
+            ) from error
+
+    @staticmethod
+    def _electron_coefficients_from_table(
+        name: str,
+    ) -> ElectronChamberCoefficients | None:
+        """Historical compatibility shim."""
+        coefficients = KQ_ELECTRONS.get(name)
+        if coefficients is None:
+            return None
+        try:
+            return ElectronChamberCoefficients(
+                kq_ecal=coefficients["kQ,ecal"],
+                a=coefficients["a"],
+                b=coefficients["b"],
+                c=coefficients["c"],
+            )
+        except KeyError as error:
+            raise ValueError(
+                f"Electron coefficients for ion chamber {name!r} are missing "
+                f"required key {error.args[0]!r}"
+            ) from error
+
     # Exradin
-    "A12": {
-        "a": 1.0146,
-        "b": 0.777e-3,
-        "c": -1.666e-5,
-        "a'": 2.6402,
-        "b'": -7.2304,
-        "c'": 10.7573,
-        "d'": -5.4294,
-    },
-    "A19": {
-        "a": 0.9934,
-        "b": 1.384e-3,
-        "c": -2.125e-5,
-        "a'": 3.0907,
-        "b'": -9.1930,
-        "c'": 13.5957,
-        "d'": -6.7969,
-    },
-    "A2": {
-        "a": 0.9819,
-        "b": 1.609e-3,
-        "c": -2.184e-5,
-        "a'": 2.8458,
-        "b'": -8.1619,
-        "c'": 12.1411,
-        "d'": -6.1041,
-    },
-    "T2": {
-        "a": 1.0173,
-        "b": 0.854e-3,
-        "c": -1.941e-5,
-        "a'": 3.3433,
-        "b'": -10.2649,
-        "c'": 15.1247,
-        "d'": -7.5415,
-    },
-    "A12S": {
-        "a": 0.9692,
-        "b": 1.974e-3,
-        "c": -2.448e-5,
-        "a'": 2.9597,
-        "b'": -8.6777,
-        "c'": 12.9155,
-        "d'": -6.4903,
-    },
-    "A18": {
-        "a": 0.9944,
-        "b": 1.286e-3,
-        "c": -1.980e-5,
-        "a'": 2.5167,
-        "b'": -6.7567,
-        "c'": 10.1519,
-        "d'": -5.1709,
-    },
-    "A1": {
-        "a": 1.0029,
-        "b": 1.023e-3,
-        "c": -1.803e-5,
-        "a'": 2.0848,
-        "b'": -4.9174,
-        "c'": 7.5446,
-        "d'": -3.9441,
-    },
-    "T1": {
-        "a": 1.0552,
-        "b": -0.196e-3,
-        "c": -1.275e-5,
-        "a'": 2.8060,
-        "b'": -7.9273,
-        "c'": 11.7541,
-        "d'": -5.9263,
-    },
-    "A1SL": {
-        "a": 0.9896,
-        "b": 1.410e-3,
-        "c": -2.049e-5,
-        "a'": 2.8029,
-        "b'": -7.9648,
-        "c'": 11.8445,
-        "d'": -5.9568,
-    },
-    "A14": {
-        "a": 0.9285,
-        "b": 2.706e-3,
-        "c": -2.599e-5,
-        "a'": 5.4677,
-        "b'": -19.1795,
-        "c'": 27.4542,
-        "d'": -13.1336,
-    },
-    "T14": {
-        "a": 0.9622,
-        "b": 2.009e-3,
-        "c": -2.401e-5,
-        "a'": 4.9690,
-        "b'": -17.1074,
-        "c'": 24.6292,
-        "d'": -11.8877,
-    },
-    "A14SL": {
-        "a": 0.9017,
-        "b": 3.454e-3,
-        "c": -3.083e-5,
-        "a'": 5.1205,
-        "b'": -17.7884,
-        "c'": 25.6123,
-        "d'": -12.3232,
-    },
-    "A16": {
-        "a": 0.8367,
-        "b": 4.987e-3,
-        "c": -3.877e-5,
-        "a'": 6.0571,
-        "b'": -21.7829,
-        "c'": 31.2289,
-        "d'": -14.9168,
-    },
+    EXRADIN_A12 = IonChamber(
+        name="A12",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=1.0146,
+            b=0.000777,
+            c=-1.666e-05,
+            a_prime=2.6402,
+            b_prime=-7.2304,
+            c_prime=10.7573,
+            d_prime=-5.4294,
+        ),
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.907, a=0.965, b=0.119, c=0.607
+        ),
+    )
+    EXRADIN_A19 = IonChamber(
+        name="A19",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9934,
+            b=0.001384,
+            c=-2.125e-05,
+            a_prime=3.0907,
+            b_prime=-9.193,
+            c_prime=13.5957,
+            d_prime=-6.7969,
+        ),
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.904, a=0.957, b=0.119, c=0.505
+        ),
+    )
+    EXRADIN_A2 = IonChamber(
+        name="A2",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9819,
+            b=0.001609,
+            c=-2.184e-05,
+            a_prime=2.8458,
+            b_prime=-8.1619,
+            c_prime=12.1411,
+            d_prime=-6.1041,
+        ),
+        electron_coefficients=None,
+    )
+    EXRADIN_T2 = IonChamber(
+        name="T2",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=1.0173,
+            b=0.000854,
+            c=-1.941e-05,
+            a_prime=3.3433,
+            b_prime=-10.2649,
+            c_prime=15.1247,
+            d_prime=-7.5415,
+        ),
+        electron_coefficients=None,
+    )
+    EXRADIN_A12S = IonChamber(
+        name="A12S",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9692,
+            b=0.001974,
+            c=-2.448e-05,
+            a_prime=2.9597,
+            b_prime=-8.6777,
+            c_prime=12.9155,
+            d_prime=-6.4903,
+        ),
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.907, a=0.937, b=0.136, c=0.378
+        ),
+    )
+    EXRADIN_A18 = IonChamber(
+        name="A18",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9944,
+            b=0.001286,
+            c=-1.98e-05,
+            a_prime=2.5167,
+            b_prime=-6.7567,
+            c_prime=10.1519,
+            d_prime=-5.1709,
+        ),
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.914, a=0.352, b=0.711, c=0.046
+        ),
+    )
+    EXRADIN_A1 = IonChamber(
+        name="A1",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=1.0029,
+            b=0.001023,
+            c=-1.803e-05,
+            a_prime=2.0848,
+            b_prime=-4.9174,
+            c_prime=7.5446,
+            d_prime=-3.9441,
+        ),
+        electron_coefficients=None,
+    )
+    EXRADIN_T1 = IonChamber(
+        name="T1",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=1.0552,
+            b=-0.000196,
+            c=-1.275e-05,
+            a_prime=2.806,
+            b_prime=-7.9273,
+            c_prime=11.7541,
+            d_prime=-5.9263,
+        ),
+        electron_coefficients=None,
+    )
+    EXRADIN_A1SL = IonChamber(
+        name="A1SL",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9896,
+            b=0.00141,
+            c=-2.049e-05,
+            a_prime=2.8029,
+            b_prime=-7.9648,
+            c_prime=11.8445,
+            d_prime=-5.9568,
+        ),
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.914, a=0.205, b=0.854, c=0.036
+        ),
+    )
+    EXRADIN_A14 = IonChamber(
+        name="A14",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9285,
+            b=0.002706,
+            c=-2.599e-05,
+            a_prime=5.4677,
+            b_prime=-19.1795,
+            c_prime=27.4542,
+            d_prime=-13.1336,
+        ),
+        electron_coefficients=None,
+    )
+    EXRADIN_T14 = IonChamber(
+        name="T14",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9622,
+            b=0.002009,
+            c=-2.401e-05,
+            a_prime=4.969,
+            b_prime=-17.1074,
+            c_prime=24.6292,
+            d_prime=-11.8877,
+        ),
+        electron_coefficients=None,
+    )
+    EXRADIN_A14SL = IonChamber(
+        name="A14SL",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9017,
+            b=0.003454,
+            c=-3.083e-05,
+            a_prime=5.1205,
+            b_prime=-17.7884,
+            c_prime=25.6123,
+            d_prime=-12.3232,
+        ),
+        electron_coefficients=None,
+    )
+    EXRADIN_A16 = IonChamber(
+        name="A16",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.8367,
+            b=0.004987,
+            c=-3.877e-05,
+            a_prime=6.0571,
+            b_prime=-21.7829,
+            c_prime=31.2289,
+            d_prime=-14.9168,
+        ),
+        electron_coefficients=None,
+    )
+
     # PTW
-    "30010": {
-        "a": 1.0093,
-        "b": 0.926e-3,
-        "c": -1.771e-5,
-        "a'": 2.5318,
-        "b'": -6.7948,
-        "c'": 10.1779,
-        "d'": -5.1746,
-    },
-    "30011": {
-        "a": 0.9676,
-        "b": 2.061e-3,
-        "c": -2.528e-5,
-        "a'": 2.9044,
-        "b'": -8.4576,
-        "c'": 12.6339,
-        "d'": -6.3742,
-    },
-    "30012": {
-        "a": 0.9537,
-        "b": 2.440e-3,
-        "c": -2.750e-5,
-        "a'": 3.2836,
-        "b'": -10.0610,
-        "c'": 14.8867,
-        "d'": -7.4212,
-    },
-    "30013": {
-        "a": 0.9652,
-        "b": 2.141e-3,
-        "c": -2.623e-5,
-        "a'": 3.2012,
-        "b'": -9.7211,
-        "c'": 14.4211,
-        "d'": -7.2184,
-    },
-    "31010": {
-        "a": 0.9590,
-        "b": 2.265e-3,
-        "c": -2.684e-5,
-        "a'": 3.1578,
-        "b'": -9.5422,
-        "c'": 14.1676,
-        "d'": -7.0964,
-    },
-    "31016": {
-        "a": 1.0085,
-        "b": 1.028e-3,
-        "c": -1.968e-5,
-        "a'": 2.9524,
-        "b'": -8.6054,
-        "c'": 12.7757,
-        "d'": -6.4265,
-    },
-    "31014": {
-        "a": 1.0071,
-        "b": 1.048e-3,
-        "c": -1.967e-5,
-        "a'": 3.0178,
-        "b'": -8.8735,
-        "c'": 13.1372,
-        "d'": -6.5867,
-    },
+    PTW_30010 = IonChamber(
+        name="30010",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=1.0093,
+            b=0.000926,
+            c=-1.771e-05,
+            a_prime=2.5318,
+            b_prime=-6.7948,
+            c_prime=10.1779,
+            d_prime=-5.1746,
+        ),
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.904, a=0.98, b=0.119, c=0.891
+        ),
+    )
+    PTW_30011 = IonChamber(
+        name="30011",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9676,
+            b=0.002061,
+            c=-2.528e-05,
+            a_prime=2.9044,
+            b_prime=-8.4576,
+            c_prime=12.6339,
+            d_prime=-6.3742,
+        ),
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.901, a=0.976, b=0.12, c=0.793
+        ),
+    )
+    PTW_30012 = IonChamber(
+        name="30012",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9537,
+            b=0.00244,
+            c=-2.75e-05,
+            a_prime=3.2836,
+            b_prime=-10.061,
+            c_prime=14.8867,
+            d_prime=-7.4212,
+        ),
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.908, a=0.972, b=0.121, c=0.728
+        ),
+    )
+    PTW_30013 = IonChamber(
+        name="30013",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9652,
+            b=0.002141,
+            c=-2.623e-05,
+            a_prime=3.2012,
+            b_prime=-9.7211,
+            c_prime=14.4211,
+            d_prime=-7.2184,
+        ),
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.901, a=0.978, b=0.112, c=0.816
+        ),
+    )
+    PTW_31010 = IonChamber(
+        name="31010",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.959,
+            b=0.002265,
+            c=-2.684e-05,
+            a_prime=3.1578,
+            b_prime=-9.5422,
+            c_prime=14.1676,
+            d_prime=-7.0964,
+        ),
+        electron_coefficients=None,
+    )
+    PTW_31013 = IonChamber(
+        name="31013",
+        photon_coefficients=None,
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.902, a=0.945, b=0.133, c=0.441
+        ),
+    )
+    PTW_31014 = IonChamber(
+        name="31014",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=1.0071,
+            b=0.001048,
+            c=-1.967e-05,
+            a_prime=3.0178,
+            b_prime=-8.8735,
+            c_prime=13.1372,
+            d_prime=-6.5867,
+        ),
+        electron_coefficients=None,
+    )
+    PTW_31016 = IonChamber(
+        name="31016",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=1.0085,
+            b=0.001028,
+            c=-1.968e-05,
+            a_prime=2.9524,
+            b_prime=-8.6054,
+            c_prime=12.7757,
+            d_prime=-6.4265,
+        ),
+        electron_coefficients=None,
+    )
+
     # IBA
-    "CC25": {
-        "a": 0.9551,
-        "b": 2.353e-3,
-        "c": -2.687e-5,
-        "a'": 2.4567,
-        "b'": -6.5932,
-        "c'": 10.0471,
-        "d'": -5.1775,
-    },
-    "CC13": {
-        "a": 0.9515,
-        "b": 2.455e-3,
-        "c": -2.768e-5,
-        "a'": 3.1982,
-        "b'": -9.7182,
-        "c'": 14.4210,
-        "d'": -7.2121,
-    },
-    "CC08": {
-        "a": 0.9430,
-        "b": 2.637e-3,
-        "c": -2.884e-5,
-        "a'": 3.7328,
-        "b'": -11.9800,
-        "c'": 17.5884,
-        "d'": -8.6843,
-    },
-    "CC04": {
-        "a": 0.9714,
-        "b": 1.938e-3,
-        "c": -2.432e-5,
-        "a'": 3.0054,
-        "b'": -8.8633,
-        "c'": 13.1704,
-        "d'": -6.6075,
-    },
-    "CC01": {
-        "a": 0.9116,
-        "b": 3.358e-3,
-        "c": -3.177e-5,
-        "a'": 4.3376,
-        "b'": -14.4935,
-        "c'": 21.0293,
-        "d'": -10.2208,
-    },
-    "FC65-G": {
-        "a": 0.9708,
-        "b": 1.972e-3,
-        "c": -2.480e-5,
-        "a'": 3.3221,
-        "b'": -10.2012,
-        "c'": 15.0497,
-        "d'": -7.4872,
-    },
-    "FC65-P": {
-        "a": 0.9828,
-        "b": 1.664e-3,
-        "c": -2.296e-5,
-        "a'": 3.0872,
-        "b'": -9.1919,
-        "c'": 13.6137,
-        "d'": -6.8118,
-    },
-    "FC23-C": {
-        "a": 0.9820,
-        "b": 1.579e-3,
-        "c": -2.166e-5,
-        "a'": 3.0511,
-        "b'": -9.0243,
-        "c'": 13.3378,
-        "d'": -6.6559,
-    },
-    # Other
-    "NE2581": {
-        "a": 1.0318,
-        "b": 0.488e-3,
-        "c": -1.731e-5,
-        "a'": 2.9190,
-        "b'": -8.4561,
-        "c'": 12.5690,
-        "d'": -6.3468,
-    },
-    "NE2571": {
-        "a": 0.9882,
-        "b": 1.486e-3,
-        "c": -2.140e-5,
-        "a'": 2.2328,
-        "b'": -5.5779,
-        "c'": 8.5325,
-        "d'": -4.4352,
-    },
-    "NE2561": {
-        "a": 1.0200,
-        "b": 0.596e-3,
-        "c": -1.551e-5,
-        "a'": 2.4235,
-        "b'": -6.3179,
-        "c'": 9.4737,
-        "d'": -4.8307,
-    },
-    "PR06C/G": {
-        "a": 0.9519,
-        "b": 2.432e-3,
-        "c": -2.704e-5,
-        "a'": 2.9110,
-        "b'": -8.4916,
-        "c'": 12.6817,
-        "d'": -6.3874,
-    },
+    IBA_CC25 = IonChamber(
+        name="CC25",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9551,
+            b=0.002353,
+            c=-2.687e-05,
+            a_prime=2.4567,
+            b_prime=-6.5932,
+            c_prime=10.0471,
+            d_prime=-5.1775,
+        ),
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.904, a=0.964, b=0.105, c=0.539
+        ),
+    )
+    IBA_CC13 = IonChamber(
+        name="CC13",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9515,
+            b=0.002455,
+            c=-2.768e-05,
+            a_prime=3.1982,
+            b_prime=-9.7182,
+            c_prime=14.421,
+            d_prime=-7.2121,
+        ),
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.904, a=0.926, b=0.129, c=0.279
+        ),
+    )
+    IBA_CC08 = IonChamber(
+        name="CC08",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.943,
+            b=0.002637,
+            c=-2.884e-05,
+            a_prime=3.7328,
+            b_prime=-11.98,
+            c_prime=17.5884,
+            d_prime=-8.6843,
+        ),
+        electron_coefficients=None,
+    )
+    IBA_CC04 = IonChamber(
+        name="CC04",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9714,
+            b=0.001938,
+            c=-2.432e-05,
+            a_prime=3.0054,
+            b_prime=-8.8633,
+            c_prime=13.1704,
+            d_prime=-6.6075,
+        ),
+        electron_coefficients=None,
+    )
+    IBA_CC01 = IonChamber(
+        name="CC01",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9116,
+            b=0.003358,
+            c=-3.177e-05,
+            a_prime=4.3376,
+            b_prime=-14.4935,
+            c_prime=21.0293,
+            d_prime=-10.2208,
+        ),
+        electron_coefficients=None,
+    )
+    IBA_FC65_G = IonChamber(
+        name="FC65-G",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9708,
+            b=0.001972,
+            c=-2.48e-05,
+            a_prime=3.3221,
+            b_prime=-10.2012,
+            c_prime=15.0497,
+            d_prime=-7.4872,
+        ),
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.904, a=0.971, b=0.113, c=0.68
+        ),
+    )
+    IBA_FC65_P = IonChamber(
+        name="FC65-P",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9828,
+            b=0.001664,
+            c=-2.296e-05,
+            a_prime=3.0872,
+            b_prime=-9.1919,
+            c_prime=13.6137,
+            d_prime=-6.8118,
+        ),
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.902, a=0.973, b=0.11, c=0.692
+        ),
+    )
+    IBA_FC23_C = IonChamber(
+        name="FC23-C",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.982,
+            b=0.001579,
+            c=-2.166e-05,
+            a_prime=3.0511,
+            b_prime=-9.0243,
+            c_prime=13.3378,
+            d_prime=-6.6559,
+        ),
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.904, a=0.971, b=0.097, c=0.591
+        ),
+    )
+
+    # Nuclear Enterprises
+    NE_2581 = IonChamber(
+        name="NE2581",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=1.0318,
+            b=0.000488,
+            c=-1.731e-05,
+            a_prime=2.919,
+            b_prime=-8.4561,
+            c_prime=12.569,
+            d_prime=-6.3468,
+        ),
+        electron_coefficients=None,
+    )
+    NE_2571 = IonChamber(
+        name="NE2571",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9882,
+            b=0.001486,
+            c=-2.14e-05,
+            a_prime=2.2328,
+            b_prime=-5.5779,
+            c_prime=8.5325,
+            d_prime=-4.4352,
+        ),
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.903, a=0.977, b=0.117, c=0.817
+        ),
+    )
+    NE_2561 = IonChamber(
+        name="NE2561",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=1.02,
+            b=0.000596,
+            c=-1.551e-05,
+            a_prime=2.4235,
+            b_prime=-6.3179,
+            c_prime=9.4737,
+            d_prime=-4.8307,
+        ),
+        electron_coefficients=None,
+    )
+    NE_2611 = IonChamber(
+        name="NE2611",
+        photon_coefficients=None,
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.896, a=0.979, b=0.12, c=0.875
+        ),
+    )
+
+    # Capintec
+    CAPINTEC_PR06C_G = IonChamber(
+        name="PR06C/G",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9519,
+            b=0.002432,
+            c=-2.704e-05,
+            a_prime=2.911,
+            b_prime=-8.4916,
+            c_prime=12.6817,
+            d_prime=-6.3874,
+        ),
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.906, a=0.972, b=0.122, c=0.729
+        ),
+    )
+
+
+# Reconstructed dicts for historical compatibility in the event
+# users modify/add to this on the fly in their scripts.
+KQ_PHOTONS = {
+    chamber.name: chamber.photon_coefficients.as_dict()
+    for chamber in IonChambers()
+    if chamber.photon_coefficients is not None
 }
 
 KQ_ELECTRONS = {
-    # Exradin
-    "A12": {"kQ,ecal": 0.907, "a": 0.965, "b": 0.119, "c": 0.607},
-    "A19": {"kQ,ecal": 0.904, "a": 0.957, "b": 0.119, "c": 0.505},
-    "A12S": {"kQ,ecal": 0.907, "a": 0.937, "b": 0.136, "c": 0.378},
-    "A18": {"kQ,ecal": 0.914, "a": 0.352, "b": 0.711, "c": 0.046},
-    "A1SL": {"kQ,ecal": 0.914, "a": 0.205, "b": 0.854, "c": 0.036},
-    # PTW
-    "30010": {"kQ,ecal": 0.904, "a": 0.980, "b": 0.119, "c": 0.891},
-    "30011": {"kQ,ecal": 0.901, "a": 0.976, "b": 0.120, "c": 0.793},
-    "30012": {"kQ,ecal": 0.908, "a": 0.972, "b": 0.121, "c": 0.728},
-    "30013": {"kQ,ecal": 0.901, "a": 0.978, "b": 0.112, "c": 0.816},
-    "31013": {"kQ,ecal": 0.902, "a": 0.945, "b": 0.133, "c": 0.441},
-    # IBA
-    "FC65-G": {"kQ,ecal": 0.904, "a": 0.971, "b": 0.113, "c": 0.680},
-    "FC65-P": {"kQ,ecal": 0.902, "a": 0.973, "b": 0.110, "c": 0.692},
-    "FC23-C": {"kQ,ecal": 0.904, "a": 0.971, "b": 0.097, "c": 0.591},
-    "CC25": {"kQ,ecal": 0.904, "a": 0.964, "b": 0.105, "c": 0.539},
-    "CC13": {"kQ,ecal": 0.904, "a": 0.926, "b": 0.129, "c": 0.279},
-    # Other
-    "PR06C/G": {"kQ,ecal": 0.906, "a": 0.972, "b": 0.122, "c": 0.729},
-    "NE2571": {"kQ,ecal": 0.903, "a": 0.977, "b": 0.117, "c": 0.817},
-    "NE2611": {"kQ,ecal": 0.896, "a": 0.979, "b": 0.120, "c": 0.875},
+    chamber.name: chamber.electron_coefficients.as_dict()
+    for chamber in IonChambers()
+    if chamber.electron_coefficients is not None
 }
-
-LEAD_OPTIONS = {"None": None, "30cm": "30cm", "50cm": "50cm"}
 
 
 def mmHg2kPa(mmHg: float) -> float:
@@ -554,8 +899,8 @@ def m_corrected(
 
 
 @argue.bounds(pdd=(62.7, 89.0))
-@argue.options(lead_foil=LEAD_OPTIONS.values())
-def pddx(*, pdd: float, energy: int, lead_foil: str | None = None) -> float:
+@argue.options(lead_foil=LeadFoil.options())
+def pddx(*, pdd: float, energy: int, lead_foil: str | LeadFoil | None = None) -> float:
     """Calculate PDDx based on the PDD.
 
     Parameters
@@ -564,29 +909,30 @@ def pddx(*, pdd: float, energy: int, lead_foil: str | None = None) -> float:
         The measured PDD. If lead foil was used, this assumes the pdd as measured with the lead in place.
     energy : int
         The nominal energy in MV.
-    lead_foil : {None, '30cm', '50cm'}
+    lead_foil : LeadFoil, {None, '30cm', '50cm'}
         Applicable only for energies >10MV.
         Whether a lead foil was used to acquire the pdd.
         Use ``None`` if no lead foil was used and the interim equation should be used. This is the default
         Use ``50cm`` if the lead foil was set to 50cm from the phantom surface.
         Use ``30cm`` if the lead foil was set to 30cm from the phantom surface.
     """
+    lead_foil = cast(LeadFoil, convert_to_enum(lead_foil, LeadFoil))
     if energy < 10:
         return pdd
     elif energy >= 10:
-        if lead_foil is None:
+        if lead_foil is LeadFoil.NONE:
             if pdd <= 75:
                 return pdd
             elif 75 < pdd <= 89:
                 return 1.267 * pdd - 20
             else:
                 raise ValueError(f"PDD value of {pdd} was outside the bound of 89%")
-        elif lead_foil == LEAD_OPTIONS["50cm"]:
+        elif lead_foil is LeadFoil.CM50:
             if pdd < 73:
                 return pdd
             else:
                 return (0.8905 + 0.0015 * pdd) * pdd
-        elif lead_foil == LEAD_OPTIONS["30cm"]:
+        elif lead_foil is LeadFoil.CM30:
             if pdd < 71:
                 return pdd
             else:
@@ -594,14 +940,13 @@ def pddx(*, pdd: float, energy: int, lead_foil: str | None = None) -> float:
 
 
 @argue.bounds(pddx=(63.0, 86.0))
-@argue.options(chamber=KQ_PHOTONS.keys())
-def kq_photon_pddx(*, chamber: str, pddx: float) -> float:
+def kq_photon_pddx(*, chamber: str | IonChamber, pddx: float) -> float:
     """Calculate kQ based on the chamber and clinical measurements of PDD(10)x. This will calculate kQ for photons
     for *CYLINDRICAL* chambers only.
 
     Parameters
     ----------
-    chamber : str
+    chamber : str or IonChamber
         The chamber of the chamber. Valid values are those listed in
         Table III of Muir and Rogers and Table I of the TG-51 Addendum.
     pddx : {>63.0, <86.0}
@@ -612,19 +957,22 @@ def kq_photon_pddx(*, chamber: str, pddx: float) -> float:
         .. note:: Muir and Rogers state limits of 0.627 - 0.861. The TG-51 addendum states them as 0.63 and 0.86.
                   The TG-51 addendum limits are used here.
     """
-    ch = KQ_PHOTONS[chamber]
-    return ch["a"] + ch["b"] * pddx + ch["c"] * (pddx**2)
+    if isinstance(chamber, str):
+        chamber = IonChambers.from_name(chamber)
+    coef = chamber.photon_coefficients
+    if coef is None:
+        raise ValueError(f"Chamber {chamber} does not have photon coefficients")
+    return coef.a + coef.b * pddx + coef.c * (pddx**2)
 
 
 @argue.bounds(tpr=(0.623, 0.805))
-@argue.options(chamber=KQ_PHOTONS.keys())
-def kq_photon_tpr(*, chamber: str, tpr: float) -> float:
+def kq_photon_tpr(*, chamber: str | IonChamber, tpr: float) -> float:
     """Calculate kQ based on the chamber and clinical measurements of TPR20,10. This will calculate kQ for photons
     for *CYLINDRICAL* chambers only.
 
     Parameters
     ----------
-    chamber : str
+    chamber : str or IonChamber
         The chamber of the chamber. Valid values are those listed in
         Table III of Muir and Rogers and Table I of the TG-51 Addendum.
     tpr : {>0.630, <0.860}
@@ -633,25 +981,37 @@ def kq_photon_tpr(*, chamber: str, tpr: float) -> float:
         .. note::
          Use the :func:`~pylinac.calibration.tg51.tpr2010_from_pdd2010` function to convert from PDD without needing to take TPR measurements.
     """
-    ch = KQ_PHOTONS[chamber]
-    return ch["a'"] + ch["b'"] * tpr + ch["c'"] * (tpr**2) + ch["d'"] * (tpr**3)
+    if isinstance(chamber, str):
+        chamber = IonChambers.from_name(chamber)
+    coef = chamber.photon_coefficients
+    if coef is None:
+        raise ValueError(f"Chamber {chamber} does not have photon coefficients")
+    return (
+        coef.a_prime
+        + coef.b_prime * tpr
+        + coef.c_prime * (tpr**2)
+        + coef.d_prime * (tpr**3)
+    )
 
 
-@argue.options(chamber=KQ_ELECTRONS.keys())
-def kq_electron(*, chamber: str, r_50: float) -> float:
+def kq_electron(*, chamber: str | IonChamber, r_50: float) -> float:
     """Calculate kQ based on the chamber and clinical measurements. This will calculate kQ for electrons
     for *CYLINDRICAL* chambers only according to Muir & Rogers.
 
     Parameters
     ----------
-    chamber : str
+    chamber : str or IonChamber
         The chamber of the chamber. Valid values are those listed in
         Tables VI and VII of Muir and Rogers 2014.
     r_50 : float
         The R50 value in cm of an electron beam.
     """
-    ch = KQ_ELECTRONS[chamber]
-    return (ch["a"] + ch["b"] * r_50 ** -ch["c"]) * ch["kQ,ecal"]
+    if isinstance(chamber, str):
+        chamber = IonChambers.from_name(chamber)
+    coef = chamber.electron_coefficients
+    if coef is None:
+        raise ValueError(f"Chamber {chamber} does not have electron coefficients")
+    return (coef.a + coef.b * r_50**-coef.c) * coef.kq_ecal
 
 
 class TG51Base(Structure):
@@ -661,7 +1021,7 @@ class TG51Base(Structure):
     measurement_date: str
     temp: float
     press: float
-    chamber: str
+    chamber: str | IonChamber
     n_dw: float
     p_elec: float
     electrometer: str
@@ -747,7 +1107,7 @@ class TG51Photon(TG51Base):
         The value of pressure in kPa. Can be converted from mmHg and mbar; see :func:`~pylinac.calibration.tg51.mmHg2kPa` and :func:`~pylinac.calibration.tg51.mbar2kPa`.
     energy : float
         Nominal energy of the beam in MV.
-    chamber : str
+    chamber : str or IonChamber
         Chamber model. Must be one of the listed chambers in TG-51 Addendum.
     n_dw : float
         NDW value in Gy/nC.
@@ -755,7 +1115,7 @@ class TG51Photon(TG51Base):
         Electrometer correction factor; given by the calibration laboratory.
     measured_pdd10 : float
         The measured value of PDD(10); will be converted to PDDx(10) and used for calculating kq.
-    lead_foil : {None, '50cm', '30cm'}
+    lead_foil : LeadFoil, {None, '50cm', '30cm'}
         Whether a lead foil was used to acquire PDD(10)x and where its position was. Used to calculate kq.
     clinical_pdd10 : float
         The PDD used to correct the dose at 10cm back to dmax. Usually the TPS PDD(10) value.
@@ -780,9 +1140,9 @@ class TG51Photon(TG51Base):
     fff: bool
     measured_pdd10: float | None
     clinical_pdd10: float
-    lead_foil: str | None
+    lead_foil: LeadFoil
 
-    @argue.options(chamber=KQ_PHOTONS.keys(), lead_foil=LEAD_OPTIONS.values())
+    @argue.options(lead_foil=LeadFoil.options())
     def __init__(
         self,
         *,
@@ -792,12 +1152,12 @@ class TG51Photon(TG51Base):
         measurement_date: str = "",
         temp: float,
         press: float,
-        chamber: str,
+        chamber: str | IonChamber,
         n_dw: float,
         p_elec: float,
         electrometer: str = "",
         measured_pdd10: float | None = None,
-        lead_foil: str | None = None,
+        lead_foil: str | LeadFoil | None = None,
         clinical_pdd10: float,
         energy: int,
         fff: bool = False,
@@ -813,7 +1173,9 @@ class TG51Photon(TG51Base):
         super().__init__(
             temp=temp,
             press=press,
-            chamber=chamber,
+            chamber=(
+                IonChambers.from_name(chamber) if isinstance(chamber, str) else chamber
+            ),
             n_dw=n_dw,
             p_elec=p_elec,
             measured_pdd10=measured_pdd10,
@@ -826,7 +1188,7 @@ class TG51Photon(TG51Base):
             clinical_pdd10=clinical_pdd10,
             mu=mu,
             tissue_correction=tissue_correction,
-            lead_foil=lead_foil,
+            lead_foil=cast(LeadFoil, convert_to_enum(lead_foil, LeadFoil)),
             electrometer=electrometer,
             m_reference_adjusted=m_reference_adjusted,
             institution=institution,
@@ -921,8 +1283,8 @@ class TG51Photon(TG51Base):
             f"MU: {self.mu}",
             "",
             "Beam Quality:",
-            f"Lead foil: {'No' if self.lead_foil is None else self.lead_foil}",
-            f"Measured PDD(10){'' if self.lead_foil is None else 'Pb'} {self.measured_pdd10:2.2f}",
+            f"Lead foil: {'No' if self.lead_foil is LeadFoil.NONE else self.lead_foil}",
+            f"Measured PDD(10){'' if self.lead_foil is LeadFoil.NONE else 'Pb'} {self.measured_pdd10:2.2f}",
             f"Calculated PDD(10)x: {self.pddx:2.2f}",
             f"Determined kQ: {self.kq:2.3f}",
             "",
@@ -986,7 +1348,7 @@ class TG51ElectronLegacy(TG51Base):
         The temperature in degrees Celsius.
     press : float (91-111)
         The value of pressure in kPa. Can be converted from mmHg and mbar; see :func:`~pylinac.calibration.tg51.mmHg2kPa` and :func:`~pylinac.calibration.tg51.mbar2kPa`.
-    chamber : str
+    chamber : str or IonChamber
         Chamber model; only for bookkeeping.
     n_dw : float
         NDW value in Gy/nC. Given by the calibration laboratory.
@@ -1030,7 +1392,7 @@ class TG51ElectronLegacy(TG51Base):
         energy: int,
         temp: float,
         press: float,
-        chamber: str,
+        chamber: str | IonChamber,
         k_ecal: float,
         n_dw: float,
         electrometer: str = "",
@@ -1048,6 +1410,11 @@ class TG51ElectronLegacy(TG51Base):
         tissue_correction: float = 1.0,
         m_reference_adjusted=None,
     ):
+        if isinstance(chamber, str):
+            try:
+                chamber = IonChambers.from_name(chamber)
+            except ValueError:
+                pass  # legacy calibrations permit arbitrary bookkeeping labels
         super().__init__(
             temp=temp,
             press=press,
@@ -1256,7 +1623,7 @@ class TG51ElectronModern(TG51Base):
         The reading(s) of the chamber at the reduced voltage.
     m_opposite : array, float
         The reading(s) of the chamber at the opposite voltage from reference. Sign of the reading does not matter.
-    chamber : str
+    chamber : str or IonChamber
         Ion chamber model.
     n_dw : float
         NDW value in Gy/nC
@@ -1286,7 +1653,7 @@ class TG51ElectronModern(TG51Base):
         energy: int,
         temp: float,
         press: float,
-        chamber: str,
+        chamber: str | IonChamber,
         n_dw: float,
         electrometer: str = "",
         p_elec: float,
@@ -1305,7 +1672,9 @@ class TG51ElectronModern(TG51Base):
         super().__init__(
             temp=temp,
             press=press,
-            chamber=chamber,
+            chamber=(
+                IonChambers.from_name(chamber) if isinstance(chamber, str) else chamber
+            ),
             n_dw=n_dw,
             p_elec=p_elec,
             voltage_reference=voltage_reference,
