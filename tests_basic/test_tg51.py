@@ -8,6 +8,32 @@ from parameterized import parameterized
 from pylinac.calibration import tg51
 from tests_basic.utils import save_file
 
+# Reproduction of TG-51 Addendum Table I to perform spot checks of chamber kQ values
+TABLE_I_PDDS = (63, 67, 73, 77, 81)
+TABLE_I_CHAMBERS = (
+    # chamber, abc kQ coefficients, a'b'c'd' TPR kQ coefficients
+    ("PR06C/G", (0.9519, 2.432, -2.704), (0.998, 0.993, 0.985, 0.979, 0.971)),
+    ("A19", (0.9934, 1.384, -2.125), (0.996, 0.991, 0.981, 0.974, 0.966)),
+    ("A12", (1.0146, 0.777, -1.666), (0.997, 0.992, 0.983, 0.976, 0.968)),
+    ("A12S", (0.9692, 1.974, -2.448), (0.996, 0.992, 0.983, 0.976, 0.968)),
+    ("A18", (0.9944, 1.286, -1.980), (0.997, 0.992, 0.983, 0.976, 0.969)),
+    ("A1", (1.0029, 1.023, -1.803), (0.996, 0.991, 0.981, 0.975, 0.967)),
+    ("A1SL", (0.9896, 1.410, -2.049), (0.997, 0.992, 0.983, 0.977, 0.969)),
+    ("NE2561", (0.9722, 1.977, -2.463), (0.999, 0.994, 0.985, 0.978, 0.971)),
+    ("NE2571", (0.9882, 1.486, -2.140), (0.997, 0.992, 0.983, 0.976, 0.968)),
+    ("30010", (1.0093, 0.926, -1.771), (0.997, 0.992, 0.983, 0.976, 0.968)),
+    ("30011", (0.9676, 2.061, -2.528), (0.997, 0.992, 0.983, 0.976, 0.969)),
+    ("30012", (0.9537, 2.440, -2.750), (0.998, 0.994, 0.985, 0.979, 0.971)),
+    ("30013", (0.9652, 2.141, -2.623), (0.996, 0.991, 0.982, 0.975, 0.967)),
+    ("31013", (0.9725, 1.957, -2.498), (0.997, 0.992, 0.982, 0.975, 0.967)),
+    ("FC65-G", (0.9708, 1.972, -2.480), (0.997, 0.992, 0.983, 0.976, 0.968)),
+    ("FC65-P", (0.9828, 1.664, -2.296), (0.997, 0.991, 0.982, 0.975, 0.967)),
+    ("FC23-C", (0.9820, 1.579, -2.166), (0.996, 0.991, 0.982, 0.975, 0.968)),
+    ("CC25", (0.9551, 2.353, -2.687), (0.997, 0.992, 0.984, 0.977, 0.969)),
+    ("CC13", (0.9515, 2.455, -2.768), (0.996, 0.992, 0.983, 0.976, 0.969)),
+    ("CC08", (0.9430, 2.637, -2.884), (0.995, 0.990, 0.982, 0.975, 0.967)),
+)
+
 
 class TestFunctions(TestCase):
     @parameterized.expand([(22, 101.33, 1.0), (25, 102.66, 0.997), (19, 98.66, 1.0165)])
@@ -93,6 +119,35 @@ class TestFunctions(TestCase):
             tg51.kq_photon_pddx(chamber=chamber, pddx=pddx), kq, delta=0.001
         )
 
+    @parameterized.expand(TABLE_I_CHAMBERS)
+    def test_table_i_photon_coefficients(self, chamber, coefficients, _):
+        actual = tg51.IonChambers.from_name(chamber).photon_coefficients
+        self.assertIsNotNone(actual)
+        self.assertEqual((actual.a, actual.b, actual.c), coefficients)
+
+    @parameterized.expand(TABLE_I_CHAMBERS)
+    def test_table_i_kq_values(self, chamber, _, expected_kq_values):
+        for pddx, expected in zip(TABLE_I_PDDS, expected_kq_values):
+            with self.subTest(pddx=pddx):
+                self.assertAlmostEqual(
+                    tg51.kq_photon_pddx(chamber=chamber, pddx=pddx),
+                    expected,
+                    delta=0.001,
+                )
+
+    @parameterized.expand(
+        [
+            (65, 0.9932525),
+            (73, 0.9804317),
+            (85, 0.9562325),
+        ]
+    )
+    def test_snc600c_kq_values(self, pddx, expected):
+        self.assertAlmostEqual(
+            tg51.kq_photon_pddx(chamber="SNC600c", pddx=pddx),
+            expected,
+        )
+
     @parameterized.expand([("30010", 0.666, 0.9927)])
     def test_kq_photon_tpr(self, chamber, tpr, kq):
         self.assertAlmostEqual(
@@ -115,7 +170,7 @@ class TestIonChamber(TestCase):
 
     def test_iteration_returns_chambers(self):
         chambers = list(tg51.IonChambers())
-        self.assertEqual(len(chambers), 34)
+        self.assertEqual(len(chambers), 36)
         self.assertTrue(
             all(isinstance(chamber, tg51.IonChamber) for chamber in chambers)
         )
@@ -128,8 +183,8 @@ class TestIonChamber(TestCase):
         name = "Custom photon chamber"
         tg51.KQ_PHOTONS[name] = {
             "a": 1,
-            "b": 0.001,
-            "c": -0.00001,
+            "b": 1,
+            "c": -1,
             "a'": 2,
             "b'": -3,
             "c'": 4,
@@ -143,8 +198,33 @@ class TestIonChamber(TestCase):
         self.assertIsNone(chamber.electron_coefficients)
         self.assertEqual(
             tg51.kq_photon_pddx(chamber=name, pddx=70),
-            1 + 0.001 * 70 - 0.00001 * 70**2,
+            1 + 1 * 10**-3 * 70 - 1 * 10**-5 * 70**2,
         )
+
+    def test_from_name_builds_pdd_only_chamber_from_legacy_table(self):
+        name = "Custom PDD-only chamber"
+        tg51.KQ_PHOTONS[name] = {"a": 1, "b": 1, "c": -1}
+        self.addCleanup(tg51.KQ_PHOTONS.pop, name, None)
+
+        chamber = tg51.IonChambers.from_name(name)
+
+        self.assertEqual(chamber.pddx_range, (63.0, 86.0))
+        self.assertEqual(
+            chamber.photon_coefficients.as_dict(),
+            {
+                "a": 1,
+                "b": 1,
+                "c": -1,
+                "a'": None,
+                "b'": None,
+                "c'": None,
+                "d'": None,
+            },
+        )
+        with self.assertRaisesRegex(
+            ValueError, "does not have TPR photon coefficients"
+        ):
+            tg51.kq_photon_tpr(chamber=chamber, tpr=0.666)
 
     def test_from_name_builds_custom_electron_chamber_from_legacy_table(self):
         name = "Custom electron chamber"
@@ -169,8 +249,8 @@ class TestIonChamber(TestCase):
         name = "Custom dual-energy chamber"
         tg51.KQ_PHOTONS[name] = {
             "a": 1,
-            "b": 0.001,
-            "c": -0.00001,
+            "b": 1,
+            "c": -1,
             "a'": 2,
             "b'": -3,
             "c'": 4,
@@ -202,6 +282,34 @@ class TestIonChamber(TestCase):
         ):
             tg51.IonChambers.from_name(name)
 
+    def test_legacy_custom_chamber_identifies_partial_custom_tpr_coefficients(self):
+        name = "Incomplete custom TPR chamber"
+        tg51.KQ_PHOTONS[name] = {
+            "a": 1,
+            "b": 1,
+            "c": -1,
+            "a'": 2,
+        }
+        self.addCleanup(tg51.KQ_PHOTONS.pop, name, None)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Photon coefficients for ion chamber 'Incomplete custom TPR chamber' "
+            'are missing required key "b\'"',
+        ):
+            tg51.IonChambers.from_name(name)
+
+    def test_cant_build_incomplete_tpr_coefficients(self):
+        with self.assertRaisesRegex(
+            ValueError, "must all be provided or all be omitted"
+        ):
+            tg51.PhotonChamberCoefficients(
+                a=1,
+                b=1,
+                c=-1,
+                a_prime=2,
+            )
+
     def test_from_name_error_is_clear(self):
         with self.assertRaisesRegex(
             ValueError,
@@ -214,11 +322,17 @@ class TestIonChamber(TestCase):
         self.assertTrue(all(isinstance(key, str) for key in tg51.KQ_ELECTRONS))
         self.assertEqual(tg51.KQ_PHOTONS["30013"]["a"], 0.9652)
         self.assertEqual(tg51.KQ_ELECTRONS["30013"]["kQ,ecal"], 0.901)
+        self.assertEqual(
+            set(tg51.KQ_PHOTONS["SNC600c"]),
+            {"a", "b", "c", "a'", "b'", "c'", "d'"},
+        )
 
     def test_chamber_and_coefficients_are_frozen(self):
         chamber = tg51.IonChambers.PTW_30013
         with self.assertRaises(FrozenInstanceError):
             chamber.name = "changed"
+        with self.assertRaises(FrozenInstanceError):
+            chamber.pddx_range = (60, 90)
         with self.assertRaises(FrozenInstanceError):
             chamber.photon_coefficients.a = 2
 
@@ -233,8 +347,8 @@ class TestIonChamber(TestCase):
     def test_custom_chamber_can_be_used(self):
         coefficients = tg51.PhotonChamberCoefficients(
             a=1,
-            b=0.001,
-            c=-0.00001,
+            b=1,
+            c=-1,
             a_prime=2,
             b_prime=-3,
             c_prime=4,
@@ -247,8 +361,58 @@ class TestIonChamber(TestCase):
         )
         result = tg51.kq_photon_pddx(chamber=chamber, pddx=70)
         self.assertEqual(
-            result, coefficients.a + coefficients.b * 70 + coefficients.c * 70**2
+            result,
+            coefficients.a
+            + coefficients.b * 10**-3 * 70
+            + coefficients.c * 10**-5 * 70**2,
         )
+
+    def test_custom_chamber_uses_default_pddx_range(self):
+        chamber = tg51.IonChamber(
+            name="Custom",
+            photon_coefficients=tg51.PhotonChamberCoefficients(a=1, b=0, c=0),
+            electron_coefficients=None,
+        )
+        self.assertEqual(chamber.pddx_range, (63.0, 86.0))
+
+    @parameterized.expand(
+        [
+            ((63.0,),),
+            ((86.0, 63.0),),
+            ((63.0, 63.0),),
+        ]
+    )
+    def test_chamber_rejects_invalid_pddx_range(self, pddx_range):
+        with self.assertRaises(ValueError):
+            tg51.IonChamber(
+                name="Invalid",
+                photon_coefficients=None,
+                electron_coefficients=None,
+                pddx_range=pddx_range,
+            )
+
+    def test_chamber_rejects_non_numeric_pddx_range(self):
+        with self.assertRaises(TypeError):
+            tg51.IonChamber(
+                name="Invalid",
+                photon_coefficients=None,
+                electron_coefficients=None,
+                pddx_range=("63", 86),
+            )
+
+    @parameterized.expand(
+        [
+            ("31003", "31013"),
+            ("IC10", "CC13"),
+        ]
+    )
+    def test_legacy_chamber_aliases(self, legacy, modern):
+        for pddx in TABLE_I_PDDS:
+            with self.subTest(pddx=pddx):
+                self.assertEqual(
+                    tg51.kq_photon_pddx(chamber=legacy, pddx=pddx),
+                    tg51.kq_photon_pddx(chamber=modern, pddx=pddx),
+                )
 
     def test_kq_photon_pddx_accepts_chamber(self):
         chamber_result = tg51.kq_photon_pddx(
@@ -271,7 +435,14 @@ class TestIonChamber(TestCase):
 
     def test_pddx_rejects_electron_only_chamber(self):
         with self.assertRaisesRegex(ValueError, "does not have photon coefficients"):
-            tg51.kq_photon_pddx(chamber=tg51.IonChambers.PTW_31013, pddx=66.4)
+            tg51.kq_photon_pddx(chamber=tg51.IonChambers.NE_2611, pddx=66.4)
+
+    @parameterized.expand(["SNC600c", "31013", "31003"])
+    def test_tpr_rejects_when_no_coefficients(self, chamber):
+        with self.assertRaisesRegex(
+            ValueError, "does not have TPR photon coefficients"
+        ):
+            tg51.kq_photon_tpr(chamber=chamber, tpr=0.666)
 
     def test_kq_rejects_photon_only_chamber(self):
         with self.assertRaisesRegex(ValueError, "does not have electron coefficients"):

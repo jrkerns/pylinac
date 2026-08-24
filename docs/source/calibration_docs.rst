@@ -168,6 +168,57 @@ Equation definitions are as follows:
 .. _Muir & Rogers 2014: http://onlinelibrary.wiley.com/doi/10.1118/1.4893915/abstract
 
 
+Defining a Custom Chamber
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A custom chamber can be passed directly to the TG-51 functions and classes. Define
+the coefficient set appropriate for the beam type, then use it to build an
+:class:`~pylinac.calibration.tg51.IonChamber`. Use ``None`` when the chamber does
+not have coefficients for a beam type:
+
+.. code-block:: python
+
+    photon_coefficients = tg51.PhotonChamberCoefficients(
+        a=1.0146,
+        b=0.777,
+        c=-1.666,
+        a_prime=2.6402,
+        b_prime=-7.2304,
+        c_prime=10.7573,
+        d_prime=-5.4294,
+    )
+    custom_chamber = tg51.IonChamber(
+        name="My custom chamber",
+        photon_coefficients=photon_coefficients,
+        electron_coefficients=None,
+        pddx_range=(63.0, 86.0),
+    )
+
+    kq = tg51.kq_photon_pddx(chamber=custom_chamber, pddx=66.4)
+
+The primed coefficients may be omitted for a chamber that only has a published
+PDD(10)x fit. Such chambers can be used with
+:func:`~pylinac.calibration.tg51.kq_photon_pddx`, but not with
+:func:`~pylinac.calibration.tg51.kq_photon_tpr`:
+
+.. code-block:: python
+
+    pdd_only_coefficients = tg51.PhotonChamberCoefficients(
+        a=0.9992,
+        b=1.254,
+        c=-2.070,
+    )
+    pdd_only_chamber = tg51.IonChamber(
+        name="My PDD-only chamber",
+        photon_coefficients=pdd_only_coefficients,
+        electron_coefficients=None,
+        pddx_range=(60.0, 90.0),
+    )
+
+The unprimed ``b`` and ``c`` coefficients use the units printed in Table I of
+the TG-51 Addendum.
+
+
 Function-based Use
 ^^^^^^^^^^^^^^^^^^
 
@@ -180,14 +231,16 @@ values.
 TG-51 chambers can be selected from :class:`~pylinac.calibration.tg51.IonChambers`,
 which provides discoverable, manufacturer-prefixed definitions such as
 ``IonChambers.PTW_30013``. Each :class:`~pylinac.calibration.tg51.IonChamber`
-contains its available photon and electron coefficients.
+contains its available photon and electron coefficients and the PDD(10)x range
+over which its photon fit is valid.
 
 .. versionchanged:: 3.47
 
     Existing chamber strings
     such as ``"30013"`` remain fully supported for historical compatibility.
     Scripts that update ``KQ_PHOTONS`` or ``KQ_ELECTRONS`` (e.g. to add a chamber)
-    are also still supported.
+    are also still supported. Photon entries may contain only ``a``, ``b``, and
+    ``c`` when no TPR(20,10) fit is available.
 
 .. versionchanged:: 3.47
 

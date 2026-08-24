@@ -24,6 +24,20 @@ Calibration
   and clearer to read.
 * :bdg-success:`Feature` TG-51 lead foil positions can now be selected with
   :class:`~pylinac.calibration.tg51.LeadFoil`; legacy string values remain supported.
+* :bdg-success:`Feature` Added photon kQ data for the PTW 31013/31003, and IBA IC10 chambers
+  according to TG-51A1.
+* :bdg-success:`Feature` The Sun Nuclear SNC600c chamber was added to the predefined IC list.
+* :bdg-danger:`Change` Corrected the NE2561 coefficients according to the TG-51 photon addendum Table I.
+  Previously, they used the coefficients from Muir & Rogers 2010, which TG-51A1 says the kQ
+  coefficients are based on; however, the coefficients differ between publications. https://aapm.onlinelibrary.wiley.com/doi/epdf/10.1118/1.3495537
+* :bdg-danger:`Change` While never officially supported, custom chambers were allowed
+  by editing the ``KQ_PHOTONS`` dictionary. This historical compatibility has been retained
+  but the ``a``, ``b``, and ``c`` coefficients have had the ``10^-3`` and ``10^-5`` notation
+  removed and migrated to the ``kq_photon_pddx`` function. I.e. ``kq_photon_pddx`` equation is now matched to TG-51A1
+  and the coefficients match Table I. This is for easier auditing and parity with the Addendum.
+  If you have defined a custom chamber, adjust the coefficients as needed.
+* :bdg-success:`Feature` TG-51 ion chambers now expose their supported PDD(10)x
+  range to make kQ calculations dynamic to the specific chambers' limit vs a global min/max.
 
 Winston-Lutz
 ^^^^^^^^^^^^

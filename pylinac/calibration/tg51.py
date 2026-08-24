@@ -59,17 +59,41 @@ class LeadFoil(Enum):
 
 @dataclass(frozen=True)
 class PhotonChamberCoefficients:
-    """Photon beam-quality correction coefficients for an ion chamber."""
+    """Photon beam-quality correction coefficients for an ion chamber.
+
+    The unprimed coefficients are used with PDD(10)x. Their ``b`` and ``c``
+    values are stored in the units published in Table I of the TG-51 Addendum;
+    Equation 1 applies factors of :math:`10^{-3}` and :math:`10^{-5}` to them,
+    respectively. The primed coefficients are optional and, when present, are
+    used with TPR(20,10) as an alternative to calculate kQ. See Muir & Rogers
+    2010 Table III and Equation 10: https://aapm.onlinelibrary.wiley.com/doi/epdf/10.1118/1.3495537
+    """
 
     a: float
     b: float
     c: float
-    a_prime: float
-    b_prime: float
-    c_prime: float
-    d_prime: float
+    a_prime: float | None = None
+    b_prime: float | None = None
+    c_prime: float | None = None
+    d_prime: float | None = None
 
-    def as_dict(self) -> dict[str, float]:
+    def __post_init__(self) -> None:
+        """Require TPR coefficients to be provided as a complete set."""
+        tpr_coefficients = (
+            self.a_prime,
+            self.b_prime,
+            self.c_prime,
+            self.d_prime,
+        )
+        if any(value is None for value in tpr_coefficients) and not all(
+            value is None for value in tpr_coefficients
+        ):
+            raise ValueError(
+                "TPR coefficients a_prime, b_prime, c_prime, and d_prime "
+                "must all be provided or all be omitted"
+            )
+
+    def as_dict(self) -> dict[str, float | None]:
         """Return the coefficients using the historical dictionary keys."""
         return {
             "a": self.a,
@@ -103,11 +127,26 @@ class ElectronChamberCoefficients:
 
 @dataclass(frozen=True)
 class IonChamber:
-    """An ion chamber and its available TG-51 correction coefficients."""
+    """An ion chamber and its available TG-51 correction coefficients.
+
+    Predefined chambers are from the TG-51 Addendum (McEwen, 2014).
+    """
 
     name: str
     photon_coefficients: PhotonChamberCoefficients | None
     electron_coefficients: ElectronChamberCoefficients | None
+    # The vast majority of kQ factors are for the range 63-86, per McEwen Table I.
+    pddx_range: tuple[float, float] = (63.0, 86.0)
+
+    def __post_init__(self) -> None:
+        """Validate the supported PDD(10)x range."""
+        if len(self.pddx_range) != 2:
+            raise ValueError("pddx_range must contain exactly two bounds")
+        lower, upper = self.pddx_range
+        if not isinstance(lower, (int, float)) or not isinstance(upper, (int, float)):
+            raise TypeError("pddx_range bounds must be numeric")
+        if lower >= upper:
+            raise ValueError("pddx_range lower bound must be less than upper bound")
 
     def __str__(self) -> str:
         """Return the historical chamber model name."""
@@ -130,7 +169,7 @@ class IonChambers:
         Predefined chambers are returned directly. Chambers added dynamically to
         :data:`KQ_PHOTONS` or :data:`KQ_ELECTRONS` are converted to an
         :class:`IonChamber` with frozen coefficient objects. This is for historical compatibility
-        for users who appended to ``KQ_PHOTONS`` or ``KQ_ELECTRONS`` on the fly in previous versions.
+        for users who modified ``KQ_PHOTONS`` or ``KQ_ELECTRONS`` on the fly in previous version.
 
         Parameters
         ----------
@@ -180,20 +219,33 @@ class IonChambers:
         if coefficients is None:
             return None
         try:
-            return PhotonChamberCoefficients(
-                a=coefficients["a"],
-                b=coefficients["b"],
-                c=coefficients["c"],
-                a_prime=coefficients["a'"],
-                b_prime=coefficients["b'"],
-                c_prime=coefficients["c'"],
-                d_prime=coefficients["d'"],
-            )
+            a = coefficients["a"]
+            b = coefficients["b"]
+            c = coefficients["c"]
         except KeyError as error:
             raise ValueError(
                 f"Photon coefficients for ion chamber {name!r} are missing "
                 f"required key {error.args[0]!r}"
             ) from error
+
+        tpr_keys = ("a'", "b'", "c'", "d'")
+        present_tpr_keys = tuple(key for key in tpr_keys if key in coefficients)
+        if present_tpr_keys and len(present_tpr_keys) != len(tpr_keys):
+            missing_key = next(key for key in tpr_keys if key not in coefficients)
+            raise ValueError(
+                f"Photon coefficients for ion chamber {name!r} are missing "
+                f"required key {missing_key!r}"
+            )
+
+        return PhotonChamberCoefficients(
+            a=a,
+            b=b,
+            c=c,
+            a_prime=coefficients.get("a'"),
+            b_prime=coefficients.get("b'"),
+            c_prime=coefficients.get("c'"),
+            d_prime=coefficients.get("d'"),
+        )
 
     @staticmethod
     def _electron_coefficients_from_table(
@@ -221,8 +273,8 @@ class IonChambers:
         name="A12",
         photon_coefficients=PhotonChamberCoefficients(
             a=1.0146,
-            b=0.000777,
-            c=-1.666e-05,
+            b=0.777,
+            c=-1.666,
             a_prime=2.6402,
             b_prime=-7.2304,
             c_prime=10.7573,
@@ -236,8 +288,8 @@ class IonChambers:
         name="A19",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.9934,
-            b=0.001384,
-            c=-2.125e-05,
+            b=1.384,
+            c=-2.125,
             a_prime=3.0907,
             b_prime=-9.193,
             c_prime=13.5957,
@@ -251,8 +303,8 @@ class IonChambers:
         name="A2",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.9819,
-            b=0.001609,
-            c=-2.184e-05,
+            b=1.609,
+            c=-2.184,
             a_prime=2.8458,
             b_prime=-8.1619,
             c_prime=12.1411,
@@ -264,8 +316,8 @@ class IonChambers:
         name="T2",
         photon_coefficients=PhotonChamberCoefficients(
             a=1.0173,
-            b=0.000854,
-            c=-1.941e-05,
+            b=0.854,
+            c=-1.941,
             a_prime=3.3433,
             b_prime=-10.2649,
             c_prime=15.1247,
@@ -277,8 +329,8 @@ class IonChambers:
         name="A12S",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.9692,
-            b=0.001974,
-            c=-2.448e-05,
+            b=1.974,
+            c=-2.448,
             a_prime=2.9597,
             b_prime=-8.6777,
             c_prime=12.9155,
@@ -292,8 +344,8 @@ class IonChambers:
         name="A18",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.9944,
-            b=0.001286,
-            c=-1.98e-05,
+            b=1.286,
+            c=-1.980,
             a_prime=2.5167,
             b_prime=-6.7567,
             c_prime=10.1519,
@@ -307,8 +359,8 @@ class IonChambers:
         name="A1",
         photon_coefficients=PhotonChamberCoefficients(
             a=1.0029,
-            b=0.001023,
-            c=-1.803e-05,
+            b=1.023,
+            c=-1.803,
             a_prime=2.0848,
             b_prime=-4.9174,
             c_prime=7.5446,
@@ -320,8 +372,8 @@ class IonChambers:
         name="T1",
         photon_coefficients=PhotonChamberCoefficients(
             a=1.0552,
-            b=-0.000196,
-            c=-1.275e-05,
+            b=-0.196,
+            c=-1.275,
             a_prime=2.806,
             b_prime=-7.9273,
             c_prime=11.7541,
@@ -333,8 +385,8 @@ class IonChambers:
         name="A1SL",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.9896,
-            b=0.00141,
-            c=-2.049e-05,
+            b=1.410,
+            c=-2.049,
             a_prime=2.8029,
             b_prime=-7.9648,
             c_prime=11.8445,
@@ -348,8 +400,8 @@ class IonChambers:
         name="A14",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.9285,
-            b=0.002706,
-            c=-2.599e-05,
+            b=2.706,
+            c=-2.599,
             a_prime=5.4677,
             b_prime=-19.1795,
             c_prime=27.4542,
@@ -361,8 +413,8 @@ class IonChambers:
         name="T14",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.9622,
-            b=0.002009,
-            c=-2.401e-05,
+            b=2.009,
+            c=-2.401,
             a_prime=4.969,
             b_prime=-17.1074,
             c_prime=24.6292,
@@ -374,8 +426,8 @@ class IonChambers:
         name="A14SL",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.9017,
-            b=0.003454,
-            c=-3.083e-05,
+            b=3.454,
+            c=-3.083,
             a_prime=5.1205,
             b_prime=-17.7884,
             c_prime=25.6123,
@@ -387,8 +439,8 @@ class IonChambers:
         name="A16",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.8367,
-            b=0.004987,
-            c=-3.877e-05,
+            b=4.987,
+            c=-3.877,
             a_prime=6.0571,
             b_prime=-21.7829,
             c_prime=31.2289,
@@ -402,8 +454,8 @@ class IonChambers:
         name="30010",
         photon_coefficients=PhotonChamberCoefficients(
             a=1.0093,
-            b=0.000926,
-            c=-1.771e-05,
+            b=0.926,
+            c=-1.771,
             a_prime=2.5318,
             b_prime=-6.7948,
             c_prime=10.1779,
@@ -417,8 +469,8 @@ class IonChambers:
         name="30011",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.9676,
-            b=0.002061,
-            c=-2.528e-05,
+            b=2.061,
+            c=-2.528,
             a_prime=2.9044,
             b_prime=-8.4576,
             c_prime=12.6339,
@@ -432,8 +484,8 @@ class IonChambers:
         name="30012",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.9537,
-            b=0.00244,
-            c=-2.75e-05,
+            b=2.440,
+            c=-2.750,
             a_prime=3.2836,
             b_prime=-10.061,
             c_prime=14.8867,
@@ -447,8 +499,8 @@ class IonChambers:
         name="30013",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.9652,
-            b=0.002141,
-            c=-2.623e-05,
+            b=2.141,
+            c=-2.623,
             a_prime=3.2012,
             b_prime=-9.7211,
             c_prime=14.4211,
@@ -462,8 +514,8 @@ class IonChambers:
         name="31010",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.959,
-            b=0.002265,
-            c=-2.684e-05,
+            b=2.265,
+            c=-2.684,
             a_prime=3.1578,
             b_prime=-9.5422,
             c_prime=14.1676,
@@ -471,9 +523,25 @@ class IonChambers:
         ),
         electron_coefficients=None,
     )
+    # Per TG-51A1 3.E.i 31003 is identical to 31013.
+    PTW_31003 = IonChamber(
+        name="31003",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9725,
+            b=1.957,
+            c=-2.498,
+        ),
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.902, a=0.945, b=0.133, c=0.441
+        ),
+    )
     PTW_31013 = IonChamber(
         name="31013",
-        photon_coefficients=None,
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9725,
+            b=1.957,
+            c=-2.498,
+        ),
         electron_coefficients=ElectronChamberCoefficients(
             kq_ecal=0.902, a=0.945, b=0.133, c=0.441
         ),
@@ -482,8 +550,8 @@ class IonChambers:
         name="31014",
         photon_coefficients=PhotonChamberCoefficients(
             a=1.0071,
-            b=0.001048,
-            c=-1.967e-05,
+            b=1.048,
+            c=-1.967,
             a_prime=3.0178,
             b_prime=-8.8735,
             c_prime=13.1372,
@@ -495,8 +563,8 @@ class IonChambers:
         name="31016",
         photon_coefficients=PhotonChamberCoefficients(
             a=1.0085,
-            b=0.001028,
-            c=-1.968e-05,
+            b=1.028,
+            c=-1.968,
             a_prime=2.9524,
             b_prime=-8.6054,
             c_prime=12.7757,
@@ -510,8 +578,8 @@ class IonChambers:
         name="CC25",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.9551,
-            b=0.002353,
-            c=-2.687e-05,
+            b=2.353,
+            c=-2.687,
             a_prime=2.4567,
             b_prime=-6.5932,
             c_prime=10.0471,
@@ -525,8 +593,24 @@ class IonChambers:
         name="CC13",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.9515,
-            b=0.002455,
-            c=-2.768e-05,
+            b=2.455,
+            c=-2.768,
+            a_prime=3.1982,
+            b_prime=-9.7182,
+            c_prime=14.421,
+            d_prime=-7.2121,
+        ),
+        electron_coefficients=ElectronChamberCoefficients(
+            kq_ecal=0.904, a=0.926, b=0.129, c=0.279
+        ),
+    )
+    # Per TG-51A1 3.E.ii the IC10 and CC13 are functionally identical
+    IBA_IC10 = IonChamber(
+        name="IC10",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9515,
+            b=2.455,
+            c=-2.768,
             a_prime=3.1982,
             b_prime=-9.7182,
             c_prime=14.421,
@@ -540,8 +624,8 @@ class IonChambers:
         name="CC08",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.943,
-            b=0.002637,
-            c=-2.884e-05,
+            b=2.637,
+            c=-2.884,
             a_prime=3.7328,
             b_prime=-11.98,
             c_prime=17.5884,
@@ -553,8 +637,8 @@ class IonChambers:
         name="CC04",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.9714,
-            b=0.001938,
-            c=-2.432e-05,
+            b=1.938,
+            c=-2.432,
             a_prime=3.0054,
             b_prime=-8.8633,
             c_prime=13.1704,
@@ -566,8 +650,8 @@ class IonChambers:
         name="CC01",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.9116,
-            b=0.003358,
-            c=-3.177e-05,
+            b=3.358,
+            c=-3.177,
             a_prime=4.3376,
             b_prime=-14.4935,
             c_prime=21.0293,
@@ -579,8 +663,8 @@ class IonChambers:
         name="FC65-G",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.9708,
-            b=0.001972,
-            c=-2.48e-05,
+            b=1.972,
+            c=-2.480,
             a_prime=3.3221,
             b_prime=-10.2012,
             c_prime=15.0497,
@@ -594,8 +678,8 @@ class IonChambers:
         name="FC65-P",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.9828,
-            b=0.001664,
-            c=-2.296e-05,
+            b=1.664,
+            c=-2.296,
             a_prime=3.0872,
             b_prime=-9.1919,
             c_prime=13.6137,
@@ -609,8 +693,8 @@ class IonChambers:
         name="FC23-C",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.982,
-            b=0.001579,
-            c=-2.166e-05,
+            b=1.579,
+            c=-2.166,
             a_prime=3.0511,
             b_prime=-9.0243,
             c_prime=13.3378,
@@ -622,25 +706,13 @@ class IonChambers:
     )
 
     # Nuclear Enterprises
-    NE_2581 = IonChamber(
-        name="NE2581",
-        photon_coefficients=PhotonChamberCoefficients(
-            a=1.0318,
-            b=0.000488,
-            c=-1.731e-05,
-            a_prime=2.919,
-            b_prime=-8.4561,
-            c_prime=12.569,
-            d_prime=-6.3468,
-        ),
-        electron_coefficients=None,
-    )
+    # Per TG-51A1 3.E.v the NE2581 is no longer recommended
     NE_2571 = IonChamber(
         name="NE2571",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.9882,
-            b=0.001486,
-            c=-2.14e-05,
+            b=1.486,
+            c=-2.140,
             a_prime=2.2328,
             b_prime=-5.5779,
             c_prime=8.5325,
@@ -653,9 +725,9 @@ class IonChambers:
     NE_2561 = IonChamber(
         name="NE2561",
         photon_coefficients=PhotonChamberCoefficients(
-            a=1.02,
-            b=0.000596,
-            c=-1.551e-05,
+            a=0.9722,
+            b=1.977,
+            c=-2.463,
             a_prime=2.4235,
             b_prime=-6.3179,
             c_prime=9.4737,
@@ -676,8 +748,8 @@ class IonChambers:
         name="PR06C/G",
         photon_coefficients=PhotonChamberCoefficients(
             a=0.9519,
-            b=0.002432,
-            c=-2.704e-05,
+            b=2.432,
+            c=-2.704,
             a_prime=2.911,
             b_prime=-8.4916,
             c_prime=12.6817,
@@ -688,19 +760,31 @@ class IonChambers:
         ),
     )
 
+    # Sun Nuclear
+    # https://www.sunnuclear.com/uploads/publications/Report-IRS-2066-Monte-Carlo-calculation-of-the-kQ-quality-conversion-factor-for-the-SNC600c-ionization-chamber-for-photon-beam-reference-dosimetry.pdf
+    SNC_600C = IonChamber(
+        name="SNC600c",
+        photon_coefficients=PhotonChamberCoefficients(
+            a=0.9992,
+            b=1.254,
+            c=-2.070,
+        ),
+        electron_coefficients=None,
+    )
+
 
 # Reconstructed dicts for historical compatibility in the event
 # users modify/add to this on the fly in their scripts.
 KQ_PHOTONS = {
     chamber.name: chamber.photon_coefficients.as_dict()
     for chamber in IonChambers()
-    if chamber.photon_coefficients is not None
+    if (coefficients := chamber.photon_coefficients) is not None
 }
 
 KQ_ELECTRONS = {
     chamber.name: chamber.electron_coefficients.as_dict()
     for chamber in IonChambers()
-    if chamber.electron_coefficients is not None
+    if (coefficients := chamber.electron_coefficients) is not None
 }
 
 
@@ -939,7 +1023,6 @@ def pddx(*, pdd: float, energy: int, lead_foil: str | LeadFoil | None = None) ->
                 return (0.8116 + 0.00264 * pdd) * pdd
 
 
-@argue.bounds(pddx=(63.0, 86.0))
 def kq_photon_pddx(*, chamber: str | IonChamber, pddx: float) -> float:
     """Calculate kQ based on the chamber and clinical measurements of PDD(10)x. This will calculate kQ for photons
     for *CYLINDRICAL* chambers only.
@@ -949,20 +1032,26 @@ def kq_photon_pddx(*, chamber: str | IonChamber, pddx: float) -> float:
     chamber : str or IonChamber
         The chamber of the chamber. Valid values are those listed in
         Table III of Muir and Rogers and Table I of the TG-51 Addendum.
-    pddx : {>63.0, <86.0}
+    pddx : float
         The **PHOTON-ONLY** PDD measurement at 10cm depth for a 10x10cm2 field.
+        The allowed range is defined by the selected chamber per TG-51 Addendum. The default range is
+        63-86; chambers with a different validated range expose it through
+        :attr:`~pylinac.calibration.tg51.IonChamber.pddx_range`.
 
         .. note:: Use the :func:`~pylinac.calibration.tg51.pddx` function to convert PDD to PDDx as needed.
 
-        .. note:: Muir and Rogers state limits of 0.627 - 0.861. The TG-51 addendum states them as 0.63 and 0.86.
-                  The TG-51 addendum limits are used here.
+    Raises
+    ------
+    argue.BoundsError
+        If ``pddx`` is outside the selected chamber's supported range.
     """
     if isinstance(chamber, str):
         chamber = IonChambers.from_name(chamber)
+    argue.verify_bounds(pddx, bounds=chamber.pddx_range)
     coef = chamber.photon_coefficients
     if coef is None:
         raise ValueError(f"Chamber {chamber} does not have photon coefficients")
-    return coef.a + coef.b * pddx + coef.c * (pddx**2)
+    return coef.a + coef.b * 10**-3 * pddx + coef.c * 10**-5 * pddx**2
 
 
 @argue.bounds(tpr=(0.623, 0.805))
@@ -970,22 +1059,37 @@ def kq_photon_tpr(*, chamber: str | IonChamber, tpr: float) -> float:
     """Calculate kQ based on the chamber and clinical measurements of TPR20,10. This will calculate kQ for photons
     for *CYLINDRICAL* chambers only.
 
+    Notes
+    -----
+    This calculates kQ based on Muir & Rogers, 2010 Equation 10 and table III.
+    https://aapm.onlinelibrary.wiley.com/doi/epdf/10.1118/1.3495537
+
     Parameters
     ----------
     chamber : str or IonChamber
-        The chamber of the chamber. Valid values are those listed in
-        Table III of Muir and Rogers and Table I of the TG-51 Addendum.
-    tpr : {>0.630, <0.860}
+        The chamber of the chamber.
+    tpr : {>=0.623, <=0.805}
         The TPR(20,10) value.
 
         .. note::
          Use the :func:`~pylinac.calibration.tg51.tpr2010_from_pdd2010` function to convert from PDD without needing to take TPR measurements.
+
+    Raises
+    ------
+    ValueError
+        If the selected chamber does not have a published TPR(20,10) fit.
     """
     if isinstance(chamber, str):
         chamber = IonChambers.from_name(chamber)
     coef = chamber.photon_coefficients
-    if coef is None:
-        raise ValueError(f"Chamber {chamber} does not have photon coefficients")
+    if (
+        coef is None
+        or coef.a_prime is None
+        or coef.b_prime is None
+        or coef.c_prime is None
+        or coef.d_prime is None
+    ):
+        raise ValueError(f"Chamber {chamber} does not have TPR photon coefficients")
     return (
         coef.a_prime
         + coef.b_prime * tpr
