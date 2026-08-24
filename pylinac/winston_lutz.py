@@ -13,7 +13,7 @@ Features:
 * **Image plotting** - WL images can be plotted separately or together, each of which shows the field CAX, BB and
   scalar distance from BB to CAX.
 * **Axis deviation plots** - Plot the variation of the gantry, collimator, couch, and EPID in each plane
-  as well as RMS variation.
+  as well as RMS and RSS variation.
 * **File name interpretation** - Rename DICOM filenames to include axis information for linacs that don't include
   such information in the DICOM tags. E.g. "myWL_gantry45_coll0_couch315.dcm".
 """
@@ -529,6 +529,18 @@ class WinstonLutzResult(ResultBase):
     )
     max_couch_rms_deviation_mm: float = Field(
         description="The maximum RMS value of the field CAX to BB for the couch axis images in mm. This is an alternative to the max/mean/median calculations. This uses backprojection lines of the field center to the source and minimizes a sphere that touches all the backprojection lines."
+    )
+    max_gantry_rss_deviation_mm: float = Field(
+        description="The maximum RSS value of the field CAX to BB for the gantry axis images in mm."
+    )
+    max_epid_rss_deviation_mm: float = Field(
+        description="The maximum RSS value of the field CAX to EPID center for the EPID images in mm."
+    )
+    max_coll_rss_deviation_mm: float = Field(
+        description="The maximum RSS value of the field CAX to BB for the collimator axis images in mm."
+    )
+    max_couch_rss_deviation_mm: float = Field(
+        description="The maximum RSS value of the field CAX to BB for the couch axis images in mm."
     )
     bb_shift_vector: VectorSerialized = Field(
         description="The Cartesian vector that would move the BB to the radiation isocenter. Each value is in mm."
@@ -1785,7 +1797,10 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
     def axis_rms_deviation(
         self, axis: Axis | tuple[Axis, ...] = Axis.GANTRY, value: str = "all"
     ) -> Iterable | float:
-        """The RMS deviations of a given axis/axes.
+        """The root-mean-square deviations of a given axis/axes.
+
+        The RMS is calculated from the two in-plane displacement components as
+        ``sqrt((x**2 + y**2) / 2)``.
 
         Parameters
         ----------
@@ -1793,6 +1808,31 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             The axis desired.
         value : {'all', 'range'}
             Whether to return all the RMS values from all images for that axis, or only return the maximum range of
+            values, i.e. the 'sag'.
+        """
+        rss = self.axis_rss_deviation(axis=axis, value=value)
+        if isinstance(rss, tuple):
+            return tuple(deviation / math.sqrt(2) for deviation in rss)
+        if isinstance(rss, Iterable):
+            return [deviation / math.sqrt(2) for deviation in rss]
+        return rss / math.sqrt(2)
+
+    @argue.options(value=("all", "range"))
+    def axis_rss_deviation(
+        self, axis: Axis | tuple[Axis, ...] = Axis.GANTRY, value: str = "all"
+    ) -> Iterable | float:
+        """The root-sum-square deviations of a given axis/axes.
+
+        The RSS is calculated from the two in-plane displacement components as
+        ``sqrt(x**2 + y**2)``. This preserves the value reported as RMS in
+        pylinac 3.47 and earlier.
+
+        Parameters
+        ----------
+        axis : ('Gantry', 'Collimator', 'Couch', 'Epid', 'GB Combo',  'GBP Combo')
+            The axis desired.
+        value : {'all', 'range'}
+            Whether to return all the RSS values from all images for that axis, or only return the maximum range of
             values, i.e. the 'sag'.
         """
         if isinstance(axis, Iterable):
@@ -1807,10 +1847,11 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         imgs = self._get_images(axis=axis)[1]
         if len(imgs) <= 1:
             return (0,)
-        rms = [getattr(img, attr).as_scalar() for img in imgs]
+        vectors = [getattr(img, attr) for img in imgs]
+        rss = [math.hypot(vector.x, vector.y) for vector in vectors]
         if value == "range":
-            rms = max(rms) - min(rms)
-        return rms
+            rss = max(rss) - min(rss)
+        return rss
 
     @argue.options(metric=("max", "median", "mean"))
     def cax2bb_distance(self, metric: str = "max") -> float:
@@ -2036,12 +2077,14 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             ]
             xz_sag = np.array([getattr(img, attr).x for img in imgs])
             y_sag = np.array([getattr(img, attr).y for img in imgs])
-            rms = np.sqrt(xz_sag**2 + y_sag**2)
+            rss = np.sqrt(xz_sag**2 + y_sag**2)
+            rms = rss / np.sqrt(2)
             # append the first point to the end to close the loop
             angles = np.append(angles, angles[0])
             xz_sag = np.append(xz_sag, xz_sag[0])
             y_sag = np.append(y_sag, y_sag[0])
             rms = np.append(rms, rms[0])
+            rss = np.append(rss, rss[0])
 
             # X/Y POV plots
             fig = go.Figure()
@@ -2051,7 +2094,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
                 y=y_sag,
                 hovertext=[
                     f"Angle: {angle}\N{DEGREE SIGN}; Total: {r:.3f}mm"
-                    for angle, r in zip(angles, rms)
+                    for angle, r in zip(angles, rss)
                 ],
                 hoverinfo="text+x+y",
                 mode="lines+markers",
@@ -2086,8 +2129,8 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             fig = go.Figure()
             title = f"In-plane {axis.value} displacement"
             for name, data in zip(
-                ["Y-axis (In/Out)", "X/Z-axis (Gantry plane)", "RMS"],
-                [y_sag, xz_sag, rms],
+                ["Y-axis (In/Out)", "X/Z-axis (Gantry plane)", "RMS", "RSS"],
+                [y_sag, xz_sag, rms, rss],
             ):
                 fig.add_scatterpolar(
                     r=data,
@@ -2151,7 +2194,8 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         angles = [getattr(image, f"{axis.value.lower()}_angle") for image in imgs]
         xz_sag = np.array([getattr(img, attr).x for img in imgs])
         y_sag = np.array([getattr(img, attr).y for img in imgs])
-        rms = np.sqrt(xz_sag**2 + y_sag**2)
+        rss = np.sqrt(xz_sag**2 + y_sag**2)
+        rms = rss / np.sqrt(2)
 
         # plot the axis deviation
         if ax is None:
@@ -2159,6 +2203,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         ax.plot(angles, y_sag, "bo", label="Y-axis", ls="-.")
         ax.plot(angles, xz_sag, "m^", label="X/Z-axis", ls="-.")
         ax.plot(angles, rms, "g+", label="RMS", ls="-")
+        ax.plot(angles, rss, "rx", label="RSS", ls="-")
         ax.set_title(title)
         ax.set_ylabel("mm")
         ax.set_xlabel(f"{axis.value} angle")
@@ -2575,12 +2620,16 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         result += [
             f"Gantry 3D isocenter diameter: {self.gantry_iso_size:.2f}mm ({num_gantry_imgs}/{num_imgs} images considered)",
             f"Maximum Gantry RMS deviation (mm): {max(self.axis_rms_deviation((Axis.GANTRY, Axis.REFERENCE))):.2f}mm",
+            f"Maximum Gantry RSS deviation (mm): {max(self.axis_rss_deviation((Axis.GANTRY, Axis.REFERENCE))):.2f}mm",
             f"Maximum EPID RMS deviation (mm): {max(self.axis_rms_deviation(Axis.EPID)):.2f}mm",
+            f"Maximum EPID RSS deviation (mm): {max(self.axis_rss_deviation(Axis.EPID)):.2f}mm",
             f"Gantry+Collimator 3D isocenter diameter: {self.gantry_coll_iso_size:.2f}mm ({num_gantry_coll_imgs}/{num_imgs} images considered)",
             f"Collimator 2D isocenter diameter: {self.collimator_iso_size:.2f}mm ({num_coll_imgs}/{num_imgs} images considered)",
             f"Maximum Collimator RMS deviation (mm): {max(self.axis_rms_deviation((Axis.COLLIMATOR, Axis.REFERENCE))):.2f}",
+            f"Maximum Collimator RSS deviation (mm): {max(self.axis_rss_deviation((Axis.COLLIMATOR, Axis.REFERENCE))):.2f}",
             f"Couch 2D isocenter diameter: {self.couch_iso_size:.2f}mm ({num_couch_imgs}/{num_imgs} images considered)",
             f"Maximum Couch RMS deviation (mm): {max(self.axis_rms_deviation((Axis.COUCH, Axis.REFERENCE))):.2f}",
+            f"Maximum Couch RSS deviation (mm): {max(self.axis_rss_deviation((Axis.COUCH, Axis.REFERENCE))):.2f}",
         ]
         if not as_list:
             result = "\n".join(result)
@@ -2626,6 +2675,16 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
                 self.axis_rms_deviation(axis=(Axis.COUCH, Axis.REFERENCE))
             ),
             max_epid_rms_deviation_mm=max(self.axis_rms_deviation(axis=Axis.EPID)),
+            max_gantry_rss_deviation_mm=max(
+                self.axis_rss_deviation(axis=(Axis.GANTRY, Axis.REFERENCE))
+            ),
+            max_coll_rss_deviation_mm=max(
+                self.axis_rss_deviation(axis=(Axis.COLLIMATOR, Axis.REFERENCE))
+            ),
+            max_couch_rss_deviation_mm=max(
+                self.axis_rss_deviation(axis=(Axis.COUCH, Axis.REFERENCE))
+            ),
+            max_epid_rss_deviation_mm=max(self.axis_rss_deviation(axis=Axis.EPID)),
             bb_shift_vector=self.bb_shift_vector,
             virtual_shift_applied=self._virtual_shift,
             image_details=individual_image_data,

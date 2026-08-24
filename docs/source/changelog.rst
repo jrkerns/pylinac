@@ -25,6 +25,15 @@ Calibration
 * :bdg-success:`Feature` TG-51 lead foil positions can now be selected with
   :class:`~pylinac.calibration.tg51.LeadFoil`; legacy string values remain supported.
 
+Winston-Lutz
+^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` Winston-Lutz RMS deviations now calculate the **actual** root-mean-square of the two in-plane components.
+  Previous versions reported the root-sum-square while labeling it RMS. See the updated :ref:`wl_image_types` section.
+  To retain constancy, users can compare prior RMS values to the new ``*_rss_*`` value (below).
+  Alternatively, prior RMS values can be scaled by :math:`\frac{1}{\sqrt{2}}` to get the real RMS value if desired.
+* :bdg-success:`Feature` Root-sum-square deviations are now available from ``axis_rss_deviation``, the ``max_*_rss_deviation_mm`` results data fields, text results, and deviation plots. These RSS values preserve the historical values previously labeled RMS.
+
 v3.47.0
 -------
 

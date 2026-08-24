@@ -7,6 +7,8 @@ import shutil
 import tempfile
 from collections.abc import Sequence
 from pathlib import Path
+from threading import Lock
+from types import SimpleNamespace
 from unittest import TestCase
 
 import matplotlib.pyplot as plt
@@ -836,6 +838,65 @@ class TestWLResultsData(ResultsDataBase, TestCase):
     model = WinstonLutz
 
 
+class TestAxisRmsAndRssDeviation(TestCase):
+    def setUp(self):
+        self.wl = WinstonLutz.__new__(WinstonLutz)
+        self.wl._captured_warnings = []
+        self.wl._warnings_lock = Lock()
+        self.wl._in_warning_capture = False
+        self.wl.images = [
+            SimpleNamespace(
+                variable_axis=Axis.GANTRY,
+                cax2bb_vector=Vector(3, 4, 100),
+                cax2epid_vector=Vector(6, 8, 100),
+            ),
+            SimpleNamespace(
+                variable_axis=Axis.GANTRY,
+                cax2bb_vector=Vector(),
+                cax2epid_vector=Vector(),
+            ),
+            SimpleNamespace(
+                variable_axis=Axis.REFERENCE,
+                cax2bb_vector=Vector(5, 12),
+                cax2epid_vector=Vector(8, 15),
+            ),
+            SimpleNamespace(
+                variable_axis=Axis.COLLIMATOR,
+                cax2bb_vector=Vector(8, 15),
+                cax2epid_vector=Vector(7, 24),
+            ),
+            SimpleNamespace(
+                variable_axis=Axis.COUCH,
+                cax2bb_vector=Vector(20, 21),
+                cax2epid_vector=Vector(20, 21),
+            ),
+        ]
+
+    def test_rms_and_rss_values(self):
+        rss = self.wl.axis_rss_deviation(Axis.GANTRY)
+        rms = self.wl.axis_rms_deviation(Axis.GANTRY)
+        self.assertEqual(rss, [5, 0])
+        np.testing.assert_allclose(rms, [math.sqrt(12.5), 0])
+
+    def test_range_values(self):
+        axes = (Axis.GANTRY, Axis.REFERENCE)
+        self.assertEqual(self.wl.axis_rss_deviation(axes, value="range"), 13)
+        self.assertAlmostEqual(
+            self.wl.axis_rms_deviation(axes, value="range"), 13 / math.sqrt(2)
+        )
+
+    def test_epid_uses_gantry_collimator_and_reference_images(self):
+        self.assertEqual(self.wl.axis_rss_deviation(Axis.EPID), [10, 0, 17, 25])
+        np.testing.assert_allclose(
+            self.wl.axis_rms_deviation(Axis.EPID),
+            np.array([10, 0, 17, 25]) / math.sqrt(2),
+        )
+
+    def test_insufficient_images_returns_zero(self):
+        self.assertEqual(self.wl.axis_rss_deviation(Axis.COUCH), (0,))
+        self.assertEqual(self.wl.axis_rms_deviation(Axis.COUCH), (0,))
+
+
 class GeneralTests(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -846,7 +907,11 @@ class GeneralTests(TestCase):
         WinstonLutz.run_demo()  # shouldn't raise
 
     def test_results(self):
-        print(self.wl.results())  # shouldn't raise
+        results = self.wl.results()
+        print(results)  # shouldn't raise
+        for axis in ("Gantry", "EPID", "Collimator", "Couch"):
+            self.assertIn(f"Maximum {axis} RMS deviation", results)
+            self.assertIn(f"Maximum {axis} RSS deviation", results)
 
     def test_not_yet_analyzed(self):
         wl = WinstonLutz.from_demo_images()
@@ -891,6 +956,10 @@ class GeneralTests(TestCase):
             data.image_details[0].bb_location.x,
             self.wl.images[0].results_data().bb_location.x,
         )
+        for axis in ("gantry", "epid", "coll", "couch"):
+            rms = getattr(data, f"max_{axis}_rms_deviation_mm")
+            rss = getattr(data, f"max_{axis}_rss_deviation_mm")
+            self.assertAlmostEqual(rms, rss / math.sqrt(2))
 
     def test_results_data_as_dict(self):
         data_dict = self.wl.results_data(as_dict=True)
@@ -904,10 +973,17 @@ class GeneralTests(TestCase):
             self.wl.images[0].bb.x,
             delta=0.02,
         )
+        for axis in ("gantry", "epid", "coll", "couch"):
+            rms = data_dict[f"max_{axis}_rms_deviation_mm"]
+            rss = data_dict[f"max_{axis}_rss_deviation_mm"]
+            self.assertAlmostEqual(rms, rss / math.sqrt(2))
 
     def test_results_data_as_json(self):
         data_json = self.wl.results_data(as_json=True)
         self.assertIsInstance(data_json, str)
+        for axis in ("gantry", "epid", "coll", "couch"):
+            self.assertIn(f'"max_{axis}_rms_deviation_mm"', data_json)
+            self.assertIn(f'"max_{axis}_rss_deviation_mm"', data_json)
 
     def test_results_warnings(self):
         self.wl.analyze()
@@ -1049,6 +1125,17 @@ class TestPlottingSaving(TestCase):
         self.wl.plot_images(axis=Axis.GB_COMBO)
         self.wl.plot_images(axis=Axis.GBP_COMBO)
 
+    def test_deviation_plots_include_rms_and_rss(self):
+        _, ax = plt.subplots()
+        self.wl._plot_deviation(Axis.GANTRY, ax=ax, show=False)
+        self.assertTrue({"RMS", "RSS"}.issubset(ax.get_legend_handles_labels()[1]))
+
+        figures = self.wl.plotly_analyzed_images(show=False)
+        trace_names = {
+            trace.name for trace in figures["In-plane Gantry displacement"].data
+        }
+        self.assertTrue({"RMS", "RSS"}.issubset(trace_names))
+
     def test_save_to_stream(self):
         items = self.wl.save_images_to_stream()
         assert isinstance(items, dict)
@@ -1179,7 +1266,7 @@ class WinstonLutzMixin(CloudFileMixin):
     def test_epid_deviation(self):
         if self.epid_deviation is not None:
             self.assertAlmostEqual(
-                max(self.wl.axis_rms_deviation(Axis.EPID)),
+                max(self.wl.axis_rss_deviation(Axis.EPID)),
                 self.epid_deviation,
                 delta=0.15,
             )
@@ -1675,7 +1762,12 @@ class WLReferenceIsLargestRMS(WinstonLutzMixin, TestCase):
 
     def test_largest_error_at_ref_is_reported(self):
         self.assertAlmostEqual(
-            self.wl.results_data().max_gantry_rms_deviation_mm, 1, places=2
+            self.wl.results_data().max_gantry_rms_deviation_mm,
+            1 / math.sqrt(2),
+            places=2,
+        )
+        self.assertAlmostEqual(
+            self.wl.results_data().max_gantry_rss_deviation_mm, 1, places=2
         )
 
 

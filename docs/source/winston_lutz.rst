@@ -35,13 +35,17 @@ Results will be printed to the console and a figure showing the zoomed-in images
     Median 2D CAX->BB distance: 0.69mm
     Shift to iso: facing gantry, move BB: RIGHT 0.36mm; OUT 0.36mm; DOWN 0.20mm
     Gantry 3D isocenter diameter: 1.05mm (9/17 images considered)
-    Maximum Gantry RMS deviation (mm): 1.03mm
-    Maximum EPID RMS deviation (mm): 1.31mm
+    Maximum Gantry RMS deviation (mm): 0.73mm
+    Maximum Gantry RSS deviation (mm): 1.03mm
+    Maximum EPID RMS deviation (mm): 0.93mm
+    Maximum EPID RSS deviation (mm): 1.31mm
     Gantry+Collimator 3D isocenter diameter: 1.11mm (13/17 images considered)
     Collimator 2D isocenter diameter: 1.09mm (7/17 images considered)
-    Maximum Collimator RMS deviation (mm): 0.79
+    Maximum Collimator RMS deviation (mm): 0.56
+    Maximum Collimator RSS deviation (mm): 0.79
     Couch 2D isocenter diameter: 2.32mm (7/17 images considered)
-    Maximum Couch RMS deviation (mm): 1.23
+    Maximum Couch RMS deviation (mm): 0.87
+    Maximum Couch RSS deviation (mm): 1.23
 
 .. plot::
     :include-source: false
@@ -598,10 +602,23 @@ Given the above terms, the following calculations are performed.
   the size of the isocenter according to the axis in question. The maximum distance between any of the points is the isocenter size.
   The couch and collimator are treated separately for obvious reasons. If no
   images are given that rotate about the axis in question (e.g. cardinal gantry angles only) the isocenter size will default to 0.
-* **[Maximum, All][Gantry, Collimator, Couch, GB Combo, GBP Combo, EPID] RMS deviation (array of scalars, mm)**: Analyzes the images for the axis in question to determine the overall RMS
-  inclusive of all 3 coordinate axes (vert, long, lat). I.e. this is the overall displacement as a function of the axis in question.
-  For EPID, the displacement is calculated as the distance from image center to BB for all images with couch=0. If no
-  images are given that rotate about the axis in question (e.g. cardinal gantry angles only) the isocenter size will default to 0.
+* .. versionchanged:: 3.48
+
+  **[Maximum, All][Gantry, Collimator, Couch, GB Combo, GBP Combo, EPID] RMS deviation (array of scalars, mm)**: Analyzes the images for the axis in question to determine the root-mean-square of the two in-plane displacement components:
+
+  .. math:: RMS = \sqrt{\frac{x^2 + y^2}{2}}
+
+* .. versionadded:: 3.48
+
+  **[Maximum, All][Gantry, Collimator, Couch, GB Combo, GBP Combo, EPID] RSS deviation (array of scalars, mm)**: Determines the root-sum-square of the two in-plane displacement components:
+
+  .. math:: RSS = \sqrt{x^2 + y^2}
+
+  .. warning::
+
+    Due to a bug, RSS was inadvertantly labeled is RMS in pylinac 3.47 and earlier.
+
+  For EPID, both metrics use the displacement from the image center to BB for all images with couch=0. If no images rotate about the requested axis, the result defaults to 0.
 
 .. _interpreting-winston-lutz-results:
 
@@ -631,11 +648,15 @@ This is also what is given in RadMachine image analysis results and is explained
 
 * ``max_gantry_rms_deviation_mm``: The maximum RMS value of the field CAX to BB for the gantry axis images in mm. This is an alternative to the max/mean/median calculations.
 * ``max_epid_rms_deviation_mm``: The maximum RMS value of the field CAX to EPID center for the EPID images in mm. This is an alternative to the max/mean/median calculations.
+* ``max_gantry_rss_deviation_mm``: The maximum RSS value of the field CAX to BB for the gantry axis images in mm.
+* ``max_epid_rss_deviation_mm``: The maximum RSS value of the field CAX to EPID center for the EPID images in mm.
 * ``gantry_coll_3d_iso_diameter_mm``: The 3D isocenter diameter **of the gantry and collimator axes** as determined by the gantry and collimator images in mm.
 * ``coll_2d_iso_diameter_mm``: The 2D isocenter diameter **of the collimator axis only** as determined by the collimator images in mm.
 * ``max_coll_rms_deviation_mm``: The maximum RMS deviation of the field CAX to BB for the collimator axis images in mm. This is an alternative to the max/mean/median calculations.
+* ``max_coll_rss_deviation_mm``: The maximum RSS deviation of the field CAX to BB for the collimator axis images in mm.
 * ``max_couch_rms_deviation_mm``: The maximum RMS value of the field CAX to BB for the couch axis images in mm. This is an alternative to the max/mean/median calculations.
   This uses backprojection lines of the field center to the source and minimizes a sphere that touches all the backprojection lines.
+* ``max_couch_rss_deviation_mm``: The maximum RSS value of the field CAX to BB for the couch axis images in mm.
 
   .. note::
 
@@ -965,12 +986,16 @@ which has an output of::
     Shift to iso: facing gantry, move BB: RIGHT 0.00mm; OUT 0.00mm; DOWN 0.00mm
     Gantry 3D isocenter diameter: 0.00mm (4/4 images considered)
     Maximum Gantry RMS deviation (mm): 0.00mm
+    Maximum Gantry RSS deviation (mm): 0.00mm
     Maximum EPID RMS deviation (mm): 0.00mm
+    Maximum EPID RSS deviation (mm): 0.00mm
     Gantry+Collimator 3D isocenter diameter: 0.00mm (4/4 images considered)
     Collimator 2D isocenter diameter: 0.00mm (1/4 images considered)
     Maximum Collimator RMS deviation (mm): 0.00
+    Maximum Collimator RSS deviation (mm): 0.00
     Couch 2D isocenter diameter: 0.00mm (1/4 images considered)
     Maximum Couch RMS deviation (mm): 0.00
+    Maximum Couch RSS deviation (mm): 0.00
 
 As shown, we have perfect results.
 
@@ -1016,13 +1041,17 @@ with an output of::
     Mean 2D CAX->BB distance: 0.50mm
     Shift to iso: facing gantry, move BB: RIGHT 1.01mm; OUT 0.00mm; DOWN 0.00mm
     Gantry 3D isocenter diameter: 0.00mm (4/4 images considered)
-    Maximum Gantry RMS deviation (mm): 1.01mm
+    Maximum Gantry RMS deviation (mm): 0.71mm
+    Maximum Gantry RSS deviation (mm): 1.01mm
     Maximum EPID RMS deviation (mm): 0.00mm
+    Maximum EPID RSS deviation (mm): 0.00mm
     Gantry+Collimator 3D isocenter diameter: 0.00mm (4/4 images considered)
     Collimator 2D isocenter diameter: 0.00mm (1/4 images considered)
     Maximum Collimator RMS deviation (mm): 0.00
+    Maximum Collimator RSS deviation (mm): 0.00
     Couch 2D isocenter diameter: 0.00mm (1/4 images considered)
     Maximum Couch RMS deviation (mm): 0.00
+    Maximum Couch RSS deviation (mm): 0.00
 
 We have correctly found that the max distance is 1mm and the required shift to iso is 1mm to the right (since we placed the bb to the left).
 
@@ -1073,13 +1102,17 @@ with output of::
     Mean 2D CAX->BB distance: 0.50mm
     Shift to iso: facing gantry, move BB: RIGHT 0.00mm; OUT 0.00mm; DOWN 0.00mm
     Gantry 3D isocenter diameter: 2.02mm (4/4 images considered)
-    Maximum Gantry RMS deviation (mm): 1.01mm
-    Maximum EPID RMS deviation (mm): 1.01mm
+    Maximum Gantry RMS deviation (mm): 0.71mm
+    Maximum Gantry RSS deviation (mm): 1.01mm
+    Maximum EPID RMS deviation (mm): 0.71mm
+    Maximum EPID RSS deviation (mm): 1.01mm
     Gantry+Collimator 3D isocenter diameter: 2.02mm (4/4 images considered)
     Collimator 2D isocenter diameter: 0.00mm (1/4 images considered)
     Maximum Collimator RMS deviation (mm): 0.00
+    Maximum Collimator RSS deviation (mm): 0.00
     Couch 2D isocenter diameter: 0.00mm (1/4 images considered)
     Maximum Couch RMS deviation (mm): 0.00
+    Maximum Couch RSS deviation (mm): 0.00
 
 Note that since the tilt is symmetric the shift to iso is 0 despite our non-zero median distance.
 I.e. we are at iso, the iso just isn't perfect and we are thus at the best possible position.
@@ -1131,13 +1164,17 @@ with output of::
     Mean 2D CAX->BB distance: 0.50mm
     Shift to iso: facing gantry, move BB: LEFT 0.00mm; IN 0.00mm; DOWN 1.01mm
     Gantry 3D isocenter diameter: 0.00mm (4/4 images considered)
-    Maximum Gantry RMS deviation (mm): 1.01mm
-    Maximum EPID RMS deviation (mm): 1.01mm
+    Maximum Gantry RMS deviation (mm): 0.71mm
+    Maximum Gantry RSS deviation (mm): 1.01mm
+    Maximum EPID RMS deviation (mm): 0.71mm
+    Maximum EPID RSS deviation (mm): 1.01mm
     Gantry+Collimator 3D isocenter diameter: 0.00mm (4/4 images considered)
     Collimator 2D isocenter diameter: 0.00mm (1/4 images considered)
     Maximum Collimator RMS deviation (mm): 0.00
+    Maximum Collimator RSS deviation (mm): 0.00
     Couch 2D isocenter diameter: 0.00mm (1/4 images considered)
     Maximum Couch RMS deviation (mm): 0.00
+    Maximum Couch RSS deviation (mm): 0.00
 
 Sag will not realistically vary smoothly with gantry angle but for the purposes of the test it is a good approximation.
 This appears as an offset of the BB in the Z-axis.
@@ -1189,13 +1226,17 @@ with output of::
     Mean 2D CAX->BB distance: 1.51mm
     Shift to iso: facing gantry, move BB: RIGHT 2.01mm; OUT 0.00mm; DOWN 0.00mm
     Gantry 3D isocenter diameter: 0.00mm (4/8 images considered)
-    Maximum Gantry RMS deviation (mm): 2.01mm
+    Maximum Gantry RMS deviation (mm): 1.42mm
+    Maximum Gantry RSS deviation (mm): 2.01mm
     Maximum EPID RMS deviation (mm): 0.00mm
+    Maximum EPID RSS deviation (mm): 0.00mm
     Gantry+Collimator 3D isocenter diameter: 0.00mm (6/8 images considered)
     Collimator 2D isocenter diameter: 0.00mm (3/8 images considered)
-    Maximum Collimator RMS deviation (mm): 2.01
+    Maximum Collimator RMS deviation (mm): 1.42
+    Maximum Collimator RSS deviation (mm): 2.01
     Couch 2D isocenter diameter: 3.72mm (3/8 images considered)
-    Maximum Couch RMS deviation (mm): 2.01
+    Maximum Couch RMS deviation (mm): 1.42
+    Maximum Couch RSS deviation (mm): 2.01
 
 Note the shift to iso is 2mm to the right, as we offset the BB to the left by 2mm, even with our
 couch kicks and collimator rotations.
