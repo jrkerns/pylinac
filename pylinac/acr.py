@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 from plotly import graph_objects as go
 from pydantic import BaseModel, ConfigDict, Field
 from scipy import ndimage
-from skimage import measure
+from skimage import draw, measure
 from skimage.filters import threshold_li, threshold_otsu
 
 from .core import pdf
@@ -85,8 +85,10 @@ class CTModuleOutput(BaseModel):
 
 
 class UniformityModule(CatPhanModule):
-    """Class for analysis of the Uniformity slice of the CTP module. Measures 5 ROIs around the slice that
-    should all be close to the same value.
+    """Analyze HU uniformity and BB distance on the ACR CT uniformity slice.
+
+    Five fixed ROIs measure HU uniformity. Two additional roll-corrected search
+    ROIs locate the nominally 100 mm-separated BBs and measure image scaling.
     """
 
     attr_name = "uniformity_module"
@@ -100,8 +102,115 @@ class UniformityModule(CatPhanModule):
         "Left": {"angle": 180, "distance": roi_dist_mm, "radius": roi_radius_mm},
         "Center": {"angle": 0, "distance": 0, "radius": roi_radius_mm},
     }
+    bb_roi_settings = {
+        "BB 1": {"angle": -45, "distance": 20, "radius": 5},
+        "BB 2": {"angle": 135, "distance": 80, "radius": 5},
+    }
+    bb_nominal_distance_mm = 100
     window_min = -50
     window_max = 50
+
+    def _setup_rois(self) -> None:
+        """In addition to the 5 uniformity ROIs,
+        we will also find the 2 BB ROIs to determine scaling/distance."""
+        super()._setup_rois()
+        self.bb_rois: dict[str, DiskROI] = {}
+        self.bb_centers: dict[str, Point] = {}
+
+        for name, setting in self.bb_roi_settings.items():
+            roi = DiskROI.from_phantom_center(
+                self.image,
+                setting["angle_corrected"],
+                setting["radius_pixels"],
+                setting["distance_pixels"],
+                self.phan_center,
+            )
+            self.bb_rois[name] = roi
+            self.bb_centers[name] = self._find_bb_centroid(roi=roi)
+
+    def _find_bb_centroid(
+        self,
+        roi: DiskROI,
+    ) -> Point:
+        """Find a BB's weighted centroid within its fixed search ROI."""
+        array = np.asarray(self.image.array)
+        rr, cc = draw.disk(
+            center=(roi.center.y, roi.center.x),
+            radius=roi.radius,
+            shape=array.shape,
+        )
+        roi_values = array[rr, cc]
+        threshold = (float(np.min(roi_values)) + float(np.max(roi_values))) / 2
+
+        thresholded = np.zeros(array.shape, dtype=bool)
+        thresholded[rr, cc] = roi_values >= threshold
+        labeled = measure.label(thresholded, connectivity=2)
+        strongest_pixel = np.unravel_index(
+            np.argmax(np.where(thresholded, array, -np.inf)), array.shape
+        )
+        strongest_label = labeled[strongest_pixel]
+        component_y, component_x = np.nonzero(labeled == strongest_label)
+        weights = array[component_y, component_x] - threshold
+        return Point(
+            x=float(np.average(component_x, weights=weights)),
+            y=float(np.average(component_y, weights=weights)),
+        )
+
+    @property
+    def bb_distance_mm(self) -> float:
+        """The measured distance between the two BBs in millimeters."""
+        bb_1, bb_2 = self.bb_centers.values()
+        return bb_1.distance_to(bb_2) * float(self.mm_per_pixel)
+
+    @property
+    def scaling_error_percent(self) -> float:
+        """The absolute BB distance scaling error in percent."""
+        return (
+            abs(self.bb_distance_mm - self.bb_nominal_distance_mm)
+            / self.bb_nominal_distance_mm
+            * 100
+        )
+
+    @property
+    def measured_pixel_size(self) -> float:
+        """The pixel size (mm/pixel) derived from the nominal BB separation."""
+        distance_pixels = self.bb_distance_mm / float(self.mm_per_pixel)
+        return self.bb_nominal_distance_mm / distance_pixels
+
+    def plot_rois(self, axis: plt.Axes) -> None:
+        """Plot uniformity and BB search ROIs to the axis."""
+        super().plot_rois(axis)
+        for name, roi in self.bb_rois.items():
+            point = self.bb_centers[name]
+            # BB ROI
+            roi.plot2axes(
+                axis,
+                edgecolor="green",
+                label_position="upper center",
+            )
+            # BB point
+            axis.plot(point.x, point.y, marker="+", color="green")
+
+    def plotly_rois(self, fig: go.Figure) -> None:
+        """Plot uniformity and BB search ROIs to the Plotly figure."""
+        super().plotly_rois(fig)
+        for name, roi in self.bb_rois.items():
+            point = self.bb_centers[name]
+            # BB ROI
+            roi.plotly(
+                fig,
+                line_color="green",
+                label_position="upper center",
+                name=f"{name} Search ROI",
+            )
+            # BB itself
+            fig.add_scatter(
+                x=[point.x],
+                y=[point.y],
+                mode="markers",
+                marker={"color": "green", "symbol": "cross"},
+                name=f"{name} Center",
+            )
 
 
 class UniformityModuleOutput(CTModuleOutput):
@@ -112,6 +221,18 @@ class UniformityModuleOutput(CTModuleOutput):
     center_roi_stdev: float = Field(
         description="The standard deviation of the center ROI.",
         title="Center ROI Standard Deviation",
+    )
+    bb_distance_mm: float = Field(
+        description="The measured distance between the two uniformity BBs in millimeters.",
+        title="BB Distance (mm)",
+    )
+    scaling_error_percent: float = Field(
+        description="The absolute scaling error of the measured BB distance in percent.",
+        title="Scaling Error (%)",
+    )
+    measured_pixel_size: float = Field(
+        description="The pixel size derived from the nominal 100 mm BB separation and distance in pixels.",
+        title="Measured Pixel Size (mm/pixel)",
     )
 
 
@@ -541,6 +662,7 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
             f"Contrast to Noise Ratio: {self.low_contrast_module.cnr():2.2f}\n"
             f"Uniformity ROIs: {self.uniformity_module.roi_vals_as_str}\n"
             f"Uniformity Center ROI standard deviation: {self.uniformity_module.rois['Center'].std:2.2f}\n"
+            f"BB distance (mm): {self.uniformity_module.bb_distance_mm:2.2f}\n"
             f"MTF 50% (lp/mm): {self.spatial_resolution_module.mtf.relative_resolution(50):2.2f}\n"
         )
         return string
@@ -570,6 +692,9 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
                     name: roi.mean for name, roi in self.uniformity_module.rois.items()
                 },
                 center_roi_stdev=self.uniformity_module.rois["Center"].std,
+                bb_distance_mm=self.uniformity_module.bb_distance_mm,
+                scaling_error_percent=self.uniformity_module.scaling_error_percent,
+                measured_pixel_size=self.uniformity_module.measured_pixel_size,
             ),
             spatial_resolution_module=SpatialResolutionModuleOutput(
                 offset=CT_SPATIAL_RESOLUTION_MODULE_OFFSET_MM,
@@ -666,6 +791,7 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
             f"Low contrast visibility: {self.low_contrast_module.cnr():2.2f}",
             f"Uniformity ROIs: {self.uniformity_module.roi_vals_as_str}",
         ]
+        texts.append(f"BB distance: {self.uniformity_module.bb_distance_mm:2.2f} mm")
         analysis_images = self.save_images(to_stream=True)
 
         canvas = pdf.PylinacCanvas(
@@ -1053,6 +1179,14 @@ class MRMediumUniformityModule(MRUniformityModule):
             "radius": 60,
         }
     }
+
+    @property
+    def piu_passed(self) -> bool:
+        """Section 5.4; medium has different settings than large"""
+        if self.tesla < 3:
+            return self.percent_image_uniformity > 90
+        else:
+            return self.percent_image_uniformity > 85
 
 
 class MRUniformityModuleOutput(BaseModel):

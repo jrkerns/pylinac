@@ -4,15 +4,24 @@ import zipfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase, skip
+from unittest.mock import PropertyMock, patch
 
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy import ndimage
 
 from pylinac import ACRMRILarge, ACRMRIMedium
-from pylinac.acr import ACRCT, ACRCTResult, ACRMRIResult
+from pylinac.acr import (
+    ACRCT,
+    ACRCTResult,
+    ACRMRIResult,
+    MRMediumUniformityModule,
+    UniformityModule,
+)
 from pylinac.core.geometry import Point
+from pylinac.core.image import ArrayImage
 from pylinac.core.io import TemporaryZipDirectory
+from pylinac.core.roi import DiskROI
 from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
@@ -98,6 +107,45 @@ class TestCTGeneral(TestCase):
     def test_error_if_from_demo(self):
         with self.assertRaises(NotImplementedError):
             ACRMRILarge.from_demo_image()
+
+
+class TestUniformityBBDetection(TestCase):
+    def setUp(self):
+        self.module = object.__new__(UniformityModule)
+
+    def find_centroid(
+        self,
+        array: np.ndarray,
+        center: Point = Point(25, 25),
+        radius: float = 20,
+    ) -> Point:
+        self.module.image = ArrayImage(array)
+        roi = DiskROI(array=array, radius=radius, center=center)
+        return self.module._find_bb_centroid(roi=roi)
+
+    def test_clear_bb_weighted_centroid(self):
+        array = np.zeros((50, 50), dtype=float)
+        array[25, 25] = 20
+        array[25, 26] = 15
+        point = self.find_centroid(array)
+        self.assertAlmostEqual(point.x, 25 + 1 / 3)
+        self.assertAlmostEqual(point.y, 25)
+
+    def test_strongest_component_is_selected(self):
+        array = np.zeros((50, 50), dtype=float)
+        array[18:20, 18:20] = 6
+        array[30:32, 30:32] = 20
+        point = self.find_centroid(array)
+        self.assertAlmostEqual(point.x, 30.5)
+        self.assertAlmostEqual(point.y, 30.5)
+
+    def test_local_baseline_does_not_change_centroid(self):
+        array = np.full((50, 50), 100, dtype=float)
+        array[25, 25] = 120
+        array[25, 26] = 115
+        point = self.find_centroid(array)
+        self.assertAlmostEqual(point.x, 25 + 1 / 3)
+        self.assertAlmostEqual(point.y, 25)
 
 
 class TestPlottingSaving(TestCase):
@@ -219,6 +267,24 @@ class ACRCTMixin(CloudFileMixin):
                 exp_val, meas_val, delta=0.2, msg=f"ROI {key} failed"
             )
 
+    def test_bb_distance_measurements(self):
+        module = self.ct.uniformity_module
+        self.assertAlmostEqual(module.bb_distance_mm, 100, delta=1)
+        self.assertAlmostEqual(
+            module.scaling_error_percent,
+            abs(module.bb_distance_mm - module.bb_nominal_distance_mm),
+        )
+        distance_pixels = module.bb_distance_mm / float(module.mm_per_pixel)
+        self.assertAlmostEqual(
+            module.measured_pixel_size,
+            module.bb_nominal_distance_mm / distance_pixels,
+        )
+        data = self.ct.results_data().uniformity_module
+        self.assertEqual(data.bb_distance_mm, module.bb_distance_mm)
+        self.assertEqual(data.scaling_error_percent, module.scaling_error_percent)
+        self.assertEqual(data.measured_pixel_size, module.measured_pixel_size)
+        self.assertIn("BB distance (mm)", self.ct.results())
+
 
 class ACRPhilips(ACRCTMixin, PlotlyTestMixin, TestCase):
     file_name = "Philips.zip"
@@ -240,7 +306,7 @@ class ACRPhilips(ACRCTMixin, PlotlyTestMixin, TestCase):
         },
         1: {
             "title": "HU Uniformity",
-            "num_traces": 6,
+            "num_traces": 10,
         },
         2: {
             "title": "Spatial Resolution",
@@ -476,6 +542,30 @@ class TestMRGeneral(TestCase):
     def test_error_if_from_demo(self):
         with self.assertRaises(NotImplementedError):
             ACRMRILarge.from_demo_image()
+
+
+class TestMRMediumUniformityModule(TestCase):
+    @staticmethod
+    def piu_passed(tesla: float, piu: float) -> bool:
+        module = object.__new__(MRMediumUniformityModule)
+        module.tesla = tesla
+        with patch.object(
+            MRMediumUniformityModule,
+            "percent_image_uniformity",
+            new_callable=PropertyMock,
+            return_value=piu,
+        ):
+            return module.piu_passed
+
+    def test_piu_threshold_below_3_tesla(self):
+        self.assertFalse(self.piu_passed(tesla=1.5, piu=90))
+        self.assertTrue(self.piu_passed(tesla=1.5, piu=90.01))
+
+    def test_piu_threshold_at_or_above_3_tesla(self):
+        for tesla in (3, 7):
+            with self.subTest(tesla=tesla):
+                self.assertFalse(self.piu_passed(tesla=tesla, piu=85))
+                self.assertTrue(self.piu_passed(tesla=tesla, piu=85.01))
 
 
 class TestMRPlottingSaving(TestCase):

@@ -39,6 +39,16 @@ Calibration
 * :bdg-success:`Feature` TG-51 ion chambers now expose their supported PDD(10)x
   range to make kQ calculations dynamic to the specific chambers' limit vs a global min/max.
 
+ACR
+^^^
+
+* :bdg-success:`Feature` The ACR CT uniformity module now detects the two
+  distance-measurement BBs and reports their separation, scaling error, and
+  phantom-derived pixel size.
+* :bdg-warning:`Fixed` The ACR MRI Medium phantom percent integral uniformity pass
+  thresholds are now 90% for <3T and 85% at >=3T, matching the ACR
+  Medium phantom documentation. Previously, they were the same as the large (85%/80%).
+
 Winston-Lutz
 ^^^^^^^^^^^^
 

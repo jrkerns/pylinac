@@ -253,6 +253,30 @@ CT Analysis Parameters
 Interpreting CT Results
 -----------------------
 
+Uniformity BB distance
+^^^^^^^^^^^^^^^^^^^^^^
+
+The CT uniformity module also measures the two BBs embedded in the phantom. The
+BB search regions are placed at their known locations and rotated with the
+detected phantom roll. Within each search region, pylinac performs a high-pass threshold
+with the threshold at the midpoint pixel value. The ROI containing the max pixel value
+is assumed to be the BB. The ROI pixels are then weighted to determine the weighted centroid
+which is interpreted as the BB center.
+
+The distance between the detected centroids is converted to millimeters using
+the DICOM pixel spacing. Scaling error and measured pixel size are calculated as:
+
+.. math::
+
+    \text{Scaling error}  = \frac{|M - 100|}{100} \times 100
+
+.. math::
+
+    \text{Measured pixel size}  = \frac{100}{D_{px}}
+
+where :math:`M` is the measured BB distance in millimeters and :math:`D_{px}` is
+the measured distance in pixels. Scaling error is in % and pixel size is in mm/pixel.
+
 .. tab-set::
    :sync-group: usage
 
@@ -297,6 +321,11 @@ Interpreting CT Results
           and the value is the mean HU value. E.g. ``'Top': 13.2``.
         * ``roi_settings``: The ROI settings. The keys are the location names.
         * ``center_roi_stdev``: The standard deviation of the center ROI.
+        * ``bb_distance_mm``: The measured distance between the BB centers in millimeters.
+        * ``scaling_error_percent``: The absolute difference from the nominal 100 mm
+          separation in percent.
+        * ``measured_pixel_size``: The pixel size derived from the nominal BB
+          separation in mm/pixel.
 
       * ``low_contrast_module``: The results of the Low-Contrast module, with the following items:
 
