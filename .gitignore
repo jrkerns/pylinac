@@ -27,6 +27,7 @@ parts/
 sdist/
 var/
 wheels/
+.wrangler/
 share/python-wheels/
 *.egg-info/
 .installed.cfg
