@@ -1988,6 +1988,43 @@ class LazyDicomImageStack:
             - self.metadatas[1].ImagePositionPatient[-1]
         )
 
+    def z_flip(self, allow_overwrite: bool = False) -> None:
+        """Rotate the stack 180 degrees around its in-plane vertical axis.
+
+        Pixel arrays are exchanged between opposite slice positions and
+        mirrored left-to-right while each position's DICOM metadata and stack
+        ordering remain unchanged.
+
+        Parameters
+        ----------
+
+        allow_overwrite : bool
+            The z-flip modifies the underlying data stack. For lazy DICOM stacks backed by files on disk, this
+            may be an undesireable characteristic. Thus, this is an opt-in parameter to avoid accidentally
+            changing underlying data on disk.
+        """
+        if type(self) is LazyDicomImageStack and not allow_overwrite:
+            raise ValueError(
+                "This data is on disk and would change on disk. To allow this method call, set `allow_overwrite=True`."
+            )
+        # swap the pixel data stack-index-wise and then flip left-right
+        # metadata is left alone on purpose. Z-flipping is a
+        # compensation strategy, not a wholistic DICOM tool
+        for lower_index in range(len(self) // 2):
+            upper_index = len(self) - lower_index - 1
+            lower_image = self[lower_index]
+            upper_image = self[upper_index]
+            lower_array = lower_image.array.copy()
+            lower_image.array = np.fliplr(upper_image.array).copy()
+            upper_image.array = np.fliplr(lower_array).copy()
+            self[lower_index] = lower_image
+            self[upper_index] = upper_image
+        if len(self) % 2:
+            middle_index = len(self) // 2
+            middle_image = self[middle_index]
+            middle_image.fliplr()
+            self[middle_index] = middle_image
+
     def __getitem__(self, item: int) -> DicomImage:
         return DicomImage(self._image_path_keys[item], dtype=self.dtype)
 

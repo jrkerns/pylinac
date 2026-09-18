@@ -22,6 +22,7 @@ from pydicom.uid import UID
 
 from pylinac import settings
 from pylinac.core import image
+from pylinac.core.array_utils import create_dicom_files_from_3d_array
 from pylinac.core.geometry import Point
 from pylinac.core.image import (
     XIM,
@@ -1062,6 +1063,134 @@ class TestArrayImage(TestCase):
 
 class TestDicomStack(TestCase):
     stack_location = get_file_from_cloud_test_repo(["CBCT", "CBCT_4.zip"])
+
+    @staticmethod
+    def _create_test_stack(
+        stack_type: type[
+            DicomImageStack | LazyDicomImageStack | LazyZipDicomImageStack
+        ],
+        directory: Path,
+    ) -> tuple[
+        DicomImageStack | LazyDicomImageStack | LazyZipDicomImageStack,
+        np.ndarray,
+    ]:
+        slices = [
+            np.arange(6, dtype=np.uint16).reshape(2, 3) + index * 10
+            for index in range(5)
+        ]
+        volume = np.stack(slices, axis=-1)
+        dicom_dir = create_dicom_files_from_3d_array(
+            volume, out_dir=directory / "dicoms"
+        )
+        if stack_type is LazyZipDicomImageStack:
+            archive = shutil.make_archive(
+                str(directory / "dicoms"), "zip", root_dir=dicom_dir
+            )
+            stack = stack_type.from_zip(archive, min_number=1, check_uid=False)
+        else:
+            stack = stack_type(dicom_dir, min_number=1, check_uid=False)
+        return stack, volume
+
+    @staticmethod
+    def _z_flip(
+        stack: DicomImageStack | LazyDicomImageStack | LazyZipDicomImageStack,
+    ) -> None:
+        if type(stack) is LazyDicomImageStack:
+            stack.z_flip(allow_overwrite=True)
+        else:
+            stack.z_flip()
+
+    @parameterized.expand(
+        [
+            (DicomImageStack,),
+            (LazyDicomImageStack,),
+            (LazyZipDicomImageStack,),
+        ]
+    )
+    def test_z_flip(
+        self,
+        stack_type: type[
+            DicomImageStack | LazyDicomImageStack | LazyZipDicomImageStack
+        ],
+    ):
+        with tempfile.TemporaryDirectory() as directory:
+            stack, volume = self._create_test_stack(stack_type, Path(directory))
+            original_paths = stack._image_path_keys.copy()
+            original_metadata_uids = [
+                metadata.SOPInstanceUID for metadata in stack.metadatas
+            ]
+            original_image_uids = [
+                stack[index].metadata.SOPInstanceUID for index in range(len(stack))
+            ]
+            original_positions = [
+                metadata.ImagePositionPatient[:] for metadata in stack.metadatas
+            ]
+            original_metadata_uid = stack.metadata.SOPInstanceUID
+            original_slice_spacing = stack.slice_spacing
+
+            result = self._z_flip(stack)
+
+            self.assertIsNone(result)
+            self.assertEqual(len(stack), volume.shape[-1])
+            self.assertEqual(stack._image_path_keys, original_paths)
+            self.assertEqual(
+                [metadata.SOPInstanceUID for metadata in stack.metadatas],
+                original_metadata_uids,
+            )
+            self.assertEqual(
+                [stack[index].metadata.SOPInstanceUID for index in range(len(stack))],
+                original_image_uids,
+            )
+            self.assertEqual(
+                [metadata.ImagePositionPatient for metadata in stack.metadatas],
+                original_positions,
+            )
+            self.assertEqual(stack.metadata.SOPInstanceUID, original_metadata_uid)
+            self.assertEqual(stack.slice_spacing, original_slice_spacing)
+            for index in range(len(stack)):
+                assert_array_almost_equal(
+                    stack[index].array, np.fliplr(volume[..., -(index + 1)])
+                )
+            assert_array_almost_equal(stack[2].array, np.fliplr(volume[..., 2]))
+
+            self._z_flip(stack)
+
+            for index in range(len(stack)):
+                assert_array_almost_equal(stack[index].array, volume[..., index])
+
+    def test_z_flip_raises_for_filesystem_backed_lazy_stack_without_allow_overwrite(
+        self,
+    ):
+        with tempfile.TemporaryDirectory() as directory:
+            stack, _ = self._create_test_stack(LazyDicomImageStack, Path(directory))
+            with self.assertRaisesRegex(ValueError, "allow_overwrite=True"):
+                stack.z_flip()
+
+    def test_z_flip_allows_filesystem_backed_lazy_stack_with_allow_overwrite(self):
+        with tempfile.TemporaryDirectory() as directory:
+            stack, volume = self._create_test_stack(
+                LazyDicomImageStack, Path(directory)
+            )
+            stack.z_flip(allow_overwrite=True)
+            for index in range(len(stack)):
+                assert_array_almost_equal(
+                    stack[index].array, np.fliplr(volume[..., -(index + 1)])
+                )
+
+    @parameterized.expand(
+        [
+            (DicomImageStack,),
+            (LazyZipDicomImageStack,),
+        ]
+    )
+    def test_z_flip_without_allow_overwrite(
+        self,
+        stack_type: type[DicomImageStack | LazyZipDicomImageStack],
+    ):
+        with tempfile.TemporaryDirectory() as directory:
+            stack, volume = self._create_test_stack(stack_type, Path(directory))
+            stack.z_flip()
+            assert_array_almost_equal(stack[0].array, np.fliplr(volume[..., -1]))
 
     def test_loading(self):
         # test normal construction

@@ -79,6 +79,14 @@ This can also be visualized `here <https://www.slicer.org/wiki/Coordinate_system
 Image Manipulation
 ^^^^^^^^^^^^^^^^^^
 
+
+.. warning::
+
+    Image manipulation is indented as a pre-processing step terminating in analysis.
+    Is not meant to be used as a persistent DICOM editing tool. Many DICOM tags are not
+    updated depending on the manipulation performed such as ``ImageOrientationPatient``
+    and others.
+
 To manipulate an image, such as cropping, simply run the method. Some examples:
 
 .. code-block:: python
@@ -106,6 +114,29 @@ a few extras. We need to load it specifically:
     my_linac_dcm = image.LinacDicomImage("path/to/image.dcm")
     my_linac_dcm.cax()  # a Point instance. E.g. (x=550, y=550)
     my_linac_dcm.dpmm()  # the dots/mm at isocenter. Will account for the SID.
+
+DICOM Stack Z Flip
+##################
+
+DICOM stacks can be rotated 180 degrees around their in-plane vertical axis with
+:meth:`~pylinac.core.image.LazyDicomImageStack.z_flip`. This is useful when a
+phantom volume was acquired in the opposite orientation. The operation
+exchanges pixel data between opposite slice positions and mirrors each image
+left-to-right and each position's DICOM metadata:
+
+.. code-block:: python
+
+    from pylinac.core.image import DicomImageStack
+
+    stack = DicomImageStack("path/to/dicom/folder")
+    stack.z_flip()
+
+.. warning::
+
+    On a filesystem-backed :class:`~pylinac.core.image.LazyDicomImageStack`,
+    the transformed pixels are written to the source DICOM files. An eager
+    stack changes only in memory, and a ZIP-backed lazy stack changes only its
+    in-memory shadow data without modifying the source ZIP archive.
 
 .. _tiff-to-dicom:
 

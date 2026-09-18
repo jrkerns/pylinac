@@ -216,6 +216,7 @@ class QuartDVTMixin(CloudFileMixin):
     cnr: float
     slice_thickness: float
     high_contrast_distance: float = 0.0
+    high_contrast_resolutions: dict[str, float] | None = None
     horiz_dist = float
     vert_dist = float
     hu_values: dict
@@ -232,11 +233,14 @@ class QuartDVTMixin(CloudFileMixin):
     roi_size_factor: float = 1
     scaling_factor: float = 1
     has_water_vial: bool = False
+    z_flip: bool = False
 
     @classmethod
     def setUpClass(cls):
         filename = cls.get_filename()
         cls.quart = QuartDVT.from_zip(filename, memory_efficient_mode=True)
+        if cls.z_flip:
+            cls.quart.dicom_stack.z_flip()
         cls.quart.analyze(
             x_adjustment=cls.x_adjustment,
             y_adjustment=cls.y_adjustment,
@@ -283,6 +287,13 @@ class QuartDVTMixin(CloudFileMixin):
             delta=0.05,
         )
 
+    def test_high_contrast_resolutions(self):
+        if self.high_contrast_resolutions is None:
+            self.skipTest("high_contrast_resolutions not available")
+        resolutions = self.quart.geometry_module.high_contrast_resolutions()
+        for key, expected in self.high_contrast_resolutions.items():
+            self.assertAlmostEqual(resolutions[key], expected, delta=0.1)
+
     def test_HU_values(self):
         """Test HU values."""
         for key, roi in self.quart.hu_module.rois.items():
@@ -300,6 +311,37 @@ class QuartDVTMixin(CloudFileMixin):
         for key, exp_val in self.unif_values.items():
             meas_val = self.quart.uniformity_module.rois[key].pixel_value
             self.assertAlmostEqual(exp_val, meas_val, delta=5)
+
+
+class TestQuartDVTZFlip(QuartDVTMixin, TestCase):
+    """Test we can z-flip a scan and analyze it."""
+
+    file_name = "flipped_quart.zip"
+    phantom_roll = -0.15
+    origin_slice = 60
+    has_water_vial = True
+    snr = 402.5
+    cnr = 60.66
+    slice_thickness = 1.9
+    high_contrast_distance = 1.02
+    high_contrast_resolutions = {"Top": 0.615, "Bottom": 0.626}
+    horiz_dist = 159.9
+    vert_dist = 159.8
+    z_flip = True
+    hu_values = {
+        "Air": -1000,
+        "Poly": -43,
+        "Acrylic": 109,
+        "Teflon": 943,
+        "Water": -3,
+    }
+    unif_values = {
+        "Top": 105,
+        "Right": 105,
+        "Bottom": 105,
+        "Left": 109,
+        "Center": 104,
+    }
 
 
 class TestQuartHead(QuartDVTMixin, PlotlyTestMixin, TestCase):

@@ -435,6 +435,7 @@ class CatPhanMixin(CloudFileMixin):
     angle_adjustment: float = 0
     roi_size_factor: float = 1
     scaling_factor: float = 1
+    z_flip: bool = False
 
     @classmethod
     def setUpClass(cls):
@@ -445,6 +446,8 @@ class CatPhanMixin(CloudFileMixin):
             )
         else:
             cls.cbct = cls.catphan(filename, memory_efficient_mode=cls.memory_efficient)
+        if cls.z_flip:
+            cls.cbct.dicom_stack.z_flip()
         # set HU origin variance if needed
         if cls.hu_origin_variance is not None:
             cls.cbct.hu_origin_slice_variance = cls.hu_origin_variance
@@ -814,6 +817,19 @@ class CatPhan604Mixin(CatPhanMixin):
 class CatPhan700Mixin(CatPhanMixin):
     catphan = CatPhan700
     dir_path = [TEST_DIR, "CatPhan_700"]
+
+
+class TestCatPhan604ZFlip(CatPhan604Mixin, TestCase):
+    file_name = "flipped_catphan604.zip"
+    z_flip = True
+    origin_slice = 63
+    hu_values = {
+        "Air": -1000,
+        "PMP": -199,
+        "Acrylic": 109,
+        "Teflon": 939.5,
+    }
+    mtf_values = {80: 0.2175}
 
 
 class VarianPelvis(CatPhan504Mixin, TestCase):

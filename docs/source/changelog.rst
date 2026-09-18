@@ -10,6 +10,18 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v3.49.0
+-------
+
+Core
+^^^^
+
+* :bdg-success:`Feature` DICOM image stacks can now be rotated 180 degrees
+  around their in-plane vertical axis with
+  :meth:`~pylinac.core.image.LazyDicomImageStack.z_flip`. This is to provide
+  a tool for clinic's that accidentally scanned their CT/CBCT phantom inverted.
+
+
 v3.48.0
 -------
 
