@@ -21,6 +21,18 @@ Core
   :meth:`~pylinac.core.image.LazyDicomImageStack.z_flip`. This is to provide
   a tool for clinic's that accidentally scanned their CT/CBCT phantom inverted.
 
+MTF
+^^^
+
+* :bdg-danger:`Change` Peak-valley
+  :meth:`~pylinac.core.mtf.MTF.relative_resolution` now returns ``None`` when
+  the requested percentage is outside the measured rMTF range, instead of
+  extrapolating. Reports and QuAAC exports show ``N/A``.
+  See :ref:`peak-valley-mtf` for details. This affects planar imaging, CatPhan, ACR, and Helios.
+* :bdg-danger:`Change` Related to above, non-monotonic curves now return the leftmost crossing when multiple spatial
+  frequencies match the requested percentage. Previously, non-monotonic rMTFs could output results that
+  did not lie along the MTF curve. Results will now always be along the curve.
+
 
 v3.48.0
 -------

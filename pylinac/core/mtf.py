@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import warnings
 from collections.abc import Callable, Sequence
+from itertools import pairwise
 from typing import Any, Literal
 
 import argue
@@ -11,12 +12,16 @@ import plotly.graph_objects as go
 from matplotlib import pyplot as plt
 from numpy import ndarray
 from scipy.fft import fft, fftfreq
-from scipy.interpolate import interp1d
 from scipy.signal import windows
 
 from .contrast import michelson
 from .plotly_utils import add_title
 from .roi import HighContrastDiskROI, RectangleROI
+
+
+def format_resolution(value: float | None) -> str:
+    """Helper utility to format rMTF resolution values."""
+    return "N/A" if value is None else f"{value:2.2f}"
 
 
 def _plot_invert(x: np.ndarray) -> np.ndarray:
@@ -80,25 +85,41 @@ class MTF:
             )
 
     @argue.bounds(x=(0, 100))
-    def relative_resolution(self, x: float = 50) -> float:
+    def relative_resolution(self, x: float = 50) -> float | None:
         """Return the line pair value at the given rMTF resolution value.
 
         Parameters
         ----------
         x : float
             The percentage of the rMTF to determine the line pair value. Must be between 0 and 100.
+
+        Returns
+        -------
+        float or None
+            The lowest spatial frequency at the requested percentage, or ``None`` if the
+            percentage lies outside the measured normalized MTF range. Values at
+            the range endpoints are included. Non-monotonic curves still support
+            interpolation: the first crossing from left to right is returned. A plateau
+            at the requested percentage returns its left endpoint. The existing
+            alignment warning is issued at construction.
+            The measured curve remains available through :meth:`plot` and :meth:`plotly`.
         """
-        f = interp1d(
-            list(self.norm_mtfs.values()),
-            list(self.norm_mtfs.keys()),
-            fill_value="extrapolate",
+        target = x / 100
+        # Preserve adjacency along the measured curve; sorting by contrast would
+        # connect unrelated segments when the curve is non-monotonic.
+        for (left_lpmm, left_mtf), (right_lpmm, right_mtf) in pairwise(
+            sorted(self.norm_mtfs.items())
+        ):
+            if target == left_mtf:
+                return float(left_lpmm)
+            if min(left_mtf, right_mtf) <= target <= max(left_mtf, right_mtf):
+                fraction = (target - left_mtf) / (right_mtf - left_mtf)
+                return float(left_lpmm + fraction * (right_lpmm - left_lpmm))
+        warnings.warn(
+            f"MTF resolution wasn't calculated for {x}% that was asked for. "
+            "The requested percentage is outside the measured MTF range."
         )
-        mtf = f(x / 100)
-        if mtf > max(self.spacings):
-            warnings.warn(
-                f"MTF resolution wasn't calculated for {x}% that was asked for. The value returned is an extrapolation. Use a higher % MTF to get a non-interpolated value."
-            )
-        return float(mtf)
+        return None
 
     @classmethod
     def from_high_contrast_diskset(

@@ -660,7 +660,7 @@ class CatPhan600_2(CatPhanMixin, TestCase):
     }
     hu_passed = False
     unif_values = {"Center": 14, "Left": 15, "Right": 15, "Top": 16, "Bottom": 13}
-    mtf_values = {50: 0.4}
+    mtf_values = {80: 0.293}
     avg_line_length = 50.02
     slice_thickness = 4.5
     lowcon_visible = 2  # changed w/ visibility refactor in v3.0
@@ -1482,7 +1482,7 @@ class AGElekta2(CatPhan503Mixin, TestCase):
         "LDPE": 722,
     }
     unif_values = {"Center": 707, "Left": 758, "Right": 748, "Top": 750, "Bottom": 758}
-    mtf_values = {50: 0.22}
+    mtf_values = {80: 0.170}
     slice_thickness = 1
 
 
@@ -2082,7 +2082,7 @@ class CatPhan503Nodes2(CatPhan503Mixin, TestCase):
     }
     expected_roll = 0.447
     unif_values = {"Center": 162, "Left": -10, "Right": 101, "Top": 44, "Bottom": 39}
-    mtf_values = {50: 0.15}  # TODO: RAM-4472
+    mtf_values = {80: 0.248}  # TODO: RAM-4472
     lowcon_visible = 4
     slice_thickness = 0.49
 

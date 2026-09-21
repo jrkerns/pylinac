@@ -32,6 +32,24 @@ is one contrast value. Thus, one contrast value is calculated for each bar/space
 same spacing (e.g. the Leeds), all bars and spaces are the same and thus we can use an area-based ROI for the input to
 the contrast equation.
 
+Resolution interpolation behavior
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For peak/valley-based MTFs, when a requested percentage falls outside the measured normalized MTF range,
+:meth:`~pylinac.core.mtf.MTF.relative_resolution` returns ``None`` instead of
+extrapolating. For example, if the lowest measured rMTF is 20%, requesting 10%
+returns ``None``, while percentages within the measured range still return
+interpolated spatial frequencies.
+
+This applies to peak-valley MTF in planar imaging, CatPhan, ACR, and Helios phantoms.
+Text and PDF reports display ``N/A`` for unavailable percentages, structured
+results contain ``None``, and QuAAC exports use ``N/A`` text.
+
+If a desired percentage intersects the
+curve more than once, the lowest spatial frequency (the leftmost intersection) is
+returned, using linear interpolation between adjacent measured points. A plateau
+at the requested percentage returns its left endpoint.
+
 .. _ESF_MTF:
 
 ESF-based MTF

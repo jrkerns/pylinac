@@ -20,23 +20,100 @@ class TestMTF(unittest.TestCase):
         self.assertAlmostEqual(rm, 0.15, delta=0.03)
 
     def test_mtf_lower_than_values(self):
-        # should generate a warning
         pair_units = (0.1, 0.2, 0.3)
         maxs = (500, 300, 100)
         mins = (25, 50, 75)
 
         m = MTF(pair_units, maxs, mins)
-        rm = m.relative_resolution(x=10)
-        self.assertAlmostEqual(rm, 0.3, delta=0.03)
+        with self.assertWarnsRegex(UserWarning, "outside the measured MTF range"):
+            self.assertIsNone(m.relative_resolution(x=10))
 
     def test_non_decreasing_mtf(self):
-        # this will return the first occurrence where the condition is met.
-        # should generate a warning
         pair_units = (0.1, 0.2, 0.3, 0.4)
         maxs = (500, 300, 500, 100)
         mins = (25, 50, 25, 75)
 
-        MTF(pair_units, maxs, mins)
+        with self.assertWarnsRegex(UserWarning, "does not drop monotonically"):
+            mtf = MTF(pair_units, maxs, mins)
+        self.assertIsInstance(mtf.relative_resolution(50), float)
+        with self.assertWarnsRegex(UserWarning, "outside the measured MTF range"):
+            self.assertIsNone(mtf.relative_resolution(10))
+
+    def test_range_endpoints_are_included(self):
+        mtf = MTF([1, 2, 3], [1.8, 1.6, 1.4], [0.2, 0.4, 0.6])
+        mtf.norm_mtfs = {1: 1.0, 2: 0.75, 3: 0.5}
+        self.assertEqual(mtf.relative_resolution(100), 1)
+        self.assertEqual(mtf.relative_resolution(50), 3)
+        with self.assertWarns(UserWarning):
+            self.assertIsNone(mtf.relative_resolution(49.99))
+        mtf.norm_mtfs = {1: 0.8, 2: 0.6, 3: 0.4}
+        self.assertEqual(mtf.relative_resolution(80), 1)
+        with self.assertWarns(UserWarning):
+            self.assertIsNone(mtf.relative_resolution(80.01))
+
+    def test_non_monotonic_range_uses_all_measurements(self):
+        mtf = MTF([1, 2, 3], [1.8, 1.6, 1.4], [0.2, 0.4, 0.6])
+        mtf.norm_mtfs = {1: 1.0, 2: 0.25, 3: 0.5}
+        self.assertAlmostEqual(mtf.relative_resolution(30), 1.933, places=3)
+        with self.assertWarns(UserWarning):
+            self.assertIsNone(mtf.relative_resolution(10))
+
+    def test_plateau_is_allowed(self):
+        mtf = MTF([1, 2, 3, 4], [1.8, 1.6, 1.6, 1.2], [0.2, 0.4, 0.4, 0.8])
+        self.assertIsInstance(mtf.relative_resolution(90), float)
+
+    @parameterized.expand(
+        [
+            ("three_crossings", [1.0, 0.2, 0.8, 0.1], 50, 1.625),
+            ("rising_first_crossing", [0.2, 0.8, 0.1, 0.6], 50, 1.5),
+            ("later_exact_match", [1.0, 0.2, 0.5, 0.1], 50, 1.625),
+            ("repeated_exact_match", [1.0, 0.5, 0.8, 0.5], 50, 2.0),
+            ("plateau", [1.0, 0.5, 0.5, 0.2], 50, 2.0),
+            ("initial_plateau", [1.0, 1.0, 0.5, 0.2], 100, 1.0),
+            ("constant_curve", [1.0, 1.0, 1.0, 1.0], 100, 1.0),
+            ("final_endpoint", [1.0, 0.8, 0.6, 0.5], 50, 4.0),
+            ("after_plateau", [1.0, 0.5, 0.5, 0.2], 35, 3.5),
+        ]
+    )
+    def test_leftmost_crossing(self, name, contrasts, percent, expected):
+        mtf = MTF([1, 2, 3, 4], [1.8, 1.6, 1.4, 1.2], [0.2, 0.4, 0.6, 0.8])
+        # Reordering the public measurements must not change which crossing is leftmost.
+        mtf.norm_mtfs = dict(reversed(list(enumerate(contrasts, start=1))))
+        self.assertAlmostEqual(mtf.relative_resolution(percent), expected)
+
+    def test_range_tracks_current_measurements(self):
+        mtf = MTF([1, 2, 3], [1.8, 1.4, 1.2], [0.2, 0.6, 0.8])
+        original = mtf.norm_mtfs.copy()
+        self.assertAlmostEqual(mtf.relative_resolution(50), 2)
+        mtf.norm_mtfs = {1: 1.0, 2: 0.9, 3: 0.8}
+        with self.assertWarns(UserWarning):
+            self.assertIsNone(mtf.relative_resolution(50))
+        mtf.norm_mtfs = original
+        self.assertAlmostEqual(mtf.relative_resolution(50), 2)
+
+    def test_monotonicity_uses_spatial_frequency_order(self):
+        mtf = MTF([3, 1, 2], [1.2, 1.8, 1.4], [0.8, 0.2, 0.6])
+        self.assertAlmostEqual(mtf.relative_resolution(100), 3)
+
+    def test_invalid_curve_still_validates_percentage(self):
+        with self.assertWarns(UserWarning):
+            mtf = MTF([1, 2, 3], [1.8, 1.2, 1.4], [0.2, 0.8, 0.6])
+        for percent in (-1, 101):
+            with self.assertRaises(ValueError):
+                mtf.relative_resolution(percent)
+
+    def test_non_monotonic_plots_preserve_measurements(self):
+        with self.assertWarns(UserWarning):
+            mtf = MTF([1, 2, 3], [1.8, 1.2, 1.4], [0.2, 0.8, 0.6])
+        fig, ax = plt.subplots()
+        try:
+            line = mtf.plot(axis=ax)[0]
+            trace = mtf.plotly().data[0]
+            for x, y in ((line.get_xdata(), line.get_ydata()), (trace.x, trace.y)):
+                np.testing.assert_array_equal(x, list(mtf.norm_mtfs))
+                np.testing.assert_array_equal(y, list(mtf.norm_mtfs.values()))
+        finally:
+            plt.close(fig)
 
     def test_no_zero_division_of_line_pair_distances(self):
         old_settings = np.geterr()

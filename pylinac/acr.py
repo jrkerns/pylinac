@@ -21,7 +21,7 @@ from .core.array_utils import fill_middle_zeros, find_nearest_idx
 from .core.contrast import Contrast
 from .core.geometry import Line, LineSerialized, Point
 from .core.image import DicomImage
-from .core.mtf import MTF
+from .core.mtf import MTF, format_resolution
 from .core.plotly_utils import add_title
 from .core.profile import FWXMProfile
 from .core.roi import DiskROI, HighContrastDiskROI, LowContrastDiskROI, RectangleROI
@@ -663,7 +663,7 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
             f"Uniformity ROIs: {self.uniformity_module.roi_vals_as_str}\n"
             f"Uniformity Center ROI standard deviation: {self.uniformity_module.rois['Center'].std:2.2f}\n"
             f"BB distance (mm): {self.uniformity_module.bb_distance_mm:2.2f}\n"
-            f"MTF 50% (lp/mm): {self.spatial_resolution_module.mtf.relative_resolution(50):2.2f}\n"
+            f"MTF 50% (lp/mm): {format_resolution(self.spatial_resolution_module.mtf.relative_resolution(50))}\n"
         )
         return string
 
@@ -1068,20 +1068,20 @@ class MRSlice1ModuleOutput(BaseModel):
         description="The measured slice thickness in mm.",
         title="Measured Slice Thickness (mm)",
     )
-    row_mtf_50: float = Field(
-        description="The MTF at 50% for the row-based ROIs.",
+    row_mtf_50: float | None = Field(
+        description="The MTF at 50% for the row-based ROIs, or None when the requested percentage is outside the measured row MTF range.",
         title="Row-wise 50% MTF (lp/mm)",
     )
-    col_mtf_50: float = Field(
-        description="The MTF at 50% for the column-based ROIs.",
+    col_mtf_50: float | None = Field(
+        description="The MTF at 50% for the column-based ROIs, or None when the requested percentage is outside the measured column MTF range.",
         title="Column-wise 50% MTF (lp/mm)",
     )
-    row_mtf_lp_mm: dict[int, float] = Field(
-        description="A key-value pair of the MTF. The key is the relative resolution in % and the value is the lp/mm at that resolution",
+    row_mtf_lp_mm: dict[int, float | None] = Field(
+        description="A key-value pair of the MTF. The key is the relative resolution in % and the value is the lp/mm at that resolution, or None when the requested percentage is outside the measured row MTF range.",
         title="MTF (lp/mm)",
     )
-    col_mtf_lp_mm: dict[int, float] = Field(
-        description="A key-value pair of the MTF. The key is the relative resolution in % and the value is the lp/mm at that resolution",
+    col_mtf_lp_mm: dict[int, float | None] = Field(
+        description="A key-value pair of the MTF. The key is the relative resolution in % and the value is the lp/mm at that resolution, or None when the requested percentage is outside the measured column MTF range.",
         title="MTF (lp/mm)",
     )
 
@@ -2231,7 +2231,9 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
         )
         for key, name, unit in slice1_keys:
             data[name] = QuaacDatum(
-                value=results_data["slice1"][key],
+                value="N/A"
+                if results_data["slice1"][key] is None
+                else results_data["slice1"][key],
                 unit=unit,
             )
         for name, roi in results_data["slice11"]["rois"].items():
@@ -2349,8 +2351,8 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             f"Uniformity PIU: {self.uniformity_module.percent_image_uniformity:2.2f}",
             f"Percent-signal ghosting: {self.uniformity_module.psg:2.2f}%",
             f"Uniformity Center ROI standard deviation: {self.uniformity_module.rois['Center'].std:2.2f}",
-            f"Row-wise MTF 50% (lp/mm): {self.slice1.row_mtf.relative_resolution(50):2.2f}",
-            f"Column-wise MTF 50% (lp/mm): {self.slice1.col_mtf.relative_resolution(50):2.2f}",
+            f"Row-wise MTF 50% (lp/mm): {format_resolution(self.slice1.row_mtf.relative_resolution(50))}",
+            f"Column-wise MTF 50% (lp/mm): {format_resolution(self.slice1.col_mtf.relative_resolution(50))}",
             f"Sagittal Distortions: {self.sagittal_localization.distances()}",
             f"Low Contrast Score: {self.low_contrast_multi_slice.score}",
         )

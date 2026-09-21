@@ -15,7 +15,7 @@ from skimage import draw
 
 from .core import pdf
 from .core.geometry import Point
-from .core.mtf import MTF
+from .core.mtf import MTF, format_resolution
 from .core.roi import RectangleROI
 from .core.utilities import QuaacDatum, ResultBase, ResultsDataMixin
 from .core.warnings import capture_warnings
@@ -236,8 +236,8 @@ class HeliosHighContrastModuleOutput(BaseModel):
         description="The offset of this module slice from the origin slice in mm."
     )
     rois: dict = Field(description="The analyzed ROIs.")
-    mtf_lp_mm: dict[int, float] = Field(
-        description="A key-value pair of the MTF. The key is the relative resolution in % and the value is the lp/mm at that resolution",
+    mtf_lp_mm: dict[int, float | None] = Field(
+        description="A key-value pair of the MTF. The key is the relative resolution in % and the value is the lp/mm at that resolution, or None when the requested percentage is outside the measured MTF range.",
         title="MTF (lp/mm)",
     )
     std_dev_1_6mm: float = Field(
@@ -1095,7 +1095,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
         for resolution, lp_mm in results_data["high_contrast"]["mtf_lp_mm"].items():
             label = f"High contrast MTF {resolution}%"
             mtf_datapoints[label] = QuaacDatum(
-                value=lp_mm,
+                value="N/A" if lp_mm is None else lp_mm,
                 unit="lp/mm",
             )
 
@@ -1275,7 +1275,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
 
         for resolution in range(10, 91, 10):
             lp_mm = self.high_contrast_module.mtf.relative_resolution(resolution)
-            mtf_line = f"MTF {resolution}% (lp/mm): {lp_mm:2.2f}"
+            mtf_line = f"MTF {resolution}% (lp/mm): {format_resolution(lp_mm)}"
             lines.append(mtf_line)
 
         for slice_name, slice_module in self.low_contrast_multi_slice.slices.items():
@@ -1321,7 +1321,7 @@ class GEHeliosCTDaily(CatPhanBase, ResultsDataMixin[GEHeliosResult]):
 
     def _generate_results_data(self) -> GEHeliosResult:
         resolutions = range(10, 91, 10)  # 10-90% in 10% increments
-        mtfs: dict[int, float] = {}
+        mtfs: dict[int, float | None] = {}
         for resolution in resolutions:
             mtfs[resolution] = self.high_contrast_module.mtf.relative_resolution(
                 resolution

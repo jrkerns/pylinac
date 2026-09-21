@@ -47,7 +47,7 @@ from .core.contrast import Contrast
 from .core.geometry import Line, Point
 from .core.image import ArrayImage, DicomImageStack, ImageLike, z_position
 from .core.io import get_url, retrieve_demo_file
-from .core.mtf import MTF
+from .core.mtf import MTF, format_resolution
 from .core.nps import (
     average_power,
     max_frequency,
@@ -196,8 +196,8 @@ class CTP528Result(BaseModel):
     start_angle_radians: float | None = Field(
         description="The angle where the circular profile started."
     )
-    mtf_lp_mm: dict = Field(
-        description="A dictionary from 10% to 90% resolution in steps of 10 of the MTF in lp/mm. E.g. ``'20': 0.748``."
+    mtf_lp_mm: dict[int, float | None] = Field(
+        description="A dictionary from 10% to 90% resolution in steps of 10 of the MTF in lp/mm. E.g. ``'20': 0.748``. Values are None when the requested percentage is outside the measured MTF range."
     )
     roi_settings: dict[str, dict[str, int | float]] = Field(
         description="A dictionary of the settings used for each MTF ROI. The key names are ``region_<n>`` where ``<n>`` is the region number."
@@ -2908,9 +2908,9 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         if self._has_module(CTP528):
             ctp528_result = [
                 " - CTP528 Results - ",
-                f"MTF 80% (lp/mm): {self.ctp528.mtf.relative_resolution(80):2.2f}",
-                f"MTF 50% (lp/mm): {self.ctp528.mtf.relative_resolution(50):2.2f}",
-                f"MTF 30% (lp/mm): {self.ctp528.mtf.relative_resolution(30):2.2f}",
+                f"MTF 80% (lp/mm): {format_resolution(self.ctp528.mtf.relative_resolution(80))}",
+                f"MTF 50% (lp/mm): {format_resolution(self.ctp528.mtf.relative_resolution(50))}",
+                f"MTF 30% (lp/mm): {format_resolution(self.ctp528.mtf.relative_resolution(30))}",
             ]
             results.append(ctp528_result)
         if self._has_module(CTP486):
@@ -2977,7 +2977,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         if results_data["ctp528"] is not None:
             for percent, mtf in results_data["ctp528"]["mtf_lp_mm"].items():
                 data[f"MTF {percent}%"] = QuaacDatum(
-                    value=mtf,
+                    value="N/A" if mtf is None else mtf,
                     unit="lp/mm",
                 )
         if results_data["ctp515"] is not None:

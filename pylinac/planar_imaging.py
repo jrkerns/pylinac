@@ -50,7 +50,7 @@ from .core.contrast import Contrast
 from .core.decorators import lru_cache
 from .core.geometry import Circle, Point, Rectangle, Vector
 from .core.io import get_url, retrieve_demo_file
-from .core.mtf import MTF
+from .core.mtf import MTF, format_resolution
 from .core.plotly_utils import add_title
 from .core.profile import CollapsedCircleProfile, FWXMProfilePhysical
 from .core.roi import (
@@ -95,8 +95,9 @@ class PlanarResult(ResultBase):
         description="The area of the phantom in mm^2. This is an approximation. It calculates the area of a perfect, similar shape (circle, square) that fits the phantom.",
         title="Phantom Area (mm^2)",
     )
-    mtf_lp_mm: tuple[float, float, float] | None = Field(
-        description="The % MTF values in lp/mm.", default=None
+    mtf_lp_mm: list[dict[int, float | None]] | None = Field(
+        description="The % MTF values in lp/mm. Percentage values are None when the requested percentage is outside the measured MTF range; the entire field is None when no MTF is measured.",
+        default=None,
     )
     percent_integral_uniformity: float | None = Field(
         description="The percent integral uniformity of the image.",
@@ -979,9 +980,9 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             ]
         if self.high_contrast_rois:
             text += [
-                f"MTF 80% (lp/mm): {self.mtf.relative_resolution(80):2.2f}",
-                f"MTF 50% (lp/mm): {self.mtf.relative_resolution(50):2.2f}",
-                f"MTF 30% (lp/mm): {self.mtf.relative_resolution(30):2.2f}",
+                f"MTF 80% (lp/mm): {format_resolution(self.mtf.relative_resolution(80))}",
+                f"MTF 50% (lp/mm): {format_resolution(self.mtf.relative_resolution(50))}",
+                f"MTF 30% (lp/mm): {format_resolution(self.mtf.relative_resolution(30))}",
             ]
         if not as_list:
             text = "\n".join(text)
