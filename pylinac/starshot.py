@@ -626,7 +626,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
                 )
             if zoom:
                 x, y = self._wobble_plot_limits()
-                set_axis_range(fig=fig, x=x, y=y)
+                set_axis_range(fig=fig, x=x, y=y[::-1])
 
             figs[name] = fig
         if show:
@@ -721,7 +721,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         # zoom in if wobble plot
         if subimage == "wobble":
             xlims, ylims = self._wobble_plot_limits()
-            ax.set_xlim(xlims[::-1])
+            ax.set_xlim(xlims)
             ax.set_ylim(ylims[::-1])
             ax.axis("on")
 

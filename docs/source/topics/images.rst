@@ -48,6 +48,8 @@ We can also test whether a file is image-like without causing an error if it's n
 
     is_image = image.is_image("path/to/questionable.file")  # True or False
 
+.. _image-coordinate-system:
+
 Coordinate System
 ^^^^^^^^^^^^^^^^^
 

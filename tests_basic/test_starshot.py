@@ -756,7 +756,7 @@ class TestMechanicalReferencePoint(TestCase):
         self.assertGreater(max(ax.get_xlim()), self.star.wobble.center.x)
         self.assertLess(min(ax.get_ylim()), 1200)
         self.assertGreater(max(ax.get_ylim()), self.star.wobble.center.y)
-        self.assertTrue(ax.xaxis_inverted())
+        self.assertFalse(ax.xaxis_inverted())
         self.assertTrue(ax.yaxis_inverted())
 
     def test_pdf_with_reference_and_notes(self):

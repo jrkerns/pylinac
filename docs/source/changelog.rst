@@ -33,7 +33,6 @@ MTF
   frequencies match the requested percentage. Previously, non-monotonic rMTFs could output results that
   did not lie along the MTF curve. Results will now always be along the curve.
 
-
 Starshot
 ^^^^^^^^
 
@@ -41,7 +40,9 @@ Starshot
   in image-pixel coordinates to compare a mechanical reference point with the fitted
   isocenter. Results report signed X/Y offsets and the straight-line distance in
   millimeters, with the comparison included in plots, PDF reports, and QuAAC exports.
-
+* :bdg-warning:`Fixed` The zoomed wobble-circle plot now matches the orientation
+  of the full image: X increases rightward and Y increases downward to match Screen :ref:`image-coordinate-system`.
+  Analysis results are unchanged.
 
 v3.48.0
 -------
