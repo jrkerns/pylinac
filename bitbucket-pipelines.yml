@@ -64,7 +64,8 @@ definitions:
            username: $DOCKER_HUB_USER
            password: $DOCKER_HUB_PASSWORD
         script:
-          - export PYLINAC_BUILD_VERSION="3.48.0.dev${BITBUCKET_BUILD_NUMBER}+g${BITBUCKET_COMMIT:0:8}"
+          - PYLINAC_VERSION="$(python scripts/project_version.py)"
+          - export PYLINAC_BUILD_VERSION="${PYLINAC_VERSION}.dev${BITBUCKET_BUILD_NUMBER}+g${BITBUCKET_COMMIT:0:8}"
           - uv build --wheel
           - printf '%s' "$GCP_BUILD_CREDS" > service_key.json
           - gcloud auth activate-service-account --key-file service_key.json
