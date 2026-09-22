@@ -32,6 +32,35 @@ Results will be printed to the console and a matplotlib figure showing the analy
 
     The center of the minimum circle is at 1270.0, 1437.2
 
+Mechanical Reference Point
+--------------------------
+
+You can supply a known mechanical reference point to compare it with the fitted
+radiation isocenter (the center of the minimum wobble circle):
+
+.. code-block:: python
+
+    star = Starshot("starshot.tif", dpi=150, sid=1000)
+    star.analyze(reference_point=(512.25, 510.75))
+    data = star.results_data()
+    print(data.reference_point_x_y)
+    print(data.reference_to_isocenter_x_mm)
+    print(data.reference_to_isocenter_y_mm)
+    print(data.reference_to_isocenter_distance_mm)
+
+The input may be a :class:`~pylinac.core.geometry.Point` or a two-element numeric
+sequence, including a list. Coordinates are zero-based image pixels: X increases
+rightward and Y increases downward.
+
+Offsets describe the vector **from the mechanical reference point to the fitted
+isocenter**. The X and Y offsets are the fitted center coordinates minus the
+reference coordinates. The distance is the Euclidean magnitude of that vector.
+
+The mechanical point is a comparison only. It does not change spoke detection,
+circle fitting, or the wobble-diameter tolerance and pass/fail result. In contrast,
+``start_point`` controls the starting location for the circular profile used in
+spoke detection; the two parameters are independent.
+
 Image Acquisition
 -----------------
 

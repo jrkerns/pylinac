@@ -25,6 +25,7 @@ import copy
 import io
 import math
 import webbrowser
+from collections.abc import Sequence
 from itertools import product
 from pathlib import Path
 from typing import BinaryIO
@@ -66,6 +67,26 @@ class StarshotResults(ResultBase):
     circle_center_x_y: tuple[float, float] = Field(
         description="The center position of the minimum circle in pixels.",
         title="Circle center pixel (X, Y)",
+    )
+    reference_point_x_y: tuple[float, float] | None = Field(
+        default=None,
+        description="The user-selected mechanical reference point in zero-based image pixels (X right, Y down).",
+        title="Mechanical reference point pixel (X, Y)",
+    )
+    reference_to_isocenter_x_mm: float | None = Field(
+        default=None,
+        description="Signed X offset from the mechanical reference point to the fitted isocenter, positive rightward in image coordinates.",
+        title="Reference to isocenter X offset (mm)",
+    )
+    reference_to_isocenter_y_mm: float | None = Field(
+        default=None,
+        description="Signed Y offset from the mechanical reference point to the fitted isocenter, positive downward in image coordinates.",
+        title="Reference to isocenter Y offset (mm)",
+    )
+    reference_to_isocenter_distance_mm: float | None = Field(
+        default=None,
+        description="Straight-line distance from the mechanical reference point to the fitted isocenter using the image calibration, including magnification correction.",
+        title="Reference to isocenter distance (mm)",
     )
     angles: list[float] = Field(
         description="The angles of the radiation lines in degrees. The angles are relative to the vertical axis and range from +/- 90 degrees.",
@@ -114,6 +135,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         super().__init__()
         self.image = image.load(filepath, **kwargs)
         self.wobble = Wobble()
+        self.reference_point: Point | None = None
         self.tolerance = 1
         if self.image.dpmm is None:
             raise ValueError(
@@ -237,7 +259,8 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         fwhm: bool = True,
         recursive: bool = True,
         invert: bool = False,
-    ):
+        reference_point: Point | Sequence[float] | None = None,
+    ) -> None:
         """Analyze the starshot image.
 
         Analyze finds the minimum radius and center of a circle that touches all the lines
@@ -277,11 +300,17 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             Whether to force invert the image values. This should be set to True if the automatically-determined
             pylinac inversion is incorrect.
 
+        reference_point : Point or two-element numeric sequence, optional
+            User-selected mechanical reference point in zero-based image pixels, with X
+            increasing rightward and Y increasing downward. The reference point is
+            compared to the fitted wobble-circle center.
+
         Raises
         ------
         RuntimeError
             If a reasonable wobble value was not found.
         """
+        self.reference_point = None
         self.tolerance = tolerance
         self.image.check_inversion_by_histogram(percentiles=[4, 50, 96])
         self.image.ground()
@@ -302,6 +331,48 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             max_wobble_diameter,
         )
         self.angles = calculate_angles(self.lines)
+        self.reference_point = (
+            Point(reference_point) if reference_point is not None else None
+        )
+
+    def _reference_offsets_mm(self) -> tuple[float, float, float] | None:
+        """Comparison of reference to radiation isocenter location."""
+        if self.reference_point is None:
+            return None
+        dx = (self.wobble.center.x - self.reference_point.x) / self.image.dpmm
+        dy = (self.wobble.center.y - self.reference_point.y) / self.image.dpmm
+        return dx, dy, math.hypot(dx, dy)
+
+    def _reference_point_text(self) -> list[str]:
+        offsets = self._reference_offsets_mm()
+        if offsets is None:
+            return []
+        dx, dy, distance = offsets
+        return [
+            f"Mechanical reference point (px): ({self.reference_point.x:.2f}, {self.reference_point.y:.2f})",
+            f"Reference to isocenter (mm): X={dx:+.3f}, Y={dy:+.3f}",
+            f"Reference to isocenter distance: {distance:.3f} mm",
+        ]
+
+    def _wobble_plot_limits(self) -> tuple[list[float], list[float]]:
+        x = [
+            self.wobble.center.x - self.wobble.diameter,
+            self.wobble.center.x + self.wobble.diameter,
+        ]
+        y = [
+            self.wobble.center.y - self.wobble.diameter,
+            self.wobble.center.y + self.wobble.diameter,
+        ]
+        if self.reference_point is not None:
+            for limits, coordinate in (
+                (x, self.reference_point.x),
+                (y, self.reference_point.y),
+            ):
+                if coordinate <= limits[0] or coordinate >= limits[1]:
+                    padding = max(self.wobble.diameter * 0.1, 1)
+                    limits[0] = min(limits[0], coordinate - padding)
+                    limits[1] = max(limits[1], coordinate + padding)
+        return x, y
 
     def _get_reasonable_wobble(
         self,
@@ -424,6 +495,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             f"The minimum circle that touches all the star lines has a diameter of {self.wobble.radius_mm * 2:2.3f} mm.",
             f"The center of the minimum circle is at {self.wobble.center.x:3.1f}, {self.wobble.center.y:3.1f}",
         ]
+        results.extend(self._reference_point_text())
         if not as_list:
             results = "\n".join(results)
         return results
@@ -431,11 +503,20 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
     def _generate_results_data(self) -> StarshotResults:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
+        offsets = self._reference_offsets_mm()
         return StarshotResults(
             tolerance_mm=self.tolerance,
             circle_diameter_mm=self.wobble.radius_mm * 2,
             circle_radius_mm=self.wobble.radius_mm,
             circle_center_x_y=(self.wobble.center.x, self.wobble.center.y),
+            reference_point_x_y=(self.reference_point.x, self.reference_point.y)
+            if self.reference_point is not None
+            else None,
+            reference_to_isocenter_x_mm=offsets[0] if offsets is not None else None,
+            reference_to_isocenter_y_mm=offsets[1] if offsets is not None else None,
+            reference_to_isocenter_distance_mm=offsets[2]
+            if offsets is not None
+            else None,
             angles=self.angles,
             passed=self.passed,
         )
@@ -443,13 +524,33 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
     def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
         """Return the data points to be saved to the QuAAC file."""
         results_data = self.results_data()
-        return {
+        datapoints = {
             "Circle diameter": QuaacDatum(
                 value=results_data.circle_diameter_mm,
                 unit="mm",
                 description="The diameter of the fitted circle representing isocenter.",
             ),
         }
+
+        offsets = self._reference_offsets_mm()
+        if offsets is not None:
+            for label, value, description in zip(
+                (
+                    "Reference to isocenter X offset",
+                    "Reference to isocenter Y offset",
+                    "Reference to isocenter distance",
+                ),
+                offsets,
+                (
+                    "Signed image X offset, positive rightward.",
+                    "Signed image Y offset, positive downward.",
+                    "Straight-line distance to the fitted isocenter.",
+                ),
+            ):
+                datapoints[label] = QuaacDatum(
+                    value=value, unit="mm", description=description
+                )
+        return datapoints
 
     def plotly_analyzed_images(
         self,
@@ -501,18 +602,31 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
                 hoverinfo="text",
                 hovertext=f"Wobble diameter: {self.wobble.diameter_mm:2.2f} mm",
             )
-            if zoom:
-                set_axis_range(
-                    fig=fig,
-                    x=[
-                        self.wobble.center.x - self.wobble.diameter,
-                        self.wobble.center.x + self.wobble.diameter,
-                    ],
-                    y=[
-                        self.wobble.center.y - self.wobble.diameter,
-                        self.wobble.center.y + self.wobble.diameter,
-                    ],
+            # plot the reference point if passed
+            if self.reference_point is not None:
+                distance = self._reference_offsets_mm()[2]
+                fig.add_scatter(
+                    x=[self.reference_point.x, self.wobble.center.x],
+                    y=[self.reference_point.y, self.wobble.center.y],
+                    mode="lines+markers",
+                    line=dict(color="orange", dash="dash"),
+                    marker=dict(
+                        color=["orange", "green"], symbol=["cross", "circle"], size=10
+                    ),
+                    name=f"Reference to isocenter: {distance:.3f} mm",
+                    text=["Mechanical reference point", "Fitted isocenter"],
+                    hovertemplate="%{text}<br>X=%{x:.2f}, Y=%{y:.2f} px<extra>%{fullData.name}</extra>",
+                    showlegend=show_legend,
                 )
+                fig.update_layout(
+                    legend=dict(
+                        orientation="h", x=0, y=1.02, xanchor="left", yanchor="bottom"
+                    ),
+                    margin=dict(t=160),
+                )
+            if zoom:
+                x, y = self._wobble_plot_limits()
+                set_axis_range(fig=fig, x=x, y=y)
 
             figs[name] = fig
         if show:
@@ -539,6 +653,8 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             self.plot_analyzed_subimage(ax=ax, show=False, subimage=subimage)
             ax.set_title(title)
 
+        if self.reference_point is not None:
+            fig.tight_layout()
         if show:
             plt.show()
 
@@ -563,30 +679,54 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         plt_kwargs : dict
             Keyword args passed to the plt.figure() method. Allows one to set things like figure size. Only used if ax is not passed.
         """
-        if ax is None:
+        owns_axes = ax is None
+        if owns_axes:
             fig, ax = plt.subplots(**plt_kwargs)
         # show analyzed image
         self.image.plot(ax=ax, show=False)
         self.lines.plot(ax)
         self.wobble.plot2axes(ax, edgecolor="green")
         self.circle_profile.plot2axes(ax, edgecolor="green")
+        if self.reference_point is not None:
+            distance = self._reference_offsets_mm()[2]
+            ax.plot(
+                [self.reference_point.x, self.wobble.center.x],
+                [self.reference_point.y, self.wobble.center.y],
+                color="orange",
+                linestyle="--",
+                label=f"Reference to isocenter: {distance:.3f} mm",
+            )
+            ax.plot(
+                self.reference_point.x,
+                self.reference_point.y,
+                marker="+",
+                color="orange",
+                markersize=12,
+                linestyle="none",
+                label="Mechanical reference point",
+            )
+            ax.plot(
+                self.wobble.center.x,
+                self.wobble.center.y,
+                marker="o",
+                color="green",
+                markersize=5,
+                linestyle="none",
+                label="Fitted isocenter",
+            )
+            ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), fontsize="small")
         ax.autoscale(tight=True)
         ax.axis("off")
 
         # zoom in if wobble plot
         if subimage == "wobble":
-            xlims = [
-                self.wobble.center.x + self.wobble.diameter,
-                self.wobble.center.x - self.wobble.diameter,
-            ]
-            ylims = [
-                self.wobble.center.y + self.wobble.diameter,
-                self.wobble.center.y - self.wobble.diameter,
-            ]
-            ax.set_xlim(xlims)
-            ax.set_ylim(ylims)
+            xlims, ylims = self._wobble_plot_limits()
+            ax.set_xlim(xlims[::-1])
+            ax.set_ylim(ylims[::-1])
             ax.axis("on")
 
+        if owns_axes and self.reference_point is not None:
+            fig.tight_layout()
         if show:
             plt.show()
 
@@ -602,6 +742,8 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             All other kwargs are passed to plt.savefig().
         """
         self.plot_analyzed_image(show=False)
+        if self.reference_point is not None:
+            kwargs.setdefault("bbox_inches", "tight")
         plt.savefig(filename, **kwargs)
 
     def save_analyzed_subimage(self, filename: str, subimage: str = "wobble", **kwargs):
@@ -618,6 +760,8 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             Passed to matplotlib.
         """
         self.plot_analyzed_subimage(subimage=subimage, show=False)
+        if self.reference_point is not None:
+            kwargs.setdefault("bbox_inches", "tight")
         plt.savefig(filename, **kwargs)
 
     def publish_pdf(
@@ -652,10 +796,17 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         canvas = pdf.PylinacCanvas(
             filename, page_title="Starshot Analysis", metadata=metadata, logo=logo
         )
-        for img, height in zip(("wobble", "asdf"), (2, 11.5)):
+        has_reference = self.reference_point is not None
+        image_heights = (1.5, 11.5) if has_reference else (2, 11.5)
+        image_size = 9.5 if has_reference else 13
+        for img, height in zip(("wobble", "asdf"), image_heights):
             data = io.BytesIO()
             self.save_analyzed_subimage(data, img)
-            canvas.add_image(data, location=(4, height), dimensions=(13, 13))
+            canvas.add_image(
+                data,
+                location=((21 - image_size) / 2 if has_reference else 4, height),
+                dimensions=(image_size, image_size),
+            )
         text = [
             "Starshot results:",
             f"Source-to-Image Distance (mm): {self.image.sid:2.0f}",
@@ -663,9 +814,18 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             f"Minimum circle diameter (mm): {self.wobble.radius_mm * 2:2.2f}",
         ]
         canvas.add_text(text=text, location=(10, 25.5), font_size=12)
+        if has_reference:
+            canvas.add_text(
+                text=self._reference_point_text(), location=(1.5, 22.7), font_size=10
+            )
         if notes is not None:
-            canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
-            canvas.add_text(text=notes, location=(1, 5))
+            if has_reference:
+                canvas.add_new_page()
+                canvas.add_text(text="Notes:", location=(1, 22), font_size=14)
+                canvas.add_text(text=notes, location=(1, 21.5))
+            else:
+                canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
+                canvas.add_text(text=notes, location=(1, 5))
         canvas.finish()
 
         if open_file:

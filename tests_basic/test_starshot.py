@@ -1,5 +1,6 @@
 import io
 import json
+import math
 import os
 import os.path as osp
 import tempfile
@@ -11,6 +12,7 @@ from parameterized import parameterized
 
 from pylinac import Starshot
 from pylinac.core.geometry import Line, Point
+from pylinac.core.image import ArrayImage
 from pylinac.starshot import StarshotResults, calculate_angles
 from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
 from tests_basic.utils import (
@@ -603,3 +605,175 @@ class StartshotLargeWobble(StarMixin, TestCase):
     passes = False
     max_wobble_diameter = 3.0
     test_all_radii = False  # disable since there are annotations in the top right corner that will break the analysis
+
+
+class TestMechanicalReferencePoint(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.baseline = Starshot.from_demo_image()
+        cls.baseline.analyze()
+
+    def setUp(self):
+        self.star = Starshot.from_demo_image()
+        self.star.analyze()
+
+    def tearDown(self):
+        plt.close("all")
+
+    def test_input_types_precision_and_copy(self):
+        for point in (
+            (1200.123456, 1400.654321),
+            [1200.123456, 1400.654321],
+            Point(1200.123456, 1400.654321),
+        ):
+            with self.subTest(point=point):
+                self.star.analyze(reference_point=point)
+                self.assertEqual(
+                    self.star.results_data().reference_point_x_y,
+                    (1200.123456, 1400.654321),
+                )
+                if isinstance(point, Point):
+                    point.x = 0
+                    self.assertEqual(self.star.reference_point.x, 1200.123456)
+
+    def test_boundaries(self):
+        rows, columns = self.star.image.array.shape
+        for point in ((0, 0), (columns - 1, rows - 1)):
+            with self.subTest(point=point):
+                self.star.analyze(reference_point=point)
+                self.assertEqual(self.star.results_data().reference_point_x_y, point)
+
+    def test_quadrants_and_zero_displacement(self):
+        center = self.baseline.wobble.center
+        for dx, dy in ((3, 4), (-3, 4), (3, -4), (-3, -4), (0, 0)):
+            with self.subTest(dx=dx, dy=dy):
+                self.star.analyze(
+                    reference_point=(
+                        center.x - dx * self.star.image.dpmm,
+                        center.y - dy * self.star.image.dpmm,
+                    )
+                )
+                data = self.star.results_data()
+                self.assertAlmostEqual(data.reference_to_isocenter_x_mm, dx, places=5)
+                self.assertAlmostEqual(data.reference_to_isocenter_y_mm, dy, places=5)
+                self.assertAlmostEqual(
+                    data.reference_to_isocenter_distance_mm,
+                    math.hypot(dx, dy),
+                    places=5,
+                )
+
+    @parameterized.expand([(100, 1000), (200, 1000), (100, 1500)])
+    def test_dpi_and_sid_scaling(self, dpi, sid):
+        self.star.image = ArrayImage(np.ones((100, 100)), dpi=dpi, sid=sid)
+        self.star.wobble.center = Point(50, 50)
+        self.star.reference_point = Point(20, 10)
+        data = self.star.results_data()
+        expected_dpmm = dpi / 25.4 * sid / 1000
+        self.assertAlmostEqual(data.reference_to_isocenter_x_mm, 30 / expected_dpmm)
+        self.assertAlmostEqual(data.reference_to_isocenter_y_mm, 40 / expected_dpmm)
+        self.assertAlmostEqual(
+            data.reference_to_isocenter_distance_mm, 50 / expected_dpmm
+        )
+
+    def test_fitting_and_pass_fail_unchanged(self):
+        self.star.analyze(reference_point=(0, 0))
+        original = self.baseline.results_data()
+        actual = self.star.results_data()
+        self.assertAlmostEqual(
+            actual.circle_diameter_mm, original.circle_diameter_mm, places=5
+        )
+        np.testing.assert_allclose(
+            actual.circle_center_x_y, original.circle_center_x_y, atol=1e-5
+        )
+        np.testing.assert_allclose(actual.angles, original.angles, atol=1e-5)
+        self.assertEqual(actual.passed, original.passed)
+
+    def test_reanalysis_clears_point_and_outputs(self):
+        self.star.analyze(reference_point=(1200, 1400))
+        self.star.analyze(reference_point=(1201, 1402))
+        self.assertEqual(self.star.results_data().reference_point_x_y, (1201, 1402))
+        self.star.analyze()
+        data = self.star.results_data(as_dict=True)
+        for key in data:
+            if key.startswith("reference_"):
+                self.assertIsNone(data[key])
+        self.assertNotIn("reference", self.star.results())
+        self.assertEqual(len(self.star._quaac_datapoints()), 1)
+        self.assertIsNone(self.star.reference_point)
+
+    def test_serialization_text_and_quaac(self):
+        self.star.analyze(reference_point=(1200.123456, 1400.654321))
+        data = self.star.results_data()
+        for serialized in (
+            self.star.results_data(as_dict=True),
+            json.loads(self.star.results_data(as_json=True)),
+        ):
+            self.assertEqual(
+                serialized["reference_point_x_y"], [1200.123456, 1400.654321]
+            )
+            self.assertEqual(
+                serialized["reference_to_isocenter_distance_mm"],
+                data.reference_to_isocenter_distance_mm,
+            )
+        self.assertIn(
+            f"{data.reference_to_isocenter_distance_mm:.3f} mm", self.star.results()
+        )
+        self.assertIn(
+            "Mechanical reference point", "\n".join(self.star.results(as_list=True))
+        )
+        points = self.star._quaac_datapoints()
+        self.assertEqual(len(points), 4)
+        self.assertEqual(
+            points["Reference to isocenter distance"].value,
+            data.reference_to_isocenter_distance_mm,
+        )
+        self.assertEqual(points["Reference to isocenter X offset"].unit, "mm")
+
+    def test_plotly_markers_and_zoom(self):
+        self.star.analyze(reference_point=(1000, 1200))
+        figures = self.star.plotly_analyzed_images(show=False, show_legend=False)
+        for fig in figures.values():
+            comparison = fig.data[-1]
+            self.assertEqual(tuple(comparison.x), (1000, self.star.wobble.center.x))
+            self.assertEqual(tuple(comparison.y), (1200, self.star.wobble.center.y))
+            self.assertEqual(tuple(comparison.marker.symbol), ("cross", "circle"))
+            self.assertFalse(comparison.showlegend)
+            self.assertIn("mm", comparison.name)
+        zoom = figures["Wobble"]
+        self.assertLess(min(zoom.layout.xaxis.range), 1000)
+        self.assertGreater(max(zoom.layout.xaxis.range), self.star.wobble.center.x)
+        self.assertLess(min(zoom.layout.yaxis.range), 1200)
+        self.assertGreater(max(zoom.layout.yaxis.range), self.star.wobble.center.y)
+
+    def test_matplotlib_markers_and_zoom(self):
+        self.star.analyze(reference_point=(1000, 1200))
+        _, ax = plt.subplots()
+        self.star.plot_analyzed_subimage(ax=ax, show=False)
+        labeled = {line.get_label(): line for line in ax.lines}
+        self.assertEqual(labeled["Mechanical reference point"].get_marker(), "+")
+        self.assertEqual(labeled["Fitted isocenter"].get_marker(), "o")
+        self.assertLess(min(ax.get_xlim()), 1000)
+        self.assertGreater(max(ax.get_xlim()), self.star.wobble.center.x)
+        self.assertLess(min(ax.get_ylim()), 1200)
+        self.assertGreater(max(ax.get_ylim()), self.star.wobble.center.y)
+        self.assertTrue(ax.xaxis_inverted())
+        self.assertTrue(ax.yaxis_inverted())
+
+    def test_pdf_with_reference_and_notes(self):
+        self.star.analyze(reference_point=(1200, 1400))
+        stream = io.BytesIO()
+        self.star.publish_pdf(
+            stream, notes="Mechanical reference comparison", metadata={"Unit": "Demo"}
+        )
+        self.assertTrue(stream.getvalue().startswith(b"%PDF"))
+
+    def test_standalone_subimage_legend_is_inside_figure(self):
+        self.star.analyze(reference_point=(1000, 1200))
+        self.star.plot_analyzed_subimage(show=False)
+        fig = plt.gcf()
+        fig.canvas.draw()
+        bounds = fig.axes[0].get_legend().get_window_extent(fig.canvas.get_renderer())
+        self.assertGreaterEqual(bounds.x0, 0)
+        self.assertGreaterEqual(bounds.y0, 0)
+        self.assertLessEqual(bounds.x1, fig.bbox.width)
+        self.assertLessEqual(bounds.y1, fig.bbox.height)

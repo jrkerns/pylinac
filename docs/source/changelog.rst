@@ -34,6 +34,15 @@ MTF
   did not lie along the MTF curve. Results will now always be along the curve.
 
 
+Starshot
+^^^^^^^^
+
+* :bdg-success:`Feature` Starshot analysis now accepts an optional ``reference_point``
+  in image-pixel coordinates to compare a mechanical reference point with the fitted
+  isocenter. Results report signed X/Y offsets and the straight-line distance in
+  millimeters, with the comparison included in plots, PDF reports, and QuAAC exports.
+
+
 v3.48.0
 -------
 
