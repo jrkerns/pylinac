@@ -157,19 +157,28 @@ def retrieve_demo_file(name: str, force: bool = False) -> Path:
 
     If the file is already on disk it returns the file name. If the file isn't
     on disk, get the file from the URL and put it at the expected demo file location
-    on disk for lazy loading next time.
+    on disk for lazy loading next time. Downloads are completed in a temporary
+    location before being moved into place so concurrent readers cannot load a
+    partially downloaded file.
 
     Parameters
     ----------
     name : str
-        The suffix to the url (location within the S3 bucket) pointing to the demo file.
+        The suffix to the URL pointing to the demo file.
+    force : bool
+        Download the file even if it already exists. The existing file is replaced
+        only after the download succeeds.
     """
     true_url = r"https://storage.googleapis.com/pylinac_demo_files/" + name
     demo_path = Path(__file__).parent.parent / "demo_files" / name
     demo_dir = demo_path.parent
     os.makedirs(demo_dir, exist_ok=True)
     if force or not demo_path.exists():
-        get_url(true_url, destination=demo_path)
+        # Keep the download on the same filesystem for an atomic replacement.
+        with TemporaryDirectory(dir=demo_dir) as temp_dir:
+            temp_path = Path(temp_dir) / demo_path.name
+            get_url(true_url, destination=temp_path)
+            os.replace(temp_path, demo_path)
     return demo_path
 
 

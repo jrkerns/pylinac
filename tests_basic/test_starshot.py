@@ -63,7 +63,7 @@ class TestStarshotLoading(TestCase, FromURLTesterMixin):
         # raise error when DPI isn't in image or given
         with self.assertRaises(ValueError):
             Starshot.from_url(self.full_url)
-        # but is fine when DPI is given
+        # but is fine when DPI is given.
         Starshot.from_url(self.full_url, **self.kwargs)
 
 
