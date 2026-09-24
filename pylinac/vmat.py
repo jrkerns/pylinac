@@ -42,7 +42,7 @@ from .core import image
 from .core.array_utils import normalize
 from .core.geometry import Point, PointSerialized
 from .core.image import DicomImage, ImageLike
-from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
+from .core.io import LoadableMixin
 from .core.pdf import PylinacCanvas
 from .core.profile import CircleProfile, FWXMProfile
 from .core.roi import RectangleROI
@@ -223,7 +223,8 @@ class CollimatorDeviation:
         return wrap180(self.angle_measured - self.angle_nominal)
 
 
-class VMATBase(ABC, ResultsDataMixin[VMATResult], QuaacMixin):
+class VMATBase(ABC, LoadableMixin, ResultsDataMixin[VMATResult], QuaacMixin):
+    ZIP_FILE_GLOB = "*.dcm"
     _url_suffix: str
     _result_header: str
     _result_short_header: str
@@ -272,39 +273,6 @@ class VMATBase(ABC, ResultsDataMixin[VMATResult], QuaacMixin):
         self._identify_images(image1, image2)
         self.segments = []
         self._tolerance = 0
-
-    @classmethod
-    def from_url(cls, url: str):
-        """Load a ZIP archive from a URL.  Must follow the naming convention.
-
-        Parameters
-        ----------
-        url : str
-            Must point to a valid URL that is a ZIP archive of two VMAT images.
-        """
-        zfile = get_url(url)
-        return cls.from_zip(zfile)
-
-    @classmethod
-    def from_zip(cls, path: str | Path, **kwargs):
-        """Load VMAT images from a ZIP file that contains both images. Must follow the naming convention.
-
-        Parameters
-        ----------
-        path : str
-            Path to the ZIP archive which holds the VMAT image files.
-        kwargs
-            Passed to the constructor.
-        """
-        with TemporaryZipDirectory(path) as tmpzip:
-            image_files = image.retrieve_image_files(tmpzip)
-            return cls(image_paths=image_files, **kwargs)
-
-    @classmethod
-    def from_demo_images(cls, **kwargs):
-        """Construct a VMAT instance using the demo images."""
-        demo_file = retrieve_demo_file(name=cls._url_suffix)
-        return cls.from_zip(demo_file, **kwargs)
 
     def analyze(
         self,
@@ -843,7 +811,7 @@ class VMATLinearBase(VMATBase, ABC):
 class DRGS(VMATLinearBase):
     """Class representing a Dose-Rate, Gantry-speed VMAT test. Will accept, analyze, and return the results."""
 
-    _url_suffix = "drgs.zip"
+    DEMO_FILES = ["drgs.zip"]
     _result_header = "Dose Rate & Gantry Speed"
     _result_short_header = "DR/GS"
 
@@ -872,7 +840,7 @@ class DRGS(VMATLinearBase):
 class DRMLC(VMATLinearBase):
     """Class representing a Dose-Rate, MLC speed VMAT test. Will accept, analyze, and return the results."""
 
-    _url_suffix = "drmlc.zip"
+    DEMO_FILES = ["drmlc.zip"]
     _result_header = "Dose Rate & MLC Speed"
     _result_short_header = "DR/MLCS"
 
@@ -902,7 +870,7 @@ class DRCS(VMATBase):
     collimator_deviations = list[float]
     text_rotation = 0  # rotation of text on image
 
-    _url_suffix = "drcs.zip"
+    DEMO_FILES = ["drcs.zip"]
     _result_header = "Dose Rate & Collimator Speed"
     _result_short_header = "DR/CS"
     _default_radial_distance = 50  # in mm
