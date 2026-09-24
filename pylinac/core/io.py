@@ -12,6 +12,7 @@ from collections.abc import Callable
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import BinaryIO
+from unittest import SkipTest
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen, urlretrieve
 
@@ -349,3 +350,89 @@ class SNCProfiler:
             **kwargs,
         )
         return x_prof, y_prof, pos_prof, neg_prof
+
+
+class LoadableMixin:
+    """Mixin providing generic loading classmethods for common patterns.
+
+    Provides: from_zip, from_url, from_demo, from_demo_image, from_demo_images, from_image.
+
+    Classes may set the class attributes ``DEMO_FILES`` (a list) to enable ``from_demo*`` helpers.
+    If a class expects a list of files when constructed (common for multi-image analyses), set
+    ``ZIP_FILE_GLOB`` to a glob pattern (e.g. "*.dcm") so the mixin will collect matching files
+    and pass the list to the constructor.
+    """
+
+    DEMO_FILES: list[str] | None = None
+    ZIP_FILE_GLOB: str | None = None
+
+    @classmethod
+    def from_zip(cls, zfile: str | Path | BinaryIO, **kwargs):
+        """Instantiate ``cls`` from a ZIP archive by extracting to a temporary directory.
+
+        Behavior:
+        - If ``ZIP_FILE_GLOB`` is set on the class, collect sorted matches using that glob
+          from the extracted directory and call ``cls(file_list, **kwargs)``.
+        - Otherwise, call ``cls(tmpdir, **kwargs)`` (constructor accepts a folder path).
+        """
+        with TemporaryZipDirectory(zfile) as tmpdir:
+            if getattr(cls, "ZIP_FILE_GLOB", None):
+                # return a list of matching files (Path objects) to the constructor
+                files = sorted(Path(tmpdir).glob(cls.ZIP_FILE_GLOB))
+                return cls(files, **kwargs)
+            return cls(tmpdir, **kwargs)
+
+    @classmethod
+    def from_url(cls, url: str, progress_bar: bool = True, **kwargs):
+        """Download ``url`` to a temporary file and instantiate ``cls``.
+
+        If the downloaded file is a ZIP archive, ``from_zip`` is used. Otherwise the
+        downloaded file path is forwarded to the class constructor.
+        """
+        filename = get_url(url, progress_bar=progress_bar)
+        # Some downloaders save temporary files without the original suffix. Check the
+        # file content to determine if it is a ZIP archive.
+        if zipfile.is_zipfile(filename):
+            return cls.from_zip(filename, **kwargs)
+        return cls(filename, **kwargs)
+
+    @classmethod
+    def from_demo(cls, name: str | None = None, **kwargs):
+        """Instantiate ``cls`` using the repository demo file registry.
+
+        The demo file name is taken from the provided ``name`` argument or the class
+        attribute ``DEMO_FILES`` (first entry). If no name is determinable, the
+        method raises pytest.SkipException to allow demo-reliant tests to skip when
+        demo assets are unavailable.
+        The demo file is downloaded via :func:`retrieve_demo_file` and then
+        dispatched to ``from_zip`` or the class constructor based on its
+        extension.
+        """
+        # Priority: explicit name argument > DEMO_FILES
+        demo_name = name
+        if demo_name is None:
+            demo_files = getattr(cls, "DEMO_FILES", None)
+            if demo_files:
+                demo_name = demo_files[0]
+        if demo_name is None:
+            raise SkipTest(f"No demo file available for class {cls.__name__}")
+        demo_path = retrieve_demo_file(demo_name)
+        # Merge class-provided demo kwargs if present (e.g., sid, dpi)
+        demo_defaults = getattr(cls, "DEMO_KWARGS", {}) or {}
+        merged_kwargs = {**demo_defaults, **kwargs}
+        if str(demo_path).lower().endswith(".zip"):
+            return cls.from_zip(demo_path, **merged_kwargs)
+        return cls(demo_path, **merged_kwargs)
+
+    @classmethod
+    def from_demo_image(cls, **kwargs):
+        return cls.from_demo(**kwargs)
+
+    @classmethod
+    def from_demo_images(cls, **kwargs):
+        return cls.from_demo(**kwargs)
+
+    @classmethod
+    def from_image(cls, image, **kwargs):
+        """Instantiate ``cls`` directly from an image-like object or path."""
+        return cls(image, **kwargs)
