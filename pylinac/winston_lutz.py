@@ -61,7 +61,7 @@ from .core.geometry import (
     sin,
 )
 from .core.image import DicomImageStack, is_image, tiff_to_dicom
-from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
+from .core.io import LoadableMixin, TemporaryZipDirectory
 from .core.plotly_utils import add_horizontal_line, add_title, add_vertical_line
 from .core.scale import MachineScale, convert
 from .core.utilities import (
@@ -1268,7 +1268,7 @@ class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
 
 
 @capture_warnings
-class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
+class WinstonLutz(LoadableMixin, ResultsDataMixin[WinstonLutzResult], QuaacMixin):
     """Class for performing a Winston-Lutz test of the radiation isocenter."""
 
     images: list[WinstonLutz2D]  #:
@@ -1418,46 +1418,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
                 img.filter(size=0.01, kind="median")
                 return img
 
-    @classmethod
-    def from_demo_images(cls, **kwargs):
-        """Instantiate using the demo images.
-
-        Parameters
-        ----------
-        kwargs
-            See parameters of the __init__ method for details.
-        """
-        demo_file = retrieve_demo_file(name="winston_lutz.zip")
-        return cls.from_zip(demo_file, **kwargs)
-
-    @classmethod
-    def from_zip(cls, zfile: str | BinaryIO | Path, **kwargs):
-        """Instantiate from a zip file rather than a directory.
-
-        Parameters
-        ----------
-        zfile
-            Path to the archive file.
-        kwargs
-            See parameters of the __init__ method for details.
-        """
-        with TemporaryZipDirectory(zfile) as tmpz:
-            obj = cls(tmpz, **kwargs)
-        return obj
-
-    @classmethod
-    def from_url(cls, url: str, **kwargs):
-        """Instantiate from a URL.
-
-        Parameters
-        ----------
-        url : str
-            URL that points to a zip archive of the DICOM images.
-        kwargs
-            See parameters of the __init__ method for details.
-        """
-        zfile = get_url(url)
-        return cls.from_zip(zfile, **kwargs)
+    DEMO_FILES = ["winston_lutz.zip"]
 
     @classmethod
     def from_cbct_zip(cls, file: Path | str, raw_pixels: bool = False, **kwargs):
@@ -2909,11 +2870,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
     bb_arrangement: tuple[BBConfig]  #:
     bbs: list[BB3D]  #:  3D representation of the BBs
 
-    @classmethod
-    def from_demo_images(cls):
-        """Instantiate using the demo images."""
-        demo_file = retrieve_demo_file(name="SNC_MTWL_demo.zip")
-        return cls.from_zip(demo_file)
+    DEMO_FILES = ["SNC_MTWL_demo.zip"]
 
     @staticmethod
     def run_demo():
