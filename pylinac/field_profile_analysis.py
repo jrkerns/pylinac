@@ -16,7 +16,7 @@ from .core import image, pdf
 from .core.exceptions import NotAnalyzed
 from .core.geometry import Point, Rectangle
 from .core.image import ImageLike
-from .core.io import retrieve_demo_file
+from .core.io import LoadableMixin
 from .core.profile import (
     FWXMProfilePhysical,
     HillProfilePhysical,
@@ -90,7 +90,7 @@ PROFILE_TYPE = (
 
 
 @capture_warnings
-class FieldProfileAnalysis(ResultsDataMixin[FieldProfileResult]):
+class FieldProfileAnalysis(LoadableMixin, ResultsDataMixin[FieldProfileResult]):
     x_profile: PROFILE_TYPE
     y_profile: PROFILE_TYPE
     center_rect: RectangleROI
@@ -99,6 +99,8 @@ class FieldProfileAnalysis(ResultsDataMixin[FieldProfileResult]):
     _normalization: Normalization
     _edge_type: Edge
     _is_analyzed: bool = False
+
+    DEMO_FILES = ["flatsym_demo.dcm"]
 
     def __init__(self, path: str | Path, **kwargs):
         """Field analysis of a radiation field via profiles.
@@ -113,12 +115,6 @@ class FieldProfileAnalysis(ResultsDataMixin[FieldProfileResult]):
         super().__init__()
         self.image: ImageLike = image.load(path, **kwargs)
         self.image.check_inversion_by_histogram()
-
-    @classmethod
-    def from_demo_image(cls):
-        """Load the demo image into an instance."""
-        demo_file = retrieve_demo_file(name="flatsym_demo.dcm")
-        return cls(demo_file)
 
     def analyze(
         self,
