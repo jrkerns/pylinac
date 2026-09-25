@@ -49,7 +49,7 @@ from .core import contrast, image, pdf, validators
 from .core.contrast import Contrast
 from .core.decorators import lru_cache
 from .core.geometry import Circle, Point, Rectangle, Vector
-from .core.io import get_url, retrieve_demo_file
+from .core.io import LoadableMixin
 from .core.mtf import MTF, format_resolution
 from .core.plotly_utils import add_title
 from .core.profile import CollapsedCircleProfile, FWXMProfilePhysical
@@ -144,7 +144,7 @@ def percent_integral_uniformity(max: float, min: float) -> float:
     return 100 * (1 - (max - min + 1e-6) / (max + min + 1e-6))
 
 
-class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
+class ImagePhantomBase(LoadableMixin, ResultsDataMixin[PlanarResult], QuaacMixin):
     """Base class for planar phantom classes.
 
     Attributes
@@ -179,7 +179,6 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         physical bounding box because we sometimes detect an inner ring/square. Typically, x0.9-1.0 of the physical size.
     """
 
-    _demo_filename: str
     common_name: str
     _LABEL_KWARGS = frozenset(
         {
@@ -235,23 +234,6 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         self._center_override = None
         self._high_contrast_threshold = None
         self._low_contrast_threshold = None
-
-    @classmethod
-    def from_demo_image(cls):
-        """Instantiate and load the demo image."""
-        demo_file = retrieve_demo_file(name=cls._demo_filename)
-        return cls(demo_file)
-
-    @classmethod
-    def from_url(cls, url: str):
-        """
-        Parameters
-        ----------
-        url : str
-            The URL to the image.
-        """
-        image_file = get_url(url)
-        return cls(image_file)
 
     def _preprocess(self):
         pass
@@ -1239,7 +1221,7 @@ class ACRDigitalMammographyResult(ResultBase):
 @capture_warnings
 class StandardImagingFC2(ImagePhantomBase):
     common_name = "SI FC-2"
-    _demo_filename = "fc2.dcm"
+    DEMO_FILES = ["fc2.dcm"]
     # these positions are the offset in mm from the center of the image to the nominal position of the BBs
     bb_positions_10x10 = {
         "TL": [-40, -40],
@@ -1629,7 +1611,7 @@ class IMTLRad(StandardImagingFC2):
     """The IMT light/rad phantom: https://www.imtqa.com/products/l-rad"""
 
     common_name = "IMT L-Rad"
-    _demo_filename = "imtlrad.dcm"
+    DEMO_FILES = ["imtlrad.dcm"]
     center_only_bb = {"Center": [0, 0]}
     bb_sampling_box_size_mm = 12
     field_strip_width_mm = 5
@@ -1644,7 +1626,7 @@ class DoselabRLf(StandardImagingFC2):
     """The Doselab light/rad phantom"""
 
     common_name = "Doselab RLf"
-    _demo_filename = "Doselab_RLf.dcm"
+    DEMO_FILES = ["Doselab_RLf.dcm"]
     # these positions are the offset in mm from the center of the image to the nominal position of the BBs
     bb_positions_10x10 = {
         "TL": [-17, -45],
@@ -1676,7 +1658,7 @@ class IsoAlign(StandardImagingFC2):
     """The PTW Iso-Align light/rad phantom"""
 
     common_name = "PTW Iso-Align"
-    _demo_filename = "ptw_isoalign.dcm"
+    DEMO_FILES = ["ptw_isoalign.dcm"]
     # these positions are the offset in mm from the center of the image to the nominal position of the BBs
     bb_positions = {
         "Center": [0, 0],
@@ -1709,7 +1691,7 @@ class SNCFSQA(StandardImagingFC2):
     """
 
     common_name = "SNC FSQA"
-    _demo_filename = "FSQA_15x15.dcm"
+    DEMO_FILES = ["FSQA_15x15.dcm"]
     center_only_bb = {"TR": [40, -40]}
     # bb_sampling_box_size_mm = 8
     field_strip_width_mm = 5
@@ -1730,7 +1712,7 @@ class SNCFSQA(StandardImagingFC2):
 
 @capture_warnings
 class LasVegas(ImagePhantomBase):
-    _demo_filename = "lasvegas.dcm"
+    DEMO_FILES = ["lasvegas.dcm"]
     common_name = "Las Vegas"
     phantom_bbox_size_mm2 = 20260
     detection_conditions = [is_centered, is_right_size]
@@ -1898,7 +1880,7 @@ class LasVegas(ImagePhantomBase):
 class ElektaLasVegas(LasVegas):
     """Elekta's variant of the Las Vegas."""
 
-    _demo_filename = "elekta_las_vegas.dcm"
+    DEMO_FILES = ["elekta_las_vegas.dcm"]
     common_name = "Elekta Las Vegas"
     phantom_bbox_size_mm2 = 140 * 140
     phantom_outline_object = {"Rectangle": {"width ratio": 0.61, "height ratio": 0.61}}
@@ -1972,7 +1954,7 @@ class ElektaLasVegas(LasVegas):
 
 @capture_warnings
 class PTWEPIDQC(ImagePhantomBase):
-    _demo_filename = "PTW-EPID-QC.dcm"
+    DEMO_FILES = ["PTW-EPID-QC.dcm"]
     common_name = "PTW EPID QC"
     phantom_bbox_size_mm2 = 250**2
     detection_conditions = [is_centered, is_right_size]
@@ -2081,7 +2063,7 @@ class PTWEPIDQC(ImagePhantomBase):
 @capture_warnings
 class IBAPrimusA(ImagePhantomBase):
     common_name = "IBA Primus A"
-    _demo_filename = "iba_primus.dcm"
+    DEMO_FILES = ["iba_primus.dcm"]
     phantom_bbox_size_mm2 = (
         15**2
     )  # with the Primus, we only search for the central crosshair
@@ -2263,7 +2245,7 @@ class IBAPrimusA(ImagePhantomBase):
 
 @capture_warnings
 class StandardImagingQC3(ImagePhantomBase):
-    _demo_filename = "qc3.dcm"
+    DEMO_FILES = ["qc3.dcm"]
     common_name = "SI QC-3"
     phantom_bbox_size_mm2 = 168**2
     detection_conditions = [is_centered, is_right_size]
@@ -2311,14 +2293,6 @@ class StandardImagingQC3(ImagePhantomBase):
         "roi 1": {"distance from center": 2, "angle": 90, "roi radius": 0.5},
     }
 
-    @classmethod
-    def from_demo_image(cls):
-        """Instantiate and load the demo image."""
-        demo_file = retrieve_demo_file(name=cls._demo_filename)
-        inst = cls(demo_file)
-        inst.image.invert()
-        return inst
-
     @staticmethod
     def run_demo() -> None:
         """Run the Standard Imaging QC-3 phantom analysis demonstration."""
@@ -2359,7 +2333,7 @@ class StandardImagingQC3(ImagePhantomBase):
 
 @capture_warnings
 class StandardImagingQCkV(StandardImagingQC3):
-    _demo_filename = "SI-QC-kV.dcm"
+    DEMO_FILES = ["SI-QC-kV.dcm"]
     common_name = "SI QC-kV"
     phantom_bbox_size_mm2 = 142**2
     detection_conditions = [is_centered, is_right_size]
@@ -2427,7 +2401,7 @@ class StandardImagingQCkV(StandardImagingQC3):
 
 @capture_warnings
 class SNCkV(ImagePhantomBase):
-    _demo_filename = "SNC-kV.dcm"
+    DEMO_FILES = ["SNC-kV.dcm"]
     common_name = "SNC kV-QA"
     phantom_bbox_size_mm2 = 134**2
     roi_match_condition = "closest"
@@ -2507,7 +2481,7 @@ class SNCkV(ImagePhantomBase):
 
 @capture_warnings
 class SNCMV(SNCkV):
-    _demo_filename = "SNC-MV.dcm"
+    DEMO_FILES = ["SNC-MV.dcm"]
     common_name = "SNC MV-QA"
     phantom_bbox_size_mm2 = 118**2
     phantom_outline_object = {"Rectangle": {"width ratio": 7.5, "height ratio": 7.5}}
@@ -2581,7 +2555,7 @@ class SNCMV(SNCkV):
 class SNCMV12510(SNCMV):
     """The older SNC MV QA phantom w/ model number 1251000"""
 
-    _demo_filename = "SNC_MV_12510.dcm"
+    DEMO_FILES = ["SNC_MV_12510.dcm"]
     common_name = "SNC MV-QA (12510)"
     phantom_bbox_size_mm2 = 130**2
     phantom_outline_object = {"Rectangle": {"width ratio": 7.3, "height ratio": 6.2}}
@@ -2635,7 +2609,7 @@ class SNCMV12510(SNCMV):
 
 @capture_warnings
 class LeedsTOR(ImagePhantomBase):
-    _demo_filename = "leeds.dcm"
+    DEMO_FILES = ["leeds.dcm"]
     common_name = "Leeds"
     phantom_bbox_size_mm2 = 148**2
     _is_ccw = False
@@ -3025,15 +2999,11 @@ class LeedsTORBlue(LeedsTOR):
         "roi 18": {"distance from center": 0.83, "angle": 330, "roi radius": 0.025},
     }
 
-    @classmethod
-    def from_demo_image(cls):
-        raise NotImplementedError("There is no demo file for this analysis")
-
 
 @capture_warnings
 class DoselabMC2kV(ImagePhantomBase):
     common_name = "Doselab MC2 kV"
-    _demo_filename = "Doselab_kV.dcm"
+    DEMO_FILES = ["Doselab_kV.dcm"]
     phantom_bbox_size_mm2 = 26300
     detection_conditions = [is_right_size]
     phantom_outline_object = {"Rectangle": {"width ratio": 0.55, "height ratio": 0.63}}
@@ -3187,7 +3157,7 @@ class DoselabMC2kV(ImagePhantomBase):
 @capture_warnings
 class DoselabMC2MV(DoselabMC2kV):
     common_name = "Doselab MC2 MV"
-    _demo_filename = "Doselab_MV.dcm"
+    DEMO_FILES = ["Doselab_MV.dcm"]
     low_contrast_background_roi_settings = {
         "roi 1": {"distance from center": 0.27, "angle": 48.5, "roi radius": 0.025},
     }
@@ -3248,7 +3218,7 @@ class ACRDigitalMammography(ImagePhantomBase):
     """ACR Digital Mammography QC phantom"""
 
     common_name = "ACR Digital Mammography"
-    _demo_filename = "ACRDigitalMammography.dcm"
+    DEMO_FILES = ["ACRDigitalMammography.dcm"]
     phantom_bbox_size_mm2 = 130 * 70
     roi_match_condition = "closest"
     detection_canny_settings = {"sigma": 9, "percentiles": (0.001, 0.01)}
