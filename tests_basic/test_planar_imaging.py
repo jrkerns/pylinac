@@ -163,17 +163,24 @@ class GeneralTests(TestCase):
         phan.analyze()
         figs, names = phan.plot_analyzed_image(split_plots=True)
         self.assertEqual(len(figs), 3)
-        files = phan.save_analyzed_image(filename="a.png", split_plots=True)
-        names = ("a_image.png", "a_low_contrast.png", "a_high_contrast.png")
-        for name in names:
-            self.assertIn(name, files)
+        with tempfile.TemporaryDirectory() as tdir:
+            base = os.path.join(tdir, "a.png")
+            files = phan.save_analyzed_image(filename=base, split_plots=True)
+            stem = osp.splitext(base)[0]
+            expected = (
+                stem + "_image.png",
+                stem + "_low_contrast.png",
+                stem + "_high_contrast.png",
+            )
+            for name in expected:
+                self.assertIn(name, files)
 
-        # regular single plot produces one image/file
-        figs, names = phan.plot_analyzed_image()
-        self.assertEqual(len(figs), 0)
-        name = "b.png"
-        phan.save_analyzed_image("b.png")
-        self.assertTrue(osp.isfile(name))
+            # regular single plot produces one image/file
+            figs, names = phan.plot_analyzed_image()
+            self.assertEqual(len(figs), 0)
+            name = os.path.join(tdir, "b.png")
+            phan.save_analyzed_image(name)
+            self.assertTrue(osp.isfile(name))
 
         # stream buffer shouldn't fail
         with io.BytesIO() as tmp:
