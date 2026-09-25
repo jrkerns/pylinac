@@ -443,7 +443,7 @@ class QuartDVT(CatPhanBase, ResultsDataMixin[QuartDVTResult]):
     Analyzes: HU Uniformity, Image Scaling & HU Linearity.
     """
 
-    _demo_url = "quart.zip"
+    DEMO_FILES = ["quart.zip"]
     _model = "Quart DVT"
     hu_origin_slice_variance = 300
     catphan_radius_mm = 80
