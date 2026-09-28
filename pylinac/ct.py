@@ -46,7 +46,7 @@ from .core import image, pdf
 from .core.contrast import Contrast
 from .core.geometry import Line, Point
 from .core.image import ArrayImage, DicomImageStack, ImageLike, z_position
-from .core.io import get_url, retrieve_demo_file
+from .core.io import LoadableMixin
 from .core.mtf import MTF, format_resolution
 from .core.nps import (
     average_power,
@@ -2024,12 +2024,11 @@ class CTP515CP700(CTP515CP600):
     pass
 
 
-class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
+class CatPhanBase(LoadableMixin, ResultsDataMixin[CatphanResult], QuaacMixin):
     """A class for loading and analyzing CT DICOM files of a CatPhan 504 & CatPhan 503. Can be from a CBCT or CT scanner
     Analyzes: Uniformity (CTP486), High-Contrast Spatial Resolution (CTP528), Image Scaling & HU Linearity (CTP404).
     """
 
-    _demo_url: str = ""
     _model: str = ""
     air_bubble_radius_mm: int | float = 7
     localization_radius: int | float = 59
@@ -2095,26 +2094,6 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             )
 
     @classmethod
-    def from_demo_images(cls):
-        """Construct a CBCT object from the demo images."""
-        demo_file = retrieve_demo_file(name=cls._demo_url)
-        return cls.from_zip(demo_file)
-
-    @classmethod
-    def from_url(cls, url: str, check_uid: bool = True):
-        """Instantiate a CBCT object from a URL pointing to a .zip object.
-
-        Parameters
-        ----------
-        url : str
-            URL pointing to a zip archive of CBCT images.
-        check_uid : bool
-            Whether to enforce raising an error if more than one UID is found in the dataset.
-        """
-        filename = get_url(url)
-        return cls.from_zip(filename, check_uid=check_uid)
-
-    @classmethod
     def from_zip(
         cls,
         zip_file: str | zipfile.ZipFile | BinaryIO,
@@ -2138,8 +2117,10 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         FileExistsError : If zip_file passed was not a legitimate zip file.
         FileNotFoundError : If no CT images are found in the folder
         """
+        # Construct the object by passing the zip path into the normal constructor
+        # and let the instance initialization handle creating the appropriate DICOM stack.
         return cls(
-            folderpath=zip_file,
+            zip_file,
             check_uid=check_uid,
             memory_efficient_mode=memory_efficient_mode,
             is_zip=True,
@@ -3066,7 +3047,7 @@ class CatPhan503(CatPhanBase):
     Analyzes: Uniformity (CTP486), High-Contrast Spatial Resolution (CTP528), Image Scaling & HU Linearity (CTP404).
     """
 
-    _demo_url = "CatPhan503.zip"
+    DEMO_FILES = ["CatPhan503.zip"]
     _model = "503"
     catphan_radius_mm = 97
     modules = {
@@ -3091,7 +3072,7 @@ class CatPhan504(CatPhanBase):
     Image Scaling & HU Linearity (CTP404), and Low contrast (CTP515).
     """
 
-    _demo_url = "CatPhan504.zip"
+    DEMO_FILES = ["CatPhan504.zip"]
     _model = "504"
     catphan_radius_mm = 101
     modules = {
@@ -3117,7 +3098,7 @@ class CatPhan604(CatPhanBase):
     Image Scaling & HU Linearity (CTP404), and Low contrast (CTP515).
     """
 
-    _demo_url = "CatPhan604.zip"
+    DEMO_FILES = ["CatPhan604.zip"]
     _model = "604"
     catphan_radius_mm = 101
     modules = {
@@ -3257,7 +3238,7 @@ class CatPhan600(CatPhanBase):
     Image Scaling & HU Linearity (CTP404), and Low contrast (CTP515).
     """
 
-    _demo_url = "CatPhan600.zip"
+    DEMO_FILES = ["CatPhan600.zip"]
     _model = "600"
     catphan_radius_mm = 101
     modules = {
@@ -3301,7 +3282,7 @@ class CatPhan700(CatPhanBase):
     Image Scaling & HU Linearity (CTP404CP700/CTP682), Low contrast (CTP515) and slice geometry (CTP721)
     """
 
-    # _demo_url = "CatPhan600.zip"
+    # DEMO_FILES = ["CatPhan600.zip"]
     _model = "700"
     catphan_radius_mm = 101
     modules = {

@@ -39,7 +39,7 @@ from scipy import optimize
 
 from .core import image, pdf
 from .core.geometry import Circle, Line, Point
-from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
+from .core.io import LoadableMixin, TemporaryZipDirectory
 from .core.plotly_utils import set_axis_range
 from .core.profile import CollapsedCircleProfile, FWXMProfile
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
@@ -96,7 +96,10 @@ class StarshotResults(ResultBase):
 
 
 @capture_warnings
-class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
+class Starshot(LoadableMixin, ResultsDataMixin[StarshotResults], QuaacMixin):
+    DEMO_FILES = ["starshot.tif"]
+    # Defaults applied when constructing from demo files (restores legacy demo kwargs)
+    DEMO_KWARGS = {"dpi": 30, "sid": 1000}
     """Class that can determine the wobble in a "starshot" image, be it gantry, collimator,
     couch or MLC. The image can be a scanned film (TIF, JPG, etc) or a sequence of EPID DICOM images.
 
@@ -146,26 +149,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
                 "Source-to-Image distance was not an image tag and was not passed in. Please pass an SID value."
             )
 
-    @classmethod
-    def from_url(cls, url: str, **kwargs):
-        """Instantiate from a URL.
-
-        Parameters
-        ----------
-        url : str
-            URL of the raw file.
-        kwargs
-            Passed to :func:`~pylinac.core.image.load`.
-        """
-        filename = get_url(url)
-        return cls(filename, **kwargs)
-
-    @classmethod
-    def from_demo_image(cls):
-        """Construct a Starshot instance and load the demo image."""
-        demo_file = retrieve_demo_file(name="starshot.tif")
-        return cls(demo_file, sid=1000)
-
+    # from_url/from_demo_image are provided by LoadableMixin; keep signature compatibility via DEMO_FILES
     @classmethod
     def from_multiple_images(
         cls,
@@ -196,25 +180,30 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
             return cls(stream, **kwargs)
 
     @classmethod
-    def from_zip(cls, zip_file: str, **kwargs):
-        """Construct a Starshot instance from a ZIP archive.
+    def from_zip(
+        cls,
+        zfile: str | Path | BinaryIO,
+        stretch_each: bool = True,
+        method: str = "sum",
+        **kwargs,
+    ):
+        """Instantiate from a ZIP archive containing multiple image files.
 
-        Parameters
-        ----------
-        zip_file : str
-            Points to the ZIP archive. Can contain a single or multiple images. If multiple images
-            the images are combined and thus should be from the same test sequence.
-        kwargs
-            Passed to :func:`~pylinac.core.image.load_multiples`.
+        This differs from the generic LoadableMixin.from_zip: starshots can be
+        created by superimposing multiple images. If a ZIP contains multiple
+        image files, collect them and call ``from_multiple_images``.
         """
-        with TemporaryZipDirectory(zip_file) as tmpdir:
-            image_files = image.retrieve_image_files(tmpdir)
-            if not image_files:
-                raise IndexError(f"No valid starshot images were found in {zip_file}")
-            if len(image_files) > 1:
-                return cls.from_multiple_images(image_files, **kwargs)
-            else:
-                return cls(image_files[0], **kwargs)
+        # extract zip to tempdir and collect image files
+        with TemporaryZipDirectory(zfile) as tmpdir:
+            files = image.retrieve_image_files(tmpdir)
+            n = len(files)
+            if n == 0:
+                raise ValueError("No image files found in ZIP archive")
+            if n == 1:
+                return cls(files[0], **kwargs)
+            return cls.from_multiple_images(
+                files, stretch_each=stretch_each, method=method, **kwargs
+            )
 
     def _get_reasonable_start_point(self) -> (Point, float):
         """Set the algorithm starting point automatically.

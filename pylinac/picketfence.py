@@ -40,7 +40,7 @@ from pydantic import Field
 from . import Normalization
 from .core import image, pdf
 from .core.geometry import Line, Point, PointSerialized, Rectangle
-from .core.io import get_url, retrieve_demo_file
+from .core.io import LoadableMixin
 from .core.plotly_utils import add_horizontal_line, add_title, add_vertical_line
 from .core.profile import FWXMProfilePhysical, MultiProfile
 from .core.utilities import (
@@ -261,7 +261,8 @@ class PFDicomImage(image.LinacDicomImage):
 
 
 @capture_warnings
-class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
+class PicketFence(LoadableMixin, ResultsDataMixin[PFResult], QuaacMixin):
+    DEMO_FILES = ["AS1200.dcm"]
     """A class used for analyzing EPID images where radiation strips have been formed by the
     MLCs. The strips are assumed to be parallel to one another and normal to the image edge;
     i.e. a "left-right" or "up-down" orientation is assumed. Further work could follow up by accounting
@@ -340,18 +341,6 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
                 for name, member in MLC.__members__.items()
                 if member.value["name"] == value
             ][0]
-
-    @classmethod
-    def from_url(cls, url: str, filter: int = None, image_kwargs: dict | None = None):
-        """Instantiate from a URL."""
-        filename = get_url(url, progress_bar=True)
-        return cls(filename, filter=filter, image_kwargs=image_kwargs)
-
-    @classmethod
-    def from_demo_image(cls, filter: int = None):
-        """Construct a PicketFence instance using the demo image."""
-        demo_file = retrieve_demo_file(name="AS1200.dcm")
-        return cls(demo_file, filter=filter)
 
     @classmethod
     def from_multiple_images(

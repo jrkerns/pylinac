@@ -1874,6 +1874,33 @@ class LazyDicomImageStack:
     _image_path_keys: list[Path | str]
     metadatas: list[pydicom.Dataset]
 
+    @classmethod
+    def from_zip(
+        cls, zip_file: str | Path | BinaryIO, dtype: np.dtype | None = None, **kwargs
+    ):
+        """Construct the stack from a ZIP archive.
+
+        For eager stacks (the on-disk DicomImageStack) the archive is extracted to a temporary
+        directory and the normal constructor is invoked so files are read immediately.
+        For lazy stacks, returning an object that points at files in a temporary directory is
+        unsafe because the directory will be removed after extraction. In that case, delegate
+        to the zip-backed lazy implementation.
+
+        Accepts and forwards optional kwargs (e.g., min_number, check_uid) to the
+        chosen stack implementation.
+        """
+        # Eager DicomImageStack requires files on disk during construction; detect by name to avoid
+        # returning objects that reference ephemeral temp dirs. Route lazy classes to the
+        # zip-backed implementation which reads from the archive on demand.
+        if cls.__name__ == "DicomImageStack":
+            with TemporaryZipDirectory(zip_file) as tmpdir:
+                return cls(tmpdir, dtype=dtype, **kwargs)
+        # For lazy classes, use the zip-backed lazy implementation to avoid ephemeral extraction
+        return LazyZipDicomImageStack.from_zip(zip_file, dtype=dtype, **kwargs)
+
+    _image_path_keys: list[Path | str]
+    metadatas: list[pydicom.Dataset]
+
     def __init__(
         self,
         folder: str | Path | Sequence[str | Path],
@@ -1888,53 +1915,63 @@ class LazyDicomImageStack:
 
         See the documentation for DicomImageStack for parameter descriptions.
         """
+        self._initialize_stack_state(dtype=dtype)
+        paths = self._load_paths(folder)
+        self._assign_stack_data(
+            paths=paths,
+            min_number=min_number,
+            check_uid=check_uid,
+            source=folder,
+        )
+
+    def _initialize_stack_state(self, dtype: np.dtype | None) -> None:
+        """Initialize shared stack state before loading any DICOM paths."""
+        super().__init__()
         self.dtype = dtype
-        paths = []
-        # load in images in their received order
+        self.metadatas = []
+        self._image_path_keys = []
+
+    def _load_paths(
+        self, folder: str | Path | Sequence[str | Path]
+    ) -> list[str | Path]:
+        """Expand a folder or explicit sequence into an ordered list of paths."""
         if isinstance(folder, (list, tuple)):
-            paths = folder
-        elif osp.isdir(folder):
-            for pdir, sdir, files in os.walk(folder):
+            return list(folder)
+        if osp.isdir(folder):
+            paths: list[str | Path] = []
+            for pdir, _, files in os.walk(folder):
                 for file in files:
                     paths.append(osp.join(pdir, file))
-        # we only want to read the metadata once
-        # so we read it here and then filter and sort
-        metadatas, paths = self._get_path_metadatas(paths)
+            return paths
+        return []
 
-        # check that at least 1 image was loaded
+    def _assign_stack_data(
+        self,
+        paths: list[str | Path],
+        min_number: int,
+        check_uid: bool,
+        source: str | Path | Sequence[str | Path] | BinaryIO,
+    ) -> None:
+        """Read metadata, optionally filter to one UID, and sort by slice position."""
+        metadatas, paths = self._get_path_metadatas(paths)
         if len(paths) < 1:
             raise FileNotFoundError(
-                f"No files were found in the specified location: {folder}"
+                f"No files were found in the specified location: {source}"
             )
 
-        # error checking
         if check_uid:
             most_common_uid = self._get_common_uid_imgs(metadatas, min_number)
-            metadatas = [m for m in metadatas if m.SeriesInstanceUID == most_common_uid]
-            paths = [
-                p
-                for p, m in zip(paths, metadatas)
-                if m.SeriesInstanceUID == most_common_uid
+            pairs = [
+                (path, metadata)
+                for path, metadata in zip(paths, metadatas)
+                if metadata.SeriesInstanceUID == most_common_uid
             ]
-        # sort according to physical order
+            paths = [path for path, _ in pairs]
+            metadatas = [metadata for _, metadata in pairs]
+
         order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
         self.metadatas = [metadatas[i] for i in order]
         self._image_path_keys = [paths[i] for i in order]
-
-    @classmethod
-    def from_zip(cls, zip_path: str | Path, dtype: np.dtype | None = None, **kwargs):
-        """Load a DICOM ZIP archive.
-
-        Parameters
-        ----------
-        zip_path : str
-            Path to the ZIP archive.
-        dtype : dtype, None, optional
-            The data type to cast the image data as. If None, will use whatever raw image format is.
-        """
-        with TemporaryZipDirectory(zip_path, delete=False) as tmpzip:
-            obj = cls(tmpzip, dtype, **kwargs)
-        return obj
 
     def _get_common_uid_imgs(
         self, metadata: list[pydicom.Dataset], min_number: int
@@ -2047,6 +2084,17 @@ class LazyDicomImageStack:
 
 
 class LazyZipDicomImageStack(LazyDicomImageStack):
+    @classmethod
+    def from_zip(
+        cls, zip_file: str | Path | BinaryIO, dtype: np.dtype | None = None, **kwargs
+    ):
+        """Construct a lazy zip-backed DICOM image stack directly from a zip archive.
+
+        This avoids extracting the archive to disk by reading image bytes on demand.
+        Accepts and forwards optional kwargs (e.g., min_number, check_uid) to the constructor.
+        """
+        return cls(zip_file, dtype=dtype, **kwargs)
+
     """A variant of the lazy stack where a .zip archive is passed and
     the archive is NOT extracted to disk. The most memory-efficient for use cases
     like Cloud Run where disk=memory"""
@@ -2065,45 +2113,20 @@ class LazyZipDicomImageStack(LazyDicomImageStack):
 
         See the documentation for DicomImageStack for parameter descriptions.
         """
-        self.dtype = dtype
+        self._initialize_stack_state(dtype=dtype)
         self.zip_archive = folder
         self.shadow_images = {}
         with ZipFile(self.zip_archive) as zfile:
             paths = zfile.namelist()
-        # we only want to read the metadata once
-        # so we read it here and then filter and sort
-        metadatas, paths = self._get_path_metadatas(paths)
+        self._assign_stack_data(
+            paths=paths,
+            min_number=min_number,
+            check_uid=check_uid,
+            source=folder,
+        )
+        self.create_shadow(self._image_path_keys)
 
-        # check that at least 1 image was loaded
-        if len(paths) < 1:
-            raise FileNotFoundError(
-                f"No files were found in the specified location: {folder}"
-            )
-
-        # error checking
-        if check_uid:
-            most_common_uid = self._get_common_uid_imgs(metadatas, min_number)
-            pairs = [
-                (p, m)
-                for (p, m) in zip(paths, metadatas)
-                if m.SeriesInstanceUID == most_common_uid
-            ]
-            paths, metadatas = zip(*pairs)
-
-        # sort according to physical order
-        order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
-        self.metadatas = [metadatas[i] for i in order]
-        self._image_path_keys = [paths[i] for i in order]
-        self.create_shadow(paths)
-
-    @classmethod
-    def from_zip(
-        cls, zip_path: str | Path | BinaryIO, dtype: np.dtype | None = None, **kwargs
-    ):
-        # the zip lazy stack assumes a zip file is passed
-        return cls(zip_path, dtype, **kwargs)
-
-    def create_shadow(self, paths: list[str]):
+    def create_shadow(self, paths: Sequence[str | Path]) -> None:
         with ZipFile(self.zip_archive) as zfile:
             for path in paths:
                 with zfile.open(path) as file:
@@ -2200,21 +2223,6 @@ class DicomImageStack(LazyDicomImageStack):
             DicomImage(path, dtype=dtype, raw_pixels=raw_pixels)
             for path in self._image_path_keys
         ]
-
-    @classmethod
-    def from_zip(cls, zip_path: str | Path, dtype: np.dtype | None = None, **kwargs):
-        """Load a DICOM ZIP archive.
-
-        Parameters
-        ----------
-        zip_path : str
-            Path to the ZIP archive.
-        dtype : dtype, None, optional
-            The data type to cast the image data as. If None, will use whatever raw image format is.
-        """
-        with TemporaryZipDirectory(zip_path) as tmpzip:
-            obj = cls(tmpzip, dtype, **kwargs)
-        return obj
 
     def plot_3view(self):
         """Plot the stack in 3 views: axial, coronal, and sagittal."""
