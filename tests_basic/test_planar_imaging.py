@@ -10,6 +10,8 @@ from unittest import TestCase, skip
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.figure import Figure
+from matplotlib.markers import MarkerStyle
+from parameterized import parameterized
 from plotly import graph_objects as go
 from scipy.ndimage import rotate
 
@@ -24,6 +26,7 @@ from pylinac import (
     StandardImagingQC3,
 )
 from pylinac.core import image
+from pylinac.core.geometry import Point
 from pylinac.planar_imaging import (
     PTWEPIDQC,
     SNCFSQA,
@@ -1067,6 +1070,100 @@ class FC2Mixin(PlanarPhantomMixin):
         self.assertAlmostEqual(
             results_data.field_bb_offset_y_mm, self.field_bb_offset_y_mm, delta=0.2
         )
+
+
+LIGHT_RAD_CLASSES = [StandardImagingFC2, DoselabRLf, IsoAlign, IMTLRad, SNCFSQA]
+
+
+class TestManualLightRadBBs(TestCase):
+    @parameterized.expand(LIGHT_RAD_CLASSES)
+    def test_matplotlib_preserves_automatic_outlines_and_marks_manual_bbs(self, klass):
+        automatic = klass.from_demo_image()
+        automatic.analyze()
+        measured = {
+            label: point
+            for label, point in automatic.bb_centers.items()
+            if label != "Virtual Center"
+        }
+        manual = klass.from_demo_image()
+        manual.analyze(bb_points=list(reversed(list(measured.values()))))
+
+        automatic_figures, _ = automatic.plot_analyzed_image(show=False)
+        automatic_axes = automatic_figures[0].axes[0]
+        self.assertGreater(len(automatic_axes.collections), 0)
+        self.assertFalse(
+            any(
+                collection.get_label() == "Manual BB Locations"
+                for collection in automatic_axes.collections
+            )
+        )
+        plt.close(automatic_figures[0])
+
+        manual_figures, _ = manual.plot_analyzed_image(show=False)
+        manual_axes = manual_figures[0].axes[0]
+        manual_markers = next(
+            collection
+            for collection in manual_axes.collections
+            if collection.get_label() == "Manual BB Locations"
+        )
+        np.testing.assert_allclose(
+            manual_markers.get_offsets(),
+            [(point.x, point.y) for point in measured.values()],
+        )
+        x_marker = MarkerStyle("x")
+        np.testing.assert_array_equal(
+            manual_markers.get_paths()[0].vertices,
+            x_marker.get_path().transformed(x_marker.get_transform()).vertices,
+        )
+        plt.close(manual_figures[0])
+
+    @parameterized.expand(LIGHT_RAD_CLASSES)
+    def test_manual_points_match_automatic_results_in_any_order(self, klass):
+        automatic = klass.from_demo_image()
+        automatic.analyze()
+        self.assertEqual(automatic.results_data().bb_detection_method, "automatic")
+        selected = [
+            point
+            for label, point in automatic.bb_centers.items()
+            if label != "Virtual Center"
+        ]
+        self.assertEqual(len(selected), klass.expected_bb_count)
+        manual = klass.from_demo_image()
+        manual.analyze(bb_points=[(point.x, point.y) for point in reversed(selected)])
+        self.assertEqual(manual.results_data().bb_detection_method, "manual")
+        self.assertIn("BB detection method: manual", manual.results())
+        for label, point in automatic.bb_centers.items():
+            self.assertAlmostEqual(manual.bb_centers[label].x, point.x)
+            self.assertAlmostEqual(manual.bb_centers[label].y, point.y)
+
+    @parameterized.expand(LIGHT_RAD_CLASSES)
+    def test_incorrect_count_is_rejected_for_each_phantom(self, klass):
+        phantom = klass.from_demo_image()
+        with self.assertRaisesRegex(ValueError, "Expected"):
+            phantom.analyze(bb_points=[])
+
+    @parameterized.expand(
+        ["duplicate", "nan", "negative", "right_edge", "one_coordinate"]
+    )
+    def test_invalid_coordinates_are_rejected(self, invalid_case):
+        phantom = StandardImagingFC2.from_demo_image()
+        valid = [(100, 100), (200, 100), (100, 200), (200, 200)]
+        invalid_points = {
+            "duplicate": valid[0],
+            "nan": (float("nan"), 200),
+            "negative": (-1, 200),
+            "right_edge": (phantom.image.array.shape[1], 200),
+            "one_coordinate": (10,),
+        }
+        with self.assertRaises(ValueError):
+            phantom.analyze(bb_points=[*valid[:3], invalid_points[invalid_case]])
+
+    def test_reanalysis_updates_detection_method(self):
+        phantom = IMTLRad.from_demo_image()
+        phantom.analyze(bb_points=[Point(phantom.image.center)])
+        self.assertEqual(phantom.results_data().bb_detection_method, "manual")
+        phantom.analyze()
+        self.assertEqual(phantom.results_data().bb_detection_method, "automatic")
 
 
 class FC2Demo(FC2Mixin, TestCase):

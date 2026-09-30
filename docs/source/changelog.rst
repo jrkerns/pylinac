@@ -21,6 +21,15 @@ Core
   :meth:`~pylinac.core.image.LazyDicomImageStack.z_flip`. This is to provide
   a tool for clinic's that accidentally scanned their CT/CBCT phantom inverted.
 
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* :bdg-success:`Feature` Light/radiation phantom analyses now accept optional
+  ``bb_points`` in image-pixel coordinates.
+  The supplied points can be in
+  any order. Results report whether BB selection was manual or automatic via
+  ``bb_detection_method``. See :ref:`manual-planar-bb-selection`.
+
 MTF
 ^^^
 
