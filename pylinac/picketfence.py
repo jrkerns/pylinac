@@ -133,6 +133,10 @@ class MLC(enum.Enum):
         "name": "Halcyon proximal",
         "arrangement": MLCArrangement([(29, 10)]),
     }  #:
+    HALCYON_COMBO = {
+        "name": "Halcyon proximal and distal",
+        "arrangement": MLCArrangement([( 29 + 28, 5)]),
+    }  #: summarize the leaves of the proximal and distal and half the individual leaf-width
 
 
 class PFResult(ResultBase):
