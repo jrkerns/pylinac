@@ -91,3 +91,72 @@ class TestWarnings(TestCase):
         self.assertEqual(messages.count("repeated warning"), 1)
         self.assertEqual(messages.count("unique warning"), 1)
         self.assertEqual(len(captured), 2)
+
+    def test_caller_can_filter_reemitted_warning(self):
+        @capture_warnings
+        class MyClass(WarningCollectorMixin):
+            def run(self):
+                warnings.warn("bbox_area is deprecated", UserWarning)
+                warnings.warn("another warning", UserWarning)
+
+        instance = MyClass()
+        with warnings.catch_warnings(record=True) as emitted:
+            warnings.simplefilter("always")
+            warnings.filterwarnings(
+                "ignore", message=".*bbox_area.*", category=UserWarning
+            )
+            instance.run()
+
+        self.assertEqual([str(w.message) for w in emitted], ["another warning"])
+        self.assertEqual(
+            [w["message"] for w in instance.get_captured_warnings()],
+            ["another warning"],
+        )
+
+    def test_caller_can_ignore_warning_before_capture(self):
+        @capture_warnings
+        class MyClass(WarningCollectorMixin):
+            def run(self):
+                warnings.warn("bbox_area is deprecated", UserWarning)
+
+        instance = MyClass()
+        with warnings.catch_warnings(record=True) as emitted:
+            warnings.filterwarnings(
+                "ignore", message=".*bbox_area.*", category=UserWarning
+            )
+            instance.run()
+
+        self.assertEqual(emitted, [])
+        self.assertEqual(instance.get_captured_warnings(), [])
+
+    def test_repeat_suppression_across_method_calls(self):
+        @capture_warnings
+        class MyClass(WarningCollectorMixin):
+            def run(self):
+                warnings.warn("repeated across calls", UserWarning)
+
+        for action in ("once", "default", "module"):
+            with self.subTest(action=action):
+                instance = MyClass()
+                with warnings.catch_warnings(record=True) as emitted:
+                    warnings.simplefilter(action)
+                    instance.run()
+                    instance.run()
+
+                self.assertEqual(len(emitted), 1)
+                self.assertEqual(len(instance.get_captured_warnings()), 1)
+
+    def test_always_filter_emits_on_every_call(self):
+        @capture_warnings
+        class MyClass(WarningCollectorMixin):
+            def run(self):
+                warnings.warn("repeated across calls", UserWarning)
+
+        instance = MyClass()
+        with warnings.catch_warnings(record=True) as emitted:
+            warnings.simplefilter("always")
+            instance.run()
+            instance.run()
+
+        self.assertEqual(len(emitted), 2)
+        self.assertEqual(len(instance.get_captured_warnings()), 1)

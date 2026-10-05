@@ -16,6 +16,10 @@ v3.49.0
 Core
 ^^^^
 
+* :bdg-warning:`Fixed` Warnings from Pylinac analyses now respect the calling
+  application's standard Python warning filters. This makes it easier to
+  filter out unwanted warnings in user applications; ignored warnings are also excluded from
+  ``results_data().warnings``.
 * :bdg-success:`Feature` DICOM image stacks can now be rotated 180 degrees
   around their in-plane vertical axis with
   :meth:`~pylinac.core.image.LazyDicomImageStack.z_flip`. This is to provide

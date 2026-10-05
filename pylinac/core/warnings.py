@@ -1,4 +1,3 @@
-import sys
 import types
 import warnings
 from functools import wraps
@@ -6,6 +5,65 @@ from threading import Lock
 from typing import Any, TypeVar
 
 T = TypeVar("T", bound=type[Any])  # Class type
+
+# Capturing warnings temporarily changes Python's filter version, which resets
+# its normal warning registries on every decorated method call. Keep the replay
+# history separately so "once", "default", and "module" retain their meaning.
+_replay_lock = Lock()
+_replay_filters: list | None = None
+_replay_filter_entries: tuple | None = None
+_replayed_warnings: set[tuple] = set()
+
+
+def _should_replay_warning(warning: warnings.WarningMessage) -> bool:
+    """Apply repeat suppression using the caller's active warning filters."""
+    global _replay_filters, _replay_filter_entries
+
+    message = str(warning.message)
+    module = warning.filename
+    if module.lower().endswith(".py"):
+        module = module[:-3]
+
+    with _replay_lock:
+        filter_entries = tuple(warnings.filters)
+        if (
+            warnings.filters is not _replay_filters
+            or filter_entries != _replay_filter_entries
+        ):
+            _replayed_warnings.clear()
+            _replay_filters = warnings.filters
+            _replay_filter_entries = filter_entries
+
+        action = warnings.defaultaction
+        for (
+            filter_action,
+            message_pattern,
+            category,
+            module_pattern,
+            lineno,
+        ) in filter_entries:
+            if (
+                (message_pattern is None or message_pattern.match(message))
+                and issubclass(warning.category, category)
+                and (module_pattern is None or module_pattern.match(module))
+                and (lineno == 0 or lineno == warning.lineno)
+            ):
+                action = filter_action
+                break
+
+        if action == "once":
+            key = ("once", message, warning.category)
+        elif action == "module":
+            key = ("module", module, message, warning.category)
+        elif action == "default":
+            key = ("default", module, warning.lineno, message, warning.category)
+        else:
+            return True
+
+        if key in _replayed_warnings:
+            return False
+        _replayed_warnings.add(key)
+        return True
 
 
 class WarningCollectorMixin:
@@ -42,8 +100,8 @@ class WarningCollectorMixin:
 def capture_warnings_method_wrapper(method: callable) -> callable:
     """Decorator to capture warnings emitted by the decorated method.
 
-    All warning categories are captured and stored. They are also
-    re-emitted to stderr so they remain visible in the console.
+    Warnings allowed by the caller's filters are captured and stored. They are
+    also re-emitted through the standard warnings machinery.
 
     A nesting guard (``_in_warning_capture``) ensures that when wrapped
     methods call other wrapped methods, only the outermost context
@@ -58,7 +116,6 @@ def capture_warnings_method_wrapper(method: callable) -> callable:
         self._in_warning_capture = True
         try:
             with warnings.catch_warnings(record=True) as w:
-                warnings.simplefilter("always")
                 result = method(self, *args, **kwargs)
                 captured = []
                 for warning in w:
@@ -72,14 +129,13 @@ def capture_warnings_method_wrapper(method: callable) -> callable:
                     captured.append(warning_info)
             self._add_warnings(captured)
             for warning in w:
-                warnings.showwarning(
-                    message=warning.message,
-                    category=warning.category,
-                    filename=warning.filename,
-                    lineno=warning.lineno,
-                    file=sys.stderr,
-                    line=warning.line,
-                )
+                if _should_replay_warning(warning):
+                    warnings.warn_explicit(
+                        message=warning.message,
+                        category=warning.category,
+                        filename=warning.filename,
+                        lineno=warning.lineno,
+                    )
             return result
         finally:
             self._in_warning_capture = False
