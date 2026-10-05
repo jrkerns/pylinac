@@ -998,6 +998,24 @@ class TestLinacDicomImage(TestCase):
 
 
 class TestFileImage(TestCase):
+    def test_unknown_tiff_tag(self):
+        pixels = np.arange(100, dtype=np.uint16).reshape(10, 10)
+        stream = io.BytesIO()
+        PIL.Image.fromarray(pixels).save(
+            stream,
+            format="TIFF",
+            dpi=(100, 100),
+            tiffinfo={52545: "vendor metadata"},
+        )
+        stream.seek(0)
+
+        loaded = FileImage(stream)
+
+        self.assertEqual(loaded.tags[52545], "vendor metadata")
+        self.assertEqual(loaded.tags["ImageWidth"], 10)
+        self.assertEqual(loaded.dpi, 100)
+        assert_array_almost_equal(loaded.array, pixels)
+
     def test_sid(self):
         # default sid is None
         fi = FileImage(tif_path)

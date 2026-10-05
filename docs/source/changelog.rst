@@ -24,6 +24,10 @@ Core
   around their in-plane vertical axis with
   :meth:`~pylinac.core.image.LazyDicomImageStack.z_flip`. This is to provide
   a tool for clinic's that accidentally scanned their CT/CBCT phantom inverted.
+* :bdg-warning:`Fixed` Fixed an issue where TIFF images containing unrecognized metadata
+  tags could fail to load with a KeyError, affecting analyses using TIFF images.
+  Unknown tags are now preserved without preventing image loading. Missing critical tags
+  continue to produce descriptive errors explaining which values to supply.
 
 Planar Imaging
 ^^^^^^^^^^^^^^

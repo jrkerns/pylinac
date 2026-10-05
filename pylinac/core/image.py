@@ -1774,7 +1774,10 @@ class FileImage(BaseImage):
             )  # int32; uint16 preferred but not reliable using PIL
         self.info = pil_image.info
         try:  # tiff tags
-            self.tags = {TAGS[key]: pil_image.tag_v2[key] for key in pil_image.tag_v2}
+            # Private/vendor tags may not have a name in Pillow's tag dictionary.
+            self.tags = {
+                TAGS.get(key, key): pil_image.tag_v2[key] for key in pil_image.tag_v2
+            }
         except AttributeError:
             pass
         self.array = np.array(pil_image, dtype=dtype)
