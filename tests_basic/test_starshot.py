@@ -274,8 +274,8 @@ class Starshot1(StarMixin, PlotlyTestMixin, TestCase):
     wobble_diameter_mm = 0.23
     num_rad_lines = 4
     # outside 0.20-0.27mm
-    num_figs = 2
-    fig_data = {0: {"title": "Starshot Analysis", "num_traces": 6}}
+    num_figs = 1
+    fig_data = {0: {"title": "Starshot Analysis", "num_traces": 9}}
 
     def setUp(self) -> None:
         super().setUp()
@@ -729,7 +729,47 @@ class TestMechanicalReferencePoint(TestCase):
         )
         self.assertEqual(points["Reference to isocenter X offset"].unit, "mm")
 
-    def test_plotly_markers_and_zoom(self):
+    @parameterized.expand([(True,), (False,)])
+    def test_plotly_sampling_overlays(self, show_legend):
+        self.star.analyze()
+        figures = self.star.plotly_analyzed_images(
+            show=False, show_legend=show_legend, show_colorbar=False
+        )
+        self.assertEqual(list(figures), ["Image"])
+        fig = figures["Image"]
+        profile = self.star.circle_profile
+        outlines = [trace for trace in fig.data if trace.name == "Sampling band"]
+        self.assertEqual(len(outlines), 2)
+        for idx, (trace, ratio) in enumerate(
+            zip(outlines, (1 - profile.width_ratio, 1 + profile.width_ratio))
+        ):
+            radii = np.hypot(
+                np.asarray(trace.x) - profile.center.x,
+                np.asarray(trace.y) - profile.center.y,
+            )
+            np.testing.assert_allclose(radii, profile.radius * ratio)
+            self.assertEqual(trace.line.color, "green")
+            self.assertEqual(trace.fill, "none")
+            self.assertEqual(trace.legendgroup, "sampling_band")
+            self.assertEqual(trace.showlegend, show_legend and idx == 0)
+        markers = [
+            trace for trace in fig.data if trace.name == "Detected spoke positions"
+        ]
+        self.assertEqual(len(markers), 1)
+        markers = markers[0]
+        np.testing.assert_allclose(markers.x, [peak.x for peak in profile.peaks])
+        np.testing.assert_allclose(markers.y, [peak.y for peak in profile.peaks])
+        self.assertEqual(markers.mode, "markers")
+        self.assertEqual(markers.marker.symbol, "x")
+        self.assertEqual(markers.marker.color, "green")
+        self.assertEqual(markers.showlegend, show_legend)
+        self.assertFalse(fig.data[0].showscale)
+        self.assertIsNone(fig.layout.xaxis.range)
+        self.assertIsNone(fig.layout.yaxis.range)
+        self.assertEqual(fig.layout.yaxis.autorange, "reversed")
+        self.assertEqual(fig.layout.yaxis.scaleanchor, "x")
+
+    def test_plotly_reference_markers(self):
         self.star.analyze(reference_point=(1000, 1200))
         figures = self.star.plotly_analyzed_images(show=False, show_legend=False)
         for fig in figures.values():
@@ -739,11 +779,7 @@ class TestMechanicalReferencePoint(TestCase):
             self.assertEqual(tuple(comparison.marker.symbol), ("cross", "circle"))
             self.assertFalse(comparison.showlegend)
             self.assertIn("mm", comparison.name)
-        zoom = figures["Wobble"]
-        self.assertLess(min(zoom.layout.xaxis.range), 1000)
-        self.assertGreater(max(zoom.layout.xaxis.range), self.star.wobble.center.x)
-        self.assertLess(min(zoom.layout.yaxis.range), 1200)
-        self.assertGreater(max(zoom.layout.yaxis.range), self.star.wobble.center.y)
+        self.assertEqual(list(figures), ["Image"])
 
     def test_matplotlib_markers_and_zoom(self):
         self.star.analyze(reference_point=(1000, 1200))

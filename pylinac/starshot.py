@@ -40,7 +40,6 @@ from scipy import optimize
 from .core import image, pdf
 from .core.geometry import Circle, Line, Point
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
-from .core.plotly_utils import set_axis_range
 from .core.profile import CollapsedCircleProfile, FWXMProfile
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
 from .core.warnings import capture_warnings
@@ -559,8 +558,7 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         show_legend: bool = True,
         **kwargs,
     ) -> dict[str, go.Figure]:
-        """Plot the analyzed set of images to Plotly figures. Will plot a zoomed-out image and a zoomed-in image.
-
+        """Plot the full analyzed image with radiation lines, sampling band, detected peaks, and wobble circle.
 
         Parameters
         ----------
@@ -576,63 +574,79 @@ class Starshot(ResultsDataMixin[StarshotResults], QuaacMixin):
         Returns
         -------
         dict
-            A dictionary of the Plotly figures where the key is the name of the
-            image and the value is the figure.
+            A dictionary containing the full-image figure under the key ``"Image"``.
         """
-        figs = {}
-        for name, zoom in zip(("Image", "Wobble"), (False, True)):
-            fig = self.image.plotly(
-                title="Starshot Analysis",
-                show=False,
-                show_legend=show_legend,
-                show_colorbar=show_colorbar,
-                **kwargs,
+        fig = self.image.plotly(
+            title="Starshot Analysis",
+            show=False,
+            show_legend=show_legend,
+            show_colorbar=show_colorbar,
+            **kwargs,
+        )
+        for idx, line in enumerate(self.lines):
+            line.plotly(
+                fig,
+                color="blue",
+                showlegend=show_legend,
+                name=f"Line {idx} ({self.angles[idx]:2.2f}°)",
             )
-            for idx, line in enumerate(self.lines):
-                line.plotly(
-                    fig,
-                    color="blue",
-                    showlegend=show_legend,
-                    name=f"Line {idx} ({self.angles[idx]:2.2f}°)",
-                )
-            self.wobble.plotly(
+        self.wobble.plotly(
+            fig,
+            line_color="green",
+            showlegend=show_legend,
+            name=f"Wobble Circle {self.wobble.diameter_mm:2.2f}mm",
+            hoverinfo="text",
+            hovertext=f"Wobble diameter: {self.wobble.diameter_mm:2.2f} mm",
+        )
+        # Draw collapsed circle profile sampling band
+        for idx, radius in enumerate(
+            (
+                self.circle_profile.radius * (1 - self.circle_profile.width_ratio),
+                self.circle_profile.radius * (1 + self.circle_profile.width_ratio),
+            )
+        ):
+            Circle(self.circle_profile.center, radius).plotly(
                 fig,
                 line_color="green",
-                name=f"Wobble Circle {self.wobble.diameter_mm:2.2f}mm",
-                hoverinfo="text",
-                hovertext=f"Wobble diameter: {self.wobble.diameter_mm:2.2f} mm",
+                name="Sampling band",
+                legendgroup="sampling_band",
+                showlegend=show_legend and idx == 0,
+                hoverinfo="skip",
             )
-            # plot the reference point if passed
-            if self.reference_point is not None:
-                distance = self._reference_offsets_mm()[2]
-                fig.add_scatter(
-                    x=[self.reference_point.x, self.wobble.center.x],
-                    y=[self.reference_point.y, self.wobble.center.y],
-                    mode="lines+markers",
-                    line=dict(color="orange", dash="dash"),
-                    marker=dict(
-                        color=["orange", "green"], symbol=["cross", "circle"], size=10
-                    ),
-                    name=f"Reference to isocenter: {distance:.3f} mm",
-                    text=["Mechanical reference point", "Fitted isocenter"],
-                    hovertemplate="%{text}<br>X=%{x:.2f}, Y=%{y:.2f} px<extra>%{fullData.name}</extra>",
-                    showlegend=show_legend,
-                )
-                fig.update_layout(
-                    legend=dict(
-                        orientation="h", x=0, y=1.02, xanchor="left", yanchor="bottom"
-                    ),
-                    margin=dict(t=160),
-                )
-            if zoom:
-                x, y = self._wobble_plot_limits()
-                set_axis_range(fig=fig, x=x, y=y[::-1])
-
-            figs[name] = fig
+        # spoke detection positions
+        fig.add_scatter(
+            x=[peak.x for peak in self.circle_profile.peaks],
+            y=[peak.y for peak in self.circle_profile.peaks],
+            mode="markers",
+            marker=dict(size=8, color="green", symbol="x"),
+            name="Detected spoke positions",
+            showlegend=show_legend,
+        )
+        # plot the reference point if passed
+        if self.reference_point is not None:
+            distance = self._reference_offsets_mm()[2]
+            fig.add_scatter(
+                x=[self.reference_point.x, self.wobble.center.x],
+                y=[self.reference_point.y, self.wobble.center.y],
+                mode="lines+markers",
+                line=dict(color="orange", dash="dash"),
+                marker=dict(
+                    color=["orange", "green"], symbol=["cross", "circle"], size=10
+                ),
+                name=f"Reference to isocenter: {distance:.3f} mm",
+                text=["Mechanical reference point", "Fitted isocenter"],
+                hovertemplate="%{text}<br>X=%{x:.2f}, Y=%{y:.2f} px<extra>%{fullData.name}</extra>",
+                showlegend=show_legend,
+            )
+            fig.update_layout(
+                legend=dict(
+                    orientation="h", x=0, y=1.02, xanchor="left", yanchor="bottom"
+                ),
+                margin=dict(t=160),
+            )
         if show:
-            for f in figs.values():
-                f.show()
-        return figs
+            fig.show()
+        return {"Image": fig}
 
     def plot_analyzed_image(self, show: bool = True, **plt_kwargs: dict):
         """Draw the star lines, profile circle, and wobble circle on a matplotlib figure.

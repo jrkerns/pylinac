@@ -49,6 +49,13 @@ MTF
 Starshot
 ^^^^^^^^
 
+* :bdg-success:`Feature` Starshot Plotly plots now show two green outlines marking
+  the circular sampling band and green X markers at the detected spoke positions,
+  matching the overlays shown by Matplotlib.
+* :bdg-danger:`Change` :meth:`~pylinac.starshot.Starshot.plotly_analyzed_images`
+  now returns a single full-image figure under the ``"Image"`` key. The separate
+  zoomed ``"Wobble"`` figure has been removed; use Plotly's interactive zoom to
+  inspect the wobble circle.
 * :bdg-success:`Feature` Starshot analysis now accepts an optional ``reference_point``
   in image-pixel coordinates to compare a mechanical reference point with the fitted
   isocenter. Results report signed X/Y offsets and the straight-line distance in
