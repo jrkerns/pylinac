@@ -1044,6 +1044,49 @@ class FC2Mixin(PlanarPhantomMixin):
             roi_label_font_size=9,
         )
 
+    def test_plotly_center_crosshairs(self):
+        fig = self.instance.plotly_analyzed_images(show=False)["Image"]
+        centers = {
+            "BB Centroid": (self.instance.bb_center, "green"),
+            "EPID Center": (self.instance.epid_center, "blue"),
+            "Field Center": (self.instance.field_center, "red"),
+        }
+        for name, (center, color) in centers.items():
+            with self.subTest(center=name):
+                trace = next(trace for trace in fig.data if trace.name == name)
+                np.testing.assert_allclose(trace.x[3:], [center.x, center.x])
+                np.testing.assert_allclose(trace.y[:2], [center.y, center.y])
+                self.assertIsNone(trace.x[2])
+                self.assertIsNone(trace.y[2])
+                self.assertEqual(trace.line.color, color)
+
+    def test_plotly_bb_legend_labels(self):
+        fig = self.instance.plotly_analyzed_images(show=False)["Image"]
+        bb_labels = [
+            f"BB {label}"
+            for label in self.instance.bb_centers
+            if label != "Virtual Center"
+        ]
+        legend_names = [trace.name for trace in fig.data if trace.showlegend]
+        self.assertCountEqual(
+            legend_names, [*bb_labels, "BB Centroid", "EPID Center", "Field Center"]
+        )
+        for label in bb_labels:
+            with self.subTest(bb=label):
+                traces = [trace for trace in fig.data if trace.legendgroup == label]
+                self.assertEqual(len(traces), 2)
+                self.assertEqual(sum(bool(trace.showlegend) for trace in traces), 1)
+
+    def test_plotly_hide_metrics(self):
+        fig = self.instance.plotly_analyzed_images(show=False, show_metrics=False)[
+            "Image"
+        ]
+        self.assertEqual(len(fig.data), 4)
+        self.assertCountEqual(
+            [trace.name for trace in fig.data[1:]],
+            ["BB Centroid", "EPID Center", "Field Center"],
+        )
+
     def test_field_size(self):
         results_data = self.instance.results_data()
         self.assertAlmostEqual(
@@ -1076,6 +1119,33 @@ LIGHT_RAD_CLASSES = [StandardImagingFC2, DoselabRLf, IsoAlign, IMTLRad, SNCFSQA]
 
 
 class TestManualLightRadBBs(TestCase):
+    @parameterized.expand(LIGHT_RAD_CLASSES)
+    def test_plotly_marks_manual_bbs(self, klass):
+        automatic = klass.from_demo_image()
+        automatic.analyze()
+        selected = [
+            point
+            for label, point in automatic.bb_centers.items()
+            if label != "Virtual Center"
+        ]
+        manual = klass.from_demo_image()
+        manual.analyze(bb_points=list(reversed(selected)))
+        fig = manual.plotly_analyzed_images(
+            show=False, show_roi_labels=True, roi_label_font_size=12
+        )["Image"]
+        markers = next(
+            trace for trace in fig.data if trace.name == "Manual BB Locations"
+        )
+        np.testing.assert_allclose(
+            np.column_stack([markers.x, markers.y]),
+            [(point.x, point.y) for point in selected],
+        )
+        self.assertEqual(markers.marker.symbol, "x")
+        self.assertEqual(len(markers.text), klass.expected_bb_count)
+        self.assertNotIn("Virtual Center", markers.text)
+        self.assertEqual(markers.textfont.size, 12)
+        self.assertEqual(len(fig.data), 5)
+
     @parameterized.expand(LIGHT_RAD_CLASSES)
     def test_matplotlib_preserves_automatic_outlines_and_marks_manual_bbs(self, klass):
         automatic = klass.from_demo_image()
@@ -1272,7 +1342,7 @@ class FC2BBDownRight1mm(FC2Mixin, TestCase):
 class DoselabRLfMixin(FC2Mixin):
     klass = DoselabRLf
     dir_path = ["planar_imaging", "Doselab RLf"]
-    fig_data = {0: {"title": "Doselab RLf Phantom Analysis", "num_traces": 9}}
+    fig_data = {0: {"title": "Doselab RLf Phantom Analysis", "num_traces": 12}}
 
 
 class DoselabRLfDemo(DoselabRLfMixin, TestCase):

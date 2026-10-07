@@ -68,6 +68,16 @@ Starshot
   of the full image: X increases rightward and Y increases downward to match Screen :ref:`image-coordinate-system`.
   Analysis results are unchanged.
 
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` Light/radiation field Plotly plots now include crosshairs
+  for the BB centroid, EPID center, and radiation field center. This applies to
+  Standard Imaging FC2, Doselab RLf, IsoAlign, IMT L-Rad, and SNC FSQA.
+* :bdg-warning:`Fixed` Automatically detected BB disk ROIs now have one uniquely
+  named legend entry per BB, instead of duplicate entries for the outline and
+  center marker. Manually selected BBs are shown as cross markers and as one group.
+
 v3.48.0
 -------
 

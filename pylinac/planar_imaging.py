@@ -1536,6 +1536,7 @@ class StandardImagingFC2(ImagePhantomBase):
             # now find the weighted centroid of the BB
             points = self.image.compute(
                 SizedDiskLocator.from_center_physical(
+                    name=f"BB {key}",
                     expected_position_mm=position,
                     search_window_mm=(
                         self.bb_sampling_box_size_mm,
@@ -1561,6 +1562,114 @@ class StandardImagingFC2(ImagePhantomBase):
             return self.bb_positions_15x15
         else:
             return self.bb_positions_10x10
+
+    def plotly_analyzed_images(
+        self,
+        show: bool = True,
+        show_legend: bool = True,
+        show_colorbar: bool = True,
+        show_roi_labels: bool = False,
+        roi_label_font_size: float = 10,
+        **kwargs,
+    ) -> dict[str, go.Figure]:
+        """Plot the light/radiation image, BBs, and center crosshairs using Plotly.
+
+        Parameters
+        ----------
+        show : bool
+            Whether to display the figure.
+        show_legend : bool
+            Whether to display the legend. Each detected BB has one entry
+            controlling both its boundary and center marker.
+        show_colorbar : bool
+            Whether to display the image colorbar.
+        show_roi_labels : bool
+            Whether to label BB centers on the image.
+        roi_label_font_size : float
+            Font size of BB labels in display units.
+        kwargs
+            Additional keyword arguments passed to
+            :meth:`~pylinac.core.image.BaseImage.plotly`.
+
+        Returns
+        -------
+        dict[str, plotly.graph_objects.Figure]
+            The analyzed figure under the ``"Image"`` key. The green BB
+            centroid, blue EPID center, and red field center match the
+            crosshairs in :meth:`plot_analyzed_image`. Manually selected BBs
+            are shown as green crosses.
+        """
+        show_metrics = kwargs.pop("show_metrics", True)
+        fig = self.image.plotly(
+            show=False,
+            show_metrics=False,
+            title=f"{self.common_name} Phantom Analysis",
+            show_colorbar=show_colorbar,
+            show_legend=show_legend,
+            **kwargs,
+        )
+        if self.bb_detection_method == "automatic":
+            metrics = self.image.metrics if show_metrics else []
+            for metric in metrics:
+                first_trace = len(fig.data)
+                metric.plotly(
+                    fig, color="green", showlegend=show_legend, legendgroup=metric.name
+                )
+                for trace in fig.data[first_trace:]:
+                    if trace.name.endswith(" Boundary"):
+                        trace.showlegend = False
+                    elif show_roi_labels:
+                        trace.mode = "markers+text"
+                        trace.text = [metric.name] * len(trace.x)
+                        trace.textposition = "top left"
+                        trace.textfont.size = roi_label_font_size
+        else:
+            bb_centers = {
+                label: point
+                for label, point in self.bb_centers.items()
+                if label != "Virtual Center"
+            }
+            fig.add_scatter(
+                x=[point.x for point in bb_centers.values()],
+                y=[point.y for point in bb_centers.values()],
+                mode="markers+text" if show_roi_labels else "markers",
+                marker=dict(color="green", symbol="x", size=10),
+                text=list(bb_centers) if show_roi_labels else None,
+                textposition="top left",
+                textfont_size=roi_label_font_size,
+                name="Manual BB Locations",
+                showlegend=show_legend,
+            )
+
+        height, width = self.image.shape
+        for name, center, color, inset in (
+            ("BB Centroid", self.bb_center, "green", 0.25),
+            ("EPID Center", self.epid_center, "blue", 0),
+            ("Field Center", self.field_center, "red", 0.15),
+        ):
+            fig.add_scatter(
+                x=[
+                    width * inset - 0.5,
+                    width * (1 - inset) - 0.5,
+                    None,
+                    center.x,
+                    center.x,
+                ],
+                y=[
+                    center.y,
+                    center.y,
+                    None,
+                    height * inset - 0.5,
+                    height * (1 - inset) - 0.5,
+                ],
+                mode="lines",
+                line=dict(color=color),
+                name=name,
+                showlegend=show_legend,
+            )
+        if show:
+            fig.show()
+        return {"Image": fig}
 
     def plot_analyzed_image(
         self, show: bool = True, **kwargs
