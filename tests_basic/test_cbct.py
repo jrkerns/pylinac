@@ -19,7 +19,13 @@ from pylinac.core.image import (
     LazyZipDicomImageStack,
 )
 from pylinac.core.io import TemporaryZipDirectory
-from pylinac.ct import CTP404CP503, CTP404CP504, CTP528CP503, CTP528CP504, CatphanResult
+from pylinac.ct import (
+    CTP404CP503,
+    CTP404CP504,
+    CTP528CP503,
+    CTP528CP504,
+    CatphanResult,
+)
 from tests_basic.core.test_utilities import QuaacTestBase, ResultsDataBase
 from tests_basic.utils import (
     CloudFileMixin,
@@ -36,6 +42,93 @@ from tests_basic.utils import (
 TEST_DIR = "CBCT"
 
 get_folder_from_cloud_repo([TEST_DIR])
+
+
+class TestPhysicalScanExtent(TestCase):
+    tolerance_mm = 0.5
+
+    def setUp(self):
+        self.cbct = CatPhan504.from_demo_images()
+        self.cbct.origin_slice = 0
+        origin = self.cbct.dicom_stack[0].z_position
+        # Use a zero origin so exact tolerance tests avoid subtraction roundoff.
+        for image, metadata in zip(
+            self.cbct.dicom_stack, self.cbct.dicom_stack.metadatas
+        ):
+            position = image.z_position - origin
+            image.metadata.ImagePositionPatient[-1] = position
+            metadata.ImagePositionPatient[-1] = position
+        positions = [image.z_position for image in self.cbct.dicom_stack]
+        self.cbct.modules = {
+            CTP404CP504: {"offset": min(positions)},
+            CTP528CP504: {"offset": max(positions)},
+        }
+
+    def test_exact_coverage(self):
+        self.assertTrue(self.cbct._ensure_physical_scan_extent())
+
+    def test_near_side_within_tolerance(self):
+        self.cbct.modules[CTP404CP504]["offset"] -= self.tolerance_mm - 0.01
+        self.assertTrue(self.cbct._ensure_physical_scan_extent())
+
+    def test_near_side_at_tolerance(self):
+        self.cbct.modules[CTP404CP504]["offset"] -= self.tolerance_mm
+        self.assertTrue(self.cbct._ensure_physical_scan_extent())
+
+    def test_near_side_outside_tolerance(self):
+        self.cbct.modules[CTP404CP504]["offset"] -= self.tolerance_mm + 0.001
+        self.assertFalse(self.cbct._ensure_physical_scan_extent())
+
+    def test_far_side_within_tolerance(self):
+        self.cbct.modules[CTP528CP504]["offset"] += self.tolerance_mm - 0.01
+        self.assertTrue(self.cbct._ensure_physical_scan_extent())
+
+    def test_far_side_at_tolerance(self):
+        self.cbct.modules[CTP528CP504]["offset"] += self.tolerance_mm
+        self.assertTrue(self.cbct._ensure_physical_scan_extent())
+
+    def test_far_side_outside_tolerance(self):
+        self.cbct.modules[CTP528CP504]["offset"] += self.tolerance_mm + 0.001
+        self.assertFalse(self.cbct._ensure_physical_scan_extent())
+
+    def test_tolerance_across_rounding_boundaries(self):
+        self.cbct.modules[CTP404CP504]["offset"] -= 0.002
+        self.cbct.modules[CTP528CP504]["offset"] += 0.002
+        for shift in (0.049, 0.002, -1000):
+            for image, metadata in zip(
+                self.cbct.dicom_stack, self.cbct.dicom_stack.metadatas
+            ):
+                position = image.z_position + shift
+                image.metadata.ImagePositionPatient[-1] = position
+                metadata.ImagePositionPatient[-1] = position
+            self.assertTrue(self.cbct._ensure_physical_scan_extent())
+
+    def test_missing_terminal_slice(self):
+        del self.cbct.dicom_stack[-1]
+        del self.cbct.dicom_stack.metadatas[-1]
+        self.assertFalse(self.cbct._ensure_physical_scan_extent())
+
+
+class TestPhysicalScanExtentThinSlices(TestPhysicalScanExtent):
+    slice_spacing_mm = 0.5
+    tolerance_mm = 0.25
+
+    def setUp(self):
+        super().setUp()
+        for index, (image, metadata) in enumerate(
+            zip(self.cbct.dicom_stack, self.cbct.dicom_stack.metadatas)
+        ):
+            position = index * self.slice_spacing_mm
+            image.metadata.ImagePositionPatient[-1] = position
+            metadata.ImagePositionPatient[-1] = position
+        self.cbct.modules[CTP528CP504]["offset"] = (
+            len(self.cbct.dicom_stack) - 1
+        ) * self.slice_spacing_mm
+
+
+class TestPhysicalScanExtentVeryThinSlices(TestPhysicalScanExtentThinSlices):
+    slice_spacing_mm = 0.25
+    tolerance_mm = 0.125
 
 
 class TestInstantiation(

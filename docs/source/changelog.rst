@@ -29,6 +29,15 @@ Core
   Unknown tags are now preserved without preventing image loading. Missing critical tags
   continue to produce descriptive errors explaining which values to supply.
 
+CT
+^^
+
+* :bdg-warning:`Fixed` ACR MRI and CatPhan analyses now allow a tolerance of half
+  the slice spacing, capped at 0.5 mm, when checking whether the scan covers all
+  required modules. This resolves incorrect scan extent errors from scan orientations
+  that were not perfectly aligned to the scan axis, sometimes seen in MRI scans,
+  while still rejecting scans missing a terminal slice.
+
 Planar Imaging
 ^^^^^^^^^^^^^^
 

@@ -2384,15 +2384,16 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         """Ensure that all the modules of the phantom have been scanned. If a CBCT isn't
         positioned correctly, some modules might not be included.
 
-        It appears there can be rounding errors between the DICOM tag and the actual slice position. See RAM-2897.
+        Allow a tolerance of half the slice spacing, capped at 0.5 mm, for small
+        discrepancies between configured module positions and DICOM slice positions.
+        This prevents a missing terminal slice from being accepted. Comparing unrounded
+        endpoints avoids rounding-boundary failures. See RAM-2897 and RAM-6365.
         """
         z_positions = [z_position(m) for m in self.dicom_stack.metadatas]
-        min_scan_extent_slice = round(min(z_positions), 1)
-        max_scan_extent_slice = round(max(z_positions), 1)
-        min_config_extent_slice = round(min(self._module_offsets()), 1)
-        max_config_extent_slice = round(max(self._module_offsets()), 1)
-        return (min_config_extent_slice >= min_scan_extent_slice) and (
-            max_config_extent_slice <= max_scan_extent_slice
+        module_positions = self._module_offsets()
+        tolerance_mm = min(0.5, self.dicom_stack.slice_spacing / 2)
+        return (min(module_positions) >= min(z_positions) - tolerance_mm) and (
+            max(module_positions) <= max(z_positions) + tolerance_mm
         )
 
     def find_phantom_axis(self) -> (Callable, Callable):

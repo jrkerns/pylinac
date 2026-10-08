@@ -534,8 +534,8 @@ class TestMRGeneral(TestCase):
         mri.analyze(echo_number=None)
         self.assertEqual(mri.dicom_stack[0].metadata.EchoNumbers, "1")
 
-    def test_config_extent_rounds(self):
-        """Test that the extent check rounds the config extent to the nearest slice"""
+    def test_config_extent_tolerance(self):
+        """Small endpoint discrepancies are accepted (RAM-2897)."""
         path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "Config rounding.zip"])
         mri = ACRMRILarge.from_zip(path)
         self.assertTrue(mri._ensure_physical_scan_extent())
@@ -543,6 +543,58 @@ class TestMRGeneral(TestCase):
     def test_error_if_from_demo(self):
         with self.assertRaises(NotImplementedError):
             ACRMRILarge.from_demo_image()
+
+
+class TestACRMRMediumScanExtent(CloudFileMixin, TestCase):
+    dir_path = TEST_DIR_MR
+    file_name = "ACR-MRI-orientation-tilt.zip"
+    memory_efficient_mode = False
+
+    def setUp(self):
+        self.mri = ACRMRIMedium.from_zip(
+            self.get_filename(), memory_efficient_mode=self.memory_efficient_mode
+        )
+
+    def test_analyze(self):
+        """The original tilted stack analyzes without an extent error (RAM-6365)."""
+        self.mri.analyze()
+        self.assertEqual(len(self.mri.dicom_stack), 11)
+
+    def test_results_data(self):
+        self.mri.analyze()
+        data = self.mri.results_data()
+        self.assertIsInstance(data, ACRMRIResult)
+        self.assertEqual(data.num_images, 11)
+
+    def test_module_slices(self):
+        self.mri.analyze()
+        self.assertEqual(self.mri.slice1.slice_num, 0)
+        self.assertEqual(self.mri.slice11.slice_num, 10)
+
+    def test_orientation_unchanged(self):
+        orientations = [
+            tuple(metadata.ImageOrientationPatient)
+            for metadata in self.mri.dicom_stack.metadatas
+        ]
+        np.testing.assert_allclose(orientations, [[1, 0, 0, 0, 0.99998, -0.00623]] * 11)
+        self.mri.analyze()
+        self.assertEqual(
+            orientations,
+            [
+                tuple(metadata.ImageOrientationPatient)
+                for metadata in self.mri.dicom_stack.metadatas
+            ],
+        )
+
+    def test_missing_terminal_slice(self):
+        del self.mri.dicom_stack[-1]
+        del self.mri.dicom_stack.metadatas[-1]
+        with self.assertRaisesRegex(ValueError, "physical scan extent"):
+            self.mri.analyze()
+
+
+class TestACRMRMediumScanExtentLazy(TestACRMRMediumScanExtent):
+    memory_efficient_mode = True
 
 
 class TestMRMediumUniformityModule(TestCase):
