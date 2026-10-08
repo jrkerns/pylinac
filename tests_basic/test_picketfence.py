@@ -7,9 +7,11 @@ import tempfile
 from itertools import chain
 from pathlib import Path
 from unittest import TestCase, skip
+from unittest.mock import patch
 
 import matplotlib.pyplot as plt
 import numpy as np
+from plotly import graph_objects as go
 from scipy import ndimage
 
 from pylinac.core import image
@@ -534,6 +536,236 @@ class TestPlottingSaving(TestCase):
         self.pf.plot_leaf_error(barplot_kwargs={"showfliers": False})
 
 
+class TestPlotlyPicketFence(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.instances = []
+        for rotated, separate in ((False, False), (True, False), (False, True)):
+            pf = PicketFence.from_demo_image()
+            if rotated:
+                pf.image.rot90()
+            pf.analyze(separate_leaves=separate, action_tolerance=0.1)
+            cls.instances.append(pf)
+
+    def tearDown(self):
+        plt.close("all")
+
+    def test_profile_matches_matplotlib_and_guard_rails(self):
+        for pf in self.instances:
+            measurement = pf.mlc_meas[0]
+            for leaf in measurement.full_leaf_nums:
+                with self.subTest(orientation=pf.orientation, leaf=leaf):
+                    fig = pf.plotly_leaf_profile(
+                        leaf, measurement.picket_num, show=False
+                    )
+                    axis = measurement.plot_detailed_profile()
+                    np.testing.assert_allclose(fig.data[0].x, axis.lines[0].get_xdata())
+                    np.testing.assert_allclose(fig.data[0].y, axis.lines[0].get_ydata())
+                    expected = [line.get_xdata()[0] for line in axis.lines[1:]]
+                    self.assertEqual(
+                        [shape.x0 for shape in fig.layout.shapes[: len(expected)]],
+                        expected,
+                    )
+                    picket = pf.pickets[measurement.picket_num]
+                    for left, right, marker in zip(
+                        picket.left_guard_separated,
+                        picket.right_guard_separated,
+                        measurement.marker_lines,
+                    ):
+                        coordinate = (
+                            marker.center.y
+                            if pf.orientation == Orientation.UP_DOWN
+                            else marker.center.x
+                        )
+                        expected.extend([left(coordinate), right(coordinate)])
+                    np.testing.assert_allclose(
+                        [s.x0 for s in fig.layout.shapes], expected
+                    )
+                    self.assertEqual(fig.layout.xaxis.title.text, "Position (pixels)")
+                    self.assertEqual(sum(s.showlegend for s in fig.layout.shapes), 3)
+
+    def test_profile_errors_and_display(self):
+        pf = self.instances[0]
+        with self.assertRaisesRegex(RuntimeError, "analyzed first"):
+            PicketFence.from_demo_image().plotly_leaf_profile(15, 0, show=False)
+        for leaf, picket in ((-1, 0), (15, -1), (15, pf.num_pickets)):
+            with self.assertRaisesRegex(ValueError, "No measurement"):
+                pf.plotly_leaf_profile(leaf, picket, show=False)
+        measurement = pf.mlc_meas[0]
+        with patch.object(go.Figure, "show") as show:
+            fig = pf.plotly_leaf_profile(
+                measurement.full_leaf_nums[0],
+                measurement.picket_num,
+                show=False,
+                show_legend=False,
+            )
+            show.assert_not_called()
+            self.assertFalse(fig.layout.showlegend)
+            pf.plotly_leaf_profile(
+                measurement.full_leaf_nums[0], measurement.picket_num
+            )
+            show.assert_called_once()
+
+    def test_image_lines_preserve_coordinates_and_hover(self):
+        for pf in self.instances:
+            with self.subTest(orientation=pf.orientation, separate=pf.separate_leaves):
+                fig = pf.plotly_analyzed_images(show=False, overlay=False)[
+                    "Picket Fence"
+                ]
+                peaks = [t for t in fig.data if t.name and "MLC positions" in t.name]
+                self.assertLessEqual(len(peaks), 3)
+                plotted = {}
+                for trace in peaks:
+                    for i in range(0, len(trace.x), 3):
+                        label = trace.text[i]
+                        plotted[label] = (
+                            trace.x[i : i + 2],
+                            trace.y[i : i + 2],
+                            trace.line.color,
+                        )
+                        self.assertIsNone(trace.x[i + 2])
+                for m in pf.mlc_meas:
+                    for leaf, marker, color, error in zip(
+                        m.full_leaf_nums, m.marker_lines, m.bg_color, m.error
+                    ):
+                        label = f"Picket {m.picket_num} - Leaf {leaf}; Error: {error:.3f} mm"
+                        xs, ys, plotted_color = plotted.pop(label)
+                        np.testing.assert_allclose(
+                            xs, [marker.point1.x, marker.point2.x]
+                        )
+                        np.testing.assert_allclose(
+                            ys, [marker.point1.y, marker.point2.y]
+                        )
+                        self.assertEqual(plotted_color, color)
+                self.assertFalse(plotted)
+                self.assertEqual(sum(t.name == "Guard rails" for t in fig.data), 1)
+
+    def test_controls_and_histogram_bins(self):
+        pf = self.instances[0]
+        with patch.object(go.Figure, "show") as show:
+            figs = pf.plotly_analyzed_images(
+                show=False,
+                guard_rails=False,
+                mlc_peaks=False,
+                overlay=False,
+                show_text=True,
+                show_legend=False,
+                show_colorbar=False,
+                bins=7,
+            )
+            show.assert_not_called()
+        image_fig = figs["Picket Fence"]
+        self.assertEqual(len(image_fig.data), 2)  # image and CAX
+        self.assertFalse(image_fig.layout.annotations)
+        self.assertFalse(image_fig.data[0].showscale)
+        self.assertFalse(image_fig.layout.showlegend)
+        histogram = figs["Histogram"].data[0]
+        expected = np.histogram_bin_edges(histogram.x, bins=7)
+        np.testing.assert_allclose(
+            [histogram.xbins.start, histogram.xbins.end, histogram.xbins.size],
+            [expected[0], expected[-1], expected[1] - expected[0]],
+        )
+        labels = pf.plotly_analyzed_images(show=False, show_text=True)[
+            "Picket Fence"
+        ].layout.annotations
+        self.assertEqual(len(labels), sum(len(m.marker_lines) for m in pf.mlc_meas))
+        with self.assertRaises(ValueError):
+            pf.plotly_analyzed_images(show=False, bins=0)
+
+    def test_all_profiles_have_linked_leaf_groups(self):
+        with self.assertRaises(RuntimeError):
+            PicketFence.from_demo_image().plotly_leaf_profiles(show=False)
+        for pf in self.instances:
+            with self.subTest(orientation=pf.orientation, separate=pf.separate_leaves):
+                with patch.object(go.Figure, "show") as show:
+                    fig = pf.plotly_leaf_profiles(show=False)
+                    show.assert_not_called()
+                profiles = [t for t in fig.data if t.name.startswith("Leaf ")]
+                self.assertEqual(len(profiles), len(pf.mlc_meas))
+                for m, trace in zip(pf.mlc_meas, profiles):
+                    x, y = m._detailed_profile_values()
+                    np.testing.assert_allclose(trace.x, x)
+                    np.testing.assert_allclose(trace.y, y)
+                    self.assertIn(f"Picket {m.picket_num}", trace.hovertemplate)
+                groups = {t.legendgroup for t in profiles}
+                self.assertEqual(len(groups), len({m.leaf_num for m in pf.mlc_meas}))
+                for group in groups:
+                    members = [t for t in fig.data if t.legendgroup == group]
+                    self.assertEqual(sum(bool(t.showlegend) for t in members), 1)
+                    self.assertTrue(all(t.name.startswith("Leaf ") for t in members))
+                    self.assertEqual(
+                        len(
+                            {
+                                t.line.color
+                                for t in members
+                                if t.name.startswith("Leaf ")
+                            }
+                        ),
+                        1,
+                    )
+                self.assertEqual(len(fig.data), len(pf.mlc_meas) + 1)
+                reference = fig.data[-1]
+                center = (
+                    pf.image.center.y
+                    if pf.orientation == Orientation.UP_DOWN
+                    else pf.image.center.x
+                )
+                self.assertEqual(reference.name, "Fitted pickets (image center)")
+                self.assertEqual(reference.line.color, "black")
+                np.testing.assert_allclose(
+                    reference.x[::3], [p.fit(center) for p in pf.pickets]
+                )
+                for m, trace in zip(pf.mlc_meas, profiles):
+                    for error in m.error:
+                        self.assertIn(f"{error:+.3f} mm", trace.hovertemplate)
+                self.assertEqual(fig.layout.legend.groupclick, "togglegroup")
+        with patch.object(go.Figure, "show") as show:
+            fig = self.instances[0].plotly_leaf_profiles(show_legend=False)
+            show.assert_called_once()
+            self.assertFalse(fig.layout.showlegend)
+
+    def test_status_legend_groups_include_error_overlays(self):
+        for pf in self.instances:
+            for peaks in (True, False):
+                fig = pf.plotly_analyzed_images(show=False, mlc_peaks=peaks)[
+                    "Picket Fence"
+                ]
+                self.assertEqual(fig.layout.legend.groupclick, "togglegroup")
+                self.assertFalse(fig.layout.annotations)
+                overlays = [t for t in fig.data if getattr(t, "fill", None) == "toself"]
+                self.assertTrue(overlays)
+                for trace in overlays:
+                    expected = {
+                        "blue": "Passing MLC positions",
+                        "magenta": "Action-level MLC positions",
+                        "red": "Failing MLC positions",
+                    }[trace.line.color]
+                    self.assertEqual(trace.legendgroup, expected)
+                for group in {t.legendgroup for t in overlays}:
+                    members = [t for t in fig.data if t.legendgroup == group]
+                    self.assertEqual(sum(t.showlegend is not False for t in members), 1)
+
+    def test_tolerance_lines_are_not_repeated(self):
+        for pf in self.instances:
+            for action in (None, 0.0, 0.1):
+                with self.subTest(separate=pf.separate_leaves, action=action):
+                    original = pf.action_tolerance
+                    try:
+                        pf.action_tolerance = action
+                        figs = pf._plotly_leaf_error_plots(show_legend=False)
+                    finally:
+                        pf.action_tolerance = original
+                    for name, fig in figs.items():
+                        signed = name.endswith("signed")
+                        expected = (
+                            [pf.tolerance, -pf.tolerance] if signed else [pf.tolerance]
+                        )
+                        if action is not None:
+                            expected.extend([action, -action] if signed else [action])
+                        self.assertEqual([s.y0 for s in fig.layout.shapes], expected)
+                        self.assertFalse(fig.layout.showlegend)
+
+
 class TestQuaac(QuaacTestBase, TestCase):
     def quaac_instance(self):
         pf = PicketFence.from_demo_image()
@@ -894,7 +1126,7 @@ class AS5002(PFTestMixin, TestCase, PlotlyTestMixin):
     fig_data = {
         0: {
             "title": "Picket Fence Analysis",
-            "num_traces": 782,
+            "num_traces": 384,
         },
         1: {
             "title": "Leaf Error Histogram",

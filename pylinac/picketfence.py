@@ -34,6 +34,7 @@ import numpy as np
 from matplotlib.axes import Axes
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from plotly import graph_objs as go
+from plotly.colors import qualitative
 from py_linq import Enumerable
 from pydantic import Field
 
@@ -603,6 +604,165 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
         if not isinstance(filename, BytesIO):
             print(f"Picket fence leaf profile saved to: {osp.abspath(filename)}")
 
+    def plotly_leaf_profile(
+        self,
+        leaf: str | int,
+        picket: int,
+        show: bool = True,
+        show_legend: bool = True,
+    ) -> go.Figure:
+        """Plot an individual leaf profile, fitted positions, and guard rails.
+
+        Parameters
+        ----------
+        leaf
+            Leaf pair number, or a bank-qualified name such as ``"A15"`` when
+            analyzed with ``separate_leaves=True``. Both bank positions are
+            shown for a measurement containing separate leaves.
+        picket
+            Zero-based picket number, as in :meth:`plot_leaf_profile`.
+        show
+            Whether to display the figure immediately.
+        show_legend
+            Whether to display the legend.
+
+        Returns
+        -------
+        plotly.graph_objects.Figure
+            The profile with positions in image pixels and raw image intensity.
+        """
+        if not self._is_analyzed:
+            raise RuntimeError("The image must be analyzed first. Use .analyze().")
+        measurements = [
+            m
+            for m in self.mlc_meas
+            if leaf in m.full_leaf_nums and m.picket_num == picket
+        ]
+        if not measurements:
+            raise ValueError(f"No measurement found for leaf {leaf}, picket {picket}.")
+        measurement = measurements[0]
+        fig = measurement.plotly_detailed_profile(show=False, show_legend=show_legend)
+        for left, right, marker in zip(
+            self.pickets[picket].left_guard_separated,
+            self.pickets[picket].right_guard_separated,
+            measurement.marker_lines,
+        ):
+            position = (
+                marker.center.y
+                if self.orientation == Orientation.UP_DOWN
+                else marker.center.x
+            )
+            for rail in (left, right):
+                add_vertical_line(fig, rail(position), color="green", name="Guard rail")
+        add_title(fig, f"MLC profile Leaf: {leaf}, Picket: {picket}")
+        seen = set()
+        for shape in fig.layout.shapes:
+            shape.legendgroup = shape.name
+            shape.showlegend = shape.name not in seen
+            seen.add(shape.name)
+        if show:
+            fig.show()
+        return fig
+
+    def plotly_leaf_profiles(
+        self, show: bool = True, show_legend: bool = True
+    ) -> go.Figure:
+        """Plot all leaf profiles with a legend group for each leaf measurement.
+
+        Parameters
+        ----------
+        show
+            Whether to display the figure immediately.
+        show_legend
+            Whether to display the legend. Clicking a leaf hides its profiles
+            across all pickets. Double-click a leaf to isolate it. A separate
+            legend entry toggles shared fitted-picket references at image center.
+
+        Returns
+        -------
+        plotly.graph_objects.Figure
+            All measured profiles in image pixel coordinates. Separate-leaf
+            analysis groups the two banks sharing a profile together. Hover reports
+            each bank's signed error and status. Shared references indicate the
+            picket center fit, not the leaf-specific expected bank positions.
+
+        See Also
+        --------
+        plotly_leaf_profile : Inspect a single leaf and picket measurement.
+        """
+        if not self._is_analyzed:
+            raise RuntimeError("The image must be analyzed first. Use .analyze().")
+        fig = go.Figure()
+        seen = set()
+        colors = dict(
+            zip(
+                sorted({m.leaf_num for m in self.mlc_meas}),
+                cycle(qualitative.Plotly),
+            )
+        )
+        for measurement in self.mlc_meas:
+            name = "Leaf " + ", ".join(str(leaf) for leaf in measurement.full_leaf_nums)
+            x, intensity = measurement._detailed_profile_values()
+            statuses = {"blue": "Passing", "magenta": "Action level", "red": "Failing"}
+            details = "<br>".join(
+                f"Leaf {leaf}: {error:+.3f} mm ({statuses[color]})"
+                for leaf, error, color in zip(
+                    measurement.full_leaf_nums, measurement.error, measurement.bg_color
+                )
+            )
+            fig.add_scatter(
+                x=x,
+                y=intensity,
+                mode="lines",
+                name=name,
+                legendgroup=name,
+                showlegend=name not in seen,
+                line_color=colors[measurement.leaf_num],
+                hovertemplate=(
+                    f"{name}; Picket {measurement.picket_num}<br>{details}"
+                    "<br>Position: %{x:.2f} pixels<br>Intensity: %{y:.4f}<extra></extra>"
+                ),
+            )
+            seen.add(name)
+        center = (
+            self.image.center.y
+            if self.orientation == Orientation.UP_DOWN
+            else self.image.center.x
+        )
+        low = min(min(trace.y) for trace in fig.data)
+        high = max(max(trace.y) for trace in fig.data)
+        reference_x, reference_y, reference_text = [], [], []
+        for number, picket in enumerate(self.pickets):
+            position = float(picket.fit(center))
+            reference_x.extend([position, position, None])
+            reference_y.extend([low, high, None])
+            reference_text.extend(
+                [f"Picket {number}; fit at image center"] * 2 + [None]
+            )
+        fig.add_scatter(
+            x=reference_x,
+            y=reference_y,
+            text=reference_text,
+            mode="lines",
+            line=dict(color="black", width=1, dash="dot"),
+            opacity=0.4,
+            name="Fitted pickets (image center)",
+            legendgroup="Fitted pickets",
+            legendrank=0,
+            connectgaps=False,
+            hovertemplate="%{text}<br>Position: %{x:.2f} pixels<extra></extra>",
+        )
+        fig.update_layout(
+            title="All leaf profiles",
+            xaxis_title="Position (pixels)",
+            yaxis_title="Image intensity",
+            showlegend=show_legend,
+            legend=dict(groupclick="togglegroup"),
+        )
+        if show:
+            fig.show()
+        return fig
+
     def _load_log(self, log: str) -> None:
         """Load a machine log that corresponds to the picket fence delivery.
 
@@ -918,6 +1078,9 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
         show: bool = True,
         show_colorbar: bool = True,
         show_legend: bool = True,
+        guard_rails: bool = True,
+        show_text: bool = False,
+        bins: int | None = None,
         **kwargs,
     ) -> dict[str, go.Figure]:
         """Plot the analyzed image, leaf error plots, and error histogram.
@@ -934,8 +1097,26 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
             Whether to show the colorbar.
         show_legend
             Whether to show the legend.
+        guard_rails
+            Whether to draw the picket tolerance guard rails.
+        show_text
+            Whether to label the detected MLC positions with their leaf names.
+            Measurement details remain available on hover when False.
+        bins
+            Number of equal-width histogram bins. None uses Plotly automatic
+            binning. An integer uses the same bin edges as :meth:`plot_histogram`.
         kwargs
             Keyword arguments to pass to the plotly image plot.
+
+        Returns
+        -------
+        dict[str, plotly.graph_objects.Figure]
+            The analyzed image, histogram, and signed and absolute leaf-error
+            figures. Separate-leaf analysis returns error figures for each bank.
+
+        See Also
+        --------
+        plotly_leaf_profile : Inspect an individual leaf and picket measurement.
         """
         if not self._is_analyzed:
             raise RuntimeError("The image must be analyzed first. Use .analyze().")
@@ -948,15 +1129,34 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
             show_colorbar=show_colorbar,
             **kwargs,
         )
-        for idx, picket in enumerate(self.pickets):
-            picket.plotly_guardrails(fig=fig, picket=idx)
-        if mlc_peaks:
-            for mlc_meas in self.mlc_meas:
-                mlc_meas.plotly(fig=fig)
+        self._plotly_image_lines(fig, guard_rails=guard_rails, mlc_peaks=mlc_peaks)
+        if show_text and mlc_peaks:
+            for measurement in self.mlc_meas:
+                for leaf, marker, color in zip(
+                    measurement.full_leaf_nums,
+                    measurement.marker_lines,
+                    measurement.bg_color,
+                ):
+                    fig.add_annotation(
+                        x=marker.center.x,
+                        y=marker.center.y,
+                        text=str(leaf),
+                        showarrow=False,
+                        font=dict(size=10, color=color),
+                    )
 
         if overlay:
             for mlc_meas in self.mlc_meas:
                 mlc_meas.plotly_overlay(fig)
+            if not mlc_peaks:
+                seen = set()
+                for trace in fig.data:
+                    if trace.legendgroup and "MLC positions" in trace.legendgroup:
+                        trace.name = trace.legendgroup
+                        trace.showlegend = trace.legendgroup not in seen
+                        seen.add(trace.legendgroup)
+
+        fig.update_layout(legend=dict(groupclick="togglegroup"))
 
         # plot CAX
         fig.add_scatter(
@@ -976,6 +1176,12 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
         histogram_fig.add_histogram(
             x=errors,
         )
+        if bins is not None:
+            edges = np.histogram_bin_edges(errors, bins=bins)
+            histogram_fig.update_traces(
+                xbins=dict(start=edges[0], end=edges[-1], size=edges[1] - edges[0]),
+                autobinx=False,
+            )
         add_vertical_line(histogram_fig, self.tolerance, color="red", width=3)
         add_vertical_line(histogram_fig, -self.tolerance, color="red", width=3)
 
@@ -1003,6 +1209,70 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
             for fig in figs.values():
                 fig.show()
         return figs
+
+    def _plotly_image_lines(
+        self, fig: go.Figure, guard_rails: bool, mlc_peaks: bool
+    ) -> None:
+        """Batch disconnected lines by status while preserving measurement hover text."""
+        groups: dict[
+            tuple[str, str],
+            tuple[list[float | None], list[float | None], list[str | None]],
+        ] = {}
+
+        def add_segment(
+            name: str, color: str, xs: Sequence[float], ys: Sequence[float], label: str
+        ) -> None:
+            x, y, text = groups.setdefault((name, color), ([], [], []))
+            x.extend([*xs, None])
+            y.extend([*ys, None])
+            text.extend([label] * len(xs) + [None])
+
+        if guard_rails:
+            vertical = self.orientation == Orientation.UP_DOWN
+            indices = np.arange(self.image.shape[0 if vertical else 1])
+            for number, picket in enumerate(self.pickets):
+                for left, right in zip(
+                    picket.left_guard_separated, picket.right_guard_separated
+                ):
+                    for rail in (left, right):
+                        xs, ys = (
+                            (rail(indices), indices)
+                            if vertical
+                            else (indices, rail(indices))
+                        )
+                        add_segment("Guard rails", "green", xs, ys, f"Picket {number}")
+        if mlc_peaks:
+            names = {
+                "blue": "Passing MLC positions",
+                "magenta": "Action-level MLC positions",
+                "red": "Failing MLC positions",
+            }
+            for measurement in self.mlc_meas:
+                for leaf, line, color, error in zip(
+                    measurement.full_leaf_nums,
+                    measurement.marker_lines,
+                    measurement.bg_color,
+                    measurement.error,
+                ):
+                    add_segment(
+                        names[color],
+                        color,
+                        [line.point1.x, line.point2.x],
+                        [line.point1.y, line.point2.y],
+                        f"Picket {measurement.picket_num} - Leaf {leaf}; Error: {error:.3f} mm",
+                    )
+        for (name, color), (x, y, text) in groups.items():
+            fig.add_scatter(
+                x=x,
+                y=y,
+                text=text,
+                mode="lines",
+                line_color=color,
+                name=name,
+                legendgroup=name,
+                connectgaps=False,
+                hovertemplate="%{text}<extra>%{fullData.name}</extra>",
+            )
 
     def plot_analyzed_image(
         self,
@@ -1100,7 +1370,7 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
             signed_fig, abs_fig = go.Figure(), go.Figure()
             add_title(signed_fig, f"Signed Leaf Error (mm) | {title}")
             add_title(abs_fig, f"Absolute Leaf Error (mm) | {title}")
-            for leaf_num in set(leaf_nums):
+            for leaf_num in sorted(set(leaf_nums)):
                 idxs = np.argwhere(leaf_nums == leaf_num)
                 errs = error_items[idxs].transpose().squeeze(axis=1)
                 signed_fig.add_box(
@@ -1111,15 +1381,6 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
                     line_color="black",
                     marker_color="black",
                 )
-                add_horizontal_line(signed_fig, y=self.tolerance, color="red", width=3)
-                add_horizontal_line(signed_fig, y=-self.tolerance, color="red", width=3)
-                if self.action_tolerance:
-                    add_horizontal_line(
-                        signed_fig, y=self.action_tolerance, color="magenta", width=3
-                    )
-                    add_horizontal_line(
-                        signed_fig, y=-self.action_tolerance, color="magenta", width=3
-                    )
                 abs_fig.add_box(
                     y=np.abs(errs[column]),
                     x=[leaf_num] * len(idxs),
@@ -1128,11 +1389,19 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
                     line_color="black",
                     marker_color="black",
                 )
-                add_horizontal_line(abs_fig, y=self.tolerance, color="red", width=3)
-                if self.action_tolerance:
-                    add_horizontal_line(
-                        abs_fig, y=self.action_tolerance, color="magenta", width=3
-                    )
+            add_horizontal_line(signed_fig, y=self.tolerance, color="red", width=3)
+            add_horizontal_line(signed_fig, y=-self.tolerance, color="red", width=3)
+            add_horizontal_line(abs_fig, y=self.tolerance, color="red", width=3)
+            if self.action_tolerance is not None:
+                add_horizontal_line(
+                    signed_fig, y=self.action_tolerance, color="magenta", width=3
+                )
+                add_horizontal_line(
+                    signed_fig, y=-self.action_tolerance, color="magenta", width=3
+                )
+                add_horizontal_line(
+                    abs_fig, y=self.action_tolerance, color="magenta", width=3
+                )
             signed_fig.update_layout(
                 xaxis_title="Leaf",
                 yaxis_title="Signed Error (mm)",
@@ -1679,12 +1948,8 @@ class MLCValue:
         return picket_pos
 
     def plot_detailed_profile(self) -> plt.Axes:
-        if self._orientation == Orientation.UP_DOWN:
-            pix_vals = np.median(self._image_window, axis=0)
-        else:
-            pix_vals = np.median(self._image_window, axis=1)
-        offset_pixels = max(self._approximate_idx - self._spacing / 2, 0)
-        x_values = np.array(range(len(pix_vals))) + offset_pixels
+        """Plot the measured leaf profile and fitted and detected positions."""
+        x_values, pix_vals = self._detailed_profile_values()
 
         fig, ax = plt.subplots()
         ax.plot(x_values, pix_vals)
@@ -1697,6 +1962,60 @@ class MLCValue:
         for pos, bg_color in zip(self.get_peak_positions(), self.bg_color):
             ax.axvline(pos, color=bg_color, label="Measured MLC position")
         return ax
+
+    def _detailed_profile_values(self) -> tuple[np.ndarray, np.ndarray]:
+        if self._orientation == Orientation.UP_DOWN:
+            pix_vals = np.median(self._image_window, axis=0)
+        else:
+            pix_vals = np.median(self._image_window, axis=1)
+        offset_pixels = max(self._approximate_idx - self._spacing / 2, 0)
+        x_values = np.array(range(len(pix_vals))) + offset_pixels
+
+        return x_values, pix_vals
+
+    def plotly_detailed_profile(
+        self, show: bool = True, show_legend: bool = True
+    ) -> go.Figure:
+        """Plot the measured leaf profile and fitted and detected positions.
+
+        Parameters
+        ----------
+        show
+            Whether to display the figure immediately.
+        show_legend
+            Whether to display the legend.
+
+        Returns
+        -------
+        plotly.graph_objects.Figure
+            Raw image intensity against the image pixel coordinate along leaf motion.
+
+        See Also
+        --------
+        PicketFence.plotly_leaf_profile : Include the measurement's guard rails.
+        """
+        x_values, pix_vals = self._detailed_profile_values()
+        fig = go.Figure()
+        fig.add_scatter(x=x_values, y=pix_vals, mode="lines", name="Leaf profile")
+        for picket_pos in self.picket_positions:
+            add_vertical_line(
+                fig, picket_pos * self._image.dpmm, name="Fitted picket location"
+            )
+        for pos, bg_color in zip(self.get_peak_positions(), self.bg_color):
+            add_vertical_line(fig, pos, color=bg_color, name="Measured MLC position")
+        seen = set()
+        for shape in fig.layout.shapes:
+            shape.legendgroup = shape.name
+            shape.showlegend = shape.name not in seen
+            seen.add(shape.name)
+        fig.update_layout(
+            xaxis_title="Position (pixels)",
+            yaxis_title="Image intensity",
+            showlegend=show_legend,
+        )
+        if show:
+            fig.show()
+        return fig
 
     @property
     def error(self) -> Sequence[float]:
@@ -1754,6 +2073,8 @@ class MLCValue:
         for idx, (line, leaf) in enumerate(zip(self.marker_lines, self.full_leaf_nums)):
             width = abs(self.error[idx]) * self._image.dpmm
 
+            first_trace = len(fig.data)
+
             if self._orientation == Orientation.UP_DOWN:
                 y = line.center.y
                 x = self.position[idx] - (self.error[idx] * self._image.dpmm) / 2
@@ -1794,6 +2115,13 @@ class MLCValue:
                 line_color=self.bg_color[idx],
                 showlegend=False,
             )
+            status = {
+                "blue": "Passing MLC positions",
+                "magenta": "Action-level MLC positions",
+                "red": "Failing MLC positions",
+            }[self.bg_color[idx]]
+            for trace in fig.data[first_trace:]:
+                trace.legendgroup = status
 
     def plot_overlay2axes(self, axes: Axes, show_text: bool) -> None:
         """Create a rectangle overlay with the width of the error. I.e. it stretches from the picket fit to the MLC position. Gives more visual size to the"""
