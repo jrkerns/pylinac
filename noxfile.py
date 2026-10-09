@@ -183,4 +183,4 @@ def update_dev_kraken(session: Session):
         "gcloud", "auth", "activate-service-account", "--key-file", "service_key.json"
     )
     session.run("gcloud", "config", "set", "project", "radmachine")
-    session.run("gcloud", "builds", "triggers", "run", "Kraken", "--branch=master")
+    session.run("gcloud", "builds", "triggers", "run", "kraken", "--branch=master")
