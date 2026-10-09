@@ -6,6 +6,7 @@ import tempfile
 from collections.abc import Callable, Generator
 from pathlib import Path
 from unittest import TestCase, skip
+from unittest.mock import patch
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -262,6 +263,97 @@ class GeneralTests(TestCase):
         texts = {a.text for a in annotations}
         self.assertTrue(any(t.startswith("LC") for t in texts))
         self.assertTrue(any(t.startswith("HC") for t in texts))
+
+
+class TestPlotlyContrastContent(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.phantoms = {}
+        for klass in (LeedsTOR, LasVegas, ElektaLasVegas):
+            phantom = klass.from_demo_image()
+            phantom.analyze(
+                low_contrast_threshold=0.07,
+                high_contrast_threshold=0.4,
+                visibility_threshold=150,
+            )
+            cls.phantoms[klass] = phantom
+
+    @parameterized.expand(
+        [("leeds", LeedsTOR), ("las_vegas", LasVegas), ("elekta", ElektaLasVegas)]
+    )
+    def test_low_contrast_threshold_and_values(self, name, klass):
+        phantom = self.phantoms[klass]
+        fig = phantom.plotly_analyzed_images(show=False)["Low Contrast"]
+        threshold = next(shape for shape in fig.layout.shapes if shape.yref == "y")
+        self.assertEqual(threshold.y0, 0.07)
+        self.assertEqual(threshold.y1, 0.07)
+        self.assertEqual(threshold.xref, "x domain")
+        self.assertTrue(
+            any(a.text == "Contrast threshold: 0.07" for a in fig.layout.annotations)
+        )
+        np.testing.assert_allclose(
+            fig.data[0].y, [roi.contrast for roi in phantom.low_contrast_rois]
+        )
+        np.testing.assert_allclose(
+            fig.data[1].y, [roi.contrast_to_noise for roi in phantom.low_contrast_rois]
+        )
+        self.assertEqual(fig.data[1].yaxis, "y2")
+
+    def test_high_contrast_threshold_and_values(self):
+        phantom = self.phantoms[LeedsTOR]
+        fig = phantom.plotly_analyzed_images(show=False)["High Contrast"]
+        self.assertEqual(len(fig.layout.shapes), 1)
+        threshold = fig.layout.shapes[0]
+        self.assertEqual(threshold.y0, 0.4)
+        self.assertEqual(threshold.y1, 0.4)
+        self.assertEqual(threshold.yref, "y")
+        self.assertTrue(
+            any(a.text == "rMTF threshold: 0.4" for a in fig.layout.annotations)
+        )
+        np.testing.assert_allclose(fig.data[0].y, list(phantom.mtf.norm_mtfs.values()))
+
+    @parameterized.expand([("las_vegas", LasVegas), ("elekta", ElektaLasVegas)])
+    def test_visibility_has_its_own_axis_and_threshold(self, name, klass):
+        phantom = self.phantoms[klass]
+        figs = phantom.plotly_analyzed_images(show=False)
+        self.assertEqual(set(figs), {"Image", "Low Contrast"})
+        fig = figs["Low Contrast"]
+        visibility = next(trace for trace in fig.data if trace.name == "Visibility")
+        np.testing.assert_allclose(
+            visibility.y, [roi.visibility for roi in phantom.low_contrast_rois]
+        )
+        self.assertEqual(visibility.yaxis, "y3")
+        self.assertEqual(fig.layout.yaxis3.title.text, "Visibility")
+        self.assertEqual(fig.layout.yaxis3.overlaying, "y")
+        self.assertGreater(fig.layout.yaxis3.position, fig.layout.xaxis.domain[1])
+        threshold = next(shape for shape in fig.layout.shapes if shape.yref == "y3")
+        self.assertEqual(threshold.y0, 150)
+        self.assertEqual(threshold.y1, 150)
+        self.assertTrue(
+            any(
+                a.yref == "y3" and a.text == "Visibility threshold: 150"
+                for a in fig.layout.annotations
+            )
+        )
+
+    @parameterized.expand(
+        [("leeds", LeedsTOR), ("las_vegas", LasVegas), ("elekta", ElektaLasVegas)]
+    )
+    def test_all_figures_returned_without_display_or_legends(self, name, klass):
+        with patch.object(go.Figure, "show") as show:
+            figs = self.phantoms[klass].plotly_analyzed_images(
+                show=False, show_legend=False, show_colorbar=False
+            )
+        show.assert_not_called()
+        expected = {"Image", "Low Contrast"}
+        if klass is LeedsTOR:
+            expected.add("High Contrast")
+        self.assertEqual(set(figs), expected)
+        for fig in figs.values():
+            self.assertFalse(fig.layout.showlegend)
+            for trace in fig.data:
+                if trace.type == "heatmap":
+                    self.assertFalse(trace.showscale)
 
 
 class PlanarPhantomMixin(QuaacTestBase, CloudFileMixin, PlotlyTestMixin):
