@@ -638,8 +638,10 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         roi_label_font_size: float = 10,
         **kwargs,
     ) -> dict[str, go.Figure]:
-        """Plot the analyzed set of images to Plotly figures.
+        """Plot all available analyzed images and contrast graphs as Plotly figures.
 
+        Contrast graphs include the configured thresholds. Las Vegas phantoms
+        also include visibility values and their threshold on a third y-axis.
 
         Parameters
         ----------
@@ -740,6 +742,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             hicon_fig = go.Figure()
             figs["High Contrast"] = hicon_fig
             self._plotly_highcontrast_graph(hicon_fig)
+            hicon_fig.update_layout(showlegend=show_legend)
 
         if show:
             for f in figs.values():
@@ -879,7 +882,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         return figs, names
 
     def _plotly_lowcontrast_graph(self, fig: go.Figure, show_legend: bool) -> None:
-        """Plot the low contrast ROIs to an axes."""
+        """Plot contrast, CNR, and the contrast threshold on their respective axes."""
         fig.add_scatter(
             y=[roi.contrast for roi in self.low_contrast_rois],
             line={
@@ -914,6 +917,14 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             showgrid=False,
             showspikes=True,
         )
+        fig.add_hline(
+            y=self._low_contrast_threshold,
+            secondary_y=False,
+            line_color="magenta",
+            line_dash="dash",
+            annotation_text=f"Contrast threshold: {self._low_contrast_threshold:g}",
+            annotation_position="bottom right",
+        )
 
     def _plot_lowcontrast_graph(self, axes: plt.Axes):
         """Plot the low contrast ROIs to an axes."""
@@ -947,7 +958,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         axes.set_ylabel("relative MTF")
 
     def _plotly_highcontrast_graph(self, fig: go.Figure) -> None:
-        """Plot the high contrast ROIs to an axes."""
+        """Plot relative MTF and the high-contrast threshold."""
         fig.add_scatter(
             y=list(self.mtf.norm_mtfs.values()),
             x=self.mtf.spacings,
@@ -963,6 +974,13 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
             yaxis_title="relative MTF",
         )
         add_title(fig, "High-frequency rMTF")
+        fig.add_hline(
+            y=self._high_contrast_threshold,
+            line_color="black",
+            line_dash="dash",
+            annotation_text=f"rMTF threshold: {self._high_contrast_threshold:g}",
+            annotation_position="bottom right",
+        )
 
     def results(self, as_list: bool = False) -> str | list[str]:
         """Return the results of the analysis.
@@ -2039,6 +2057,57 @@ class LasVegas(ImagePhantomBase):
 
     def _phantom_angle_calc(self) -> float:
         return 0.0
+
+    def _plotly_lowcontrast_graph(self, fig: go.Figure, show_legend: bool) -> None:
+        """Add visibility and its threshold to the shared contrast/CNR graph."""
+        super()._plotly_lowcontrast_graph(fig, show_legend=show_legend)
+        fig.add_scatter(
+            y=[roi.visibility for roi in self.low_contrast_rois],
+            yaxis="y3",
+            line_color="green",
+            name="Visibility",
+        )
+        fig.update_layout(
+            xaxis_domain=[0, 0.8],
+            yaxis3=dict(
+                title="Visibility",
+                overlaying="y",
+                anchor="free",
+                side="right",
+                position=1,
+                showgrid=False,
+                showspikes=True,
+            ),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="left",
+                x=0,
+            ),
+            margin_r=90,
+        )
+        fig.add_shape(
+            type="line",
+            xref="x domain",
+            x0=0,
+            x1=1,
+            yref="y3",
+            y0=self.visibility_threshold,
+            y1=self.visibility_threshold,
+            line_color="green",
+            line_dash="dash",
+        )
+        fig.add_annotation(
+            xref="x domain",
+            x=1,
+            yref="y3",
+            y=self.visibility_threshold,
+            text=f"Visibility threshold: {self.visibility_threshold:g}",
+            showarrow=False,
+            xanchor="right",
+            yanchor="bottom",
+        )
 
     def _plot_lowcontrast_graph(self, axes: plt.Axes):
         """Plot the low contrast ROIs to an axes, including visibility"""
