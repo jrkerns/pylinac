@@ -112,7 +112,7 @@ class FieldProfileAnalysis(ResultsDataMixin[FieldProfileResult]):
         """
         super().__init__()
         self.image: ImageLike = image.load(path, **kwargs)
-        self.image.check_inversion_by_histogram()
+        self.image.check_inversion()
 
     @classmethod
     def from_demo_image(cls):
