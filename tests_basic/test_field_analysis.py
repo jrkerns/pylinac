@@ -157,10 +157,17 @@ class FieldAnalysisTests(QuaacTestBase, TestCase):
         fs.analyze()
         figs, names = fs.plot_analyzed_image(split_plots=True)
         self.assertEqual(len(figs), 3)
-        files = fs.save_analyzed_image(filename="a.png", split_plots=True)
-        names = ("aImage.png", "aVertical Profile.png", "aHorizontal Profile.png")
-        for name in names:
-            self.assertIn(name, files)
+        with tempfile.TemporaryDirectory() as tdir:
+            base = os.path.join(tdir, "a.png")
+            files = fs.save_analyzed_image(filename=base, split_plots=True)
+            stem = osp.splitext(base)[0]
+            expected = (
+                stem + "Image.png",
+                stem + "Vertical Profile.png",
+                stem + "Horizontal Profile.png",
+            )
+            for name in expected:
+                self.assertIn(name, files)
 
         # regular single plot produces one image/file
         figs, names = fs.plot_analyzed_image()
