@@ -1131,7 +1131,7 @@ class CBCT2(CatPhan504Mixin, PlotlyTestMixin, TestCase):
     avg_line_length = 49.9
     slice_thickness = 2.4
     avg_noise_power = 0.395
-    num_figs = 7
+    num_figs = 8
     fig_data = {
         0: {
             "title": "HU Linearity",
@@ -1156,11 +1156,17 @@ class CBCT2(CatPhan504Mixin, PlotlyTestMixin, TestCase):
         },
         5: {
             "title": "Relative MTF",
-            "num_traces": 1,
+            "num_traces": 2,
         },
         6: {
             "title": "Low Contrast",
             "num_traces": 19,
+        },
+        7: {
+            "title": "Uniformity Profiles",
+            "num_traces": 2,
+            "x_label": "Pixel",
+            "y_label": "HU",
         },
     }
 

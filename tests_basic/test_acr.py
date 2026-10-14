@@ -319,7 +319,7 @@ class ACRPhilips(ACRCTMixin, PlotlyTestMixin, TestCase):
         },
         4: {
             "title": "Relative MTF",
-            "num_traces": 1,
+            "num_traces": 2,
             "x_label": "Line pairs / mm",
             "y_label": "Relative MTF",
         },
@@ -894,7 +894,7 @@ class ACRT1Single(ACRMRMixin, PlotlyTestMixin, TestCase):
         1: {"title": "Geometric Distortion", "num_traces": 5},
         9: {
             "title": "Relative MTF",
-            "num_traces": 2,
+            "num_traces": 4,
             "x_label": "Line pairs / mm",
             "y_label": "Relative MTF",
         },

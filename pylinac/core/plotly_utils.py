@@ -8,6 +8,25 @@ def add_title(fig: go.Figure, title: str) -> None:
     fig.update_layout(title_text=title, title_x=0.5)
 
 
+def set_legend_bottom(fig: go.Figure) -> None:
+    """Place an unpositioned legend horizontally below the plot.
+
+    Parameters
+    ----------
+    fig : plotly.graph_objects.Figure
+        Figure to update. An explicitly positioned legend is preserved, as is
+        an explicit bottom margin. Legend visibility and trace settings are
+        unchanged.
+    """
+    if fig.layout.legend.y is not None:
+        return
+    fig.update_layout(
+        legend=dict(orientation="h", x=0.5, xanchor="center", y=-0.2, yanchor="top")
+    )
+    if fig.layout.margin.b is None:
+        fig.update_layout(margin_b=120)
+
+
 def set_axis_range(fig: go.Figure, x: Sequence[float], y: Sequence[float]) -> None:
     """Set the axis range of a plotly figure. There's some bug in plotly that won't
     correctly range the Y axis if autorange is already set. This works around that bug

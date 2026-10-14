@@ -54,7 +54,12 @@ from .core.nps import (
     noise_power_spectrum_1d,
     noise_power_spectrum_2d,
 )
-from .core.plotly_utils import add_title, add_vertical_line
+from .core.plotly_utils import (
+    add_horizontal_line,
+    add_title,
+    add_vertical_line,
+    set_legend_bottom,
+)
 from .core.profile import CollapsedCircleProfile, FWXMProfile
 from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
 from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, ResultsDataMixin
@@ -614,6 +619,7 @@ class CatPhanModule(Slice):
         )
         self.plotly_rois(fig)
         add_title(fig, f"{self.common_name} ({self.slice_num + 1})")
+        set_legend_bottom(fig)
         return fig
 
     @property
@@ -1313,6 +1319,44 @@ class CTP486(CatPhanModule):
         axis.set_ylabel("HU")
         axis.legend(loc=8, fontsize="small", title="")
         axis.set_title("Uniformity Profiles")
+
+    def plotly_profiles(self, show_legend: bool = True) -> go.Figure:
+        """Plot uniformity profiles and HU tolerance limits using Plotly.
+
+        The profiles pass through the detected phantom center, matching
+        :meth:`plot_profiles`.
+
+        Parameters
+        ----------
+        show_legend : bool
+            Whether to show the profile legend.
+
+        Returns
+        -------
+        plotly.graph_objects.Figure
+            Horizontal and vertical profiles with the upper and lower HU limits.
+        """
+        fig = go.Figure()
+        fig.add_scatter(
+            y=self.image[int(self.phan_center.y), :],
+            mode="lines",
+            line_color="green",
+            name="Horizontal",
+        )
+        fig.add_scatter(
+            y=self.image[:, int(self.phan_center.x)],
+            mode="lines",
+            line_color="blue",
+            name="Vertical",
+        )
+        for value, name in (
+            (self.nominal_value + self.tolerance, "Upper Tolerance"),
+            (self.nominal_value - self.tolerance, "Lower Tolerance"),
+        ):
+            add_horizontal_line(fig, value, color="red", width=3, name=name)
+        fig.update_layout(xaxis_title="Pixel", yaxis_title="HU", showlegend=show_legend)
+        add_title(fig, "Uniformity Profiles")
+        return fig
 
     def _setup_rois(self) -> None:
         """Generate our NPS ROIs. They are just square versions of the existing ROIs."""
@@ -2163,14 +2207,13 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
             Whether to show the colorbar on the plot.
         show_legend : bool
             Whether to show the legend on the plot.
-        kwargs
-            Additional keyword arguments to pass to the plot.
 
         Returns
         -------
         dict
             A dictionary of the Plotly figures where the key is the name of the
-            image and the value is the figure.
+            image and the value is the figure. ``"Uniformity Profiles"`` is
+            included when a uniformity module is available.
         """
         figs = {}
         figs["CTP404"] = self.ctp404.plotly(
@@ -2190,6 +2233,11 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         if self._has_module(CTP515):
             figs["CTP515"] = self.ctp515.plotly(
                 show_legend=show_legend, show_colorbar=show_colorbar
+            )
+
+        if self._has_module(CTP486):
+            figs["Uniformity Profiles"] = self.ctp486.plotly_profiles(
+                show_legend=show_legend
             )
 
         if show:
@@ -2682,7 +2730,8 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
         show_legend: bool
             Whether to show the plot legend.
         kwargs
-            Arguments passed to the axis constructor.
+            Arguments passed to the Plotly heatmap, such as ``colorscale``,
+            ``zmin``, and ``zmax``.
         """
         fig = go.Figure()
         side_array = self.dicom_stack.side_view(axis=1)
@@ -2697,7 +2746,8 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
                 color="blue",
                 name=module.common_name,
             )
-        fig.update_layout(showlegend=show_legend)
+        fig.update_layout(showlegend=show_legend, yaxis_autorange="reversed")
+        set_legend_bottom(fig)
         return fig
 
     def plot_side_view(self, axis: Axes, **kwargs) -> None:

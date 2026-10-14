@@ -141,10 +141,31 @@ class MTF:
         name: str = "rMTF",
         **kwargs,
     ) -> go.Figure:
-        """Plot the Relative MTF.
+        """Plot the Relative MTF with spatial frequency and pair distance axes.
+
+        The top axis shows pair distance in mm at each positive measured
+        spatial frequency and follows zooming on the spatial frequency axis.
 
         Parameters
         ----------
+        fig : plotly.graph_objects.Figure, optional
+            An existing figure to plot to. If omitted, create a new figure.
+        x_label : str
+            Label for the spatial frequency axis.
+        y_label : str
+            Label for the relative MTF axis.
+        title : str
+            Figure title.
+        name : str
+            Name of the measured MTF trace.
+        kwargs
+            Additional arguments passed to the measured Plotly scatter trace.
+            ``show_legend`` controls the figure legend.
+
+        Returns
+        -------
+        plotly.graph_objects.Figure
+            The relative MTF graph.
         """
         fig = fig or go.Figure()
         fig.update_layout(
@@ -160,6 +181,34 @@ class MTF:
         fig.update_layout(
             xaxis_title=x_label,
             yaxis_title=y_label,
+        )
+        frequencies = [
+            value for value in self.norm_mtfs if np.isfinite(value) and value > 0
+        ]
+        existing_axis = getattr(fig.layout, "xaxis2", None)
+        existing_ticks = existing_axis.tickvals if existing_axis is not None else ()
+        frequencies = sorted(set(frequencies).union(existing_ticks or ()))
+        # Plotly only displays a secondary axis when a trace references it.
+        fig.add_scatter(
+            x=list(self.norm_mtfs),
+            y=list(self.norm_mtfs.values()),
+            xaxis="x2",
+            mode="markers",
+            opacity=0,
+            hoverinfo="skip",
+            showlegend=False,
+        )
+        fig.update_layout(
+            xaxis2=dict(
+                title="Pair Distance (mm)",
+                overlaying="x",
+                matches="x",
+                side="top",
+                tickmode="array",
+                tickvals=frequencies,
+                ticktext=[f"{1 / value:.3g}" for value in frequencies],
+                showgrid=False,
+            )
         )
         add_title(fig, title)
         return fig

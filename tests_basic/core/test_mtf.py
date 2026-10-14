@@ -115,6 +115,43 @@ class TestMTF(unittest.TestCase):
         finally:
             plt.close(fig)
 
+    def test_plotly_pair_distance_axis(self):
+        mtf = MTF((0.1, 0.2, 0.4), (500, 300, 100), (25, 50, 75))
+        default = mtf.plotly()
+        assert len(default.data) == 2
+        fig = mtf.plotly(show_legend=False)
+        assert fig.layout.xaxis2.side == "top"
+        assert fig.layout.xaxis2.overlaying == "x"
+        assert fig.layout.xaxis2.matches == "x"
+        assert list(fig.layout.xaxis2.tickvals) == [0.1, 0.2, 0.4]
+        assert list(fig.layout.xaxis2.ticktext) == ["10", "5", "2.5"]
+        np.testing.assert_array_equal(fig.data[0].x, default.data[0].x)
+        np.testing.assert_array_equal(fig.data[0].y, default.data[0].y)
+        assert fig.data[1].xaxis == "x2"
+        assert fig.data[1].opacity == 0
+        assert fig.data[1].showlegend is False
+        assert fig.layout.showlegend is False
+
+    def test_plotly_pair_distance_excludes_nonpositive_frequencies(self):
+        mtf = MTF((0.1, 0.2, 0.4), (500, 300, 100), (25, 50, 75))
+        mtf.norm_mtfs = {-0.1: 1.0, 0: 1.0, 0.2: 0.5}
+        with np.errstate(all="raise"):
+            fig = mtf.plotly()
+        assert list(fig.layout.xaxis2.tickvals) == [0.2]
+        assert list(fig.layout.xaxis2.ticktext) == ["5"]
+
+    def test_plotly_pair_distance_for_multiple_curves(self):
+        row = MTF((0.1, 0.2, 0.4), (500, 300, 100), (25, 50, 75))
+        column = MTF((0.2, 0.3, 0.4), (500, 300, 100), (25, 50, 75))
+        fig = row.plotly(name="Row-wise rMTF")
+        column.plotly(fig=fig, name="Column-wise rMTF")
+        assert list(fig.layout.xaxis2.tickvals) == [0.1, 0.2, 0.3, 0.4]
+        assert list(fig.layout.xaxis2.ticktext) == ["10", "5", "3.33", "2.5"]
+        assert [trace.name for trace in fig.data if trace.xaxis != "x2"] == [
+            "Row-wise rMTF",
+            "Column-wise rMTF",
+        ]
+
     def test_no_zero_division_of_line_pair_distances(self):
         old_settings = np.geterr()
         # set overflow to cause errors
