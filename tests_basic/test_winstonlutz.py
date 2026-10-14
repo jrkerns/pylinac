@@ -1868,7 +1868,7 @@ class KatyiX0(WinstonLutzMixin, PlotlyTestMixin, TestCase):
     fig_data = {
         0: {
             "title": "1",
-            "num_traces": 7,
+            "num_traces": 8,
             "x_label": "Gantry=0, Coll=0, Couch=0",
             "y_label": "Max Nominal to BB",
         },

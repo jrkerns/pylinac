@@ -919,6 +919,47 @@ class GlobalSizedFieldLocator(MetricBase):
                     s=markersize,
                 )
 
+    def plotly(
+        self,
+        fig: go.Figure,
+        show_boundaries: bool = True,
+        color: str = "red",
+        marker_size: float = 3,
+        opacity: float = 0.25,
+        **kwargs,
+    ) -> None:
+        """Plot the detected field boundaries in absolute image coordinates.
+
+        Parameters
+        ----------
+        fig : plotly.graph_objects.Figure
+            The figure to add the boundaries to.
+        show_boundaries : bool
+            Whether to show the detected field boundaries.
+        color : str
+            The color of the boundary markers.
+        marker_size : float
+            The size of the boundary markers.
+        opacity : float
+            The opacity of the boundary markers.
+        kwargs
+            Additional keyword arguments passed to Plotly's scatter traces.
+        """
+        if show_boundaries:
+            for boundary in self.boundaries:
+                boundary_y, boundary_x = np.nonzero(boundary)
+                fig.add_scatter(
+                    x=boundary_x,
+                    y=boundary_y,
+                    mode="markers",
+                    marker_color=color,
+                    marker_symbol="square",
+                    marker_size=marker_size,
+                    marker_opacity=opacity,
+                    name=f"{self.name} Boundary",
+                    **kwargs,
+                )
+
 
 class GlobalFieldLocator(GlobalSizedFieldLocator):
     def __init__(

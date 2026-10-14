@@ -609,6 +609,8 @@ class BaseImage:
 
         if fig is None:
             fig = go.Figure()
+        if fig.layout.legend.x is None:
+            fig.update_layout(legend_x=0)
         fig.update_layout(
             xaxis_showticklabels=False,
             yaxis_showticklabels=False,
@@ -620,7 +622,6 @@ class BaseImage:
             yaxis_constrain="domain",
             xaxis_scaleanchor="y",
             xaxis_constrain="domain",
-            legend={"x": 0},
             showlegend=kwargs.pop("show_legend", True),
         )
         add_title(fig, title)

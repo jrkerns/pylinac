@@ -46,6 +46,7 @@ from scipy import ndimage, optimize
 from scipy.ndimage import zoom
 from scipy.spatial.transform import Rotation
 from skimage.measure._regionprops import RegionProperties
+from skimage.segmentation import find_boundaries
 from tabulate import tabulate
 
 from .core import image, pdf
@@ -62,7 +63,12 @@ from .core.geometry import (
 )
 from .core.image import DicomImageStack, is_image, tiff_to_dicom
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
-from .core.plotly_utils import add_horizontal_line, add_title, add_vertical_line
+from .core.plotly_utils import (
+    add_horizontal_line,
+    add_title,
+    add_vertical_line,
+    set_legend_bottom,
+)
 from .core.scale import MachineScale, convert
 from .core.utilities import (
     QuaacDatum,
@@ -700,6 +706,7 @@ class WLBaseImage(image.LinacDicomImage):
         kwargs.setdefault("missing_axis_value", "raise")
         super().__init__(file, use_filenames=use_filenames, **kwargs)
         self._is_analyzed = False
+        self._field_boundary: np.ndarray | None = None
 
     def analyze(
         self,
@@ -808,9 +815,12 @@ class WLBaseImage(image.LinacDicomImage):
             # using the global field locator without size will
             # find several other unrelated fields and show up in the image
             # the metric algorithm should have a post-processing function parameter
-            min, max = np.percentile(self.array, [5, 99.9])
-            threshold_img = self.as_binary((max - min) / 2 + min)
+            lower, upper = np.percentile(self.array, [5, 99.9])
+            threshold_img = self.as_binary((upper - lower) / 2 + lower)
             filled_img = ndimage.binary_fill_holes(threshold_img)
+            self._field_boundary = find_boundaries(
+                filled_img, connectivity=2, mode="inner"
+            )
             coords = ndimage.center_of_mass(filled_img)
             p = Point(x=coords[-1], y=coords[0])
         return [p]
@@ -828,17 +838,16 @@ class WLBaseImage(image.LinacDicomImage):
         of the detected BBs vs the expected BBs is done in the ``find_bb_matches`` method.
         """
         bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter_mm)
-        centers = self.compute(
-            metrics=SizedDiskLocator.from_center_physical(
-                expected_position_mm=(0, 0),
-                search_window_mm=(40 + bb_diameter_mm, 40 + bb_diameter_mm),
-                radius_mm=bb_diameter_mm / 2,
-                radius_tolerance_mm=bb_tolerance_mm,
-                invert=not low_density,
-                detection_conditions=self.detection_conditions,
-                name="BB",
-            )
+        locator = SizedDiskLocator.from_center_physical(
+            expected_position_mm=(0, 0),
+            search_window_mm=(40 + bb_diameter_mm, 40 + bb_diameter_mm),
+            radius_mm=bb_diameter_mm / 2,
+            radius_tolerance_mm=bb_tolerance_mm,
+            invert=not low_density,
+            detection_conditions=self.detection_conditions,
+            name="BB",
         )
+        centers = self.compute(metrics=locator)
         return centers
 
     def find_bb_matches(
@@ -932,24 +941,41 @@ class WLBaseImage(image.LinacDicomImage):
                     + 20 * self.dpmm
                 )
             )
-            x_indices = np.arange(min_x, max_x, 1)
-            y_indices = np.arange(min_y, max_y, 1)
             window_array = self.array[int(min_y) : int(max_y), int(min_x) : int(max_x)]
         else:
             min_x, max_x = 0, self.shape[1]
             min_y, max_y = 0, self.shape[0]
-            x_indices = np.arange(min_x, max_x, 1)
-            y_indices = np.arange(min_y, max_y, 1)
             window_array = self.array
+        x_indices = np.arange(min_x, max_x)
+        y_indices = np.arange(min_y, max_y)
+        if fig is None:
+            fig = go.Figure()
+        set_legend_bottom(fig)
         fig = super().plotly(
             fig=fig,
-            show=show,
-            show_metrics=True,
+            show=False,
+            show_metrics=False,
             show_colorbar=show_colorbar,
             x=x_indices,
             y=y_indices,
             z=window_array,
         )
+        self._plotly_bb_and_field_overlays(fig)
+        if self._field_boundary is not None:
+            bb_name = next(iter(self.arrangement_matches))
+            boundary_y, boundary_x = np.nonzero(self._field_boundary)
+            fig.add_scatter(
+                x=boundary_x,
+                y=boundary_y,
+                mode="markers",
+                marker_color="red",
+                marker_symbol="square",
+                marker_size=3,
+                marker_opacity=0.25,
+                name=f"{bb_name} Field Boundary",
+                legendgroup=f"Field Boundary:{bb_name}",
+                showlegend=True,
+            )
         # show EPID center; we use a custom line (vs `add_vertical_line`) because we might be zoomed and thus we need to shift
         # to a relative spot
         fig.add_scatter(
@@ -957,7 +983,8 @@ class WLBaseImage(image.LinacDicomImage):
             y=[y_indices[0], y_indices[-1]],
             line_color="blue",
             mode="lines",
-            name="EPID Center (V)",
+            name="EPID Center",
+            legendgroup="EPID",
         )
         fig.add_scatter(
             x=[x_indices[0], x_indices[-1]],
@@ -965,14 +992,18 @@ class WLBaseImage(image.LinacDicomImage):
             line_color="blue",
             mode="lines",
             name="EPID Center (H)",
+            legendgroup="EPID",
+            showlegend=False,
         )
         # show the field CAXs
-        for match in self.arrangement_matches.values():
+        for bb_name, match in self.arrangement_matches.items():
             fig.add_scatter(
                 x=[match.field.x],
                 y=[match.field.y],
-                line_color="green",
-                name="Field Center",
+                marker_color="green",
+                name=f"{bb_name} Field Center",
+                legendgroup=f"Field Center:{bb_name}",
+                showlegend=True,
                 mode="markers",
                 marker_size=8,
                 marker_symbol="square",
@@ -981,7 +1012,9 @@ class WLBaseImage(image.LinacDicomImage):
                 x=[match.bb.x],
                 y=[match.bb.y],
                 line_color="cyan",
-                name="Detected BB",
+                name=f"BB: {bb_name}",
+                legendgroup=f"BB:{bb_name}",
+                showlegend=True,
                 mode="markers",
                 marker_size=10,
                 marker_symbol="circle",
@@ -992,14 +1025,49 @@ class WLBaseImage(image.LinacDicomImage):
         fig.update_layout(
             xaxis_title=f"Gantry={self.gantry_angle:.0f}, Coll={self.collimator_angle:.0f}, Couch={self.couch_angle:.0f}",
             yaxis_title=f"Max Nominal to BB: {max(self.field_to_bb_distances()):3.2f}mm",
-        )
-        fig.update_layout(
             showlegend=show_legend,
+            legend_groupclick="togglegroup",
+            legend_traceorder="normal",
+            legend_tracegroupgap=0,
             title_text="\n".join(wrap(Path(self.path).name, 30)),
         )
         if show:
             fig.show()
         return fig
+
+    def _plotly_bb_and_field_overlays(self, fig: go.Figure) -> None:
+        """Draw metric overlays with names and legend groups from the matched BBs."""
+        for metric in self.metrics:
+            start = len(fig.data)
+            metric.plotly(fig)
+            if not isinstance(metric, (SizedDiskLocator, GlobalSizedFieldLocator)):
+                continue
+
+            is_field = isinstance(metric, GlobalSizedFieldLocator)
+            points = metric.fields if is_field else metric.points
+            labels = ("Field Boundary",) if is_field else ("BB Boundary", "Disk Center")
+            group = "Field Boundary" if is_field else "BB"
+            positions = {
+                name: match.field if is_field else match.bb
+                for name, match in self.arrangement_matches.items()
+            }
+            # Locators draw boundaries first, then disk centers. Match their
+            # centroids rather than nominal search locations, which can overlap.
+            overlays = ((point, label) for label in labels for point in points)
+            for trace, (point, label) in zip(fig.data[start:], overlays):
+                bb_name = next(
+                    (
+                        name
+                        for name, position in positions.items()
+                        if point.distance_to(position) < 1e-6
+                    ),
+                    None,
+                )
+                trace.update(
+                    name=f"{bb_name if bb_name is not None else 'Unmatched'} {label}",
+                    legendgroup=f"{group}:{bb_name}" if bb_name is not None else None,
+                    showlegend=is_field and bb_name is not None,
+                )
 
     def plot(
         self,
@@ -2049,6 +2117,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             showlegend=show_legend,
         )
         add_title(iso_fig, "3D Isocenter visualization")
+        set_legend_bottom(iso_fig)
         figs["Isocenter Visualization"] = iso_fig
 
         # polar plot and POV plots
@@ -2115,6 +2184,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
                 mode="markers",
             )
             add_title(fig, title)
+            set_legend_bottom(fig)
             add_vertical_line(fig, 0, "black", name="y=0")
             add_horizontal_line(fig, 0, "black", name="x=0")
             fig.update_layout(
@@ -2137,20 +2207,15 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
                     theta=angles,
                     name=name,
                 )
-                add_title(fig, f"{axis.value} Error Plot")
-                fig.update_layout(
-                    title=title,
-                    showlegend=show_legend,
-                    polar=dict(
-                        angularaxis=dict(
-                            rotation=start_angle,
-                            direction=clock,  # Change the direction to clockwise (can also be 'counterclockwise')
-                        ),
-                        radialaxis=dict(
-                            title="Displacement from Field (mm)", visible=True
-                        ),
-                    ),
-                )
+            add_title(fig, title)
+            set_legend_bottom(fig)
+            fig.update_layout(
+                showlegend=show_legend,
+                polar=dict(
+                    angularaxis=dict(rotation=start_angle, direction=clock),
+                    radialaxis=dict(title="Displacement from Field (mm)", visible=True),
+                ),
+            )
             # add 0-value highlight
             fig.add_scatterpolar(
                 r=[0] * 100,
@@ -2856,15 +2921,13 @@ class WinstonLutzMultiTargetMultiFieldImage(WLBaseImage):
         tolerance_field_size = max(
             (max_field_size - min_field_size) * 1.2, 0.1 * mean_field_size
         )
-        points = self.compute(
-            metrics=GlobalSizedFieldLocator.from_physical(
-                max_number=len(self.bb_arrangement),
-                field_height_mm=mean_field_size,
-                field_width_mm=mean_field_size,
-                field_tolerance_mm=tolerance_field_size,
-            )
+        locator = GlobalSizedFieldLocator.from_physical(
+            max_number=len(self.bb_arrangement),
+            field_height_mm=mean_field_size,
+            field_width_mm=mean_field_size,
+            field_tolerance_mm=tolerance_field_size,
         )
-        return points
+        return self.compute(metrics=locator)
 
     def find_bb_centroids(
         self, bb_diameter_mm: float, low_density: bool
@@ -2883,18 +2946,17 @@ class WinstonLutzMultiTargetMultiFieldImage(WLBaseImage):
                 sad=self.sad,
             )
             try:
-                new_centers = self.compute(
-                    metrics=SizedDiskLocator.from_center_physical(
-                        expected_position_mm=Point(
-                            x=left, y=-sup
-                        ),  # we do -sup because sup is in WL coordinate space but the disk locator is in image coordinates.
-                        search_window_mm=(40 + bb_diameter_mm, 40 + bb_diameter_mm),
-                        radius_mm=bb_diameter_mm / 2,
-                        radius_tolerance_mm=bb_tolerance_mm / 2,
-                        invert=not low_density,
-                        detection_conditions=self.detection_conditions,
-                    )
+                locator = SizedDiskLocator.from_center_physical(
+                    expected_position_mm=Point(
+                        x=left, y=-sup
+                    ),  # we do -sup because sup is in WL coordinate space but the disk locator is in image coordinates.
+                    search_window_mm=(40 + bb_diameter_mm, 40 + bb_diameter_mm),
+                    radius_mm=bb_diameter_mm / 2,
+                    radius_tolerance_mm=bb_tolerance_mm / 2,
+                    invert=not low_density,
+                    detection_conditions=self.detection_conditions,
                 )
+                new_centers = self.compute(metrics=locator)
                 centers.extend(new_centers)
             except ValueError:
                 pass
@@ -3247,6 +3309,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             showlegend=show_legend,
         )
         add_title(iso_fig, "3D Isocenter visualization")
+        set_legend_bottom(iso_fig)
         if show:
             for f in figs.values():
                 f.show()
