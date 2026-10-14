@@ -252,6 +252,7 @@ class FilteredFieldLayer(PerfectFieldLayer):
         gaussian_height: float = 0.03,
         gaussian_sigma_mm: float = 32,
         rotation: float = 0,
+        horns_center_offset_mm: (float, float) = (0, 0),
     ):
         """
         Parameters
@@ -271,6 +272,8 @@ class FilteredFieldLayer(PerfectFieldLayer):
             horn effect.
         rotation: float
             The amount of rotation in degrees. This acts like a collimator rotation.
+        horns_center_offset_mm: (float, float)
+            The offset of the center of the horns (CAX dip) from the center of the field. (out, right)
         """
         super().__init__(
             field_size_mm=field_size_mm,
@@ -280,14 +283,15 @@ class FilteredFieldLayer(PerfectFieldLayer):
         )
         self.gaussian_height = gaussian_height
         self.gaussian_sigma_mm = gaussian_sigma_mm
+        self.horns_center_offset_mm = horns_center_offset_mm
 
     def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         image, rr, cc = self._create_perfect_field(image, pixel_size, mag_factor)
         # add filter effect
         height = -self.gaussian_height * np.iinfo(image.dtype).max
         width = self.gaussian_sigma_mm / pixel_size
-        center_x = geometric_center_idx(image[:, 0])
-        center_y = geometric_center_idx(image[0, :])
+        center_x = geometric_center_idx(image[:, 0]) + self.horns_center_offset_mm[0] / pixel_size
+        center_y = geometric_center_idx(image[0, :]) + self.horns_center_offset_mm[1] / pixel_size
         horns = gaussian2d(
             rr,
             cc,
