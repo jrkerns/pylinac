@@ -47,7 +47,7 @@ class CTP732(CP504.CTP404):
     standard CTP404.  Only two background ROIs instead of four.
 
     References:
-        `CP604 Manual, p.10 <CP604Manual.pdf#page=10>`_
+        The Phantom Laboratory, *Catphan 604 Manual*, p. 10.
     """
 
     roi_dist_mm = 58.7
@@ -124,7 +124,7 @@ class CTP729(CP504.CTP486):
     Functionally and geometrically identical to CTP486.
 
     References:
-        `CP604 Manual, p.26 <CP604Manual.pdf#page=26>`_
+        The Phantom Laboratory, *Catphan 604 Manual*, p. 26.
     """
 
     pass
@@ -146,7 +146,7 @@ class CTP528CP604(_CTP528Base):
     computes the MTF via :class:`~pylinac.core.mtf.SlantedWireMTF`.
 
     References:
-        `CP604 Manual, p.10 <CP604Manual.pdf#page=10>`_
+        The Phantom Laboratory, *Catphan 604 Manual*, p. 10.
     """
 
     attr_name: str = "ctp528"
@@ -315,7 +315,7 @@ class CTP730(CP504.CTP515):
     sides of the rod ring.
 
     References:
-        `CP604 Manual, p.24 <CP604Manual.pdf#page=24>`_
+        The Phantom Laboratory, *Catphan 604 Manual*, p. 24.
     """
 
     attr_name = "ctp515"

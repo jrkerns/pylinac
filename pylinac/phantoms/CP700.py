@@ -50,7 +50,7 @@ class CTP682(CP504.CTP404):
     Angles use the 180-x formula compared with the standard CTP404 layout.
 
     References:
-        `CP700 Manual, p.12 <CP700Manual.pdf#page=12>`_
+        The Phantom Laboratory, *Catphan 700 Manual*, p. 12.
     """
 
     roi_dist_mm = 58.7
@@ -183,7 +183,7 @@ class CTP712(CP504.CTP486):
     Functionally and geometrically identical to CTP486.
 
     References:
-        `CP700 Manual, p.34 <CP700Manual.pdf#page=34>`_
+        The Phantom Laboratory, *Catphan 700 Manual*, p. 34.
     """
 
     pass
@@ -208,7 +208,7 @@ class CTP714(_CTP528Base):
     (``_setup_rois`` / ``plot_rois``), but are no longer used for the MTF value.
 
     References:
-        `CP700 Manual, p.30 <CP700Manual.pdf#page=30>`_
+        The Phantom Laboratory, *Catphan 700 Manual*, p. 30.
     """
 
     rois: dict[str, RectangleROI]
@@ -394,7 +394,7 @@ class CTP515CP700(CP600.CTP515CP600):
     Identical to the CatPhan 600 layout.
 
     References:
-        `CP700 Manual, p.31 <CP700Manual.pdf#page=31>`_
+        The Phantom Laboratory, *Catphan 700 Manual*, p. 31.
     """
 
     pass

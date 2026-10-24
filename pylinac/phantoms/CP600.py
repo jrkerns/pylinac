@@ -45,7 +45,7 @@ class CTP763(CP504.CTP404):
     it is removed from analysis if air is detected there instead of water.
 
     References:
-        `CP500-600 Manual, p.12 <CP500-600Manual.pdf#page=12>`_
+        The Phantom Laboratory, *Catphan 500 and 600 Manual*, p. 12.
     """
 
     roi_dist_mm = 58.7
@@ -123,7 +123,7 @@ class CTP764(CP504.CTP528CP504):
     :class:`~pylinac.phantoms.CP504.CTP528CP504`).
 
     References:
-        `CP500-600 Manual, p.23 <CP500-600Manual.pdf#page=23>`_
+        The Phantom Laboratory, *Catphan 500 and 600 Manual*, p. 23.
     """
 
     start_angle = np.pi - 0.1
@@ -216,7 +216,7 @@ class CTP515CP600(CP504.CTP515):
     relative to the 504 layout.
 
     References:
-        `CP500-600 Manual, p.27 <CP500-600Manual.pdf#page=27>`_
+        The Phantom Laboratory, *Catphan 500 and 600 Manual*, p. 27.
     """
 
     roi_angles = [
@@ -301,7 +301,7 @@ class CTP591(CatPhanModule):
       shape across slices.
 
       References:
-        `CP500-600 Manual, p.19 <CP500-600Manual.pdf#page=19>`_
+        The Phantom Laboratory, *Catphan 500 and 600 Manual*, p. 19.
     """
 
     attr_name = "ctp591"
