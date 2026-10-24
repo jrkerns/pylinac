@@ -47,7 +47,7 @@ from .core.contrast import Contrast
 from .core.geometry import Line, Point
 from .core.image import ArrayImage, DicomImageStack, ImageLike, z_position
 from .core.io import get_url, retrieve_demo_file
-from .core.mtf import MTF, BeadMTF, format_resolution
+from .core.mtf import MTF, format_resolution
 from .core.nps import (
     average_power,
     max_frequency,
