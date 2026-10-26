@@ -1,10 +1,40 @@
 from __future__ import annotations
 
+import json
 import os
+from http.client import HTTPException
 from pathlib import Path
+from urllib.request import Request, urlopen
 
 import nox
 from nox import Session
+
+
+@nox.session(python=False)
+def post_message_to_gchat(session: Session) -> None:
+    """Post a message to the developer chat without changing the pipeline outcome."""
+    if not session.posargs or not session.posargs[0]:
+        return
+    webhook = os.environ.get("RAD_DEV_URL", "").strip().strip('"')
+    if not webhook:
+        session.log("RAD_DEV_URL is not configured; skipping failure alert.")
+        return
+
+    try:
+        request = Request(
+            webhook,
+            data=json.dumps({"text": session.posargs[0]}).encode("utf-8"),
+            headers={"Content-Type": "application/json; charset=utf-8"},
+            method="POST",
+        )
+        with urlopen(request, timeout=10) as response:
+            if 200 <= response.status < 300:
+                session.log("Failure alert sent to Google Chat.")
+            else:
+                session.log("Google Chat rejected the failure alert.")
+    except (OSError, ValueError, HTTPException):
+        # Exception messages can contain the secret webhook URL or response body.
+        session.log("Could not deliver the Google Chat failure alert.")
 
 
 def set_uv_project_env(session) -> dict[str, str]:

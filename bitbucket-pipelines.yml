@@ -445,6 +445,14 @@ definitions:
           - uv venv
           - uv pip install nox
           - uv run nox -s run_basic_test_suite_310
+        after-script:
+          - export PYLINAC_TEST_PYTHON=3.10
+          - &notify-python-version-failure |
+            if [ "$BITBUCKET_EXIT_CODE" -ne 0 ]; then
+              uv run --no-sync nox -s post_message_to_gchat -- "${BITBUCKET_REPO_FULL_NAME}: Python ${PYLINAC_TEST_PYTHON} tests failed
+            Branch: ${BITBUCKET_BRANCH} | Build: #${BITBUCKET_BUILD_NUMBER}
+            <https://bitbucket.org/${BITBUCKET_REPO_FULL_NAME}/pipelines/results/${BITBUCKET_BUILD_NUMBER}|View pipeline>"
+            fi
     - step: &run-python-311-tests
         name: Run against Python 3.11
         <<: *bb-runner
@@ -453,6 +461,9 @@ definitions:
           - uv venv
           - uv pip install nox
           - uv run nox -s run_basic_test_suite_311
+        after-script:
+          - export PYLINAC_TEST_PYTHON=3.11
+          - *notify-python-version-failure
     - step: &run-python-312-tests
         name: Run against Python 3.12
         <<: *bb-runner
@@ -461,6 +472,9 @@ definitions:
           - uv venv
           - uv pip install nox
           - uv run nox -s run_basic_test_suite_312
+        after-script:
+          - export PYLINAC_TEST_PYTHON=3.12
+          - *notify-python-version-failure
     - step: &run-python-313-tests
         name: Run against Python 3.13
         <<: *bb-runner
@@ -469,6 +483,9 @@ definitions:
           - uv venv
           - uv pip install nox
           - uv run nox -s run_basic_test_suite_313
+        after-script:
+          - export PYLINAC_TEST_PYTHON=3.13
+          - *notify-python-version-failure
 
 pipelines:
 
