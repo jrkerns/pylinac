@@ -734,6 +734,11 @@ class TestDicomImage(TestCase):
 
 
 class TestXIMImage(TestCase):
+    def setUp(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.temp_path = Path(directory.name)
+
     def test_normal_load(self):
         xim = XIM(xim_path)
         self.assertIsInstance(xim.array, np.ndarray)
@@ -806,6 +811,134 @@ class TestXIMImage(TestCase):
         xim = XIM(xim_path)
         self.assertEqual(xim.array.dtype, np.int32)
         self.assertEqual(xim.array.max(), 38822)
+
+    def _make_xim(self, values):
+        xim = XIM(xim_path)
+        xim.array = np.array([values], dtype=np.int32)
+        xim.properties = {
+            "AcquisitionSystemVersion": "test",
+            "MLCLeafsA": np.array([1, 2]),
+        }
+        return xim
+
+    @parameterized.expand([(None,), ("PNG",), ("png",)])
+    def test_png_preserves_integer_values_and_metadata(self, explicit_format):
+        xim = self._make_xim([0, 255, 256, 65535])
+        original = xim.array.copy()
+        path = self.temp_path / "image.PNG"
+        xim.save_as(path, format=explicit_format)
+        with PIL.Image.open(path) as image:
+            np.testing.assert_array_equal(np.asarray(image), xim.array)
+            assert image.info["AcquisitionSystemVersion"] == "test"
+            assert image.info["MLCLeafsA"] == "[1, 2]"
+        assert xim.array.dtype == np.int32
+        np.testing.assert_array_equal(xim.array, original)
+
+    def test_png_stream_preserves_values(self):
+        xim = self._make_xim([0, 256, 65535])
+        stream = io.BytesIO()
+        xim.save_as(stream, format="png")
+        stream.seek(0)
+        with PIL.Image.open(stream) as image:
+            np.testing.assert_array_equal(np.asarray(image), xim.array)
+
+    @parameterized.expand([([-1, 0],), ([0, 65536],), ([0, 2147483647],)])
+    def test_png_rejects_values_that_would_be_clipped(self, values):
+        xim = self._make_xim(values)
+        stream = io.BytesIO()
+        with self.assertRaisesRegex(ValueError, "Save as TIFF"):
+            xim.save_as(stream, format="PNG")
+        assert stream.getvalue() == b""
+
+    def test_explicit_tiff_overrides_png_extension_without_losing_values(self):
+        xim = self._make_xim([-1, 65536, 2147483647])
+        path = self.temp_path / "image.png"
+        xim.save_as(path, format="TIFF")
+        with PIL.Image.open(path) as image:
+            assert image.format == "TIFF"
+            np.testing.assert_array_equal(np.asarray(image), xim.array)
+
+    @parameterized.expand([(np.int16,), (np.uint16,), (np.int32,)])
+    def test_png_preserves_supported_integer_dtypes(self, dtype):
+        xim = self._make_xim(
+            [0, 255, 256, np.iinfo(dtype).max if dtype == np.int16 else 65535]
+        )
+        xim.array = xim.array.astype(dtype)
+        original = xim.array.copy()
+        stream = io.BytesIO()
+        xim.save_as(stream, format="PNG")
+        stream.seek(0)
+        with PIL.Image.open(stream) as image:
+            np.testing.assert_array_equal(np.asarray(image), original)
+        assert xim.array.dtype == dtype
+        np.testing.assert_array_equal(xim.array, original)
+
+    def test_png_inferred_from_named_stream(self):
+        xim = self._make_xim([0, 256, 65535])
+        path = self.temp_path / "image.PNG"
+        with path.open("wb") as stream:
+            xim.save_as(stream)
+        with PIL.Image.open(path) as image:
+            np.testing.assert_array_equal(np.asarray(image), xim.array)
+
+    def test_explicit_png_overrides_tiff_extension(self):
+        xim = self._make_xim([0, 256, 65535])
+        path = self.temp_path / "image.tiff"
+        xim.save_as(path, format="PNG")
+        with PIL.Image.open(path) as image:
+            assert image.format == "PNG"
+            np.testing.assert_array_equal(np.asarray(image), xim.array)
+
+    @parameterized.expand(
+        [
+            (filename, png_supported, format, destination)
+            for filename, png_supported in [
+                ("ximdcmtest.xim", True),
+                ("IsoCal-kV-08.xim", True),
+                ("xim_1_element_diff_switch.xim", True),
+                ("xim_2byte_diff.xim", False),
+                ("xim_uint32.xim", True),
+            ]
+            for format in ("PNG", "TIFF")
+            for destination in ("path", "stream")
+        ]
+    )
+    def test_existing_xim_round_trip(
+        self, filename, png_supported, format, destination
+    ):
+        xim = XIM(get_file_from_cloud_test_repo([filename]))
+        original = xim.array.copy()
+        original_dtype = xim.array.dtype
+        target = (
+            self.temp_path / f"image.{format.lower()}"
+            if destination == "path"
+            else io.BytesIO()
+        )
+        if format == "PNG" and not png_supported:
+            assert original.min() == -1
+            with self.assertRaisesRegex(ValueError, "Save as TIFF"):
+                xim.save_as(target, format=format)
+            if destination == "path":
+                assert not target.exists()
+            else:
+                assert target.getvalue() == b""
+        else:
+            xim.save_as(target, format=format)
+            if destination == "stream":
+                target.seek(0)
+            with PIL.Image.open(target) as image:
+                assert image.format == format
+                np.testing.assert_array_equal(np.asarray(image), original)
+                if format == "PNG":
+                    for key, value in xim.properties.items():
+                        if isinstance(value, str):
+                            assert image.info[key] == value
+                        else:
+                            np.testing.assert_array_equal(
+                                json.loads(image.info[key]), value
+                            )
+        assert xim.array.dtype == original_dtype
+        np.testing.assert_array_equal(xim.array, original)
 
 
 class TestLinacDicomImage(TestCase):

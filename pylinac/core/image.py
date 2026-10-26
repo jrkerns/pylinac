@@ -1354,8 +1354,35 @@ class XIM(BaseImage):
             The file to save the image to. E.g. my_xim.png
         format
             The format to save the image as. Uses the Pillow logic, which will infer the format if the file name has one.
+
+        Notes
+        -----
+        PNG exports preserve integer pixel values from 0 to 65535 using unsigned
+        16-bit storage. Negative values and values above 65535 require TIFF;
+        PNG exports are not clipped or rescaled. The source array is unchanged.
+
+        Raises
+        ------
+        ValueError
+            If PNG cannot preserve the integer pixel values. Use TIFF for values
+            outside the unsigned 16-bit range.
         """
         img = pImage.fromarray(self.array)
+        filename = getattr(file, "name", file)
+        is_png = (
+            format.lower() == "png"
+            if format is not None
+            else isinstance(filename, (str, os.PathLike))
+            and Path(filename).suffix.lower() == ".png"
+        )
+        if is_png and img.mode == "I":
+            # Pillow 13 rejects mode I PNGs instead of silently clipping them.
+            if self.array.min() < 0 or self.array.max() > np.iinfo(np.uint16).max:
+                raise ValueError(
+                    "PNG cannot preserve these pixel values. Save as TIFF to "
+                    "preserve values outside the unsigned 16-bit range."
+                )
+            img = pImage.fromarray(self.array.astype(np.uint16))
         # we construct the custom PNG tags; it won't be included for tiff or jpeg, etc but it won't error it either.
         metadata = PngInfo()
         for prop, value in self.properties.items():

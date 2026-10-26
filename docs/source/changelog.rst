@@ -10,6 +10,19 @@ Legend
 * :bdg-primary:`Refactor` denotes a code refactor; usually this means an efficiency boost or code cleanup.
 * :bdg-danger:`Change` denotes a change that may break existing code.
 
+v3.50.0
+-------
+
+Core
+^^^^
+
+* :bdg-warning:`Fixed` XIM images can again be exported as PNG with Pillow 13
+  after its `removal of mode-I PNG saving
+  <https://pillow.readthedocs.io/en/stable/releasenotes/13.0.0.html#saving-i-mode-images-as-png>`_.
+  Integer pixel values from 0 to 65535 are preserved exactly. Images with
+  negative values or values above 65535 raise a descriptive error recommending
+  TIFF instead of silently clipping pixel values.
+
 v3.49.0
 -------
 
