@@ -188,6 +188,113 @@ class DiskROI(Circle):
         return data
 
 
+class AnnularROI:
+    """Ring-shaped ROI defined by concentric inner and outer radii.
+
+    Mirrors the statistical and plotting interface of :class:`DiskROI` so it
+    can be stored in ``background_rois`` dicts as a drop-in replacement for
+    pairs of disk ROIs.
+    """
+
+    def __init__(
+        self,
+        array: np.ndarray,
+        center: Point,
+        inner_radius: float,
+        outer_radius: float,
+    ):
+        self._array = array
+        self.center = center
+        self.inner_radius = inner_radius
+        self.outer_radius = outer_radius
+
+    @lru_cache()
+    def annular_mask(self) -> np.ndarray:
+        """Flat array of pixel values within the annular region."""
+        shape = self._array.shape
+        outer = np.zeros(shape, dtype=bool)
+        inner = np.zeros(shape, dtype=bool)
+        rr, cc = draw.disk((self.center.y, self.center.x), self.outer_radius, shape=shape)
+        outer[rr, cc] = True
+        rr, cc = draw.disk((self.center.y, self.center.x), self.inner_radius, shape=shape)
+        inner[rr, cc] = True
+        rr, cc = np.where(outer & ~inner)
+        return self._array[rr, cc]
+
+    @cached_property
+    def pixel_value(self) -> float:
+        """Median pixel value within the annular region."""
+        return float(np.median(self.annular_mask()))
+
+    @cached_property
+    def mean(self) -> float:
+        """Mean pixel value within the annular region."""
+        return float(np.mean(self.annular_mask()))
+
+    @cached_property
+    def std(self) -> float:
+        """Standard deviation of pixel values within the annular region."""
+        return float(np.std(self.annular_mask()))
+
+    def plot2axes(
+        self,
+        axes: plt.Axes,
+        edgecolor: str = "blue",
+        fill: bool = False,
+        text: str = "",
+        fontsize: str = "medium",
+        **kwargs,
+    ) -> None:
+        """Draw inner and outer boundaries on a matplotlib axes."""
+        for r in (self.inner_radius, self.outer_radius):
+            axes.add_patch(
+                plt.Circle(
+                    (self.center.x, self.center.y),
+                    radius=r,
+                    edgecolor=edgecolor,
+                    fill=fill,
+                    **kwargs,
+                )
+            )
+
+    def plotly(
+        self,
+        fig: go.Figure,
+        line_color: str = "blue",
+        fill: bool = False,
+        text: str = "",
+        fontsize: float = 10,
+        label_position: str = "center",
+        **kwargs,
+    ) -> None:
+        """Draw inner and outer boundaries on a Plotly figure.
+
+        The outer boundary receives the ``name`` kwarg (legend entry); the
+        inner boundary is rendered silently (``showlegend=False``).
+        """
+        theta = np.linspace(0, 2 * np.pi, 100)
+        inner_kw = {k: v for k, v in kwargs.items() if k != "name"}
+        inner_kw["showlegend"] = False
+        for r, kw in ((self.inner_radius, inner_kw), (self.outer_radius, kwargs)):
+            fig.add_scatter(
+                x=self.center.x + r * np.cos(theta),
+                y=self.center.y + r * np.sin(theta),
+                mode="lines",
+                line_color=line_color,
+                **kw,
+            )
+
+    def as_dict(self) -> dict:
+        return {
+            "center_x": self.center.x,
+            "center_y": self.center.y,
+            "inner_radius": self.inner_radius,
+            "outer_radius": self.outer_radius,
+            "median": self.pixel_value,
+            "std": self.std,
+        }
+
+
 class LowContrastDiskROI(DiskROI):
     """A class for analyzing the low-contrast disks."""
 
