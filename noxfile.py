@@ -59,27 +59,6 @@ def sync_uv_groups(session, groups: str | list[str]) -> dict[str, str]:
 
 
 @nox.parametrize(
-    "numpy", ["1.23.5", "1.24.4", "1.25.2", "1.26.4", "2.0.0", "2.1.0", "2.2.0"]
-)
-@nox.parametrize("scipy", ["1.13.1", "1.14.1", "1.15.0"])
-@nox.session(
-    python="3.10",
-    reuse_venv=True,
-    venv_backend="uv",
-)
-def run_basic_test_suite_310(session: Session, numpy: str, scipy: str):
-    sync_uv_groups(session, "test")
-    session.install(f"numpy~={numpy}", f"scipy~={scipy}")
-    session.install("pip")
-    session.run("pip", "freeze")
-    session.run(
-        "pytest",
-        "-n5",
-        "tests_basic/core",
-    )
-
-
-@nox.parametrize(
     "numpy",
     ["1.23.5", "1.24.4", "1.25.2", "1.26.4", "2.0.0", "2.1.0", "2.2.0"],
 )

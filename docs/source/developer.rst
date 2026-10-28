@@ -54,14 +54,15 @@ Python
 
 Python is an obvious prerequisite, but note that ``uv`` can install `Python itself <https://docs.astral.sh/uv/guides/install-python/>`__ and manage multiple versions of it!
 This is extremely helpful to, say, test ``pylinac`` against multiple versions of Python.
+Pylinac requires Python 3.11 or newer.
 
 .. code-block:: bash
 
     # install Python 3.11
     uv python install 3.11
 
-    # or install older versions of Python
-    uv python install 3.10
+    # or install a newer supported version of Python
+    uv python install 3.12
 
 Virtual Environment
 ^^^^^^^^^^^^^^^^^^^

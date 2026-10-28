@@ -1,6 +1,6 @@
 [project]
 name = "pylinac"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 description = "A toolkit for performing TG-142 QA-related tasks on a linear accelerator"
 authors = [
     {name = "James Kerns", email = "jkerns100@gmail.com"}
@@ -123,7 +123,7 @@ exclude = ['playground.py']
 lint.select = ['E', 'F', 'I', 'UP', "W", "NPY", "FLY"]
 lint.ignore = ['E501']
 line-length = 88  # to match black; may change in the future
-target-version = 'py310'
+target-version = 'py311'
 
 [tool.ruff.lint.per-file-ignores]
 "*/__init__.py" = ["F401"]

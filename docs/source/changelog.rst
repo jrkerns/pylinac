@@ -16,6 +16,8 @@ v3.50.0
 Core
 ^^^^
 
+* :bdg-danger:`Change` The minimum supported Python version is now 3.11.
+  Python 3.10 is no longer supported because it reached end of life in October 2026.
 * :bdg-warning:`Fixed` XIM images can again be exported as PNG with Pillow 13
   after its `removal of mode-I PNG saving
   <https://pillow.readthedocs.io/en/stable/releasenotes/13.0.0.html#saving-i-mode-images-as-png>`_.

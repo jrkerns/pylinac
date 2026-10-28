@@ -115,11 +115,11 @@ Load -> Analyze -> Results / Visualize
   - Configuration is in `.pre-commit-config.yaml`.
   - Always run prek after modifying files and accept its suggestions.
 - Hooks include: pre-commit-hooks (check-json, check-ast, check-yaml, trailing-whitespace, end-of-file-fixer, requirements-txt-fixer, detect-private-key, mixed-line-ending, no-commit-to-branch), Ruff (lint + format), mypy (manual stage), pygrep-hooks (RST checks), check-readthedocs, blacken-docs.
-- Ruff config: select `E, F, I, UP, W, NPY, FLY`; line-length 88; ignore E501; target Python 3.10.
+- Ruff config: select `E, F, I, UP, W, NPY, FLY`; line-length 88; ignore E501; target Python 3.11.
 
 ### Coding Standards
 
-- Python `>=3.10`. Support all actively maintained versions and those receiving security fixes.
+- Python `>=3.11`. Support all actively maintained versions and those receiving security fixes.
 - Use parameter and return types everywhere except tests.
 - All functions and methods except private ones must have a docstring.
 - Docstrings follow the **numpy formatting style**.
