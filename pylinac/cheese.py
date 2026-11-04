@@ -241,7 +241,6 @@ class CheesePhantomBase(CatPhanBase, ResultsDataMixin[CheeseResult]):
     """A base class for doing cheese-like phantom analysis. A subset of catphan analysis where only one module is assumed."""
 
     model: str
-    _demo_url: str
     air_bubble_radius_mm: int | float
     localization_radius: int | float
     min_num_images: int
