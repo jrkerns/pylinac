@@ -42,6 +42,8 @@ from mpl_toolkits.mplot3d import art3d
 from plotly import graph_objects as go
 from py_linq import Enumerable
 from pydantic import BaseModel, Field
+from reportlab.lib.units import cm
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from scipy import ndimage, optimize
 from scipy.ndimage import zoom
 from scipy.spatial.transform import Rotation
@@ -2811,11 +2813,37 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             filename, page_title=title, metadata=metadata, logo=logo
         )
         text = self.results(as_list=True)
-        canvas.add_text(text=text, location=(7, 25.5))
-        # draw summary image on 1st page
+        # The results text must not run under the summary image, otherwise the
+        # last lines (couch iso size and RMS/RSS deviations) get hidden.
+        # Shrink the font until every line fits horizontally (x: 7 -> 20 cm)
+        # and above the lowest point the image may start at.
+        text_x, text_top, text_right = 7, 25.5, 20
+        min_image_top, min_image_size = 15, 12
+        line_spacing = 1.2  # reportlab default leading, as a font-size factor
+        font_size = 10
+        while font_size > 6:
+            widest = max(stringWidth(line, "Helvetica", font_size) for line in text)
+            text_height = len(text) * line_spacing * font_size / cm
+            if (
+                widest <= (text_right - text_x) * cm
+                and text_top - text_height >= min_image_top
+            ):
+                break
+            font_size -= 1
+        text_height = len(text) * line_spacing * font_size / cm
+        canvas.add_text(text=text, location=(text_x, text_top), font_size=font_size)
+        # draw summary image on 1st page, between the notes and the results text
+        image_bottom = 5
+        image_size = max(
+            min_image_size, min(16, text_top - text_height - 0.3 - image_bottom)
+        )
         data = io.BytesIO()
         self.save_summary(data, fig_size=(8, 8))
-        canvas.add_image(image_data=data, location=(2, 3), dimensions=(16, 16))
+        canvas.add_image(
+            image_data=data,
+            location=((21 - image_size) / 2, image_bottom),
+            dimensions=(image_size, image_size),
+        )
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)
             canvas.add_text(text=notes, location=(1, 4))

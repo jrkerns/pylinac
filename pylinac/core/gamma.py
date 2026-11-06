@@ -185,25 +185,25 @@ def gamma_geometric(
     normalized_reference_x = reference_coordinates / distance_to_agreement
     normalized_evaluation_x = evaluation_coordinates / distance_to_agreement
 
-    gamma = np.full(len(reference), fill_value)
-    for idx, (ref_x, ref_point) in enumerate(
-        zip(normalized_reference_x, normalized_reference)
+    gamma = np.full(len(evaluation), fill_value)
+    for idx, (eval_x, eval_point) in enumerate(
+        zip(normalized_evaluation_x, normalized_evaluation)
     ):
         # skip if below dose threshold
-        if ref_point < threshold:
+        if eval_point < threshold:
             continue
         simplex_distances = []
         # We don't want to calculate gamma for all simplexs of the entire profile,
-        # so we slice the vertices just beyond the edges of the DTA from the ref point.
+        # so we slice the vertices just beyond the edges of the DTA from the eval point.
         # For cases where the measurement spacing is 2x or larger than the DTA this
         # leads to the left and right indices being the same. We evaluate an extra
         # index for safety (+1/-1). This adds a small amount of computation but ensures we
         # are always evaluating a range of simplexes. Extra simplex vertices will
         # not change the gamma calculation.
         # This sub-sampling of the vertices is all for computational efficiency.
-        left_diffs = np.abs(normalized_evaluation_x - (ref_x - distance_to_agreement))
-        right_diffs = np.abs(normalized_evaluation_x - (ref_x + distance_to_agreement))
-        if is_monotonically_decreasing(normalized_evaluation_x):
+        left_diffs = np.abs(normalized_reference_x - (eval_x - distance_to_agreement))
+        right_diffs = np.abs(normalized_reference_x - (eval_x + distance_to_agreement))
+        if is_monotonically_decreasing(normalized_reference_x):
             # it can be the case that the x-values go from high to low vs low to high.
             # If the profiles are decreasing, we need to swap the left and right differences
             # We cannot sort/flip the array itself because then the gamma order
@@ -211,15 +211,15 @@ def gamma_geometric(
             left_diffs, right_diffs = right_diffs, left_diffs
         # we need to ensure we don't go out of bounds if evaluating at the edge, hence the max/min
         left_idx = max(np.argmin(left_diffs) - 1, 0)
-        right_idx = min(np.argmin(right_diffs) + 1, len(normalized_evaluation) - 1)
+        right_idx = min(np.argmin(right_diffs) + 1, len(normalized_reference) - 1)
         # the vertices are the (x, y) pairs of the reference profile
-        vertices_x = normalized_evaluation_x[left_idx : right_idx + 1].tolist()
-        vertices_y = normalized_evaluation[left_idx : right_idx + 1].tolist()
+        vertices_x = normalized_reference_x[left_idx : right_idx + 1].tolist()
+        vertices_y = normalized_reference[left_idx : right_idx + 1].tolist()
         vertices = list(np.array((x, y)) for x, y in zip(vertices_x, vertices_y))
         # iterate in pairs of x, y
         for v1, v2 in zip(vertices[:-1], vertices[1:]):
             distance = _compute_distance(
-                p=np.array([ref_x, ref_point]), vertices=[v1, v2]
+                p=np.array([eval_x, eval_point]), vertices=[v1, v2]
             )
             simplex_distances.append(distance)
         gamma[idx] = min(min(simplex_distances), gamma_cap_value)
@@ -271,62 +271,47 @@ def gamma_2d(
         raise ValueError(
             f"Reference and evaluation arrays must be 2D. Got reference: {reference.ndim} and evaluation: {evaluation.ndim}"
         )
-
-    # convert dose-to-agreement to % of global-max or % of local-value
-    if global_dose:
-        dose_ta = dose_to_agreement / 100 * reference.max()
-    else:
-        dose_ta = dose_to_agreement / 100 * reference
-
-    # Work with normalized values to avoid normalization inside the loop
-    eval_normalized = evaluation / dose_ta
-    reference_normalized = reference / dose_ta
-    threshold_normalized = dose_threshold / 100
-
+    threshold = reference.max() / 100 * dose_threshold
+    # convert dose to agreement to % of global max; ignored later if local dose
+    dose_ta = dose_to_agreement / 100 * reference.max()
     # pad eval array on both edges so our search does not go out of bounds
-    eval_normalized = np.pad(eval_normalized, distance_to_agreement, mode="edge")
-
-    # use scikit-image to compute the indices of a disk around the reference point
-    # we can then compute gamma over the eval points at these indices
-    # we use DTA+1 in disk because it looks like the results are exclusive of edges.
-    disk_rr, disk_cc = disk((0, 0), distance_to_agreement + 1)
-
-    # pre-calculate as much as possible not to repeat inside the loop
-    # For each row/col these are the indexes which are covered by the disk
-    row_r = np.array(range(reference.shape[0]))[np.newaxis].T + disk_rr
-    col_r = np.array(range(reference.shape[1]))[np.newaxis].T + disk_cc
-    # For the evaluation image the row/col indexes are offset by the padding distance
-    row_e = row_r + distance_to_agreement
-    col_e = col_r + distance_to_agreement
-    # The spatial distance depends only on the disk so it can be precalculated
-    dist_row = disk_rr / distance_to_agreement
-    dist_col = disk_cc / distance_to_agreement
-    dist_r_2 = dist_row**2 + dist_col**2
-
-    gamma_cap_value_2 = gamma_cap_value**2
-    gamma = np.full(reference.shape, float(gamma_cap_value))
+    eval_padded = np.pad(evaluation, distance_to_agreement, mode="edge")
     # iterate over each reference element, computing distance value and dose value
-    for row_idx in range(reference.shape[0]):
-        for col_idx in range(reference.shape[1]):
-            ref_point = reference_normalized[row_idx, col_idx]
-
+    gamma = np.zeros(reference.shape)
+    for row_idx, row in enumerate(reference):
+        for col_idx, ref_point in enumerate(row):
             # skip if below dose threshold
-            if math.isnan(ref_point) or ref_point < threshold_normalized:
+            if ref_point < threshold:
                 gamma[row_idx, col_idx] = fill_value
                 continue
+            # use scikit-image to compute the indices of a disk around the reference point
+            # we can then compute gamma over the eval points at these indices
+            # unlike the 1D computation, we have to search at an index offset by the distance to agreement
+            # we use DTA+1 in disk because it looks like the results are exclusive of edges.
+            # https://scikit-image.org/docs/stable/api/skimage.draw.html#disk
+            rs, cs = disk(
+                (row_idx + distance_to_agreement, col_idx + distance_to_agreement),
+                distance_to_agreement + 1,
+            )
 
-            # roi from evaluation
-            eval_roi = eval_normalized[row_e[row_idx, :], col_e[col_idx, :]]
-
-            # Normalized dose difference between evaluated and reference dose points
-            dist_dose = eval_roi - ref_point
-
-            # capital gamma square (avoid sqrt and memory access if above cap)
-            capital_gamma_2 = np.nanmin(dist_r_2 + dist_dose * dist_dose)
-            if capital_gamma_2 >= gamma_cap_value_2:
-                continue
-            gamma[row_idx, col_idx] = np.sqrt(capital_gamma_2)
-
+            capital_gammas = []
+            for r, c in zip(rs, cs):
+                eval_point = eval_padded[r, c]
+                # for the distance, we compare the ref row/col to the eval padded matrix
+                # but remember the padded array is padded by DTA, so to compare distances, we
+                # have to cancel the offset we used for dose purposes.
+                dist = math.dist(
+                    (row_idx, col_idx),
+                    (r - distance_to_agreement, c - distance_to_agreement),
+                )
+                dose = float(eval_point) - float(ref_point)
+                if not global_dose:
+                    dose_ta = dose_to_agreement / 100 * ref_point
+                capital_gamma = math.sqrt(
+                    dist**2 / distance_to_agreement**2 + dose**2 / dose_ta**2
+                )
+                capital_gammas.append(capital_gamma)
+            gamma[row_idx, col_idx] = min(np.nanmin(capital_gammas), gamma_cap_value)
     return np.asarray(gamma)
 
 
@@ -408,11 +393,11 @@ def gamma_1d(
     # we add some padding on the check because resampling SingleProfiles
     # can add ~1/2 pixel on each side to retain the same physical size
     # when upsampling.
-    if min(evaluation_coordinates) - 1 > min(reference_coordinates) or max(
-        evaluation_coordinates
-    ) + 1 < max(reference_coordinates):
+    if min(reference_coordinates) - 1 > min(evaluation_coordinates) or max(
+        reference_coordinates
+    ) + 1 < max(evaluation_coordinates):
         raise ValueError(
-            "The reference x-values must be within the range of the evaluation x-values"
+            "The evaluation x-values must be within the range of the reference x-values"
         )
     if resolution_factor < 1 or not isinstance(resolution_factor, int):
         raise ValueError("Resolution factor must be an integer greater than 0")
@@ -420,35 +405,35 @@ def gamma_1d(
     # convert dose to agreement to % of global max; ignored later if local dose
     dose_ta = dose_to_agreement / 100 * reference.max()
 
-    # we need to interpolate the evaluation profile to the reference DTA search x-values
+    # we need to interpolate the reference profile to the evaluation DTA search x-values
     # we allow extrapolation due to physical grid size at the edges.
     # I.e. at element 0 our DTA search will go to -1...+1.
     # this only comes into effect if the edge values of the x-values of the reference and evaluation are the same.
     ref_interp = interp1d(
-        evaluation_coordinates, evaluation, kind="linear", fill_value="extrapolate"
+        reference_coordinates, reference, kind="linear", fill_value="extrapolate"
     )
 
-    eval_interp_array = []
-    eval_x_vals = []
+    ref_interp_array = []
+    ref_x_vals = []
     gamma = []
-    for ref_x, ref_point in zip(reference_coordinates, reference):
+    for eval_x, eval_point in zip(evaluation_coordinates, evaluation):
         # skip if below dose threshold
-        if ref_point < threshold:
+        if eval_point < threshold:
             gamma.append(fill_value)
             continue
         capital_gammas = []
-        eval_xs = np.linspace(
-            ref_x - distance_to_agreement,
-            ref_x + distance_to_agreement,
+        ref_xs = np.linspace(
+            eval_x - distance_to_agreement,
+            eval_x + distance_to_agreement,
             num=int(distance_to_agreement * resolution_factor * 2 + 1),
         )
-        eval_x_vals.extend(eval_xs)
-        eval_vals = ref_interp(eval_xs)
-        eval_interp_array.extend(eval_vals)
-        for eval_x, eval_point in zip(eval_xs, eval_vals):
+        ref_x_vals.extend(ref_xs)
+        ref_vals = ref_interp(ref_xs)
+        ref_interp_array.extend(ref_vals)
+        for ref_x, ref_point in zip(ref_xs, ref_vals):
             dist = abs(ref_x - eval_x)
-            dose = float(ref_point) - float(
-                eval_point
+            dose = float(eval_point) - float(
+                ref_point
             )  # uints can cause overflow errors
             if not global_dose:
                 dose_ta = dose_to_agreement / 100 * ref_point
@@ -457,4 +442,4 @@ def gamma_1d(
             )
             capital_gammas.append(capital_gamma)
         gamma.append(min(min(capital_gammas), gamma_cap_value))
-    return np.asarray(gamma), np.asarray(eval_interp_array), np.asarray(eval_x_vals)
+    return np.asarray(gamma), np.asarray(ref_interp_array), np.asarray(ref_x_vals)
