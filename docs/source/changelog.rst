@@ -25,6 +25,14 @@ Core
   negative values or values above 65535 raise a descriptive error recommending
   TIFF instead of silently clipping pixel values.
 
+Quart
+^^^^^
+
+* :bdg-warning:`Fixed` High-contrast distances could be overestimated when noise
+  near the phantom edge caused interpolation to connect nonadjacent pixels.
+  Interpolation now preserves pixel order. Previous -700->-200 HU distances may
+  decrease when scans are reanalyzed.
+
 v3.49.0
 -------
 

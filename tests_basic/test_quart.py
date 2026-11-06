@@ -323,8 +323,13 @@ class TestQuartDVTZFlip(QuartDVTMixin, TestCase):
     snr = 402.5
     cnr = 60.66
     slice_thickness = 1.9
-    high_contrast_distance = 1.02
-    high_contrast_resolutions = {"Top": 0.615, "Bottom": 0.626}
+    high_contrast_distance = 0.717
+    high_contrast_resolutions = {
+        "Top": 0.615,
+        "Bottom": 0.626,
+        "Left": 0.773,
+        "Right": 0.856,
+    }
     horiz_dist = 159.9
     vert_dist = 159.8
     z_flip = True
@@ -348,7 +353,7 @@ class TestQuartHead(QuartDVTMixin, PlotlyTestMixin, TestCase):
     file_name = "Head_Quart.zip"
     phantom_roll = 0.2
     slice_thickness = 1.9
-    high_contrast_distance = 0.9
+    high_contrast_distance = 0.837
     origin_slice = 61
     snr = 50
     cnr = 6.45
@@ -413,7 +418,7 @@ class TestQuartHeadOffset(QuartDVTMixin, TestCase):
     slice_thickness = 1.9
     horiz_dist = 159.3
     vert_dist = 159.6
-    high_contrast_distance = 0.9
+    high_contrast_distance = 0.837
     snr = 50
     cnr = 6.45
     hu_values = {"Poly": POLY, "Acrylic": 126, "Air": -999, "Teflon": 981}
@@ -616,4 +621,86 @@ class TestQuartRAM6088(QuartDVTMixin, TestCase):
         "Water": 9,
     }
     unif_values = {"Center": 121, "Left": 121, "Right": 120, "Top": 119, "Bottom": 122}
+    has_water_vial = True
+
+
+class TestQuartRAM6466(QuartDVTMixin, TestCase):
+    """Background noise must not be reordered into the phantom edge transition."""
+
+    file_name = "quart-7854-2026-10-19t183214392_2026-10-19_19fa85.zip"
+    origin_slice = 62
+    phantom_roll = 0.01
+    snr = 611.62
+    cnr = 91.82
+    horiz_dist = 159.82
+    vert_dist = 159.89
+    high_contrast_distance = 0.774
+    high_contrast_resolutions = {
+        "Top": 0.845,
+        "Bottom": 0.789,
+        "Left": 0.837,
+        "Right": 0.623,
+    }
+    hu_values = {"Air": -1000, "Poly": -34, "Acrylic": 114, "Teflon": 948, "Water": 2}
+    unif_values = {"Top": 105, "Right": 116, "Bottom": 110, "Left": 103, "Center": 100}
+    has_water_vial = True
+
+
+class TestQuartRAM6466OctoberRepeat(QuartDVTMixin, TestCase):
+    file_name = "quart-7854-2026-10-19t190726217_2026-10-19_af995c.zip"
+    origin_slice = 62
+    phantom_roll = 0.04
+    snr = 432.58
+    cnr = 101.84
+    horiz_dist = 159.77
+    vert_dist = 159.93
+    high_contrast_distance = 0.757
+    high_contrast_resolutions = {
+        "Top": 0.841,
+        "Bottom": 0.756,
+        "Left": 0.807,
+        "Right": 0.624,
+    }
+    hu_values = {"Air": -1000, "Poly": -32, "Acrylic": 115, "Teflon": 948, "Water": 6}
+    unif_values = {"Top": 110, "Right": 118, "Bottom": 111, "Left": 108, "Center": 102}
+    has_water_vial = True
+
+
+class TestQuartRAM6466August(QuartDVTMixin, TestCase):
+    file_name = "Quart_RAM-6466_August.zip"
+    origin_slice = 47
+    phantom_roll = -0.12
+    snr = 174.00
+    cnr = 28.17
+    horiz_dist = 159.93
+    vert_dist = 160.01
+    high_contrast_distance = 0.647
+    high_contrast_resolutions = {
+        "Top": 0.657,
+        "Bottom": 0.657,
+        "Left": 0.648,
+        "Right": 0.629,
+    }
+    hu_values = {"Air": -974, "Poly": -27, "Acrylic": 121, "Teflon": 933, "Water": 8}
+    unif_values = {"Top": 118, "Right": 119, "Bottom": 121, "Left": 120, "Center": 121}
+    has_water_vial = True
+
+
+class TestQuartRAM6466September(QuartDVTMixin, TestCase):
+    file_name = "Quart_RAM-6466_September.zip"
+    origin_slice = 43
+    phantom_roll = 0.02
+    snr = 167.48
+    cnr = 22.62
+    horiz_dist = 159.90
+    vert_dist = 160.05
+    high_contrast_distance = 0.642
+    high_contrast_resolutions = {
+        "Top": 0.643,
+        "Bottom": 0.643,
+        "Left": 0.659,
+        "Right": 0.623,
+    }
+    hu_values = {"Air": -974, "Poly": -27, "Acrylic": 119, "Teflon": 929, "Water": 6}
+    unif_values = {"Top": 118, "Right": 119, "Bottom": 121, "Left": 119, "Center": 121}
     has_water_vial = True

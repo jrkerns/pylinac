@@ -427,7 +427,11 @@ class QuartGeometryModule(CatPhanModule):
                 # find the phantom edge and chop about it
                 edge_idx = np.argmax(np.diff(profile_data))
                 edge_data = profile_data[edge_idx - edge_5mm : edge_idx + edge_5mm]
-                interp_func = interp1d(edge_data, np.arange(len(edge_data)))
+                # default is to sort; sorting can place noise in the "ramp" area
+                # Setting assume sorted keeps noise where it's at
+                interp_func = interp1d(
+                    edge_data, np.arange(len(edge_data)), assume_sorted=True
+                )
                 idx_700, idx_200 = interp_func([-700, -200])
                 dists[next(keys)] = abs(idx_200 - idx_700) * self.mm_per_pixel
         return dists
