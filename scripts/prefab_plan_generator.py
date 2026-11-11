@@ -24,6 +24,8 @@ CONTEXTS = [
     (18, FluenceMode.STANDARD, 600),
 ]
 
+target_dir = Path(__file__).parent
+print(f"Target dir set to: {target_dir}")
 for mlc, rt_plan_file in MLCS:
     for context in CONTEXTS:
         energy, fluence_mode, max_dose_rate = context
@@ -115,5 +117,5 @@ for mlc, rt_plan_file in MLCS:
 
         # save file
         file_name = f"R{REVISION}_{plan_name}_{mlc}_prefab.dcm".replace(" ", "_")
-        generator.to_file(filename=file_name)
+        generator.to_file(filename=target_dir / file_name)
         print(f"Generated {file_name} plan")
