@@ -421,10 +421,10 @@ class Slice:
                 f"The number of ROIs detected {num_roi} was not the number expected (1)"
             )
         catphan_region = sorted(
-            regionprops, key=lambda x: np.abs(x.filled_area - self.catphan_size)
+            regionprops, key=lambda x: np.abs(x.area_filled - self.catphan_size)
         )[0]
-        is_too_large = self.catphan_size * 1.3 < catphan_region.filled_area
-        is_too_small = catphan_region.filled_area < self.catphan_size / 1.3
+        is_too_large = self.catphan_size * 1.3 < catphan_region.area_filled
+        is_too_small = catphan_region.area_filled < self.catphan_size / 1.3
         if is_too_small or is_too_large:
             raise ValueError("Unable to find ROI of expected size of the phantom")
         return catphan_region
@@ -827,14 +827,14 @@ class CTP404CP504(CatPhanModule):
             raise ValueError("Unable to locate the Geometric nodes")
         elif num_roi > 4:
             regionprops = sorted(
-                regionprops, key=lambda x: x.filled_area, reverse=True
+                regionprops, key=lambda x: x.area_filled, reverse=True
             )[:4]
         sorted_regions = sorted(
             regionprops, key=lambda x: 2 * x.centroid[0] + x.centroid[1]
         )
         centers = [
             Point(
-                r.weighted_centroid[1] + xbounds[0], r.weighted_centroid[0] + ybounds[0]
+                r.centroid_weighted[1] + xbounds[0], r.centroid_weighted[0] + ybounds[0]
             )
             for r in sorted_regions
         ]
@@ -2563,7 +2563,7 @@ class CatPhanBase(ResultsDataMixin[CatphanResult], QuaacMixin):
 
     def _is_right_area(self, region: RegionProperties):
         thresh = np.pi * ((self.air_bubble_radius_mm / self.mm_per_pixel) ** 2)
-        return thresh * 2 > region.filled_area > thresh / 2
+        return thresh * 2 > region.area_filled > thresh / 2
 
     def _is_right_eccentricity(self, region: RegionProperties):
         return region.eccentricity < 0.5
