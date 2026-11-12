@@ -1886,7 +1886,7 @@ class ACRMRILarge(CatPhanBase, ResultsDataMixin[ACRMRIResult]):
             ]
             exact_size = np.pi * ((self.air_bubble_radius_mm / self.mm_per_pixel) ** 2)
             most_similar_bubble = sorted(
-                circle_bubbles, key=lambda r: abs(r.filled_area - exact_size)
+                circle_bubbles, key=lambda r: abs(r.area_filled - exact_size)
             )[0]
             y_dist = most_similar_bubble.centroid[0] - slice.phan_center.y
             x_dist = most_similar_bubble.centroid[1] - slice.phan_center.x

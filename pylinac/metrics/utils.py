@@ -136,7 +136,7 @@ def find_features(
                 to_pop = []
                 for key, region in sorted(
                     feature_regions.items(),
-                    key=lambda item: item[1].filled_area,
+                    key=lambda item: item[1].area_filled,
                     reverse=True,
                 ):
                     if not condition(
