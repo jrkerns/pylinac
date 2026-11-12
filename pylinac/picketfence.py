@@ -1386,7 +1386,7 @@ class PicketFence(ResultsDataMixin[PFResult], QuaacMixin):
             ax.boxplot(
                 x=error_dists,
                 positions=np.array(pos),
-                vert=True,
+                orientation="horizontal",
                 manage_ticks=False,
                 **barplot_kwargs,
             )
