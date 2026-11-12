@@ -467,6 +467,23 @@ class Synthetic3BBPerfect(SyntheticMultiMetMixin, TestCase):
     median_2d_distance = 0
     mean_2d_distance = 0
 
+    def test_plotly_zoom_includes_fields_with_20_mm_margin(self):
+        img = self.wl.images[0]
+        fig = img.plotly(show=False)
+        boundaries = [
+            trace
+            for trace in fig.data
+            if trace.name and trace.name.endswith("Field Boundary")
+        ]
+        field_x = [x for trace in boundaries for x in trace.x]
+        field_y = [y for trace in boundaries for y in trace.y]
+        left, right = fig.layout.xaxis.range
+        bottom, top = fig.layout.yaxis.range
+        self.assertAlmostEqual((min(field_x) - left) / img.dpmm, 20, delta=1)
+        self.assertAlmostEqual((right - max(field_x)) / img.dpmm, 20, delta=1)
+        self.assertAlmostEqual((min(field_y) - top) / img.dpmm, 20, delta=1)
+        self.assertAlmostEqual((bottom - max(field_y)) / img.dpmm, 20, delta=1)
+
 
 class Synthetic2BBYaw(SyntheticMultiMetMixin, TestCase):
     arrangement = (

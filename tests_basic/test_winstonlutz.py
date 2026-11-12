@@ -1524,6 +1524,13 @@ class Synthetic1mmLeftNoCouch(SyntheticWLMixin, TestCase):
     cax2bb_median_distance = 0.5
     cax2epid_max_distance = 1
 
+    def test_plotly_zoom_includes_field_with_20_mm_margin(self):
+        img = self.wl.images[0]
+        fig = img.plotly(show=False)
+        # The generated 20 mm field plus 20 mm on each side makes a 60 mm view.
+        self.assertAlmostEqual(np.ptp(fig.layout.xaxis.range) / img.dpmm, 60, delta=1)
+        self.assertAlmostEqual(np.ptp(fig.layout.yaxis.range) / img.dpmm, 60, delta=1)
+
 
 class Synthetic1mmLeft(SyntheticWLMixin, TestCase):
     """This should give the same result as above but including couch images"""
@@ -2145,6 +2152,14 @@ class kVImages(WinstonLutzMixin, TestCase):
     cax2epid_max_distance = 0.28
     axis_of_rotation = {-1: Axis.REFERENCE}
     bb_shift_vector = Vector(x=-0.24, y=0, z=0)
+
+    def test_plotly_zoom_uses_bb_window_for_open_field(self):
+        img = self.wl.images[0]
+        fig = img.plotly(show=False)
+        self.assertAlmostEqual(np.ptp(fig.layout.xaxis.range) / img.dpmm, 40, delta=1)
+        self.assertAlmostEqual(np.ptp(fig.layout.yaxis.range) / img.dpmm, 40, delta=1)
+        self.assertAlmostEqual(np.mean(fig.layout.xaxis.range), img.bb.x, delta=1)
+        self.assertAlmostEqual(np.mean(fig.layout.yaxis.range), img.bb.y, delta=1)
 
 
 class TIFFImages(WinstonLutzMixin, TestCase):

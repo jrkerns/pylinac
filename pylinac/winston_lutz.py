@@ -754,6 +754,10 @@ class WLBaseImage(image.LinacDicomImage):
         self.ground()
         self.normalize()
         self.bb_arrangement = bb_arrangement
+        # Start each analysis with fresh field boundaries and computed metrics.
+        self._field_boundary = None
+        self.metrics = []
+        self.metric_values = {}
         field_caxs = self.find_field_centroids(is_open_field=is_open_field)
         field_matches = self.find_field_matches(
             field_caxs, bb_proximity_mm=bb_proximity_mm
@@ -905,7 +909,7 @@ class WLBaseImage(image.LinacDicomImage):
         show
             Whether to show the plot
         zoomed
-            Whether to zoom in on the BBs. If False, no zooming is done and the entire image is shown.
+            Whether to crop around the BBs/fields. If False, show the entire image.
         show_legend
             Whether to show the legend.
         show_colorbar
@@ -917,35 +921,11 @@ class WLBaseImage(image.LinacDicomImage):
 
         """
         if zoomed:
-            min_x = int(
-                round(
-                    min([match.bb.x for match in self.arrangement_matches.values()])
-                    - 20 * self.dpmm
-                )
-            )
-            min_y = int(
-                round(
-                    min([match.bb.y for match in self.arrangement_matches.values()])
-                    - 20 * self.dpmm
-                )
-            )
-            max_x = int(
-                round(
-                    max([match.bb.x for match in self.arrangement_matches.values()])
-                    + 20 * self.dpmm
-                )
-            )
-            max_y = int(
-                round(
-                    max([match.bb.y for match in self.arrangement_matches.values()])
-                    + 20 * self.dpmm
-                )
-            )
-            window_array = self.array[int(min_y) : int(max_y), int(min_x) : int(max_x)]
+            min_x, max_x, min_y, max_y = self._plotly_zoom_bounds()
         else:
             min_x, max_x = 0, self.shape[1]
             min_y, max_y = 0, self.shape[0]
-            window_array = self.array
+        window_array = self.array[min_y:max_y, min_x:max_x]
         x_indices = np.arange(min_x, max_x)
         y_indices = np.arange(min_y, max_y)
         if fig is None:
@@ -1034,6 +1014,60 @@ class WLBaseImage(image.LinacDicomImage):
         if show:
             fig.show()
         return fig
+
+    def _plotly_zoom_bounds(self) -> tuple[int, int, int, int]:
+        """Return pixel slice bounds as (left, right, top, bottom)."""
+        # Start with the BB centers. This also handles open-field
+        # images, which have no detected field boundaries to include.
+        bbs = [match.bb for match in self.arrangement_matches.values()]
+        left = min(bb.x for bb in bbs)
+        right = max(bb.x for bb in bbs)
+        top = min(bb.y for bb in bbs)
+        bottom = max(bb.y for bb in bbs)
+
+        # Extend the limits to include every matched field, for both regular
+        # and multi-target WL.
+        for boundary in self._plotly_field_boundaries():
+            field_y, field_x = np.nonzero(boundary)
+            if not field_x.size:
+                continue
+            left = min(left, field_x.min())
+            top = min(top, field_y.min())
+            right = max(right, field_x.max())
+            bottom = max(bottom, field_y.max())
+
+        # Add 20 mm of context beyond the outermost BBs/fields on each side.
+        margin = 20 * self.dpmm
+        left = int(left - margin)
+        right = int(right + margin)
+        top = int(top - margin)
+        bottom = int(bottom + margin)
+
+        # Keep slice bounds inside the image; negative starts would wrap around.
+        image_height, image_width = self.shape
+        left = max(0, left)
+        right = min(image_width, right)
+        top = max(0, top)
+        bottom = min(image_height, bottom)
+        return left, right, top, bottom
+
+    def _plotly_field_boundaries(self) -> list[np.ndarray]:
+        """Collect matched field boundaries from regular or multi-target analysis."""
+        # Regular WL finds its single field directly rather than using a locator.
+        boundaries = []
+        if self._field_boundary is not None:
+            boundaries.append(self._field_boundary)
+
+        # Grab just the field metrics (drop the BBs) and then get their boundaries
+        matched_fields = [match.field for match in self.arrangement_matches.values()]
+        for metric in self.metrics:
+            if isinstance(metric, GlobalSizedFieldLocator):
+                for center, boundary in zip(metric.fields, metric.boundaries):
+                    if any(
+                        center.distance_to(field) < 1e-6 for field in matched_fields
+                    ):
+                        boundaries.append(boundary)
+        return boundaries
 
     def _plotly_bb_and_field_overlays(self, fig: go.Figure) -> None:
         """Draw metric overlays with names and legend groups from the matched BBs."""
@@ -1972,7 +2006,7 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         Parameters
         ----------
         zoomed : bool
-            Whether to zoom in on the BBs of the 2D images.
+            Whether to crop around the BBs/fields. If False, show the entire image.
         show_legend : bool
             Whether to show the legend on the plot.
         show : bool
@@ -3225,7 +3259,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         Parameters
         ----------
         zoomed : bool
-            Whether to zoom in on the 2D image plots.
+            Whether to crop around the BBs/fields. If False, show the entire image.
         show : bool
             Whether to show the plot.
         show_colorbar : bool

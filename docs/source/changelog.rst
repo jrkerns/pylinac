@@ -33,6 +33,13 @@ Quart
   Interpolation now preserves pixel order. Previous -700->-200 HU distances may
   decrease when scans are reanalyzed.
 
+Winston-Lutz
+^^^^^^^^^^^^
+
+* :bdg-warning:`Fixed` Zoomed Plotly images for regular and multi-target Winston-Lutz
+  now include a 20 mm margin on each side of the field or BB, whichever is larger, preventing
+  larger fields from being cropped out. Open-field kV images retain the BB-centered view.
+
 v3.49.0
 -------
 
