@@ -3965,7 +3965,7 @@ class ACRDigitalMammography(ImagePhantomBase):
 
             fp = np.ones((5, math.ceil(dpmm * 0.5 * max_gap)))
             fp = transform.rotate(fp, angle=-fiber_orientation, resize=True)
-            img_clo = morphology.binary_closing(img_bin, footprint=fp)
+            img_clo = morphology.closing(img_bin, footprint=fp)
 
             img_lab = measure.label(img_clo)
             regions = measure.regionprops(img_lab, intensity_image=img_clo)
