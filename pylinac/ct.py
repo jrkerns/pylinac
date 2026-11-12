@@ -834,7 +834,7 @@ class CTP404CP504(CatPhanModule):
         )
         centers = [
             Point(
-                r.weighted_centroid[1] + xbounds[0], r.weighted_centroid[0] + ybounds[0]
+                r.centroid_weighted[1] + xbounds[0], r.centroid_weighted[0] + ybounds[0]
             )
             for r in sorted_regions
         ]
