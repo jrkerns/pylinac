@@ -133,7 +133,7 @@ def is_right_size(region: RegionProperties, instance: object, rtol=0.1) -> bool:
     """Whether the region is close to the expected size of the phantom, given the SSD and physical phantom size."""
     return bool(
         np.isclose(
-            region.bbox_area,
+            region.area_bbox,
             instance.phantom_bbox_size_px,
             rtol=rtol,
         )
@@ -328,14 +328,14 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         if self.roi_match_condition == "max":
             # take the biggest ROI and call that the phantom outline
             best_roi_idx = np.argsort(
-                [sorted_regions[phan].bbox_area for phan in blobs]
+                [sorted_regions[phan].area_bbox for phan in blobs]
             )[-1]
         elif (
             self.roi_match_condition == "closest"
         ):  # take the one most similar in size to known size
             best_roi_idx = np.argsort(
                 [
-                    abs(sorted_regions[phan].bbox_area - self.phantom_bbox_size_px)
+                    abs(sorted_regions[phan].area_bbox - self.phantom_bbox_size_px)
                     for phan in blobs
                 ]
             )[0]
@@ -1172,7 +1172,7 @@ class ImagePhantomBase(ResultsDataMixin[PlanarResult], QuaacMixin):
         pass
 
     def _phantom_radius_calc(self):
-        return math.sqrt(self.phantom_ski_region.bbox_area)
+        return math.sqrt(self.phantom_ski_region.area_bbox)
 
     def _find_ssd(self):
         """If the SSD parameter is set to auto, search at SAD, then at -5cm SID"""
@@ -2053,7 +2053,7 @@ class LasVegas(ImagePhantomBase):
             self._phantom_ski_region = None
 
     def _phantom_radius_calc(self) -> float:
-        return math.sqrt(self.phantom_ski_region.bbox_area) * 1.626
+        return math.sqrt(self.phantom_ski_region.area_bbox) * 1.626
 
     def _phantom_angle_calc(self) -> float:
         return 0.0
@@ -2341,7 +2341,7 @@ class PTWEPIDQC(ImagePhantomBase):
         -------
         radius : float
         """
-        return math.sqrt(self.phantom_ski_region.bbox_area) * 0.116
+        return math.sqrt(self.phantom_ski_region.area_bbox) * 0.116
 
     def _phantom_angle_calc(self) -> float:
         """The angle of the phantom. This assumes the user has placed the phantom with the high-contrast line pairs at the top
@@ -2621,7 +2621,7 @@ class StandardImagingQC3(ImagePhantomBase):
         -------
         radius : float
         """
-        return math.sqrt(self.phantom_ski_region.bbox_area) * 0.0896
+        return math.sqrt(self.phantom_ski_region.area_bbox) * 0.0896
 
     @lru_cache()
     def _phantom_angle_calc(self) -> float:
@@ -2709,7 +2709,7 @@ class StandardImagingQCkV(StandardImagingQC3):
         -------
         radius : float
         """
-        return math.sqrt(self.phantom_ski_region.bbox_area) * 0.0989
+        return math.sqrt(self.phantom_ski_region.area_bbox) * 0.0989
 
 
 @capture_warnings
@@ -2772,7 +2772,7 @@ class SNCkV(ImagePhantomBase):
         -------
         radius : float
         """
-        return math.sqrt(self.phantom_ski_region.bbox_area) * 0.1071
+        return math.sqrt(self.phantom_ski_region.area_bbox) * 0.1071
 
     def _phantom_angle_calc(self) -> float:
         """The angle of the phantom. This assumes the user is using the stand that comes with the phantom,
@@ -2861,7 +2861,7 @@ class SNCMV(SNCkV):
         -------
         radius : float
         """
-        return math.sqrt(self.phantom_ski_region.bbox_area) * 0.095
+        return math.sqrt(self.phantom_ski_region.area_bbox) * 0.095
 
 
 @capture_warnings
@@ -2917,7 +2917,7 @@ class SNCMV12510(SNCMV):
         -------
         radius : float
         """
-        return math.sqrt(self.phantom_ski_region.bbox_area) * 0.105
+        return math.sqrt(self.phantom_ski_region.area_bbox) * 0.105
 
 
 @capture_warnings
@@ -3073,7 +3073,7 @@ class LeedsTOR(ImagePhantomBase):
             The radius of the phantom in pixels. The actual value is not important; it is used for scaling the
             distances to the low and high contrast ROIs.
         """
-        return math.sqrt(self.phantom_ski_region.bbox_area) * 0.515
+        return math.sqrt(self.phantom_ski_region.area_bbox) * 0.515
 
     def _determine_start_angle_for_circle_profile(self) -> float:
         """Determine an appropriate angle for starting the circular profile
@@ -3114,7 +3114,7 @@ class LeedsTOR(ImagePhantomBase):
         sorted_regions = (
             Enumerable(regions)
             .where(
-                lambda r: math.isclose(r.bbox_area, high_res_block_size, rel_tol=0.75)
+                lambda r: math.isclose(r.area_bbox, high_res_block_size, rel_tol=0.75)
             )
             .where(
                 lambda r: (
@@ -3371,7 +3371,7 @@ class DoselabMC2kV(ImagePhantomBase):
         leeds.plot_analyzed_image()
 
     def _phantom_radius_calc(self) -> float:
-        return math.sqrt(self.phantom_ski_region.bbox_area) * 1.214
+        return math.sqrt(self.phantom_ski_region.area_bbox) * 1.214
 
     def _phantom_angle_calc(self) -> float:
         """Estimate MC2 phantom angle from the outline via a constrained Hough line

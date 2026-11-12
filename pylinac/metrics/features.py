@@ -55,7 +55,7 @@ def is_solid(region: RegionProperties, *args, **kwargs) -> bool:
 def is_round(region: RegionProperties, *args, **kwargs) -> bool:
     """Decide if the ROI is circular in nature by testing the filled area vs bounding box. Used to find the BB."""
     expected_fill_ratio = np.pi / 4  # area of a circle inside a square
-    actual_fill_ratio = region.filled_area / region.bbox_area
+    actual_fill_ratio = region.filled_area / region.area_bbox
     return expected_fill_ratio * 1.2 > actual_fill_ratio > expected_fill_ratio * 0.8
 
 
@@ -85,7 +85,7 @@ def is_right_square_perimeter(region: RegionProperties, *args, **kwargs) -> bool
 
 def is_square(region: RegionProperties, *args, **kwargs) -> bool:
     """Decide if the ROI is square in nature by testing the filled area vs bounding box. Used to find the BB."""
-    actual_fill_ratio = region.filled_area / region.bbox_area
+    actual_fill_ratio = region.filled_area / region.area_bbox
     return actual_fill_ratio > 0.8
 
 

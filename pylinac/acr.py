@@ -646,7 +646,7 @@ class ACRCT(CatPhanBase, ResultsDataMixin[ACRCTResult]):
             paths.append(path)
         return paths
 
-    def find_phantom_roll(self, func=lambda roi: roi.bbox_area) -> float:
+    def find_phantom_roll(self, func=lambda roi: roi.area_bbox) -> float:
         """Determine the "roll" of the phantom.
 
         Only difference of base method is that we sort the ROIs by size,
