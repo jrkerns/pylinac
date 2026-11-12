@@ -21,7 +21,7 @@ from .core import image, pdf
 from .core.exceptions import NotAnalyzed
 from .core.geometry import Point, Rectangle
 from .core.hill import Hill
-from .core.io import SNCProfiler, retrieve_demo_file
+from .core.io import LoadableMixin, SNCProfiler
 from .core.profile import Edge, Interpolation, Normalization, SingleProfile
 from .core.roi import RectangleROI
 from .core.utilities import (
@@ -439,8 +439,10 @@ class FieldResult(DeviceResult):
     )
 
 
-class FieldAnalysis(ResultsDataMixin[FieldResult], QuaacMixin):
+class FieldAnalysis(LoadableMixin, ResultsDataMixin[FieldResult], QuaacMixin):
     """Class for analyzing the various parameters of a radiation image, most commonly an open image from a linac."""
+
+    DEMO_FILES = ["flatsym_demo.dcm"]
 
     def __init__(
         self,
@@ -472,15 +474,9 @@ class FieldAnalysis(ResultsDataMixin[FieldResult], QuaacMixin):
         self.image.check_inversion_by_histogram()
 
     @classmethod
-    def from_demo_image(cls):
-        """Load the demo image into an instance."""
-        demo_file = retrieve_demo_file(name="flatsym_demo.dcm")
-        return cls(demo_file)
-
-    @staticmethod
-    def run_demo() -> None:
+    def run_demo(cls) -> None:
         """Run the Field Analysis demo by loading the demo image, print results, and plot the profiles."""
-        fs = FieldAnalysis.from_demo_image()
+        fs = cls.from_demo_image()
         fs.analyze(protocol=Protocol.VARIAN)
         print(fs.results())
         fs.plot_analyzed_image()
@@ -1558,6 +1554,10 @@ class Device(Enum):
 class DeviceFieldAnalysis(FieldAnalysis):
     """Field analysis using a device array."""
 
+    # Demo configuration for LoadableMixin
+    DEMO_FILES = ["6fff.prm"]
+    DEMO_KWARGS = {"device": Device.PROFILER}
+
     def __init__(self, path: str, device: Device):
         """
         Parameters
@@ -1574,15 +1574,9 @@ class DeviceFieldAnalysis(FieldAnalysis):
         self._dpmm = 1 / device.value["detector spacing (mm)"]
 
     @classmethod
-    def from_demo_image(cls):
-        """Load the demo image into an instance."""
-        demo_file = retrieve_demo_file(name="6fff.prm")
-        return cls(demo_file, device=Device.PROFILER)
-
-    @staticmethod
-    def run_demo() -> None:
+    def run_demo(cls) -> None:
         """Run the Field analysis demo by loading the demo device dataset, print results, and plot the profiles."""
-        fs = DeviceFieldAnalysis.from_demo_image()
+        fs = cls.from_demo_image()
         fs.analyze(protocol=Protocol.VARIAN, is_FFF=True)
         print(fs.results())
         fs.plot_analyzed_image()
