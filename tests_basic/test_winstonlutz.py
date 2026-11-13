@@ -10,6 +10,7 @@ from pathlib import Path
 from threading import Lock
 from types import SimpleNamespace
 from unittest import TestCase
+from unittest.mock import PropertyMock, patch
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1130,12 +1131,6 @@ class TestPlottingSaving(TestCase):
         self.wl._plot_deviation(Axis.GANTRY, ax=ax, show=False)
         self.assertTrue({"RMS", "RSS"}.issubset(ax.get_legend_handles_labels()[1]))
 
-        figures = self.wl.plotly_analyzed_images(show=False)
-        trace_names = {
-            trace.name for trace in figures["In-plane Gantry displacement"].data
-        }
-        self.assertTrue({"RMS", "RSS"}.issubset(trace_names))
-
     def test_save_to_stream(self):
         items = self.wl.save_images_to_stream()
         assert isinstance(items, dict)
@@ -1596,6 +1591,145 @@ class Synthetic1mmIn1mmLeft(SyntheticWLMixin, TestCase):
     cax2epid_max_distance = 1.42
     couch_iso_size = 2.8
 
+    def test_plotly_bev_coordinates(self):
+        figures = self.wl.plotly_analyzed_images(show=False)
+        fig = figures["BEV displacement view"]
+        traces = {trace.name: trace for trace in fig.data}
+        for axis in (Axis.GANTRY, Axis.COLLIMATOR, Axis.COUCH):
+            with self.subTest(axis=axis):
+                curve = traces[axis.value]
+                centroid = traces[f"{axis.value} Centroid"]
+                imgs = [
+                    img
+                    for img in self.wl.images
+                    if img.variable_axis in (axis, Axis.REFERENCE)
+                ]
+                expected = [
+                    bb_projection_with_rotation(
+                        offset_left=self.offset_mm_left,
+                        offset_up=self.offset_mm_up,
+                        offset_in=self.offset_mm_in,
+                        gantry=img.gantry_angle,
+                        couch=img.couch_angle,
+                    )
+                    for img in imgs
+                ]
+                expected.append(expected[0])
+                xs, ys = np.array(expected).T
+                np.testing.assert_allclose(curve.x, xs, atol=0.03)
+                np.testing.assert_allclose(curve.y, ys, atol=0.03)
+                self.assertAlmostEqual(centroid.x[0], xs.mean(), delta=0.03)
+                self.assertAlmostEqual(centroid.y[0], ys.mean(), delta=0.03)
+                self.assertEqual(curve.hoverinfo, "text+x+y")
+                self.assertIn("Angle:", curve.hovertext[0])
+                self.assertIn("Total:", curve.hovertext[0])
+                self.assertEqual(fig.layout.xaxis.title.text, "Local X (+Right) (mm)")
+                self.assertEqual(fig.layout.yaxis.title.text, "Y (+In) (mm)")
+
+    def test_plotly_bev_legend_and_shared_references(self):
+        figures = self.wl.plotly_analyzed_images(show=False)
+        self.assertEqual(len(figures), len(self.wl.images) + 2)
+        self.assertFalse(any("POV" in key or "In-plane" in key for key in figures))
+        fig = figures["BEV displacement view"]
+        self.assertEqual(fig.layout.title.text, "BEV displacement view")
+        self.assertEqual(fig.layout.xaxis.scaleanchor, "y")
+        self.assertEqual(fig.layout.legend.groupclick, "toggleitem")
+        self.assertTrue(fig.layout.showlegend)
+        traces = {trace.name: trace for trace in fig.data}
+        colors = set()
+        for axis in (Axis.GANTRY, Axis.COLLIMATOR, Axis.COUCH, Axis.EPID):
+            curve = traces[axis.value]
+            centroid = traces[f"{axis.value} Centroid"]
+            self.assertNotEqual(curve.showlegend, False)
+            self.assertTrue(centroid.showlegend)
+            self.assertEqual(curve.legendgroup, axis.value)
+            self.assertEqual(centroid.legendgroup, f"{axis.value} Centroid")
+            self.assertEqual(curve.line.color, centroid.marker.color)
+            self.assertNotEqual(curve.marker.symbol, centroid.marker.symbol)
+            colors.add(curve.line.color)
+        self.assertEqual(len(colors), 4)
+        self.assertEqual(len(fig.data), 9)
+        self.assertEqual(tuple(traces["Field Center"].x), (0,))
+        self.assertEqual(tuple(traces["Field Center"].y), (0,))
+        self.assertEqual(len(fig.layout.shapes), 2)
+        shapes = {shape.name: shape for shape in fig.layout.shapes}
+        vertical = shapes["x=0"]
+        self.assertEqual((vertical.xref, vertical.yref), ("x", "y domain"))
+        self.assertEqual((vertical.y0, vertical.y1), (0, 1))
+        horizontal = shapes["y=0"]
+        self.assertEqual((horizontal.xref, horizontal.yref), ("x domain", "y"))
+        self.assertEqual((horizontal.x0, horizontal.x1), (0, 1))
+        hidden = self.wl.plotly_analyzed_images(show=False, show_legend=False)
+        self.assertFalse(hidden["BEV displacement view"].layout.showlegend)
+
+    def test_plotly_bev_minimum_and_expanded_ranges(self):
+        for x, y, expected_limit in (
+            (0, 0, 1),
+            (0.3, 0.4, 1),
+            (0.6, 0.8, 1),
+            (0.9, 0.9, math.hypot(0.9, 0.9) * 1.1),
+            (-2, -3, math.hypot(2, 3) * 1.1),
+        ):
+            with self.subTest(x=x, y=y):
+                with (
+                    patch.object(
+                        WinstonLutz2D,
+                        "cax2bb_vector",
+                        new_callable=PropertyMock,
+                        return_value=Vector(x, y),
+                    ),
+                    patch.object(
+                        WinstonLutz2D,
+                        "cax2epid_vector",
+                        new_callable=PropertyMock,
+                        return_value=Vector(),
+                    ),
+                ):
+                    fig = self.wl.plotly_analyzed_images(show=False)[
+                        "BEV displacement view"
+                    ]
+                for axis in (fig.layout.xaxis, fig.layout.yaxis):
+                    np.testing.assert_allclose(
+                        axis.range, [-expected_limit, expected_limit]
+                    )
+                    self.assertFalse(axis.autorange)
+                    self.assertEqual(axis.constrain, "domain")
+
+    def test_plotly_bev_omitted_without_eligible_images(self):
+        with patch.object(
+            WinstonLutz2D, "variable_axis", new_callable=PropertyMock
+        ) as variable_axis:
+            variable_axis.return_value = Axis.GBP_COMBO
+            figures = self.wl.plotly_analyzed_images(show=False)
+        self.assertNotIn("BEV displacement view", figures)
+        self.assertEqual(len(figures), len(self.wl.images) + 1)
+
+    def test_plotly_epid_bev_coordinates(self):
+        wl = self.new_instance()
+        wl.analyze(bb_size_mm=self.bb_size)
+        for img in wl.images:
+            img.field_cax = img.epid + Point(-img.dpmm, 2 * img.dpmm)
+        # Isolate the EPID contribution to the shared zoom boundary.
+        with patch.object(
+            WinstonLutz2D,
+            "cax2bb_vector",
+            new_callable=PropertyMock,
+            return_value=Vector(),
+        ):
+            figures = wl.plotly_analyzed_images(show=False)
+        traces = {trace.name: trace for trace in figures["BEV displacement view"].data}
+        curve = traces[Axis.EPID.value]
+        centroid = traces[f"{Axis.EPID.value} Centroid"]
+        np.testing.assert_allclose(curve.x, 1)
+        np.testing.assert_allclose(curve.y, 2)
+        self.assertAlmostEqual(centroid.x[0], 1)
+        self.assertAlmostEqual(centroid.y[0], 2)
+        # The EPID displacement also contributes to the shared zoom boundary.
+        np.testing.assert_allclose(
+            figures["BEV displacement view"].layout.xaxis.range,
+            [-math.sqrt(5) * 1.1, math.sqrt(5) * 1.1],
+        )
+
 
 class Synthetic1mmOut1mmRight(SyntheticWLMixin, TestCase):
     offset_mm_in = -1
@@ -1605,6 +1739,17 @@ class Synthetic1mmOut1mmRight(SyntheticWLMixin, TestCase):
     cax2bb_median_distance = 1.4
     cax2epid_max_distance = 1.42
     couch_iso_size = 2.8
+
+    def test_plotly_bev_opposite_offsets(self):
+        figures = self.wl.plotly_analyzed_images(show=False)
+        traces = {trace.name: trace for trace in figures["BEV displacement view"].data}
+        curve = traces[Axis.COLLIMATOR.value]
+        centroid = traces[f"{Axis.COLLIMATOR.value} Centroid"]
+        # Only the G0/C0 reference image contributes to this plot.
+        np.testing.assert_allclose(curve.x, 1, atol=0.03)
+        np.testing.assert_allclose(curve.y, -1, atol=0.03)
+        self.assertAlmostEqual(centroid.x[0], 1, delta=0.03)
+        self.assertAlmostEqual(centroid.y[0], -1, delta=0.03)
 
 
 class Synthetic2mmUp1mmLeft(SyntheticWLMixin, TestCase):
@@ -1828,8 +1973,8 @@ class WLUseFileNames(WinstonLutzMixin, PlotlyTestMixin, TestCase):
     use_filenames = True
     missing_axis_value = 0
     num_images = 4
-    # For below, note that gantry, couch, and epid POV plots are not made due to lack of isolated-axis images. This is on purpose.
-    num_figs = 7
+    # Only the collimator curve has eligible images in the combined BEV.
+    num_figs = 6
     collimator_iso_size = 1.2
     cax2bb_max_distance = 0.9
     cax2bb_median_distance = 0.8
@@ -1846,6 +1991,11 @@ class WLUseFileNames(WinstonLutzMixin, PlotlyTestMixin, TestCase):
     def setUp(self) -> None:
         super().setUp()
         self.instance = self.wl
+
+    def test_plotly_bev_omits_missing_axes(self):
+        figures = self.wl.plotly_analyzed_images(show=False)
+        names = {trace.name for trace in figures["BEV displacement view"].data}
+        self.assertEqual(names, {"Collimator", "Collimator Centroid", "Field Center"})
 
 
 class WLBadFilenames(TestCase):
@@ -1871,7 +2021,7 @@ class KatyiX0(WinstonLutzMixin, PlotlyTestMixin, TestCase):
     machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=-0.4, y=0.15, z=-0.5)
     print_results = True
-    num_figs = 26
+    num_figs = 19
     fig_data = {
         0: {
             "title": "1",

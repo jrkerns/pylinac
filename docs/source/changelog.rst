@@ -39,6 +39,16 @@ Winston-Lutz
 * :bdg-warning:`Fixed` Zoomed Plotly images for regular and multi-target Winston-Lutz
   now include a 20 mm margin on each side of the field or BB, whichever is larger, preventing
   larger fields from being cropped out. Open-field kV images retain the BB-centered view.
+* :bdg-warning:`Fixed` Zoomed Plotly images for regular and multi-target Winston-Lutz
+  now include a 20 mm margin on each side of the field or BB, whichever is larger, preventing
+  larger fields from being cropped out. Open-field kV images retain the BB-centered view.
+* :bdg-danger:`Change` Winston-Lutz Plotly output now combines the gantry, collimator,
+  couch, and EPID displacement curves into one ``"BEV displacement"`` figure,
+  replacing the separate POV and in-plane polar figures. Curves and centroids have
+  separate legend controls. The plot corrects the displacement signs to show right
+  as positive at gantry zero and in as positive vertically. Both axes initially span
+  at least -1 to +1 mm, expanding to the maximum displacement plus a 10 percent
+  margin when needed. Zero-reference lines stay within the graph boundaries.
 
 v3.49.0
 -------

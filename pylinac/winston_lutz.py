@@ -2003,6 +2003,10 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
     ) -> dict[str, go.Figure]:
         """Plot the analyzed images in a Plotly figure.
 
+        The combined beam's-eye-view (BEV) displacement figure overlays gantry,
+        collimator, couch, and EPID curves and their centroids. Displacements are
+        relative to the field center in the local imaging plane.
+
         Parameters
         ----------
         zoomed : bool
@@ -2154,12 +2158,12 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
         set_legend_bottom(iso_fig)
         figs["Isocenter Visualization"] = iso_fig
 
-        # polar plot and POV plots
-        for axis, start_angle, clock, marker_name in zip(
+        # combined BEV displacement plot
+        fig = go.Figure()
+        max_displacement = 0.0
+        for axis, color in zip(
             (Axis.GANTRY, Axis.COLLIMATOR, Axis.COUCH, Axis.EPID),
-            (90, 270, 270, 90),
-            ("clockwise", "counterclockwise", "counterclockwise", "clockwise"),
-            ("BB", "BB", "BB", "EPID"),
+            ("#636EFA", "#EF553B", "#00CC96", "#AB63FA"),
         ):
             if axis == Axis.EPID:
                 attr = "cax2epid_vector"
@@ -2181,81 +2185,70 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult], QuaacMixin):
             xz_sag = np.array([getattr(img, attr).x for img in imgs])
             y_sag = np.array([getattr(img, attr).y for img in imgs])
             rss = np.sqrt(xz_sag**2 + y_sag**2)
-            rms = rss / np.sqrt(2)
+            max_displacement = max(max_displacement, float(rss.max()))
             # append the first point to the end to close the loop
             angles = np.append(angles, angles[0])
             xz_sag = np.append(xz_sag, xz_sag[0])
             y_sag = np.append(y_sag, y_sag[0])
-            rms = np.append(rms, rms[0])
             rss = np.append(rss, rss[0])
 
-            # X/Y POV plots
-            fig = go.Figure()
-            title = f"{axis.value} POV displacement"
             fig.add_scatter(
                 x=xz_sag,
-                y=y_sag,
+                # negative here due to screen coordinates (y+ out/down) vs IEC 61217 (y+ in/up)
+                y=-y_sag,
                 hovertext=[
                     f"Angle: {angle}\N{DEGREE SIGN}; Total: {r:.3f}mm"
                     for angle, r in zip(angles, rss)
                 ],
                 hoverinfo="text+x+y",
                 mode="lines+markers",
-                name=f"{marker_name} positions",
+                name=axis.value,
+                legendgroup=axis.value,
+                line_color=color,
+                marker=dict(color=color, symbol="circle"),
             )
+            fig.add_scatter(
+                x=[xz_sag.mean()],
+                # negative here due to screen coordinates (y+ out/down) vs IEC 61217 (y+ in/up)
+                y=[-y_sag.mean()],
+                hoverinfo="text+x+y",
+                hovertext=f"Displacement: {math.hypot(xz_sag.mean(), y_sag.mean()):.3f}mm",
+                name=f"{axis.value} Centroid",
+                mode="markers",
+                legendgroup=f"{axis.value} Centroid",
+                showlegend=True,
+                marker=dict(color=color, symbol="diamond", size=10),
+            )
+
+        if fig.data:
+            title = "BEV displacement view"
+            limit = max_displacement * 1.1 if max_displacement > 1 else 1.0
             fig.add_scatter(
                 x=[0],
                 y=[0],
                 name="Field Center",
                 mode="markers",
-            )
-            fig.add_scatter(
-                x=[xz_sag.mean()],
-                y=[y_sag.mean()],
-                hoverinfo="text+x+y",
-                hovertext=f"Displacement: {math.hypot(xz_sag.mean(), y_sag.mean()):.3f}mm",
-                name=f"{marker_name} Centroid",
-                mode="markers",
+                marker=dict(color="black", symbol="cross", size=10),
             )
             add_title(fig, title)
             set_legend_bottom(fig)
-            add_vertical_line(fig, 0, "black", name="y=0")
-            add_horizontal_line(fig, 0, "black", name="x=0")
+            add_vertical_line(fig, 0, "black", name="x=0")
+            add_horizontal_line(fig, 0, "black", name="y=0")
+            # Equal aspect scaling can shrink the axes within the figure paper.
+            fig.update_shapes(selector=dict(name="x=0"), yref="y domain")
+            fig.update_shapes(selector=dict(name="y=0"), xref="x domain")
             fig.update_layout(
                 showlegend=show_legend,
-                xaxis_title="X (+Left) (mm)",
+                legend_groupclick="toggleitem",
+                xaxis_title="Local X (+Right) (mm)",
                 yaxis_title="Y (+In) (mm)",
                 xaxis_scaleanchor="y",
-            )
-            figs[title] = fig
-
-            # polar plots
-            fig = go.Figure()
-            title = f"In-plane {axis.value} displacement"
-            for name, data in zip(
-                ["Y-axis (In/Out)", "X/Z-axis (Gantry plane)", "RMS", "RSS"],
-                [y_sag, xz_sag, rms, rss],
-            ):
-                fig.add_scatterpolar(
-                    r=data,
-                    theta=angles,
-                    name=name,
-                )
-            add_title(fig, title)
-            set_legend_bottom(fig)
-            fig.update_layout(
-                showlegend=show_legend,
-                polar=dict(
-                    angularaxis=dict(rotation=start_angle, direction=clock),
-                    radialaxis=dict(title="Displacement from Field (mm)", visible=True),
-                ),
-            )
-            # add 0-value highlight
-            fig.add_scatterpolar(
-                r=[0] * 100,
-                theta=np.linspace(0, 360, 100),
-                mode="lines",
-                name="0-line",
+                xaxis_range=[-limit, limit],
+                yaxis_range=[-limit, limit],
+                xaxis_autorange=False,
+                yaxis_autorange=False,
+                xaxis_constrain="domain",
+                yaxis_constrain="domain",
             )
             figs[title] = fig
 
