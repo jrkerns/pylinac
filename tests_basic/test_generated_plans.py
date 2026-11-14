@@ -5,6 +5,7 @@ and listed on the Pylinac docs site for use by the public.
 
 import os
 import re
+import unittest
 from pathlib import Path
 from unittest import TestCase
 
@@ -24,6 +25,16 @@ class TestGeneratedPlans(TestCase):
         # if we're local, use the locally generated plans
         else:
             cls.cloud_folder = Path(__file__).parent.parent / "scripts"
+            expected_plans = list(cls.cloud_folder.glob("R2*_prefab.dcm"))
+
+            if len(expected_plans) != 12:
+                raise unittest.SkipTest(
+                    "Generated plans not found. Run "
+                    "'uv run python scripts/prefab_plan_generator.py' "
+                    "to generate them."
+                )
+
+        super().setUpClass()
 
     def test_num_rev2_plans(self):
         self.assertEqual(len(list(Path(self.cloud_folder).glob("R2*"))), 12)
