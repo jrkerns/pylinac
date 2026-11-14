@@ -136,7 +136,7 @@ def find_features(
                 to_pop = []
                 for key, region in sorted(
                     feature_regions.items(),
-                    key=lambda item: item[1].filled_area,
+                    key=lambda item: item[1].area_filled,
                     reverse=True,
                 ):
                     if not condition(
@@ -156,7 +156,7 @@ def find_features(
                 raise ValueError
             else:
                 new_points = [
-                    Point(region.weighted_centroid[1], region.weighted_centroid[0])
+                    Point(region.centroid_weighted[1], region.centroid_weighted[0])
                     for region in feature_regions.values()
                 ]
                 new_boundaries = [

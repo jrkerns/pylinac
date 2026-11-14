@@ -655,7 +655,7 @@ def is_modest_size(region: RegionProperties, *args, **kwargs) -> bool:
 
 def is_square(region: RegionProperties, *args, **kwargs) -> bool:
     """Decide if the ROI is square in nature by testing the filled area vs bounding box. Used to find the BB."""
-    actual_fill_ratio = region.filled_area / region.bbox_area
+    actual_fill_ratio = region.area_filled / region.area_bbox
     return actual_fill_ratio > 0.8
 
 
