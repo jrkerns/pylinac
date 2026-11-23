@@ -55,7 +55,7 @@ MLC_MILLENNIUM_BOUNDARIES = (
 MLC_120HDMIL_BOUNDARIES = (
     list(np.arange(-110, -40 + 1, 5))
     + list(np.arange(-37.5, 37.5 + 1, 2.5))
-    + list(np.arange(40, 110 + 1, 10))
+    + list(np.arange(40, 110 + 1, 5))
 )
 MLC_DISTAL_BOUNDARIES = list(np.arange(-140, 140 + 1, 10))
 MLC_PROXIMAL_BOUNDARIES = list(np.arange(-145, 145 + 1, 10))
