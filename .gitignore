@@ -244,3 +244,7 @@ $RECYCLE.BIN/
 *.lnk
 
 tests_basic/test_files
+
+# Test-run telemetry written by conftest.py (best-effort; cleaned up at session end)
+active_tests.json
+active_tests.json.*.tmp
