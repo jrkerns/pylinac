@@ -45,8 +45,15 @@ import argue
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .core import image, io, pdf
+from .core import image, pdf
 from .core.decorators import lru_cache
+from .core.io import (
+    LoadableMixin,
+    get_url,
+    is_url,
+    retrieve_demo_file,
+    retrieve_filenames,
+)
 from .core.utilities import Structure, convert_to_enum, decode_binary, is_iterable
 from .settings import get_array_cmap
 
@@ -110,19 +117,6 @@ class MachineLogs(list):
         """
         super().__init__()
         self.load_folder(folder, recursive)
-
-    @classmethod
-    def from_zip(cls, zfile: str):
-        """Instantiate from a ZIP archive.
-
-        Parameters
-        ----------
-        zfile : str
-            Path to the zip archive.
-        """
-        with io.TemporaryZipDirectory(zfile) as tzd:
-            logs = cls(tzd)
-        return logs
 
     @property
     def num_logs(self) -> int:
@@ -199,7 +193,7 @@ class MachineLogs(list):
                 log = load_log(obj)
                 super().append(log)
             elif osp.isdir(obj):
-                files = io.retrieve_filenames(obj)
+                files = retrieve_filenames(obj)
                 for file in files:
                     self.append(file)
         elif isinstance(obj, (Dynalog, TrajectoryLog)):
@@ -1564,7 +1558,7 @@ class LogBase:
     @classmethod
     def from_url(cls, url: str, exclude_beam_off: bool = True):
         """Instantiate a log from a URL."""
-        filename = io.get_url(url)
+        filename = get_url(url)
         return cls(filename, exclude_beam_off)
 
     def plot_summary(self, show: bool = True):
@@ -1893,7 +1887,7 @@ class DynalogAxisData:
         self.mlc = MLC.from_dlog(log, self.jaws, snapshot_data, snapshot_idx)
 
 
-class Dynalog(LogBase):
+class Dynalog(LoadableMixin, LogBase):
     """Class for loading, analyzing, and plotting data within a Dynalog file.
 
     Attributes
@@ -1990,10 +1984,14 @@ class Dynalog(LogBase):
 
     @classmethod
     def from_demo(cls, exclude_beam_off: bool = True):
-        """Load and instantiate from the demo dynalog file included with the package."""
-        demo_file = io.retrieve_demo_file(name="AQA.dlg")
-        io.retrieve_demo_file(name="BQA.dlg")  # also download "B" dynalog
-        return cls(demo_file, exclude_beam_off)
+        """Load and instantiate from the demo dynalog file included with the package.
+
+        Ensures both A and B demo dynalog files are present then delegates to
+        the LoadableMixin implementation so DEMO_FILES/DEMO_KWARGS are respected.
+        """
+        # ensure both A and B dynalog demo files are present
+        retrieve_demo_file(name="BQA.dlg")  # also download "B" dynalog
+        return super().from_demo(name="AQA.dlg", exclude_beam_off=exclude_beam_off)
 
     @staticmethod
     def run_demo():
@@ -2348,6 +2346,7 @@ class TrajectoryLog(LogBase):
     """
 
     ANON_LINE = 0
+    DEMO_FILES = ["Tlog.bin"]
 
     def __init__(self, filename: str | BinaryIO, exclude_beam_off: bool = True):
         super().__init__(filename, exclude_beam_off)
@@ -2513,15 +2512,9 @@ class TrajectoryLog(LogBase):
                         self.txt[items[0].strip()] = items[1].strip()
 
     @classmethod
-    def from_demo(cls, exclude_beam_off: bool = True):
-        """Load and instantiate from the demo trajetory log file included with the package."""
-        demo_file = io.retrieve_demo_file(name="Tlog.bin")
-        return cls(demo_file, exclude_beam_off)
-
-    @staticmethod
-    def run_demo():
+    def run_demo(cls):
         """Run the Trajectory log demo."""
-        tlog = TrajectoryLog.from_demo()
+        tlog = cls.from_demo()
         tlog.report_basic_parameters()
         tlog.plot_summary()
 
@@ -2816,8 +2809,8 @@ def load_log(
     One of :class:`~pylinac.log_analyzer.Dynalog`, :class:`~pylinac.log_analyzer.TrajectoryLog`,
         :class:`~pylinac.log_analyzer.MachineLogs`.
     """
-    if io.is_url(file_or_dir):
-        file_or_dir = io.get_url(file_or_dir)
+    if is_url(file_or_dir):
+        file_or_dir = get_url(file_or_dir)
     if osp.isfile(file_or_dir):
         if zipfile.is_zipfile(file_or_dir):
             logs = MachineLogs.from_zip(file_or_dir)
@@ -2895,8 +2888,8 @@ def write_array(writer, description, value, unit=None):
 
 def _get_log_filenames(directory: str, recursive: bool = True) -> list:
     """Extract the names of real log files from a directory."""
-    tlogs = io.retrieve_filenames(directory, is_tlog, recursive=recursive)
-    dlogs = io.retrieve_filenames(directory, is_dlog, recursive=recursive)
+    tlogs = retrieve_filenames(directory, is_tlog, recursive=recursive)
+    dlogs = retrieve_filenames(directory, is_dlog, recursive=recursive)
     # drop double-counted dynalogs (both A & B files; just need one of two)
     idx = 0
     while idx < len(dlogs):

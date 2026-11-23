@@ -241,7 +241,6 @@ class CheesePhantomBase(CatPhanBase, ResultsDataMixin[CheeseResult]):
     """A base class for doing cheese-like phantom analysis. A subset of catphan analysis where only one module is assumed."""
 
     model: str
-    _demo_url: str
     air_bubble_radius_mm: int | float
     localization_radius: int | float
     min_num_images: int
@@ -557,7 +556,7 @@ class TomoCheese(CheesePhantomBase, ResultsDataMixin[TomoCheeseResult]):
     """A class for analyzing the TomoTherapy 'Cheese' Phantom containing insert holes and plugs for HU analysis."""
 
     model = "Tomotherapy Cheese"
-    _demo_url = "TomoCheese.zip"
+    DEMO_FILES = ["TomoCheese.zip"]
     air_bubble_radius_mm = 14
     localization_radius = 110
     min_num_images = 10
@@ -722,10 +721,6 @@ class CIRS062M(CheesePhantomBase):
     roi_config: dict
     module_class = CIRSHUModule
     module: CIRSHUModule
-
-    @classmethod
-    def from_demo_images(cls):
-        raise NotImplementedError("No demo images available for this phantom")
 
     def find_origin_slice(self) -> int:
         """We override to lower the minimum variation required. This is ripe for refactor, but I'd like to
