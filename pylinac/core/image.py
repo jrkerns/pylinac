@@ -1904,6 +1904,7 @@ class ArrayImage(BaseImage):
 class LazyDicomImageStack:
     _image_path_keys: list[Path | str]
     metadatas: list[pydicom.Dataset]
+    sorted_method = "No sort"
 
     def __init__(
         self,
@@ -1941,14 +1942,23 @@ class LazyDicomImageStack:
         # error checking
         if check_uid:
             most_common_uid = self._get_common_uid_imgs(metadatas, min_number)
+            paths = [p for p, m in zip(paths, metadatas)
+                     if m.SeriesInstanceUID == most_common_uid]
             metadatas = [m for m in metadatas if m.SeriesInstanceUID == most_common_uid]
-            paths = [
-                p
-                for p, m in zip(paths, metadatas)
-                if m.SeriesInstanceUID == most_common_uid
-            ]
         # sort according to physical order
-        order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
+        order = np.arange(0, len(metadatas))
+        if hasattr(metadatas[0], "ImagePositionPatient"):
+            order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
+            self.sorted_method = "Image position patient"
+        # if ImagePositionPatient is not available use Instance Number
+        elif hasattr(metadatas[0], "InstanceNumber"):
+            order = np.argsort([m.InstanceNumber for m in metadatas])
+            self.sorted_method = "Instance number"
+        # if InstanceNumber is not avalable use SOPInstanceUID
+        elif hasattr(metadatas[0], "SOPInstanceUID"):
+            order = np.argsort([m.SOPInstanceUID for m in metadatas])
+            self.sorted_method = "SOP Instance UID"
+        # else just use the order they came in
         self.metadatas = [metadatas[i] for i in order]
         self._image_path_keys = [paths[i] for i in order]
 
@@ -2122,7 +2132,19 @@ class LazyZipDicomImageStack(LazyDicomImageStack):
             paths, metadatas = zip(*pairs)
 
         # sort according to physical order
-        order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
+        order = np.arange(0, len(metadatas))
+        if hasattr(metadatas[0], "ImagePositionPatient"):
+            order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
+            self.sorted_method = "Image position patient"
+        # if ImagePositionPatient is not available use Instance Number
+        elif hasattr(metadatas[0], "InstanceNumber"):
+            order = np.argsort([m.InstanceNumber for m in metadatas])
+            self.sorted_method = "Instance number"
+        # if InstanceNumber is not avalable use SOPInstanceUID
+        elif hasattr(metadatas[0], "SOPInstanceUID"):
+            order = np.argsort([m.SOPInstanceUID for m in metadatas])
+            self.sorted_method = "SOP Instance UID"
+        # else just use the order they came in
         self.metadatas = [metadatas[i] for i in order]
         self._image_path_keys = [paths[i] for i in order]
         self.create_shadow(paths)
