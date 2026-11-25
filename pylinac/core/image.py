@@ -1946,8 +1946,7 @@ class LazyDicomImageStack:
                      if m.SeriesInstanceUID == most_common_uid]
             metadatas = [m for m in metadatas if m.SeriesInstanceUID == most_common_uid]
         # sort according to physical order
-        # TODO write tests for these
-        order = np.arange(0,len(metadatas))
+        order = np.arange(0, len(metadatas))
         if hasattr(metadatas[0], "ImagePositionPatient"):
             order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
             self.sorted_method = "Image position patient"
