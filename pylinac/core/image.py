@@ -2132,7 +2132,19 @@ class LazyZipDicomImageStack(LazyDicomImageStack):
             paths, metadatas = zip(*pairs)
 
         # sort according to physical order
-        order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
+        order = np.arange(0, len(metadatas))
+        if hasattr(metadatas[0], "ImagePositionPatient"):
+            order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
+            self.sorted_method = "Image position patient"
+        # if ImagePositionPatient is not available use Instance Number
+        elif hasattr(metadatas[0], "InstanceNumber"):
+            order = np.argsort([m.InstanceNumber for m in metadatas])
+            self.sorted_method = "Instance number"
+        # if InstanceNumber is not avalable use SOPInstanceUID
+        elif hasattr(metadatas[0], "SOPInstanceUID"):
+            order = np.argsort([m.SOPInstanceUID for m in metadatas])
+            self.sorted_method = "SOP Instance UID"
+        # else just use the order they came in
         self.metadatas = [metadatas[i] for i in order]
         self._image_path_keys = [paths[i] for i in order]
         self.create_shadow(paths)
